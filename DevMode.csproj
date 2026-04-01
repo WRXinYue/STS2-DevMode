@@ -1,0 +1,84 @@
+<Project Sdk="Godot.NET.Sdk/4.5.1">
+  <Import Project="local.props" Condition="Exists('local.props')" />
+
+  <PropertyGroup>
+    <DefaultItemExcludes>$(DefaultItemExcludes);packages/**;**/.godot/**</DefaultItemExcludes>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>true</ImplicitUsings>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PublishDir>$(MSBuildProjectDirectory)\Publish</PublishDir>
+    <Sts2DataDir>$(Sts2Dir)\data_sts2_windows_x86_64</Sts2DataDir>
+    <ModId>DevMode</ModId>
+    <AssemblyName>$(ModId)</AssemblyName>
+    <ModsDir>$(Sts2Dir)\mods\$(ModId)</ModsDir>
+    <RepoRoot Condition="'$(RepoRoot)' == ''">$(MSBuildThisFileDirectory)</RepoRoot>
+    <RepoBuildDir>$(RepoRoot)build\$(ModId)</RepoBuildDir>
+    <DeployToGame Condition="'$(DeployToGame)' == ''">false</DeployToGame>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(DeployToGame)' == 'false'">
+    <PublishDir>$(RepoBuildDir)</PublishDir>
+    <OutputPath>$(RepoBuildDir)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <Target Name="CheckLocalProps" BeforeTargets="BeforeBuild;BeforePublish">
+    <Error Condition="'$(Sts2Dir)' == ''" Text="Sts2Dir not set. Edit local.props with your STS2 install path." />
+  </Target>
+
+  <Target Name="ExcludeGodotTempFromCompile" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <Compile Remove="$(MSBuildProjectDirectory)\.godot\**\*.cs" />
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup>
+    <Reference Include="sts2">
+      <HintPath>$(Sts2DataDir)\sts2.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(Sts2DataDir)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.3">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="$(MSBuildProjectName)\**" />
+    <EmbeddedResource Remove="$(MSBuildProjectName)\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="$(MSBuildProjectName)\**" />
+  </ItemGroup>
+
+  <!-- Deploy built DLL + deps to game mods folder -->
+  <Target Name="DeployToGame" AfterTargets="Publish" Condition="'$(DeployToGame)' == 'true'">
+    <ItemGroup>
+      <DeployFiles Include="$(PublishDir)\$(ModId).dll" />
+      <DeployFiles Include="$(PublishDir)\$(ModId).deps.json" />
+      <DeployFiles Include="$(PublishDir)\$(ModId).pck" Condition="Exists('$(PublishDir)\$(ModId).pck')" />
+      <DeployFiles Include="$(MSBuildProjectDirectory)\$(ModId).json" />
+    </ItemGroup>
+    <MakeDir Directories="$(ModsDir)" />
+    <Copy SourceFiles="@(DeployFiles)" DestinationFolder="$(ModsDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- Copy repo build artifacts to game mods (used by VS Code sync task) -->
+  <Target Name="DeployRepoBuildToMods" DependsOnTargets="CheckLocalProps">
+    <Error Condition="'$(DeployFromRepoBuild)' != 'true'" Text="Set DeployFromRepoBuild=true (e.g. make deploy)." />
+    <MakeDir Directories="$(ModsDir)\" />
+    <Copy SourceFiles="$(RepoBuildDir)\$(ModId).dll" DestinationFolder="$(ModsDir)\" SkipUnchangedFiles="true" Condition="Exists('$(RepoBuildDir)\$(ModId).dll')" />
+    <Copy SourceFiles="$(RepoBuildDir)\$(ModId).json" DestinationFolder="$(ModsDir)\" SkipUnchangedFiles="true" Condition="Exists('$(RepoBuildDir)\$(ModId).json')" />
+    <Copy SourceFiles="$(RepoBuildDir)\$(ModId).pck" DestinationFolder="$(ModsDir)\" SkipUnchangedFiles="true" Condition="Exists('$(RepoBuildDir)\$(ModId).pck')" />
+  </Target>
+</Project>
