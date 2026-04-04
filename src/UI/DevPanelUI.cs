@@ -73,6 +73,43 @@ internal static class DevPanelUI
         vbox.AddChild(CreateSeparator());
         vbox.AddChild(CreateButton("存档", actions.OnOpenSave));
         vbox.AddChild(CreateButton("读档", actions.OnOpenLoad));
+
+        // AI control section
+        if (actions.OnToggleAI != null)
+        {
+            vbox.AddChild(CreateSeparator());
+
+            var aiBtn = CreatePlainButton("AI: 关闭");
+            Button? stratBtn = null;
+            Button? speedBtn = null;
+
+            aiBtn.Pressed += () =>
+            {
+                actions.OnToggleAI();
+                bool enabled = actions.IsAIEnabled?.Invoke() ?? false;
+                aiBtn.Text = enabled ? "AI: 运行中" : "AI: 关闭";
+                if (stratBtn != null) stratBtn.Visible = !enabled;
+                if (speedBtn != null) speedBtn.Visible = !enabled;
+            };
+            vbox.AddChild(aiBtn);
+
+            stratBtn = CreatePlainButton($"策略: {(actions.GetStrategyName?.Invoke() ?? "规则")}");
+            stratBtn.Pressed += () =>
+            {
+                actions.OnCycleStrategy?.Invoke();
+                stratBtn.Text = $"策略: {(actions.GetStrategyName?.Invoke() ?? "?")}";
+            };
+            vbox.AddChild(stratBtn);
+
+            speedBtn = CreatePlainButton($"速度: {(actions.GetSpeedLabel?.Invoke() ?? "正常")}");
+            speedBtn.Pressed += () =>
+            {
+                actions.OnCycleSpeed?.Invoke();
+                speedBtn.Text = $"速度: {(actions.GetSpeedLabel?.Invoke() ?? "?")}";
+            };
+            vbox.AddChild(speedBtn);
+        }
+
         panel.AddChild(vbox);
         drawer.AddChild(panel);
 
@@ -413,9 +450,15 @@ internal static class DevPanelUI
 
     private static Button CreateButton(string text, Action action)
     {
-        var btn = new Button { Text = text, CustomMinimumSize = new Vector2(0, 40) };
+        var btn = CreatePlainButton(text);
         btn.Pressed += action;
         return btn;
+    }
+
+    /// <summary>Sidebar button without an initial <see cref="Button.Pressed"/> handler (Godot rejects null callables).</summary>
+    private static Button CreatePlainButton(string text)
+    {
+        return new Button { Text = text, CustomMinimumSize = new Vector2(0, 40) };
     }
 
     private static HSeparator CreateSeparator()
@@ -473,4 +516,12 @@ internal sealed class DevPanelActions
     public required Action OnOpenSave     { get; init; }
     public required Action OnOpenLoad     { get; init; }
     public required Action OnRefreshPanel { get; init; }
+
+    // AI control (optional — null if STS2AI mod not available)
+    public Action? OnToggleAI       { get; init; }
+    public Action? OnCycleStrategy  { get; init; }
+    public Action? OnCycleSpeed     { get; init; }
+    public Func<bool>? IsAIEnabled  { get; init; }
+    public Func<string>? GetStrategyName { get; init; }
+    public Func<string>? GetSpeedLabel   { get; init; }
 }

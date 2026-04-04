@@ -8,6 +8,7 @@ using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
 using MegaCrit.Sts2.Core.Nodes.Screens.RelicCollection;
 using MegaCrit.Sts2.Core.Runs;
 using DevMode.Actions;
+using DevMode.AI;
 using DevMode.Navigation;
 using DevMode.UI;
 
@@ -86,7 +87,13 @@ internal static class DevPanel
                                     slot => SnapshotManager.SaveToSlot(slot)),
                 OnOpenLoad    = () => SnapshotSlotUI.Show(globalUi, saveMode: false,
                                     slot => SnapshotManager.LoadFromSlot(slot)),
-                OnRefreshPanel = RefreshPanel
+                OnRefreshPanel = RefreshPanel,
+                OnToggleAI      = AIControl.IsAvailable ? AIControl.Toggle : null,
+                OnCycleStrategy = AIControl.IsAvailable ? AIControl.CycleStrategy : null,
+                OnCycleSpeed    = AIControl.IsAvailable ? AIControl.CycleSpeed : null,
+                IsAIEnabled     = AIControl.IsAvailable ? () => AIControl.IsEnabled : null,
+                GetStrategyName = AIControl.IsAvailable ? AIControl.GetStrategyName : null,
+                GetSpeedLabel   = AIControl.IsAvailable ? AIControl.GetSpeedLabel : null,
             };
 
             DevPanelUI.Attach(globalUi, actions);
