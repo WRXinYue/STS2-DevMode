@@ -74,6 +74,24 @@ internal static class DevPanelUI
         vbox.AddChild(CreateButton("存档", actions.OnOpenSave));
         vbox.AddChild(CreateButton("读档", actions.OnOpenLoad));
 
+        // Game speed control
+        vbox.AddChild(CreateSeparator());
+        var gameSpeedBtn = CreatePlainButton($"速度: {actions.GetGameSpeedLabel()}");
+        gameSpeedBtn.Pressed += () =>
+        {
+            actions.OnCycleGameSpeed();
+            gameSpeedBtn.Text = $"速度: {actions.GetGameSpeedLabel()}";
+        };
+        vbox.AddChild(gameSpeedBtn);
+
+        var skipAnimBtn = CreatePlainButton($"跳过动画: {actions.GetSkipAnimLabel()}");
+        skipAnimBtn.Pressed += () =>
+        {
+            actions.OnToggleSkipAnim();
+            skipAnimBtn.Text = $"跳过动画: {actions.GetSkipAnimLabel()}";
+        };
+        vbox.AddChild(skipAnimBtn);
+
         // AI control section
         if (actions.OnToggleAI != null)
         {
@@ -524,4 +542,12 @@ internal sealed class DevPanelActions
     public Func<bool>? IsAIEnabled  { get; init; }
     public Func<string>? GetStrategyName { get; init; }
     public Func<string>? GetSpeedLabel   { get; init; }
+
+    // Game speed control
+    public required Action OnCycleGameSpeed   { get; init; }
+    public required Func<string> GetGameSpeedLabel { get; init; }
+
+    // Skip card animation control
+    public required Action OnToggleSkipAnim    { get; init; }
+    public required Func<string> GetSkipAnimLabel { get; init; }
 }

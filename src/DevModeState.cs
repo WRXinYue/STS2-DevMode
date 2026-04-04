@@ -63,6 +63,9 @@ public static class DevModeState
     public static CardMode CardMode { get; set; } = CardMode.View;
     public static RelicMode RelicMode { get; set; } = RelicMode.View;
 
+    /// <summary>Current game speed multiplier (1.0 = normal).</summary>
+    public static float GameSpeed { get; set; } = 1.0f;
+
     public static void OnRunStarted()
     {
         InDevRun = IsActive;
@@ -72,5 +75,6 @@ public static class DevModeState
     public static void OnRunEnded()
     {
         InDevRun = false;
+        GameSpeed = 1.0f;
     }
 }

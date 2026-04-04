@@ -94,6 +94,10 @@ internal static class DevPanel
                 IsAIEnabled     = AIControl.IsAvailable ? () => AIControl.IsEnabled : null,
                 GetStrategyName = AIControl.IsAvailable ? AIControl.GetStrategyName : null,
                 GetSpeedLabel   = AIControl.IsAvailable ? AIControl.GetSpeedLabel : null,
+                OnCycleGameSpeed   = SpeedControl.CycleSpeed,
+                GetGameSpeedLabel  = SpeedControl.GetLabel,
+                OnToggleSkipAnim   = SkipAnimControl.Toggle,
+                GetSkipAnimLabel   = SkipAnimControl.GetLabel,
             };
 
             DevPanelUI.Attach(globalUi, actions);
@@ -113,6 +117,8 @@ internal static class DevPanel
         {
             DevPanelUI.Detach(globalUi);
             ClearState();
+            SpeedControl.Reset();
+            SkipAnimControl.Reset();
             _globalUi = null;
         }
         catch (Exception ex)

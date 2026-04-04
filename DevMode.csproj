@@ -43,10 +43,6 @@
       <HintPath>$(Sts2DataDir)\0Harmony.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="STS2AI">
-      <HintPath>$(Sts2Dir)\mods\STS2AI\STS2AI.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
   </ItemGroup>
 
   <ItemGroup>
