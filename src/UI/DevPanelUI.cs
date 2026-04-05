@@ -1,6 +1,7 @@
 using System;
 using Godot;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using MegaCrit.Sts2.Core.Rooms;
 
 namespace DevMode.UI;
 
@@ -70,6 +71,7 @@ internal static class DevPanelUI
         vbox.AddThemeConstantOverride("separation", 6);
         vbox.AddChild(CreateButton("卡牌", actions.OnOpenCards));
         vbox.AddChild(CreateButton("遗物", actions.OnOpenRelics));
+        vbox.AddChild(CreateButton("敌人", actions.OnOpenEnemies));
         vbox.AddChild(CreateSeparator());
         vbox.AddChild(CreateButton("存档", actions.OnOpenSave));
         vbox.AddChild(CreateButton("读档", actions.OnOpenLoad));
@@ -241,9 +243,13 @@ internal static class DevPanelUI
             && DevModeState.CardMode == CardMode.View;
         bool showDuration = DevModeState.ActivePanel == ActivePanel.Cards
             && DevModeState.CardMode is CardMode.Add or CardMode.Upgrade or CardMode.Delete;
-        float barHalfW = DevModeState.ActivePanel == ActivePanel.Cards
-            ? (isCardView ? 130 : showDuration ? 340 : 270)
-            : 110;
+        float barHalfW = DevModeState.ActivePanel switch
+        {
+            ActivePanel.Cards   => isCardView ? 130 : showDuration ? 340 : 270,
+            ActivePanel.Relics  => 110,
+            ActivePanel.Enemies => Actions.CombatEnemyActions.GetCombatState() != null ? 340 : 220,
+            _                   => 110
+        };
 
         var bar = new HBoxContainer
         {
@@ -259,6 +265,8 @@ internal static class DevPanelUI
 
         if (DevModeState.ActivePanel == ActivePanel.Cards)
             BuildCardTopBar(bar, cardTargetAvailable);
+        else if (DevModeState.ActivePanel == ActivePanel.Enemies)
+            BuildEnemyTopBar(bar);
         else
             BuildRelicTopBar(bar);
 
@@ -404,6 +412,84 @@ internal static class DevPanelUI
         Refresh();
     }
 
+    private static void BuildEnemyTopBar(HBoxContainer bar)
+    {
+        // Left group: encounter override modes
+        var labels = new[] { "全局", "按类型", "按楼层", "关闭" };
+        var modes  = new[] { EnemyMode.Global, EnemyMode.PerType, EnemyMode.Off, EnemyMode.Off };
+        var buttons = new Button[labels.Length];
+
+        void Refresh()
+        {
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                bool active;
+                if (i == 2) // 按楼层 — active when there are floor overrides
+                    active = DevModeState.FloorOverrides.Count > 0;
+                else if (i == 3) // 关闭
+                    active = DevModeState.EnemyMode == EnemyMode.Off && DevModeState.FloorOverrides.Count == 0;
+                else
+                    active = DevModeState.EnemyMode == modes[i];
+                int corners = (i == 0 ? 1 : 0) | (i == buttons.Length - 1 ? 2 : 0);
+                ApplyToggleStyle(buttons[i], active, corners);
+            }
+        }
+
+        for (int i = 0; i < labels.Length; i++)
+        {
+            int idx = i;
+            var btn = CreateToggleButton(labels[idx]);
+            btn.Pressed += () =>
+            {
+                if (idx == 3) // 关闭 = clear all
+                {
+                    DevModeState.ClearEnemyOverrides();
+                    Refresh();
+                    return;
+                }
+                if (idx == 2) // 按楼层
+                {
+                    _onRefreshPanel?.Invoke();
+                    return;
+                }
+                DevModeState.EnemyMode = modes[idx];
+                Refresh();
+                _onRefreshPanel?.Invoke();
+            };
+            buttons[i] = btn;
+            bar.AddChild(btn);
+        }
+
+        // Right group: combat actions (add monster / kill enemy)
+        bool inCombat = Actions.CombatEnemyActions.GetCombatState() != null;
+        if (inCombat)
+        {
+            bar.AddChild(new Control { CustomMinimumSize = new Vector2(12, 0) });
+
+            var addBtn = CreateToggleButton("添加怪物");
+            ApplyToggleStyle(addBtn, false, 1); // left corners
+            addBtn.Pressed += () => _onRefreshPanel?.Invoke(); // handled by DevPanel
+            addBtn.SetMeta("combat_action", "add");
+            bar.AddChild(addBtn);
+
+            var killBtn = CreateToggleButton("击杀敌人");
+            ApplyToggleStyle(killBtn, false, 2); // right corners
+            killBtn.Pressed += () =>
+            {
+                // Signal to DevPanel to open kill picker
+                DevModeState.ActivePanel = ActivePanel.Enemies;
+                _onCombatKill?.Invoke();
+            };
+            bar.AddChild(killBtn);
+        }
+
+        Refresh();
+    }
+
+    // Combat kill callback — set by DevPanel
+    private static Action? _onCombatKill;
+    public static void SetCombatKillCallback(Action? callback) => _onCombatKill = callback;
+
     // ──────── Helpers ────────
 
     private static void RemoveTopBar(NGlobalUi globalUi)
@@ -531,6 +617,7 @@ internal sealed class DevPanelActions
 {
     public required Action OnOpenCards     { get; init; }
     public required Action OnOpenRelics   { get; init; }
+    public required Action OnOpenEnemies  { get; init; }
     public required Action OnOpenSave     { get; init; }
     public required Action OnOpenLoad     { get; init; }
     public required Action OnRefreshPanel { get; init; }

@@ -1,0 +1,38 @@
+using HarmonyLib;
+using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Rooms;
+using MegaCrit.Sts2.Core.Runs;
+
+namespace DevMode.Patches;
+
+/// <summary>
+/// Intercepts <see cref="ActModel.PullNextEncounter"/> to inject custom encounter overrides.
+/// When a DevMode enemy override is active, the original encounter is replaced with the
+/// user-selected one. Supports global, per-room-type, and per-floor overrides.
+/// </summary>
+[HarmonyPatch(typeof(ActModel), nameof(ActModel.PullNextEncounter))]
+public static class EnemyOverridePatch
+{
+    public static void Postfix(RoomType roomType, ref EncounterModel __result)
+    {
+        if (!DevModeState.InDevRun) return;
+
+        // Resolve current floor from RunManager state
+        int floor = 0;
+        try
+        {
+            var state = RunManager.Instance?.DebugOnlyGetState();
+            if (state != null)
+                floor = state.ActFloor;
+        }
+        catch { /* ignore */ }
+
+        MainFile.Logger.Info($"EnemyOverridePatch: PullNextEncounter called — roomType={roomType}, floor={floor}, mode={DevModeState.EnemyMode}");
+
+        var overrideEnc = DevModeState.ResolveOverride(roomType, floor);
+        if (overrideEnc == null) return;
+
+        __result = overrideEnc.ToMutable();
+        MainFile.Logger.Info($"EnemyOverridePatch: Replaced {roomType} encounter with {((AbstractModel)overrideEnc).Id.Entry} (floor {floor})");
+    }
+}

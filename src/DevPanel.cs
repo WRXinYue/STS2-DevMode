@@ -6,6 +6,7 @@ using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
 using MegaCrit.Sts2.Core.Nodes.Screens.RelicCollection;
+using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
 using DevMode.Actions;
 using DevMode.AI;
@@ -83,6 +84,7 @@ internal static class DevPanel
             {
                 OnOpenCards   = OpenCards,
                 OnOpenRelics  = OpenRelics,
+                OnOpenEnemies = OpenEnemies,
                 OnOpenSave    = () => SnapshotSlotUI.Show(globalUi, saveMode: true,
                                     slot => SnapshotManager.SaveToSlot(slot)),
                 OnOpenLoad    = () => SnapshotSlotUI.Show(globalUi, saveMode: false,
@@ -203,12 +205,84 @@ internal static class DevPanel
         }
     }
 
+    private static void OpenEnemies()
+    {
+        if (_globalUi == null) return;
+        DevModeState.ActivePanel = ActivePanel.Enemies;
+        UpdateTopBar();
+
+        // Wire up the combat kill callback
+        DevPanelUI.SetCombatKillCallback(() =>
+        {
+            if (_globalUi != null)
+                EnemySelectUI.ShowEnemyKillPicker(_globalUi);
+        });
+
+        // Check if we're in combat — if so, default to showing the monster picker
+        var combatState = CombatEnemyActions.GetCombatState();
+
+        switch (DevModeState.EnemyMode)
+        {
+            case EnemyMode.Global:
+                if (combatState != null)
+                {
+                    // In combat: show encounter picker to add enemies
+                    EnemySelectUI.Show(_globalUi, null, enc =>
+                    {
+                        TaskHelper.RunSafely(CombatEnemyActions.AddEncounterMonsters(enc));
+                    });
+                }
+                else
+                {
+                    EnemySelectUI.Show(_globalUi, null, enc =>
+                    {
+                        EnemyActions.SetGlobalOverride(enc);
+                        UpdateTopBar();
+                    });
+                }
+                break;
+
+            case EnemyMode.PerType:
+                ShowRoomTypePicker();
+                break;
+
+            case EnemyMode.Off:
+                if (combatState != null)
+                {
+                    // In combat with no override mode: show encounter picker
+                    EnemySelectUI.Show(_globalUi, null, enc =>
+                    {
+                        TaskHelper.RunSafely(CombatEnemyActions.AddEncounterMonsters(enc));
+                    });
+                }
+                else
+                {
+                    EnemySelectUI.ShowFloorPicker(_globalUi);
+                }
+                break;
+        }
+    }
+
+    private static void ShowRoomTypePicker()
+    {
+        if (_globalUi == null) return;
+
+        // Show encounter selector filtered by each room type in sequence
+        // For simplicity, show the full selector with filter tabs
+        EnemySelectUI.Show(_globalUi, RoomType.Monster, enc =>
+        {
+            EnemyActions.SetRoomTypeOverride(enc.RoomType, enc);
+            UpdateTopBar();
+        });
+    }
+
     private static void RefreshPanel()
     {
         switch (DevModeState.ActivePanel)
         {
-            case ActivePanel.Cards:  OpenCards();  break;
-            case ActivePanel.Relics: OpenRelics(); break;
+            case ActivePanel.Cards:   OpenCards();   break;
+            case ActivePanel.Relics:  OpenRelics();  break;
+            case ActivePanel.Enemies: OpenEnemies(); break;
         }
     }
 
