@@ -265,11 +265,16 @@ internal static class DevPanelUI
         // Close our internal overlay (cheats/save/ai)
         CloseOverlay(globalUi);
 
-        // Close all external UI overlays
+        // Close all external UI overlays — use immediate removal to avoid same-frame conflicts
+        var parent = (Node)globalUi;
         foreach (var name in _externalOverlayNames)
         {
-            var node = ((Node)globalUi).GetNodeOrNull<Control>(name);
-            node?.QueueFree();
+            var node = parent.GetNodeOrNull<Control>(name);
+            if (node != null)
+            {
+                parent.RemoveChild(node);
+                node.QueueFree();
+            }
         }
     }
 

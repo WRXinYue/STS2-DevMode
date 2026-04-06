@@ -443,7 +443,12 @@ internal static class EnemySelectUI
 
     public static void Hide(NGlobalUi globalUi)
     {
-        ((Node)globalUi).GetNodeOrNull<Control>(RootName)?.QueueFree();
+        var node = ((Node)globalUi).GetNodeOrNull<Control>(RootName);
+        if (node != null)
+        {
+            ((Node)globalUi).RemoveChild(node);
+            node.QueueFree();
+        }
     }
 
     // ── Per-floor picker (shows a number input + encounter selector) ──
