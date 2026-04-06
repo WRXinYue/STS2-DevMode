@@ -2,6 +2,7 @@ using System;
 using Godot;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Rooms;
+using DevMode.Icons;
 
 namespace DevMode.UI;
 
@@ -93,20 +94,20 @@ internal static class DevPanelUI
 
         // ── Section: Actions ──
         vbox.AddChild(CreateSectionHeader(I18N.T("panel.section.actions", "Actions")));
-        vbox.AddChild(CreateButton(I18N.T("panel.cards", "Cards"), actions.OnOpenCards));
-        vbox.AddChild(CreateButton(I18N.T("panel.relics", "Relics"), actions.OnOpenRelics));
-        vbox.AddChild(CreateButton(I18N.T("panel.enemies", "Enemies"), actions.OnOpenEnemies));
-        vbox.AddChild(CreateButton(I18N.T("panel.powers", "Powers"), actions.OnOpenPowers));
-        vbox.AddChild(CreateButton(I18N.T("panel.potions", "Potions"), actions.OnOpenPotions));
-        vbox.AddChild(CreateButton(I18N.T("panel.events", "Events"), actions.OnOpenEvents));
-        vbox.AddChild(CreateButton(I18N.T("panel.cardEdit", "Card Editor"), actions.OnOpenCardEdit));
-        vbox.AddChild(CreateButton(I18N.T("panel.console", "Console"), actions.OnOpenConsole));
-        vbox.AddChild(CreateButton(I18N.T("panel.presets", "Presets"), actions.OnOpenPresets));
+        vbox.AddChild(CreateButton(I18N.T("panel.cards", "Cards"), actions.OnOpenCards, MdiIcon.Cards));
+        vbox.AddChild(CreateButton(I18N.T("panel.relics", "Relics"), actions.OnOpenRelics, MdiIcon.Diamond));
+        vbox.AddChild(CreateButton(I18N.T("panel.enemies", "Enemies"), actions.OnOpenEnemies, MdiIcon.Skull));
+        vbox.AddChild(CreateButton(I18N.T("panel.powers", "Powers"), actions.OnOpenPowers, MdiIcon.Flash));
+        vbox.AddChild(CreateButton(I18N.T("panel.potions", "Potions"), actions.OnOpenPotions, MdiIcon.Potion));
+        vbox.AddChild(CreateButton(I18N.T("panel.events", "Events"), actions.OnOpenEvents, MdiIcon.CalendarStar));
+        vbox.AddChild(CreateButton(I18N.T("panel.cardEdit", "Card Editor"), actions.OnOpenCardEdit, MdiIcon.Pencil));
+        vbox.AddChild(CreateButton(I18N.T("panel.console", "Console"), actions.OnOpenConsole, MdiIcon.Console));
+        vbox.AddChild(CreateButton(I18N.T("panel.presets", "Presets"), actions.OnOpenPresets, MdiIcon.BookOpen));
 
         // ── Section: Save ──
         vbox.AddChild(CreateSectionHeader(I18N.T("panel.section.save", "Save")));
-        vbox.AddChild(CreateButton(I18N.T("panel.save", "Save"), actions.OnOpenSave));
-        vbox.AddChild(CreateButton(I18N.T("panel.load", "Load"), actions.OnOpenLoad));
+        vbox.AddChild(CreateButton(I18N.T("panel.save", "Save"), actions.OnOpenSave, MdiIcon.ContentSave));
+        vbox.AddChild(CreateButton(I18N.T("panel.load", "Load"), actions.OnOpenLoad, MdiIcon.FolderOpen));
 
         // ── Section: Player ──
         vbox.AddChild(CreateSectionHeader(I18N.T("panel.section.player", "Player")));
@@ -256,7 +257,7 @@ internal static class DevPanelUI
             () => DevModeState.MapRewriteEnabled,
             v => DevModeState.MapRewriteEnabled = v));
 
-        var mapModeBtn = CreatePlainButton(I18N.T("mapRewrite.mode", "Mode") + ": " + GetMapRewriteLabel());
+        var mapModeBtn = CreatePlainButton(I18N.T("mapRewrite.mode", "Mode") + ": " + GetMapRewriteLabel(), MdiIcon.Map);
         mapModeBtn.Pressed += () =>
         {
             DevModeState.MapRewriteMode = DevModeState.MapRewriteMode switch
@@ -277,7 +278,7 @@ internal static class DevPanelUI
             () => DevModeState.MapKeepFinalBoss,
             v => DevModeState.MapKeepFinalBoss = v));
 
-        var gameSpeedBtn = CreatePlainButton(I18N.T("panel.speed", "Speed: {0}", actions.GetGameSpeedLabel()));
+        var gameSpeedBtn = CreatePlainButton(I18N.T("panel.speed", "Speed: {0}", actions.GetGameSpeedLabel()), MdiIcon.SpeedometerMedium);
         gameSpeedBtn.Pressed += () =>
         {
             actions.OnCycleGameSpeed();
@@ -285,7 +286,7 @@ internal static class DevPanelUI
         };
         vbox.AddChild(gameSpeedBtn);
 
-        var skipAnimBtn = CreatePlainButton(I18N.T("panel.skipAnim", "Skip Anim: {0}", actions.GetSkipAnimLabel()));
+        var skipAnimBtn = CreatePlainButton(I18N.T("panel.skipAnim", "Skip Anim: {0}", actions.GetSkipAnimLabel()), MdiIcon.AnimationPlay);
         skipAnimBtn.Pressed += () =>
         {
             actions.OnToggleSkipAnim();
@@ -384,7 +385,7 @@ internal static class DevPanelUI
         {
             vbox.AddChild(CreateSectionHeader(I18N.T("panel.section.ai", "AI")));
 
-            var aiBtn = CreatePlainButton(I18N.T("panel.ai.off", "AI: Off"));
+            var aiBtn = CreatePlainButton(I18N.T("panel.ai.off", "AI: Off"), MdiIcon.Robot);
             Button? stratBtn = null;
             Button? speedBtn = null;
 
@@ -398,7 +399,7 @@ internal static class DevPanelUI
             };
             vbox.AddChild(aiBtn);
 
-            stratBtn = CreatePlainButton(I18N.T("panel.ai.strategy", "Strategy: {0}", actions.GetStrategyName?.Invoke() ?? I18N.T("ai.strategy.rule", "Rule")));
+            stratBtn = CreatePlainButton(I18N.T("panel.ai.strategy", "Strategy: {0}", actions.GetStrategyName?.Invoke() ?? I18N.T("ai.strategy.rule", "Rule")), MdiIcon.Cog);
             stratBtn.Pressed += () =>
             {
                 actions.OnCycleStrategy?.Invoke();
@@ -406,7 +407,7 @@ internal static class DevPanelUI
             };
             vbox.AddChild(stratBtn);
 
-            speedBtn = CreatePlainButton(I18N.T("panel.ai.speed", "Speed: {0}", actions.GetSpeedLabel?.Invoke() ?? I18N.T("ai.speed.normal", "Normal")));
+            speedBtn = CreatePlainButton(I18N.T("panel.ai.speed", "Speed: {0}", actions.GetSpeedLabel?.Invoke() ?? I18N.T("ai.speed.normal", "Normal")), MdiIcon.FastForward);
             speedBtn.Pressed += () =>
             {
                 actions.OnCycleSpeed?.Invoke();
@@ -434,8 +435,8 @@ internal static class DevPanelUI
         drawer.AddChild(resizeHandle);
 
         // ── Arrow tab (sits at the right edge of the drawer, vertically centred) ──
-        _arrowRight ??= CreateChevronTexture(true);
-        _arrowLeft  ??= CreateChevronTexture(false);
+        _arrowRight ??= MdiIcon.ChevronRight.Texture(16, new Color(0.85f, 0.85f, 0.9f));
+        _arrowLeft  ??= MdiIcon.ChevronLeft.Texture(16, new Color(0.85f, 0.85f, 0.9f));
 
         var tab = new Button
         {
@@ -961,17 +962,24 @@ internal static class DevPanelUI
         btn.AddThemeStyleboxOverride("focus",   s);
     }
 
-    private static Button CreateButton(string text, Action action)
+    private static Button CreateButton(string text, Action action, MdiIcon? icon = null)
     {
-        var btn = CreatePlainButton(text);
+        var btn = CreatePlainButton(text, icon);
         btn.Pressed += action;
         return btn;
     }
 
     /// <summary>Sidebar button without an initial <see cref="Button.Pressed"/> handler (Godot rejects null callables).</summary>
-    private static Button CreatePlainButton(string text)
+    private static Button CreatePlainButton(string text, MdiIcon? icon = null)
     {
-        return new Button { Text = text, CustomMinimumSize = new Vector2(0, 40) };
+        var btn = new Button { Text = text, CustomMinimumSize = new Vector2(0, 40) };
+        if (icon is { } ic)
+        {
+            btn.Icon = ic.Texture(18);
+            btn.IconAlignment = HorizontalAlignment.Left;
+            btn.Alignment = HorizontalAlignment.Left;
+        }
+        return btn;
     }
 
     private static HSeparator CreateSeparator()
@@ -1114,7 +1122,8 @@ internal static class DevPanelUI
         lbl.AddThemeFontSizeOverride("font_size", 12);
         row.AddChild(lbl);
 
-        var minusBtn = new Button { Text = "−", CustomMinimumSize = new Vector2(26, 26), FocusMode = Control.FocusModeEnum.None };
+        var minusBtn = new Button { CustomMinimumSize = new Vector2(26, 26), FocusMode = Control.FocusModeEnum.None };
+        minusBtn.Icon = MdiIcon.Minus.Texture(14);
         row.AddChild(minusBtn);
 
         var spinBox = new SpinBox
@@ -1129,10 +1138,12 @@ internal static class DevPanelUI
         };
         row.AddChild(spinBox);
 
-        var plusBtn = new Button { Text = "+", CustomMinimumSize = new Vector2(26, 26), FocusMode = Control.FocusModeEnum.None };
+        var plusBtn = new Button { CustomMinimumSize = new Vector2(26, 26), FocusMode = Control.FocusModeEnum.None };
+        plusBtn.Icon = MdiIcon.Plus.Texture(14);
         row.AddChild(plusBtn);
 
-        var applyBtn = new Button { Text = "✓", CustomMinimumSize = new Vector2(26, 26), FocusMode = Control.FocusModeEnum.None };
+        var applyBtn = new Button { CustomMinimumSize = new Vector2(26, 26), FocusMode = Control.FocusModeEnum.None };
+        applyBtn.Icon = MdiIcon.Check.Texture(14);
         var applyStyle = new StyleBoxFlat
         {
             BgColor = new Color(0.2f, 0.5f, 0.4f, 0.9f),
@@ -1217,45 +1228,6 @@ internal static class DevPanelUI
         };
     }
 
-    private static ImageTexture CreateChevronTexture(bool pointRight)
-    {
-        const int w = 12, h = 20;
-        var img = Image.CreateEmpty(w, h, false, Image.Format.Rgba8);
-        var col = new Color(0.85f, 0.85f, 0.9f);
-
-        int tipX  = pointRight ? w - 3 : 2;
-        int baseX = pointRight ? 2 : w - 3;
-        int midY  = h / 2;
-
-        DrawThickLine(img, baseX, 2, tipX, midY, col, 2);
-        DrawThickLine(img, tipX, midY, baseX, h - 3, col, 2);
-
-        return ImageTexture.CreateFromImage(img);
-    }
-
-    private static void DrawThickLine(Image img, int x0, int y0, int x1, int y1, Color col, int thickness)
-    {
-        int iw = img.GetWidth(), ih = img.GetHeight();
-        int dx = Math.Abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-        int dy = -Math.Abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
-        int err = dx + dy;
-        int half = thickness / 2;
-
-        while (true)
-        {
-            for (int ox = -half; ox <= half; ox++)
-                for (int oy = -half; oy <= half; oy++)
-                {
-                    int px = x0 + ox, py = y0 + oy;
-                    if (px >= 0 && px < iw && py >= 0 && py < ih)
-                        img.SetPixel(px, py, col);
-                }
-            if (x0 == x1 && y0 == y1) break;
-            int e2 = 2 * err;
-            if (e2 >= dy) { err += dy; x0 += sx; }
-            if (e2 <= dx) { err += dx; y0 += sy; }
-        }
-    }
 }
 
 internal sealed class DevPanelActions

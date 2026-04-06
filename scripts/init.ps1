@@ -61,6 +61,35 @@ if ($godotPath) { Write-Host ("  GodotPath = " + $godotPath) }
 Setup-DebugLaunch -Sts2Dir $sts2Dir
 Write-VSCodeFiles -Root $root -Sts2Dir $sts2Dir
 
+# ── Download @iconify-json/mdi icons (for icon tree-shaking) ──
+$iconsDir = Join-Path $root "icons\mdi"
+$iconsJson = Join-Path $iconsDir "icons.json"
+if (-not (Test-Path $iconsJson)) {
+    Write-Host ""
+    Write-Host "Downloading @iconify-json/mdi icons..."
+    $tmpTgz = Join-Path $env:TEMP "iconify-json-mdi.tgz"
+    $tmpDir = Join-Path $env:TEMP "iconify-json-mdi-extract"
+    try {
+        Invoke-WebRequest -Uri "https://registry.npmjs.org/@iconify-json/mdi/-/iconify-json-mdi-1.2.3.tgz" `
+            -OutFile $tmpTgz -UseBasicParsing
+        if (Test-Path $tmpDir) { Remove-Item $tmpDir -Recurse -Force }
+        New-Item -ItemType Directory -Path $tmpDir -Force | Out-Null
+        tar -xzf $tmpTgz -C $tmpDir
+        New-Item -ItemType Directory -Path $iconsDir -Force | Out-Null
+        Copy-Item (Join-Path $tmpDir "package\icons.json") -Destination $iconsDir
+        Copy-Item (Join-Path $tmpDir "package\info.json")  -Destination $iconsDir
+        Write-Host "  Icons extracted to $iconsDir"
+    } catch {
+        Write-Warning "Failed to download iconify icons: $_"
+        Write-Warning "You can manually place @iconify-json/mdi icons.json at: icons/mdi/icons.json"
+    } finally {
+        Remove-Item $tmpTgz -ErrorAction SilentlyContinue
+        Remove-Item $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+} else {
+    Write-Host "Icons already present at $iconsDir"
+}
+
 Write-Host ""
 Write-Host "Done. You can now run:"
 Write-Host "  make compile     -- dotnet build: DLL/manifest to game mods (no .pck)"

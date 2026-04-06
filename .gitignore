@@ -19,3 +19,9 @@ local.props
 .idea/
 .vscode/
 *.user
+
+# Icons source (large, from @iconify-json/mdi npm package)
+/icons/
+
+# Generated tree-shaken icon set (rebuilt on each build)
+src/Icons/mdi-used.json
