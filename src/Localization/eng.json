@@ -119,7 +119,7 @@
 
   "cheat.on": "On",
   "cheat.off": "Off",
-  "cheat.infiniteHp": "Infinite HP",
+  "cheat.infiniteHp": "Invincible",
   "cheat.infiniteHp.desc": "Player cannot lose HP",
   "cheat.infiniteBlock": "Infinite Shield",
   "cheat.infiniteBlock.desc": "Block refills to 999 after loss",

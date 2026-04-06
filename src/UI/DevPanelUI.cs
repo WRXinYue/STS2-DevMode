@@ -384,7 +384,15 @@ internal static class DevPanelUI
             vbox.AddChild(CreateCheatToggle(
                 I18N.T("cheat.infiniteBlock", "Infinite Shield"),
                 I18N.T("cheat.infiniteBlock.desc", "Block refills to 999 after loss"),
-                () => DevModeState.InfiniteBlock, v => DevModeState.InfiniteBlock = v));
+                () => DevModeState.InfiniteBlock, v =>
+                {
+                    DevModeState.InfiniteBlock = v;
+                    if (v && RunContext.TryGetRunAndPlayer(out _, out var bp))
+                    {
+                        var c = bp.Creature;
+                        if (c.Block < 999) c.GainBlockInternal(999 - c.Block);
+                    }
+                }));
             vbox.AddChild(CreateCheatToggle(
                 I18N.T("cheat.infiniteEnergy", "Infinite Energy"),
                 I18N.T("cheat.infiniteEnergy.desc", "Energy refills after spending"),
@@ -440,8 +448,23 @@ internal static class DevPanelUI
                     if (!RunContext.TryGetRunAndPlayer(out _, out var p)) return;
                     int current = p.MaxPotionCount;
                     int diff = (int)v - current;
-                    if (diff > 0) p.AddToMaxPotionCount(diff);
-                    else if (diff < 0) p.SubtractFromMaxPotionCount(-diff);
+                    if (diff > 0)
+                    {
+                        p.AddToMaxPotionCount(diff);
+                    }
+                    else if (diff < 0)
+                    {
+                        // Discard potions in the slots that will be removed first,
+                        // so the UI event handlers can find the correct holders
+                        // before the slot list shrinks.
+                        for (int i = current - 1; i >= current + diff; i--)
+                        {
+                            var potion = p.GetPotionAtSlotIndex(i);
+                            if (potion != null)
+                                p.DiscardPotionInternal(potion);
+                        }
+                        p.SubtractFromMaxPotionCount(-diff);
+                    }
                 }));
             vbox.AddChild(CreateCheatToggle(
                 I18N.T("cheat.maxScore", "Max Score"),
@@ -567,32 +590,38 @@ internal static class DevPanelUI
                 () => DevModeState.StatModifiers?.LockGold ?? false,
                 v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockGold = v; },
                 () => DevModeState.StatModifiers?.LockedGoldValue ?? 0,
-                v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockedGoldValue = (int)v; }));
+                v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockedGoldValue = (int)v; },
+                () => { if (!RunContext.TryGetRunAndPlayer(out _, out var p)) return 0; return p.Gold; }));
             vbox.AddChild(CreateStatLockRow(I18N.T("statLock.currentHp", "Lock Current HP"), 1, 9999,
                 () => DevModeState.StatModifiers?.LockCurrentHp ?? false,
                 v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockCurrentHp = v; },
                 () => DevModeState.StatModifiers?.LockedCurrentHpValue ?? 1,
-                v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockedCurrentHpValue = (int)v; }));
+                v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockedCurrentHpValue = (int)v; },
+                () => { if (!RunContext.TryGetRunAndPlayer(out _, out var p)) return 1; return p.Creature.CurrentHp; }));
             vbox.AddChild(CreateStatLockRow(I18N.T("statLock.maxHp", "Lock Max HP"), 1, 9999,
                 () => DevModeState.StatModifiers?.LockMaxHp ?? false,
                 v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockMaxHp = v; },
                 () => DevModeState.StatModifiers?.LockedMaxHpValue ?? 1,
-                v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockedMaxHpValue = (int)v; }));
+                v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockedMaxHpValue = (int)v; },
+                () => { if (!RunContext.TryGetRunAndPlayer(out _, out var p)) return 1; return p.Creature.MaxHp; }));
             vbox.AddChild(CreateStatLockRow(I18N.T("statLock.currentEnergy", "Lock Current Energy"), 0, 99,
                 () => DevModeState.StatModifiers?.LockCurrentEnergy ?? false,
                 v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockCurrentEnergy = v; },
                 () => DevModeState.StatModifiers?.LockedCurrentEnergyValue ?? 0,
-                v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockedCurrentEnergyValue = (int)v; }));
+                v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockedCurrentEnergyValue = (int)v; },
+                () => { if (!RunContext.TryGetRunAndPlayer(out _, out var p)) return 0; return p.PlayerCombatState?.Energy ?? 0; }));
             vbox.AddChild(CreateStatLockRow(I18N.T("statLock.maxEnergy", "Lock Max Energy"), 1, 99,
                 () => DevModeState.StatModifiers?.LockMaxEnergy ?? false,
                 v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockMaxEnergy = v; },
                 () => DevModeState.StatModifiers?.LockedMaxEnergyValue ?? 1,
-                v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockedMaxEnergyValue = (int)v; }));
+                v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockedMaxEnergyValue = (int)v; },
+                () => { if (!RunContext.TryGetRunAndPlayer(out _, out var p)) return 1; return p.MaxEnergy; }));
             vbox.AddChild(CreateStatLockRow(I18N.T("statLock.stars", "Lock Stars"), 0, 999,
                 () => DevModeState.StatModifiers?.LockStars ?? false,
                 v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockStars = v; },
                 () => DevModeState.StatModifiers?.LockedStarsValue ?? 0,
-                v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockedStarsValue = (int)v; }));
+                v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockedStarsValue = (int)v; },
+                () => { if (!RunContext.TryGetRunAndPlayer(out _, out var p)) return 0; return p.PlayerCombatState?.Stars ?? 0; }));
             vbox.AddChild(CreateStatLockRow(I18N.T("statLock.orbSlots", "Lock Orb Slots"), 0, 10,
                 () => DevModeState.StatModifiers?.LockOrbSlots ?? false,
                 v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockOrbSlots = v; },
@@ -1335,6 +1364,12 @@ internal static class DevPanelUI
         row.AddChild(offBtn);
         row.AddChild(onBtn);
         Refresh();
+
+        row.VisibilityChanged += () =>
+        {
+            if (row.Visible) Refresh();
+        };
+
         return row;
     }
 
@@ -1372,6 +1407,16 @@ internal static class DevPanelUI
             valLabel.Text = ((float)v).ToString("0.#");
         };
         col.AddChild(slider);
+
+        col.VisibilityChanged += () =>
+        {
+            if (col.Visible)
+            {
+                slider.Value = getter();
+                valLabel.Text = getter().ToString("0.#");
+            }
+        };
+
         return col;
     }
 
@@ -1437,7 +1482,8 @@ internal static class DevPanelUI
 
     private static Control CreateStatLockRow(string label, int min, int max,
         Func<bool> lockGetter, Action<bool> lockSetter,
-        Func<int> valueGetter, Action<int> valueSetter)
+        Func<int> valueGetter, Action<int> valueSetter,
+        Func<int>? liveValueGetter = null)
     {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 4);
@@ -1459,7 +1505,17 @@ internal static class DevPanelUI
         };
         row.AddChild(spinBox);
 
-        check.Toggled += v => lockSetter(v);
+        check.Toggled += v =>
+        {
+            // When enabling the lock, auto-fill with the current live game value
+            if (v && liveValueGetter != null)
+            {
+                int live = liveValueGetter();
+                valueSetter(live);
+                spinBox.Value = live;
+            }
+            lockSetter(v);
+        };
         spinBox.ValueChanged += v => valueSetter((int)v);
 
         row.VisibilityChanged += () =>
@@ -1467,7 +1523,11 @@ internal static class DevPanelUI
             if (row.Visible)
             {
                 check.ButtonPressed = lockGetter();
-                spinBox.Value = valueGetter();
+                // If not locked, show the live value; if locked, show the locked value
+                if (!lockGetter() && liveValueGetter != null)
+                    spinBox.Value = liveValueGetter();
+                else
+                    spinBox.Value = valueGetter();
             }
         };
 

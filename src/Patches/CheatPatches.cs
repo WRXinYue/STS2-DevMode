@@ -1,12 +1,17 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Merchant;
 using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.Hooks;
 using MegaCrit.Sts2.Core.Map;
+using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Nodes.Potions;
 using MegaCrit.Sts2.Core.Odds;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.ValueProps;
@@ -40,6 +45,37 @@ public static class InfiniteBlockPatch
         if (!DevModeState.InDevRun || !DevModeState.InfiniteBlock) return;
         if (__instance.Player == null) return;
         __instance.GainBlockInternal(999 - __instance.Block);
+    }
+}
+
+/// <summary>Infinite Block — prevent block consumption during damage calculation.</summary>
+[HarmonyPatch(typeof(Creature), nameof(Creature.DamageBlockInternal))]
+[HarmonyPriority(Priority.High)]
+public static class InfiniteBlockDamagePatch
+{
+    public static bool Prefix(Creature __instance, decimal amount, ValueProp props, ref decimal __result)
+    {
+        if (!DevModeState.InDevRun || !DevModeState.InfiniteBlock) return true;
+        if (__instance.Player == null) return true;
+        // Report that all damage was blocked, but don't actually reduce block
+        __result = props.HasFlag(ValueProp.Unblockable) ? 0m : Math.Min(__instance.Block, amount);
+        return false;
+    }
+}
+
+/// <summary>Infinite Block — prevent block clear at turn start.
+/// Hook.ShouldClearBlock is called by Creature.ClearBlock() to decide
+/// whether to set Block = 0. We make it return false for the player.</summary>
+[HarmonyPatch(typeof(Hook), nameof(Hook.ShouldClearBlock))]
+public static class InfiniteBlockClearPatch
+{
+    public static bool Prefix(Creature creature, ref bool __result, ref AbstractModel? preventer)
+    {
+        if (!DevModeState.InDevRun || !DevModeState.InfiniteBlock) return true;
+        if (creature.Player == null) return true;
+        __result = false;
+        preventer = null;
+        return false;
     }
 }
 
@@ -179,5 +215,30 @@ public static class UnknownMapTreasurePatch
     {
         if (!DevModeState.InDevRun || !DevModeState.UnknownMapAlwaysTreasure) return;
         __result = RoomType.Treasure;
+    }
+}
+
+/// <summary>Fix NPotionContainer.GrowPotionHolders to also handle shrinking.
+/// The vanilla method only adds holders; when DevMode reduces potion slots the
+/// UI holders were never removed, causing index-out-of-range crashes.</summary>
+[HarmonyPatch(typeof(NPotionContainer), "GrowPotionHolders")]
+public static class PotionContainerShrinkPatch
+{
+    public static void Postfix(NPotionContainer __instance, int newMaxPotionSlots)
+    {
+        if (!DevModeState.InDevRun) return;
+
+        var holdersField = AccessTools.Field(typeof(NPotionContainer), "_holders");
+        if (holdersField == null) return;
+        var holders = holdersField.GetValue(__instance) as List<NPotionHolder>;
+        if (holders == null || holders.Count <= newMaxPotionSlots) return;
+
+        // Remove excess holders from the end
+        for (int i = holders.Count - 1; i >= newMaxPotionSlots; i--)
+        {
+            var holder = holders[i];
+            holders.RemoveAt(i);
+            holder.QueueFree();
+        }
     }
 }
