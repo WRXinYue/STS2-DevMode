@@ -150,5 +150,8 @@
   "cheat.damageMultiplier.desc": "Multiply damage dealt to enemies",
   "cheat.unknownTreasure": "Unknown → Treasure",
   "cheat.unknownTreasure.desc": "Unknown map nodes always give treasure",
-  "cheat.gameSpeed": "Game Speed"
+  "cheat.gameSpeed": "Game Speed",
+
+  "panel.lock": "Click to lock panel open",
+  "panel.unlock": "Click to unlock panel"
 }

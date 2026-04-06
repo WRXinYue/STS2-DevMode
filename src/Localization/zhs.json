@@ -150,5 +150,8 @@
   "cheat.damageMultiplier.desc": "倍增对敌人造成的伤害",
   "cheat.unknownTreasure": "未知地图点位始终给予宝藏",
   "cheat.unknownTreasure.desc": "未知地图节点始终给予宝藏",
-  "cheat.gameSpeed": "游戏速度"
+  "cheat.gameSpeed": "游戏速度",
+
+  "panel.lock": "点击锁定面板",
+  "panel.unlock": "点击解锁面板"
 }

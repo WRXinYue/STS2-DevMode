@@ -346,10 +346,30 @@ internal static class DevPanelUI
         tab.IconAlignment = HorizontalAlignment.Center;
         drawer.AddChild(tab);
 
-        // ── Slide animation (hover-triggered) ──
+        // ── Slide animation (hover-triggered) + lock ──
         bool open = false;
+        bool locked = false;
         Tween? tween = null;
         SceneTreeTimer? closeTimer = null;
+
+        var tabStyleNormal = tabStyle;
+        var tabStyleLocked = new StyleBoxFlat
+        {
+            BgColor                  = new Color(0.25f, 0.4f, 0.6f, 0.92f),
+            CornerRadiusTopRight     = 6, CornerRadiusBottomRight = 6,
+            CornerRadiusTopLeft      = 0, CornerRadiusBottomLeft  = 0,
+            BorderWidthTop = 1, BorderWidthRight = 1, BorderWidthBottom = 1,
+            BorderColor = new Color(0.5f, 0.7f, 0.9f, 0.8f)
+        };
+
+        void ApplyTabStyle(bool isLocked)
+        {
+            var s = isLocked ? tabStyleLocked : tabStyleNormal;
+            tab.AddThemeStyleboxOverride("normal",  s);
+            tab.AddThemeStyleboxOverride("hover",   s);
+            tab.AddThemeStyleboxOverride("pressed", s);
+            tab.AddThemeStyleboxOverride("focus",   s);
+        }
 
         void UpdateLayout()
         {
@@ -382,6 +402,31 @@ internal static class DevPanelUI
                  .TweenProperty(drawer, "offset_right", targetRight, 0.18f)
                  .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
         }
+
+        // ── Tab click → toggle lock ──
+        tab.Pressed += () =>
+        {
+            if (!open)
+            {
+                // Panel is closed — open and lock immediately
+                locked = true;
+                Slide(true);
+            }
+            else
+            {
+                // Panel is open — toggle lock
+                locked = !locked;
+                if (!locked)
+                {
+                    // Unlocked: schedule close so it behaves like normal hover
+                    ScheduleClose();
+                }
+            }
+            ApplyTabStyle(locked);
+            tab.TooltipText = locked
+                ? I18N.T("panel.unlock", "Click to unlock panel")
+                : I18N.T("panel.lock", "Click to lock panel open");
+        };
 
         // ── Resize drag logic ──
         bool dragging = false;
@@ -427,6 +472,7 @@ internal static class DevPanelUI
 
         void ScheduleClose()
         {
+            if (locked) return; // locked → never auto-close
             CancelClose();
             closeTimer = drawer.GetTree().CreateTimer(0.15);
             closeTimer.Timeout += OnCloseTimeout;
