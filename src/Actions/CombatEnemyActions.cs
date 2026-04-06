@@ -145,4 +145,43 @@ internal static class CombatEnemyActions
         await CreatureCmd.Kill((IReadOnlyCollection<Creature>)enemies, force: true);
         MainFile.Logger.Info($"CombatEnemyActions: Killed all {enemies.Count} enemies");
     }
+
+    // ── Monster editing enhancements ──
+
+    /// <summary>Set a monster's current HP.</summary>
+    public static async Task SetMonsterHp(Creature creature, int hp)
+    {
+        await Sts2ApiCompat.SetCurrentHpAsync(creature, hp);
+    }
+
+    /// <summary>Set a monster's max HP.</summary>
+    public static async Task SetMonsterMaxHp(Creature creature, int maxHp)
+    {
+        await Sts2ApiCompat.SetMaxHpAsync(creature, maxHp);
+    }
+
+    /// <summary>Clear all powers from a monster.</summary>
+    public static void ClearMonsterPowers(Creature creature)
+    {
+        foreach (var power in creature.Powers.ToArray())
+        {
+            if (power != null)
+                PowerCmd.Remove(power);
+        }
+    }
+
+    /// <summary>Duplicate a monster in combat (add another copy).</summary>
+    public static async Task<Creature?> DuplicateMonster(Creature creature)
+    {
+        var monsterModel = creature.Monster;
+        if (monsterModel == null) return null;
+        return await AddMonster(monsterModel);
+    }
+
+    /// <summary>Get display info for a creature.</summary>
+    public static string GetCreatureInfo(Creature creature)
+    {
+        var name = creature.Monster?.Title?.GetFormattedText() ?? "?";
+        return $"{name} (HP: {creature.CurrentHp}/{creature.MaxHp}, Block: {creature.Block}, Powers: {creature.Powers.Count})";
+    }
 }

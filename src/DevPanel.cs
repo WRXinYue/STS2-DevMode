@@ -85,6 +85,12 @@ internal static class DevPanel
                 OnOpenCards   = OpenCards,
                 OnOpenRelics  = OpenRelics,
                 OnOpenEnemies = OpenEnemies,
+                OnOpenPowers  = OpenPowers,
+                OnOpenPotions = OpenPotions,
+                OnOpenEvents  = OpenEvents,
+                OnOpenConsole = OpenConsole,
+                OnOpenPresets = OpenPresets,
+                OnOpenCardEdit = OpenCardEdit,
                 OnOpenSave    = () => SaveSlotUI.Show(globalUi, saveMode: true,
                                     slot => SaveSlotManager.SaveToSlot(slot)),
                 OnOpenLoad    = () => SaveSlotUI.Show(globalUi, saveMode: false,
@@ -276,13 +282,94 @@ internal static class DevPanel
         });
     }
 
+    private static void OpenPowers()
+    {
+        if (_globalUi == null) return;
+        TryDismissCurrent();
+        DevModeState.ActivePanel = ActivePanel.Powers;
+        UpdateTopBar();
+
+        if (!RunContext.TryGetRunAndPlayer(out _, out var player)) return;
+
+        PowerSelectUI.Show(_globalUi, (power, amount, target) =>
+        {
+            TaskHelper.RunSafely(PowerActions.AddPower(player, power, amount, target));
+        });
+    }
+
+    private static void OpenPotions()
+    {
+        if (_globalUi == null) return;
+        TryDismissCurrent();
+        DevModeState.ActivePanel = ActivePanel.Potions;
+        UpdateTopBar();
+
+        if (!RunContext.TryGetRunAndPlayer(out _, out var player)) return;
+
+        PotionSelectUI.Show(_globalUi, potion =>
+        {
+            PotionActions.AddPotion(player, potion);
+        });
+    }
+
+    private static void OpenEvents()
+    {
+        if (_globalUi == null) return;
+        TryDismissCurrent();
+        DevModeState.ActivePanel = ActivePanel.Events;
+        UpdateTopBar();
+
+        EventSelectUI.Show(_globalUi, evt =>
+        {
+            EventActions.TryForceEnterEvent(evt);
+        });
+    }
+
+    private static void OpenConsole()
+    {
+        if (_globalUi == null) return;
+        TryDismissCurrent();
+        DevModeState.ActivePanel = ActivePanel.Console;
+        UpdateTopBar();
+
+        ConsoleUI.Show(_globalUi);
+    }
+
+    private static void OpenPresets()
+    {
+        if (_globalUi == null) return;
+        TryDismissCurrent();
+        DevModeState.ActivePanel = ActivePanel.Presets;
+        UpdateTopBar();
+
+        PresetUI.Show(_globalUi);
+    }
+
+    private static void OpenCardEdit()
+    {
+        if (_globalUi == null) return;
+        TryDismissCurrent();
+        DevModeState.ActivePanel = ActivePanel.CardEdit;
+        UpdateTopBar();
+
+        if (!RunContext.TryGetRunAndPlayer(out _, out var player)) return;
+
+        CardEditUI.Show(_globalUi, player);
+    }
+
     private static void RefreshPanel()
     {
         switch (DevModeState.ActivePanel)
         {
-            case ActivePanel.Cards:   OpenCards();   break;
-            case ActivePanel.Relics:  OpenRelics();  break;
-            case ActivePanel.Enemies: OpenEnemies(); break;
+            case ActivePanel.Cards:    OpenCards();    break;
+            case ActivePanel.Relics:   OpenRelics();   break;
+            case ActivePanel.Enemies:  OpenEnemies();  break;
+            case ActivePanel.Powers:   OpenPowers();   break;
+            case ActivePanel.Potions:  OpenPotions();  break;
+            case ActivePanel.Events:   OpenEvents();   break;
+            case ActivePanel.Console:  OpenConsole();  break;
+            case ActivePanel.Presets:  OpenPresets();  break;
+            case ActivePanel.CardEdit: OpenCardEdit(); break;
         }
     }
 
@@ -294,6 +381,18 @@ internal static class DevPanel
         _session.Cancel();                     // invalidate before closing overlays
         NavigationHelper.CloseCapstone();
         NavigationHelper.CloseOverlays();
+
+        // Dismiss new overlay panels
+        if (_globalUi != null)
+        {
+            PowerSelectUI.Remove(_globalUi);
+            PotionSelectUI.Remove(_globalUi);
+            EventSelectUI.Remove(_globalUi);
+            ConsoleUI.Remove(_globalUi);
+            PresetUI.Remove(_globalUi);
+            CardEditUI.Remove(_globalUi);
+        }
+
         return true;
     }
 

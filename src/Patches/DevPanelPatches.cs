@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Relics;
 using MegaCrit.Sts2.Core.Entities.UI;
@@ -17,6 +19,7 @@ public static class GlobalUiReadyPatch
 {
     // Track the instance we already attached to avoid duplicate panels on re-entry
     private static NGlobalUi? _attached;
+    private static AssetWarmupService? _warmup;
 
     public static void Postfix(NGlobalUi __instance)
     {
@@ -24,6 +27,31 @@ public static class GlobalUiReadyPatch
         if (_attached == __instance) return;
         _attached = __instance;
         DevPanel.Attach(__instance);
+
+        // Initialize RuntimeStatModifiers
+        if (DevModeState.StatModifiers == null)
+            DevModeState.StatModifiers = new RuntimeStatModifiers();
+
+        // Initialize AssetWarmupService
+        if (_warmup == null)
+        {
+            _warmup = new AssetWarmupService();
+            _warmup.Ready();
+        }
+
+        // Hook into _Process via a helper node
+        var processNode = ((Node)__instance).GetNodeOrNull<Node>("DevModeProcessNode");
+        if (processNode == null)
+        {
+            processNode = new DevModeProcessNode { Name = "DevModeProcessNode" };
+            ((Node)__instance).AddChild(processNode);
+        }
+    }
+
+    internal static void Process(double delta)
+    {
+        DevModeState.StatModifiers?.Update(delta);
+        _warmup?.Process(delta);
     }
 }
 

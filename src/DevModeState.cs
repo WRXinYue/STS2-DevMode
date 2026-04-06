@@ -24,7 +24,29 @@ public enum ActivePanel
     None,
     Cards,
     Relics,
-    Enemies
+    Enemies,
+    Powers,
+    Potions,
+    Events,
+    Console,
+    Presets,
+    CardEdit
+}
+
+public enum PowerTarget
+{
+    Self,
+    AllEnemies,
+    SpecificTarget,
+    Allies
+}
+
+public enum MapRewriteMode
+{
+    None,
+    AllChest,
+    AllElite,
+    AllBoss
 }
 
 public enum CardMode
@@ -110,6 +132,16 @@ public static class DevModeState
 
     public static bool UnknownMapAlwaysTreasure { get; set; }
 
+    // ── Map rewrite (QoL) ──
+
+    public static bool MapRewriteEnabled { get; set; }
+    public static MapRewriteMode MapRewriteMode { get; set; } = MapRewriteMode.None;
+    public static bool MapKeepFinalBoss { get; set; } = true;
+
+    // ── Runtime stat modifiers ──
+
+    public static RuntimeStatModifiers? StatModifiers { get; set; }
+
     // ── Enemy override state ──
 
     public static EnemyMode EnemyMode { get; set; } = EnemyMode.Off;
@@ -185,5 +217,9 @@ public static class DevModeState
         OneHitKill = false;
         DamageMultiplier = 1.0f;
         UnknownMapAlwaysTreasure = false;
+        MapRewriteEnabled = false;
+        MapRewriteMode = MapRewriteMode.None;
+        MapKeepFinalBoss = true;
+        StatModifiers = null;
     }
 }

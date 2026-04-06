@@ -96,6 +96,12 @@ internal static class DevPanelUI
         vbox.AddChild(CreateButton(I18N.T("panel.cards", "Cards"), actions.OnOpenCards));
         vbox.AddChild(CreateButton(I18N.T("panel.relics", "Relics"), actions.OnOpenRelics));
         vbox.AddChild(CreateButton(I18N.T("panel.enemies", "Enemies"), actions.OnOpenEnemies));
+        vbox.AddChild(CreateButton(I18N.T("panel.powers", "Powers"), actions.OnOpenPowers));
+        vbox.AddChild(CreateButton(I18N.T("panel.potions", "Potions"), actions.OnOpenPotions));
+        vbox.AddChild(CreateButton(I18N.T("panel.events", "Events"), actions.OnOpenEvents));
+        vbox.AddChild(CreateButton(I18N.T("panel.cardEdit", "Card Editor"), actions.OnOpenCardEdit));
+        vbox.AddChild(CreateButton(I18N.T("panel.console", "Console"), actions.OnOpenConsole));
+        vbox.AddChild(CreateButton(I18N.T("panel.presets", "Presets"), actions.OnOpenPresets));
 
         // ── Section: Save ──
         vbox.AddChild(CreateSectionHeader(I18N.T("panel.section.save", "Save")));
@@ -243,6 +249,34 @@ internal static class DevPanelUI
             () => DevModeState.UnknownMapAlwaysTreasure,
             v => DevModeState.UnknownMapAlwaysTreasure = v));
 
+        // ── Map Rewrite ──
+        vbox.AddChild(CreateCheatToggle(
+            I18N.T("mapRewrite.enabled", "Enable Map Rewrite"),
+            "",
+            () => DevModeState.MapRewriteEnabled,
+            v => DevModeState.MapRewriteEnabled = v));
+
+        var mapModeBtn = CreatePlainButton(I18N.T("mapRewrite.mode", "Mode") + ": " + GetMapRewriteLabel());
+        mapModeBtn.Pressed += () =>
+        {
+            DevModeState.MapRewriteMode = DevModeState.MapRewriteMode switch
+            {
+                MapRewriteMode.None => MapRewriteMode.AllChest,
+                MapRewriteMode.AllChest => MapRewriteMode.AllElite,
+                MapRewriteMode.AllElite => MapRewriteMode.AllBoss,
+                MapRewriteMode.AllBoss => MapRewriteMode.None,
+                _ => MapRewriteMode.None
+            };
+            mapModeBtn.Text = I18N.T("mapRewrite.mode", "Mode") + ": " + GetMapRewriteLabel();
+        };
+        vbox.AddChild(mapModeBtn);
+
+        vbox.AddChild(CreateCheatToggle(
+            I18N.T("mapRewrite.keepFinalBoss", "Keep Final Boss"),
+            "",
+            () => DevModeState.MapKeepFinalBoss,
+            v => DevModeState.MapKeepFinalBoss = v));
+
         var gameSpeedBtn = CreatePlainButton(I18N.T("panel.speed", "Speed: {0}", actions.GetGameSpeedLabel()));
         gameSpeedBtn.Pressed += () =>
         {
@@ -258,6 +292,92 @@ internal static class DevPanelUI
             skipAnimBtn.Text = I18N.T("panel.skipAnim", "Skip Anim: {0}", actions.GetSkipAnimLabel());
         };
         vbox.AddChild(skipAnimBtn);
+
+        // ── Section: Runtime Stats ──
+        vbox.AddChild(CreateSectionHeader(I18N.T("panel.section.runtime", "Runtime Stats")));
+        vbox.AddChild(CreateRuntimeToggle(
+            I18N.T("runtime.godMode", "God Mode"),
+            I18N.T("runtime.godMode.desc", "Auto-heal to max HP every frame"),
+            () => DevModeState.StatModifiers?.GodMode ?? false,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.GodMode = v; }));
+        vbox.AddChild(CreateRuntimeToggle(
+            I18N.T("runtime.killAll", "Kill All Enemies"),
+            I18N.T("runtime.killAll.desc", "Continuously kill all enemies"),
+            () => DevModeState.StatModifiers?.KillAllEnemies ?? false,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.KillAllEnemies = v; }));
+        vbox.AddChild(CreateRuntimeToggle(
+            I18N.T("runtime.infiniteEnergy", "Infinite Energy (Runtime)"),
+            I18N.T("runtime.infiniteEnergy.desc", "Keep energy at 99+"),
+            () => DevModeState.StatModifiers?.InfiniteEnergy ?? false,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.InfiniteEnergy = v; }));
+        vbox.AddChild(CreateRuntimeToggle(
+            I18N.T("runtime.alwaysPlayerTurn", "Always Player Turn"),
+            I18N.T("runtime.alwaysPlayerTurn.desc", "Force combat to player turn"),
+            () => DevModeState.StatModifiers?.AlwaysPlayerTurn ?? false,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.AlwaysPlayerTurn = v; }));
+        vbox.AddChild(CreateRuntimeToggle(
+            I18N.T("runtime.drawToLimit", "Draw to Hand Limit"),
+            I18N.T("runtime.drawToLimit.desc", "Auto-draw to 10 cards"),
+            () => DevModeState.StatModifiers?.DrawToHandLimit ?? false,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.DrawToHandLimit = v; }));
+        vbox.AddChild(CreateRuntimeToggle(
+            I18N.T("runtime.extraDraw", "Extra Draw Each Turn"),
+            I18N.T("runtime.extraDraw.desc", "Draw extra cards at turn start"),
+            () => DevModeState.StatModifiers?.ExtraDrawEachTurn ?? false,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.ExtraDrawEachTurn = v; }));
+        vbox.AddChild(CreateCheatNumberEdit(
+            I18N.T("runtime.extraDrawAmount", "Extra Draw Amount"),
+            1, 20,
+            () => DevModeState.StatModifiers?.ExtraDrawEachTurnAmount ?? 1,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.ExtraDrawEachTurnAmount = (int)v; }));
+        vbox.AddChild(CreateRuntimeToggle(
+            I18N.T("runtime.autoAlly", "Auto-Act Friendly Monsters"),
+            I18N.T("runtime.autoAlly.desc", "Auto-execute friendly monster turns"),
+            () => DevModeState.StatModifiers?.AutoActFriendlyMonsters ?? false,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.AutoActFriendlyMonsters = v; }));
+        vbox.AddChild(CreateRuntimeToggle(
+            I18N.T("runtime.negateDebuffs", "Negate Debuffs"),
+            I18N.T("runtime.negateDebuffs.desc", "Continuously remove all debuffs"),
+            () => DevModeState.StatModifiers?.NegateDebuffs ?? false,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.NegateDebuffs = v; }));
+
+        // ── Stat Locks ──
+        vbox.AddChild(CreateSectionHeader(I18N.T("statLock.title", "Stat Locks")));
+        vbox.AddChild(CreateStatLockRow(I18N.T("statLock.gold", "Lock Gold"), 0, 99999,
+            () => DevModeState.StatModifiers?.LockGold ?? false,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockGold = v; },
+            () => DevModeState.StatModifiers?.LockedGoldValue ?? 0,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockedGoldValue = (int)v; }));
+        vbox.AddChild(CreateStatLockRow(I18N.T("statLock.currentHp", "Lock Current HP"), 1, 9999,
+            () => DevModeState.StatModifiers?.LockCurrentHp ?? false,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockCurrentHp = v; },
+            () => DevModeState.StatModifiers?.LockedCurrentHpValue ?? 1,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockedCurrentHpValue = (int)v; }));
+        vbox.AddChild(CreateStatLockRow(I18N.T("statLock.maxHp", "Lock Max HP"), 1, 9999,
+            () => DevModeState.StatModifiers?.LockMaxHp ?? false,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockMaxHp = v; },
+            () => DevModeState.StatModifiers?.LockedMaxHpValue ?? 1,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockedMaxHpValue = (int)v; }));
+        vbox.AddChild(CreateStatLockRow(I18N.T("statLock.currentEnergy", "Lock Current Energy"), 0, 99,
+            () => DevModeState.StatModifiers?.LockCurrentEnergy ?? false,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockCurrentEnergy = v; },
+            () => DevModeState.StatModifiers?.LockedCurrentEnergyValue ?? 0,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockedCurrentEnergyValue = (int)v; }));
+        vbox.AddChild(CreateStatLockRow(I18N.T("statLock.maxEnergy", "Lock Max Energy"), 1, 99,
+            () => DevModeState.StatModifiers?.LockMaxEnergy ?? false,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockMaxEnergy = v; },
+            () => DevModeState.StatModifiers?.LockedMaxEnergyValue ?? 1,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockedMaxEnergyValue = (int)v; }));
+        vbox.AddChild(CreateStatLockRow(I18N.T("statLock.stars", "Lock Stars"), 0, 999,
+            () => DevModeState.StatModifiers?.LockStars ?? false,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockStars = v; },
+            () => DevModeState.StatModifiers?.LockedStarsValue ?? 0,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockedStarsValue = (int)v; }));
+        vbox.AddChild(CreateStatLockRow(I18N.T("statLock.orbSlots", "Lock Orb Slots"), 0, 10,
+            () => DevModeState.StatModifiers?.LockOrbSlots ?? false,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockOrbSlots = v; },
+            () => DevModeState.StatModifiers?.LockedOrbSlotsValue ?? 0,
+            v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.LockedOrbSlotsValue = (int)v; }));
 
         // ── Section: AI (optional) ──
         if (actions.OnToggleAI != null)
@@ -1039,6 +1159,64 @@ internal static class DevPanelUI
         return row;
     }
 
+    /// <summary>Same as CreateCheatToggle but for RuntimeStatModifiers toggles.</summary>
+    private static Control CreateRuntimeToggle(string label, string? tooltip, Func<bool> getter, Action<bool> setter)
+    {
+        return CreateCheatToggle(label, tooltip, getter, setter);
+    }
+
+    /// <summary>A row with a checkbox (lock toggle) and a SpinBox (locked value).</summary>
+    private static Control CreateStatLockRow(string label, int min, int max,
+        Func<bool> lockGetter, Action<bool> lockSetter,
+        Func<int> valueGetter, Action<int> valueSetter)
+    {
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 4);
+        row.CustomMinimumSize = new Vector2(0, 30);
+
+        var check = new CheckBox { Text = label, ButtonPressed = lockGetter() };
+        check.AddThemeFontSizeOverride("font_size", 12);
+        check.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        check.ClipText = true;
+        row.AddChild(check);
+
+        var spinBox = new SpinBox
+        {
+            MinValue = min, MaxValue = max, Step = 1,
+            Value = valueGetter(),
+            CustomMinimumSize = new Vector2(70, 26),
+            SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd,
+            Alignment = HorizontalAlignment.Center
+        };
+        row.AddChild(spinBox);
+
+        check.Toggled += v => lockSetter(v);
+        spinBox.ValueChanged += v => valueSetter((int)v);
+
+        row.VisibilityChanged += () =>
+        {
+            if (row.Visible)
+            {
+                check.ButtonPressed = lockGetter();
+                spinBox.Value = valueGetter();
+            }
+        };
+
+        return row;
+    }
+
+    private static string GetMapRewriteLabel()
+    {
+        return DevModeState.MapRewriteMode switch
+        {
+            MapRewriteMode.None => I18N.T("mapRewrite.none", "None"),
+            MapRewriteMode.AllChest => I18N.T("mapRewrite.allChest", "All Chest"),
+            MapRewriteMode.AllElite => I18N.T("mapRewrite.allElite", "All Elite"),
+            MapRewriteMode.AllBoss => I18N.T("mapRewrite.allBoss", "All Boss"),
+            _ => "?"
+        };
+    }
+
     private static ImageTexture CreateChevronTexture(bool pointRight)
     {
         const int w = 12, h = 20;
@@ -1088,6 +1266,14 @@ internal sealed class DevPanelActions
     public required Action OnOpenSave     { get; init; }
     public required Action OnOpenLoad     { get; init; }
     public required Action OnRefreshPanel { get; init; }
+
+    // New action panels
+    public required Action OnOpenPowers   { get; init; }
+    public required Action OnOpenPotions  { get; init; }
+    public required Action OnOpenEvents   { get; init; }
+    public required Action OnOpenConsole  { get; init; }
+    public required Action OnOpenPresets  { get; init; }
+    public required Action OnOpenCardEdit { get; init; }
 
     // AI control (optional — null if STS2AI mod not available)
     public Action? OnToggleAI       { get; init; }

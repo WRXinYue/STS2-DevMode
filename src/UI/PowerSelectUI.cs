@@ -1,0 +1,117 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Godot;
+using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using DevMode.Actions;
+
+namespace DevMode.UI;
+
+/// <summary>Full-screen overlay for selecting a Power from ModelDb.</summary>
+internal static class PowerSelectUI
+{
+    private const string RootName = "DevModePowerSelect";
+
+    public static void Show(NGlobalUi globalUi, Action<PowerModel, int, PowerTarget> onSelected)
+    {
+        Remove(globalUi);
+
+        var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1300 };
+        root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+
+        // Backdrop
+        var backdrop = new ColorRect { Color = new Color(0, 0, 0, 0.7f), MouseFilter = Control.MouseFilterEnum.Stop };
+        backdrop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        backdrop.GuiInput += e => { if (e is InputEventMouseButton { Pressed: true }) Remove(globalUi); };
+        root.AddChild(backdrop);
+
+        // Center panel
+        var panel = new PanelContainer();
+        panel.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.Center);
+        panel.OffsetLeft = -340; panel.OffsetRight = 340;
+        panel.OffsetTop = -280; panel.OffsetBottom = 280;
+        var style = new StyleBoxFlat { BgColor = new Color(0.1f, 0.1f, 0.12f, 0.97f), CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8, CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8, ContentMarginLeft = 12, ContentMarginRight = 12, ContentMarginTop = 12, ContentMarginBottom = 12 };
+        panel.AddThemeStyleboxOverride("panel", style);
+        panel.MouseFilter = Control.MouseFilterEnum.Stop;
+        root.AddChild(panel);
+
+        var vbox = new VBoxContainer();
+        vbox.AddThemeConstantOverride("separation", 6);
+        panel.AddChild(vbox);
+
+        // Title
+        vbox.AddChild(new Label { Text = I18N.T("power.select.title", "Select Power"), HorizontalAlignment = HorizontalAlignment.Center });
+
+        // Target selector
+        var targetBox = new HBoxContainer();
+        targetBox.AddThemeConstantOverride("separation", 4);
+        var currentTarget = PowerTarget.Self;
+        var targetLabel = new Label { Text = I18N.T("power.target.self", "Target: Self") };
+        var targetBtn = new Button { Text = I18N.T("power.target.cycle", "Cycle Target"), CustomMinimumSize = new Vector2(100, 28) };
+        targetBtn.Pressed += () =>
+        {
+            currentTarget = (PowerTarget)(((int)currentTarget + 1) % 4);
+            targetLabel.Text = currentTarget switch
+            {
+                PowerTarget.Self => I18N.T("power.target.self", "Target: Self"),
+                PowerTarget.AllEnemies => I18N.T("power.target.allEnemies", "Target: All Enemies"),
+                PowerTarget.SpecificTarget => I18N.T("power.target.specific", "Target: Specific"),
+                PowerTarget.Allies => I18N.T("power.target.allies", "Target: Allies"),
+                _ => "?"
+            };
+        };
+        targetBox.AddChild(targetLabel);
+        targetBox.AddChild(targetBtn);
+        vbox.AddChild(targetBox);
+
+        // Amount input
+        var amountBox = new HBoxContainer();
+        amountBox.AddThemeConstantOverride("separation", 4);
+        amountBox.AddChild(new Label { Text = I18N.T("power.amount", "Amount:") });
+        var amountInput = new SpinBox { MinValue = 1, MaxValue = 999, Value = 1, Step = 1, CustomMinimumSize = new Vector2(80, 28) };
+        amountBox.AddChild(amountInput);
+        vbox.AddChild(amountBox);
+
+        // Search
+        var search = new LineEdit { PlaceholderText = I18N.T("power.search", "Search..."), ClearButtonEnabled = true };
+        vbox.AddChild(search);
+
+        // Scroll list
+        var scroll = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        var list = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        list.AddThemeConstantOverride("separation", 2);
+        scroll.AddChild(list);
+        vbox.AddChild(scroll);
+
+        var allPowers = PowerActions.GetAllPowers().OrderBy(p => PowerActions.GetPowerDisplayName(p)).ToList();
+
+        void Rebuild(string filter)
+        {
+            foreach (var child in list.GetChildren()) ((Node)child).QueueFree();
+            var filtered = string.IsNullOrWhiteSpace(filter)
+                ? allPowers
+                : allPowers.Where(p => PowerActions.GetPowerDisplayName(p).Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            foreach (var power in filtered)
+            {
+                var btn = new Button { Text = PowerActions.GetPowerDisplayName(power), CustomMinimumSize = new Vector2(0, 30) };
+                btn.Pressed += () =>
+                {
+                    onSelected(power, (int)amountInput.Value, currentTarget);
+                };
+                list.AddChild(btn);
+            }
+        }
+
+        search.TextChanged += Rebuild;
+        Rebuild("");
+
+        ((Node)globalUi).AddChild(root);
+    }
+
+    public static void Remove(NGlobalUi globalUi)
+    {
+        ((Node)globalUi).GetNodeOrNull<Control>(RootName)?.QueueFree();
+    }
+}
