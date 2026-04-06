@@ -20,24 +20,18 @@ internal static class CardEditUI
         var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1300 };
         root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
 
-        var backdrop = new ColorRect { Color = new Color(0, 0, 0, 0.7f), MouseFilter = Control.MouseFilterEnum.Stop };
-        backdrop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        backdrop.GuiInput += e => { if (e is InputEventMouseButton { Pressed: true }) Remove(globalUi); };
-        root.AddChild(backdrop);
+        root.AddChild(DevPanelUI.CreateStandardBackdrop(() => Remove(globalUi)));
 
-        var panel = new PanelContainer();
-        panel.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.Center);
-        panel.OffsetLeft = -400; panel.OffsetRight = 400;
-        panel.OffsetTop = -320; panel.OffsetBottom = 320;
-        var style = new StyleBoxFlat { BgColor = new Color(0.1f, 0.1f, 0.12f, 0.97f), CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8, CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8, ContentMarginLeft = 12, ContentMarginRight = 12, ContentMarginTop = 12, ContentMarginBottom = 12 };
-        panel.AddThemeStyleboxOverride("panel", style);
+        var panel = DevPanelUI.CreateStandardPanel(700f);
         panel.MouseFilter = Control.MouseFilterEnum.Stop;
         root.AddChild(panel);
 
         // Split: left = card list, right = editor
         var hbox = new HBoxContainer();
         hbox.AddThemeConstantOverride("separation", 8);
-        panel.AddChild(hbox);
+        hbox.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        hbox.SizeFlagsVertical   = Control.SizeFlags.ExpandFill;
+        panel.GetNode<VBoxContainer>("Content").AddChild(hbox);
 
         // Left: card list
         var leftVbox = new VBoxContainer { CustomMinimumSize = new Vector2(250, 0), SizeFlagsVertical = Control.SizeFlags.ExpandFill };

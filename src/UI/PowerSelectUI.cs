@@ -20,25 +20,14 @@ internal static class PowerSelectUI
         var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1300 };
         root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
 
-        // Backdrop
-        var backdrop = new ColorRect { Color = new Color(0, 0, 0, 0.7f), MouseFilter = Control.MouseFilterEnum.Stop };
-        backdrop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        backdrop.GuiInput += e => { if (e is InputEventMouseButton { Pressed: true }) Remove(globalUi); };
-        root.AddChild(backdrop);
+        root.AddChild(DevPanelUI.CreateStandardBackdrop(() => Remove(globalUi)));
 
-        // Center panel
-        var panel = new PanelContainer();
-        panel.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.Center);
-        panel.OffsetLeft = -340; panel.OffsetRight = 340;
-        panel.OffsetTop = -280; panel.OffsetBottom = 280;
-        var style = new StyleBoxFlat { BgColor = new Color(0.1f, 0.1f, 0.12f, 0.97f), CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8, CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8, ContentMarginLeft = 12, ContentMarginRight = 12, ContentMarginTop = 12, ContentMarginBottom = 12 };
-        panel.AddThemeStyleboxOverride("panel", style);
+        var panel = DevPanelUI.CreateStandardPanel();
         panel.MouseFilter = Control.MouseFilterEnum.Stop;
         root.AddChild(panel);
 
-        var vbox = new VBoxContainer();
+        var vbox = panel.GetNode<VBoxContainer>("Content");
         vbox.AddThemeConstantOverride("separation", 6);
-        panel.AddChild(vbox);
 
         // Title
         vbox.AddChild(new Label { Text = I18N.T("power.select.title", "Select Power"), HorizontalAlignment = HorizontalAlignment.Center });

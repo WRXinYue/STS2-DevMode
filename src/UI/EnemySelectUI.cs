@@ -131,16 +131,14 @@ internal static class EnemySelectUI
         if (encounters.Count == 0) return;
 
         var root = CreateOverlayRoot();
-        var backdrop = CreateBackdrop(() => Hide(globalUi));
+        var backdrop = DevPanelUI.CreateStandardBackdrop(() => Hide(globalUi));
         root.AddChild(backdrop);
 
-        // Wider panel for grid + preview
-        var panel = CreateCenterPanel(-440, 440, -320, 320);
+        var panel = DevPanelUI.CreateStandardPanel(880f);
         root.AddChild(panel);
 
-        var vbox = new VBoxContainer();
+        var vbox = panel.GetNode<VBoxContainer>("Content");
         vbox.AddThemeConstantOverride("separation", 8);
-        panel.AddChild(vbox);
 
         // ── Title ──
         var titleLabel = new Label
@@ -457,48 +455,18 @@ internal static class EnemySelectUI
         var root = new Control
         {
             Name = RootName,
-            MouseFilter = Control.MouseFilterEnum.Stop,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
             ZIndex = 1300
         };
         root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
 
-        var backdrop = new ColorRect
-        {
-            Color = new Color(0, 0, 0, 0.6f),
-            MouseFilter = Control.MouseFilterEnum.Stop
-        };
-        backdrop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        backdrop.GuiInput += (InputEvent ev) =>
-        {
-            if (ev is InputEventMouseButton { Pressed: true })
-                Hide(globalUi);
-        };
-        root.AddChild(backdrop);
+        root.AddChild(DevPanelUI.CreateStandardBackdrop(() => Hide(globalUi)));
 
-        var panel = new PanelContainer
-        {
-            AnchorLeft = 0.5f, AnchorRight = 0.5f,
-            AnchorTop  = 0.5f, AnchorBottom = 0.5f,
-            OffsetLeft = -280, OffsetRight = 280,
-            OffsetTop  = -220, OffsetBottom = 220,
-            MouseFilter = Control.MouseFilterEnum.Stop
-        };
-        var panelStyle = new StyleBoxFlat
-        {
-            BgColor = new Color(0.1f, 0.1f, 0.13f, 0.97f),
-            CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
-            CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
-            ContentMarginLeft = 12, ContentMarginRight = 12,
-            ContentMarginTop = 12, ContentMarginBottom = 12,
-            BorderWidthTop = 1, BorderWidthBottom = 1, BorderWidthLeft = 1, BorderWidthRight = 1,
-            BorderColor = new Color(0.4f, 0.4f, 0.55f, 0.7f)
-        };
-        panel.AddThemeStyleboxOverride("panel", panelStyle);
+        var panel = DevPanelUI.CreateStandardPanel();
         root.AddChild(panel);
 
-        var vbox = new VBoxContainer();
+        var vbox = panel.GetNode<VBoxContainer>("Content");
         vbox.AddThemeConstantOverride("separation", 8);
-        panel.AddChild(vbox);
 
         var title = new Label
         {
@@ -651,15 +619,13 @@ internal static class EnemySelectUI
         }
 
         var root = CreateOverlayRoot();
-        var backdrop = CreateBackdrop(() => Hide(globalUi));
-        root.AddChild(backdrop);
+        root.AddChild(DevPanelUI.CreateStandardBackdrop(() => Hide(globalUi)));
 
-        var panel = CreateCenterPanel(-240, 240, -200, 200);
+        var panel = DevPanelUI.CreateStandardPanel();
         root.AddChild(panel);
 
-        var vbox = new VBoxContainer();
+        var vbox = panel.GetNode<VBoxContainer>("Content");
         vbox.AddThemeConstantOverride("separation", 8);
-        panel.AddChild(vbox);
 
         var title = new Label
         {
@@ -746,51 +712,11 @@ internal static class EnemySelectUI
         var root = new Control
         {
             Name = RootName,
-            MouseFilter = Control.MouseFilterEnum.Stop,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
             ZIndex = 1300
         };
         root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         return root;
-    }
-
-    private static ColorRect CreateBackdrop(Action onClickOutside)
-    {
-        var backdrop = new ColorRect
-        {
-            Color = new Color(0, 0, 0, 0.6f),
-            MouseFilter = Control.MouseFilterEnum.Stop
-        };
-        backdrop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        backdrop.GuiInput += (InputEvent ev) =>
-        {
-            if (ev is InputEventMouseButton { Pressed: true })
-                onClickOutside();
-        };
-        return backdrop;
-    }
-
-    private static PanelContainer CreateCenterPanel(float left, float right, float top, float bottom)
-    {
-        var panel = new PanelContainer
-        {
-            AnchorLeft = 0.5f, AnchorRight = 0.5f,
-            AnchorTop  = 0.5f, AnchorBottom = 0.5f,
-            OffsetLeft = left, OffsetRight = right,
-            OffsetTop  = top, OffsetBottom = bottom,
-            MouseFilter = Control.MouseFilterEnum.Stop
-        };
-        var style = new StyleBoxFlat
-        {
-            BgColor = new Color(0.1f, 0.1f, 0.13f, 0.97f),
-            CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
-            CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
-            ContentMarginLeft = 12, ContentMarginRight = 12,
-            ContentMarginTop = 12, ContentMarginBottom = 12,
-            BorderWidthTop = 1, BorderWidthBottom = 1, BorderWidthLeft = 1, BorderWidthRight = 1,
-            BorderColor = new Color(0.4f, 0.4f, 0.55f, 0.7f)
-        };
-        panel.AddThemeStyleboxOverride("panel", style);
-        return panel;
     }
 
     // ── Styling helpers ──
