@@ -1,8 +1,8 @@
 # DevMode
 
-A developer mode mod for Slay the Spire 2.
-
 **English** | [中文](./README.zh-CN.md)
+
+A developer mode mod for Slay the Spire 2.
 
 ## Features
 
