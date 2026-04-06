@@ -9,4 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.1] - 2026-04-06
 
-Initial release.
+### Added
+
+- Developer Mode panel accessible from the main menu.
+- Customizable relics, cards, gold, and encounter selection for testing.
+- Enemy encounter system with unified select UI, combat monster spawning, and idle animation preview.
+- i18n support with English and Simplified Chinese localization.
+- STS2AI integration panel with AI control, speed, and animation controls.
