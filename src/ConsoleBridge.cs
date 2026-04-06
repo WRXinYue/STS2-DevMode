@@ -21,7 +21,7 @@ internal sealed class ConsoleBridge
     private static readonly FieldInfo? CommandsField =
         typeof(DevConsole).GetField("_commands", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
-    public record CommandInfo(string Name, string Description, bool IsOfficial);
+    public record CommandInfo(string Name, string Args, string Description, bool IsOfficial);
 
     public bool TryGetCommands(out IReadOnlyList<CommandInfo> commands, out string error)
     {
@@ -43,9 +43,11 @@ internal sealed class ConsoleBridge
             {
                 bool isOfficial = cmd.GetType().Assembly != typeof(MainFile).Assembly;
                 string name = entry.Key?.ToString() ?? "?";
+                string cmdArgs = "";
                 string desc = "";
+                try { cmdArgs = cmd.Args ?? ""; } catch { }
                 try { desc = cmd.Description ?? ""; } catch { }
-                list.Add(new CommandInfo(name, desc, isOfficial));
+                list.Add(new CommandInfo(name, cmdArgs, desc, isOfficial));
             }
         }
 
