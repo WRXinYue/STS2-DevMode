@@ -23,7 +23,7 @@ public static class GlobalUiReadyPatch
 
     public static void Postfix(NGlobalUi __instance)
     {
-        if (!DevModeState.InDevRun) return;
+        if (!DevModeState.InDevRun && !DevModeState.AlwaysEnabled) return;
         if (_attached == __instance) return;
         _attached = __instance;
         DevPanel.Attach(__instance);

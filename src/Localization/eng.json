@@ -6,6 +6,8 @@
   "devmenu.cardLibrary": "Card Library",
   "devmenu.relicCollection": "Relic Collection",
   "devmenu.back": "Back",
+  "devmenu.alwaysEnabled.on": "Normal Run DevMode: ON",
+  "devmenu.alwaysEnabled.off": "Normal Run DevMode: OFF",
 
   "panel.section.actions": "Actions",
   "panel.section.save": "Save",

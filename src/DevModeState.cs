@@ -82,6 +82,12 @@ public static class DevModeState
     /// <summary>True while inside a dev-mode run (set at launch, cleared on run end).</summary>
     public static bool InDevRun { get; set; }
 
+    /// <summary>
+    /// When true, normal (non-dev) runs also get the DevPanel sidebar and cheat patches.
+    /// Toggled from the Developer Mode menu on the main menu.
+    /// </summary>
+    public static bool AlwaysEnabled { get; set; }
+
     /// <summary>True while previewing card library / relic collection from the main menu.</summary>
     public static bool InMenuPreview { get; set; }
 
@@ -185,7 +191,7 @@ public static class DevModeState
 
     public static void OnRunStarted()
     {
-        InDevRun = IsActive;
+        InDevRun = IsActive || AlwaysEnabled;
         IsActive = false;
     }
 

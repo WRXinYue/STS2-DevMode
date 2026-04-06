@@ -6,6 +6,8 @@
   "devmenu.cardLibrary": "卡牌图鉴",
   "devmenu.relicCollection": "遗物图鉴",
   "devmenu.back": "返回",
+  "devmenu.alwaysEnabled.on": "正常对局启用开发者模式: 开",
+  "devmenu.alwaysEnabled.off": "正常对局启用开发者模式: 关",
 
   "panel.section.actions": "对局操作",
   "panel.section.save": "存档",

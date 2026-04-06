@@ -82,6 +82,23 @@ internal static class DevMenuUI
 
         AddButton(container, template, I18N.T("devmenu.cardLibrary", "Card Library"), () => { Hide(); actions.OnCardLibrary(); });
         AddButton(container, template, I18N.T("devmenu.relicCollection", "Relic Collection"), () => { Hide(); actions.OnRelicCollection(); });
+
+        // ── Settings: toggle "always enable DevMode in normal runs" ──
+        var alwaysLabel = DevModeState.AlwaysEnabled
+            ? I18N.T("devmenu.alwaysEnabled.on", "Normal Run DevMode: ON")
+            : I18N.T("devmenu.alwaysEnabled.off", "Normal Run DevMode: OFF");
+        NMainMenuTextButton? alwaysBtn = null;
+        alwaysBtn = AddButton(container, template, alwaysLabel, () =>
+        {
+            DevModeState.AlwaysEnabled = !DevModeState.AlwaysEnabled;
+            if (alwaysBtn?.label != null)
+            {
+                alwaysBtn.label.Text = DevModeState.AlwaysEnabled
+                    ? I18N.T("devmenu.alwaysEnabled.on", "Normal Run DevMode: ON")
+                    : I18N.T("devmenu.alwaysEnabled.off", "Normal Run DevMode: OFF");
+            }
+        });
+
         AddButton(container, template, I18N.T("devmenu.back", "Back"), Hide);
     }
 

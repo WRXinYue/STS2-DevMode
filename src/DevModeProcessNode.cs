@@ -11,7 +11,7 @@ internal partial class DevModeProcessNode : Node
 {
     public override void _Process(double delta)
     {
-        if (!DevModeState.InDevRun) return;
+        if (!DevModeState.InDevRun && !DevModeState.AlwaysEnabled) return;
         GlobalUiReadyPatch.Process(delta);
     }
 }
