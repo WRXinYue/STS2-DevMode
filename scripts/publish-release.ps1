@@ -66,7 +66,7 @@ Remove-Item "$buildDir\DevMode.json" -Force -ErrorAction SilentlyContinue
 
 function Get-ChangelogSection([string]$File, [string]$Ver) {
     if (-not (Test-Path -LiteralPath $File)) { return "" }
-    $lines  = Get-Content -LiteralPath $File
+    $lines  = [System.IO.File]::ReadAllLines($File, [System.Text.Encoding]::UTF8)
     $found  = $false
     $result = [System.Collections.Generic.List[string]]::new()
     foreach ($line in $lines) {
@@ -79,14 +79,21 @@ function Get-ChangelogSection([string]$File, [string]$Ver) {
     return $result -join "`n"
 }
 
-$notes = Get-ChangelogSection -File "CHANGELOG.md" -Ver $Version
-if (-not $notes) {
-    Write-Warning "No changelog section found for [$Version] in CHANGELOG.md - release will have no notes."
+$notesEN = Get-ChangelogSection -File "CHANGELOG.md" -Ver $Version
+$notesZH = Get-ChangelogSection -File "CHANGELOG.zh-CN.md" -Ver $Version
+
+if (-not $notesEN -and -not $notesZH) {
+    Write-Warning "No changelog section found for [$Version] - release will have no notes."
     $notes = "Release $Version"
+} else {
+    $parts = @()
+    if ($notesEN) { $parts += $notesEN }
+    if ($notesZH) { $parts += "---`n`n$notesZH" }
+    $notes = $parts -join "`n`n"
 }
 
 $notesFile = [System.IO.Path]::GetTempFileName() + ".md"
-Set-Content -LiteralPath $notesFile -Value $notes -Encoding UTF8
+[System.IO.File]::WriteAllText($notesFile, $notes, [System.Text.Encoding]::UTF8)
 
 # ── Create GitHub Release ─────────────────────────────────────────────────────
 
