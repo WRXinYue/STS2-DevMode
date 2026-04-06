@@ -168,7 +168,7 @@ internal static class SnapshotSlotUI
 
         var title = new Label
         {
-            Text = _isSaveMode ? "SAVE" : "LOAD",
+            Text = _isSaveMode ? I18N.T("snapshot.titleSave", "SAVE") : I18N.T("snapshot.titleLoad", "LOAD"),
             HorizontalAlignment = HorizontalAlignment.Center
         };
         title.AddThemeFontSizeOverride("font_size", 22);
@@ -211,7 +211,7 @@ internal static class SnapshotSlotUI
 
         vbox.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill });
 
-        var cancelBtn = new Button { Text = "Cancel", CustomMinimumSize = new Vector2(0, 40) };
+        var cancelBtn = new Button { Text = I18N.T("snapshot.cancel", "Cancel"), CustomMinimumSize = new Vector2(0, 40) };
         cancelBtn.Pressed += Hide;
         vbox.AddChild(cancelBtn);
 
@@ -252,7 +252,7 @@ internal static class SnapshotSlotUI
         vbox.AddChild(statsRow);
 
         vbox.AddChild(HSep());
-        vbox.AddChild(SectionHeader("Cards"));
+        vbox.AddChild(SectionHeader(I18N.T("snapshot.cards", "Cards")));
 
         _detailCards = new Label
         {
@@ -263,7 +263,7 @@ internal static class SnapshotSlotUI
         _detailCards.AddThemeColorOverride("font_color", new Color(0.85f, 0.85f, 0.85f));
         vbox.AddChild(_detailCards);
 
-        vbox.AddChild(SectionHeader("Relics"));
+        vbox.AddChild(SectionHeader(I18N.T("snapshot.relics", "Relics")));
 
         _detailRelics = new Label
         {
@@ -280,14 +280,14 @@ internal static class SnapshotSlotUI
         var bottomRow = new HBoxContainer();
         bottomRow.AddThemeConstantOverride("separation", 8);
 
-        _nameLabel = new Label { Text = "Name:" };
+        _nameLabel = new Label { Text = I18N.T("snapshot.nameLabel", "Name:") };
         _nameLabel.AddThemeFontSizeOverride("font_size", 14);
         _nameLabel.AddThemeColorOverride("font_color", new Color("FFF6E2"));
         bottomRow.AddChild(_nameLabel);
 
         _nameInput = new LineEdit
         {
-            PlaceholderText = "optional name",
+            PlaceholderText = I18N.T("snapshot.namePlaceholder", "optional name"),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
         };
         _nameInput.AddThemeFontSizeOverride("font_size", 14);
@@ -295,7 +295,7 @@ internal static class SnapshotSlotUI
 
         _confirmBtn = new Button
         {
-            Text = _isSaveMode ? "Save" : "Load",
+            Text = _isSaveMode ? I18N.T("snapshot.confirmSave", "Save") : I18N.T("snapshot.confirmLoad", "Load"),
             CustomMinimumSize = new Vector2(80, 0),
             PivotOffset = new Vector2(40, 20)   // centre for scale anim
         };
@@ -347,17 +347,23 @@ internal static class SnapshotSlotUI
 
         if (empty)
         {
-            SetDetail(isQuick ? "Quick Save" : "Empty Slot", "", "Floor —", "HP —", "Gold —", "", "");
+            SetDetail(
+                isQuick ? I18N.T("snapshot.quickSave", "⚡ Quick Save") : I18N.T("snapshot.emptySlot", "Empty Slot"),
+                "",
+                I18N.T("snapshot.floorDash", "Floor —"),
+                I18N.T("snapshot.hpDash", "HP —"),
+                I18N.T("snapshot.goldDash", "Gold —"),
+                "", "");
             if (_nameInput != null) _nameInput.Text = "";
             return;
         }
 
         SetDetail(
-            isQuick ? "Quick Save" : meta!.DisplayName,
+            isQuick ? I18N.T("snapshot.quickSave", "⚡ Quick Save") : meta!.DisplayName,
             meta!.FormattedTime,
-            $"Floor {meta.TotalFloor}",
-            $"HP  {meta.Hp} / {meta.MaxHp}",
-            $"Gold  {meta.Gold}",
+            I18N.T("snapshot.floor", "Floor {0}", meta.TotalFloor),
+            I18N.T("snapshot.hp", "HP  {0} / {1}", meta.Hp, meta.MaxHp),
+            I18N.T("snapshot.gold", "Gold  {0}", meta.Gold),
             string.Join("  ", meta.CardTitles),
             string.Join("  ", meta.RelicTitles)
         );
@@ -404,13 +410,17 @@ internal static class SnapshotSlotUI
     private static string QuickSlotLabel()
     {
         var meta = SnapshotManager.LoadMeta(0);
-        return meta == null ? "⚡ Quick Save\n[empty]" : $"⚡ Quick Save\n{meta.FormattedTime}";
+        var qs = I18N.T("snapshot.quickSave", "⚡ Quick Save");
+        var empty = I18N.T("snapshot.empty", "[empty]");
+        return meta == null ? $"{qs}\n{empty}" : $"{qs}\n{meta.FormattedTime}";
     }
 
     private static string SlotLabel(int slot)
     {
         var meta = SnapshotManager.LoadMeta(slot);
-        return meta == null ? $"Slot {slot}\n[empty]" : $"Slot {slot}  {meta.DisplayName}\n{meta.FormattedTime}";
+        var slotStr = I18N.T("snapshot.slot", "Slot {0}", slot);
+        var empty = I18N.T("snapshot.empty", "[empty]");
+        return meta == null ? $"{slotStr}\n{empty}" : $"{slotStr}  {meta.DisplayName}\n{meta.FormattedTime}";
     }
 
     private static Label SectionHeader(string text)

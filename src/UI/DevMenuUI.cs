@@ -59,7 +59,7 @@ internal static class DevMenuUI
         }
 
         _addedButtons.Clear();
-        AddButton(container, template, "New Test", () => { Hide(); actions.OnNewTest(); });
+        AddButton(container, template, I18N.T("devmenu.newTest", "New Test"), () => { Hide(); actions.OnNewTest(); });
 
         bool anySlot = false;
         for (int i = 0; i <= SnapshotManager.SlotCount; i++)
@@ -67,7 +67,7 @@ internal static class DevMenuUI
             if (SnapshotManager.HasSlot(i)) { anySlot = true; break; }
         }
 
-        var loadBtn = AddButton(container, template, "Load Snapshot", () =>
+        var loadBtn = AddButton(container, template, I18N.T("devmenu.loadSnapshot", "Load Snapshot"), () =>
         {
             // Attach to tree root so FullRect covers the whole screen
             SnapshotSlotUI.Show(mainMenu.GetTree().Root, saveMode: false, onConfirm: slot =>
@@ -80,9 +80,9 @@ internal static class DevMenuUI
         if (!anySlot)
             loadBtn.SetEnabled(false);
 
-        AddButton(container, template, "Card Library", () => { Hide(); actions.OnCardLibrary(); });
-        AddButton(container, template, "Relic Collection", () => { Hide(); actions.OnRelicCollection(); });
-        AddButton(container, template, "Back", Hide);
+        AddButton(container, template, I18N.T("devmenu.cardLibrary", "Card Library"), () => { Hide(); actions.OnCardLibrary(); });
+        AddButton(container, template, I18N.T("devmenu.relicCollection", "Relic Collection"), () => { Hide(); actions.OnRelicCollection(); });
+        AddButton(container, template, I18N.T("devmenu.back", "Back"), Hide);
     }
 
     public static void Hide()

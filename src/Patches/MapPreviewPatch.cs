@@ -146,9 +146,9 @@ public static class MapPointHoverPatch
 
         var typeTag = roomType switch
         {
-            RoomType.Monster => "普通",
-            RoomType.Elite   => "精英",
-            RoomType.Boss    => "Boss",
+            RoomType.Monster => I18N.T("map.roomNormal", "Normal"),
+            RoomType.Elite   => I18N.T("map.roomElite", "Elite"),
+            RoomType.Boss    => I18N.T("map.roomBoss", "Boss"),
             _                => ""
         };
 
@@ -184,7 +184,7 @@ public static class MapPointHoverPatch
         // Header: [type] floor N
         var headerLabel = new Label
         {
-            Text = $"[{typeTag}] 楼层 {floor}",
+            Text = I18N.T("map.tooltipHeader", "[{0}] Floor {1}", typeTag, floor),
             HorizontalAlignment = HorizontalAlignment.Center,
             MouseFilter = Control.MouseFilterEnum.Ignore
         };
@@ -195,7 +195,7 @@ public static class MapPointHoverPatch
         // Encounter name
         var nameLabel = new Label
         {
-            Text = isOverride ? $"{encounterName} (覆盖)" : encounterName,
+            Text = isOverride ? I18N.T("map.override", "{0} (Override)", encounterName) : encounterName,
             HorizontalAlignment = HorizontalAlignment.Center,
             MouseFilter = Control.MouseFilterEnum.Ignore
         };
@@ -273,7 +273,7 @@ public static class MapPointHoverPatch
         // Hint
         var hintLabel = new Label
         {
-            Text = "右键点击替换",
+            Text = I18N.T("map.rightClickHint", "Right-click to replace"),
             HorizontalAlignment = HorizontalAlignment.Center,
             MouseFilter = Control.MouseFilterEnum.Ignore
         };

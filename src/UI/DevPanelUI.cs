@@ -69,28 +69,28 @@ internal static class DevPanelUI
 
         var vbox = new VBoxContainer();
         vbox.AddThemeConstantOverride("separation", 6);
-        vbox.AddChild(CreateButton("卡牌", actions.OnOpenCards));
-        vbox.AddChild(CreateButton("遗物", actions.OnOpenRelics));
-        vbox.AddChild(CreateButton("敌人", actions.OnOpenEnemies));
+        vbox.AddChild(CreateButton(I18N.T("panel.cards", "Cards"), actions.OnOpenCards));
+        vbox.AddChild(CreateButton(I18N.T("panel.relics", "Relics"), actions.OnOpenRelics));
+        vbox.AddChild(CreateButton(I18N.T("panel.enemies", "Enemies"), actions.OnOpenEnemies));
         vbox.AddChild(CreateSeparator());
-        vbox.AddChild(CreateButton("存档", actions.OnOpenSave));
-        vbox.AddChild(CreateButton("读档", actions.OnOpenLoad));
+        vbox.AddChild(CreateButton(I18N.T("panel.save", "Save"), actions.OnOpenSave));
+        vbox.AddChild(CreateButton(I18N.T("panel.load", "Load"), actions.OnOpenLoad));
 
         // Game speed control
         vbox.AddChild(CreateSeparator());
-        var gameSpeedBtn = CreatePlainButton($"速度: {actions.GetGameSpeedLabel()}");
+        var gameSpeedBtn = CreatePlainButton(I18N.T("panel.speed", "Speed: {0}", actions.GetGameSpeedLabel()));
         gameSpeedBtn.Pressed += () =>
         {
             actions.OnCycleGameSpeed();
-            gameSpeedBtn.Text = $"速度: {actions.GetGameSpeedLabel()}";
+            gameSpeedBtn.Text = I18N.T("panel.speed", "Speed: {0}", actions.GetGameSpeedLabel());
         };
         vbox.AddChild(gameSpeedBtn);
 
-        var skipAnimBtn = CreatePlainButton($"跳过动画: {actions.GetSkipAnimLabel()}");
+        var skipAnimBtn = CreatePlainButton(I18N.T("panel.skipAnim", "Skip Anim: {0}", actions.GetSkipAnimLabel()));
         skipAnimBtn.Pressed += () =>
         {
             actions.OnToggleSkipAnim();
-            skipAnimBtn.Text = $"跳过动画: {actions.GetSkipAnimLabel()}";
+            skipAnimBtn.Text = I18N.T("panel.skipAnim", "Skip Anim: {0}", actions.GetSkipAnimLabel());
         };
         vbox.AddChild(skipAnimBtn);
 
@@ -99,7 +99,7 @@ internal static class DevPanelUI
         {
             vbox.AddChild(CreateSeparator());
 
-            var aiBtn = CreatePlainButton("AI: 关闭");
+            var aiBtn = CreatePlainButton(I18N.T("panel.ai.off", "AI: Off"));
             Button? stratBtn = null;
             Button? speedBtn = null;
 
@@ -107,25 +107,25 @@ internal static class DevPanelUI
             {
                 actions.OnToggleAI();
                 bool enabled = actions.IsAIEnabled?.Invoke() ?? false;
-                aiBtn.Text = enabled ? "AI: 运行中" : "AI: 关闭";
+                aiBtn.Text = enabled ? I18N.T("panel.ai.running", "AI: Running") : I18N.T("panel.ai.off", "AI: Off");
                 if (stratBtn != null) stratBtn.Visible = !enabled;
                 if (speedBtn != null) speedBtn.Visible = !enabled;
             };
             vbox.AddChild(aiBtn);
 
-            stratBtn = CreatePlainButton($"策略: {(actions.GetStrategyName?.Invoke() ?? "规则")}");
+            stratBtn = CreatePlainButton(I18N.T("panel.ai.strategy", "Strategy: {0}", actions.GetStrategyName?.Invoke() ?? I18N.T("ai.strategy.rule", "Rule")));
             stratBtn.Pressed += () =>
             {
                 actions.OnCycleStrategy?.Invoke();
-                stratBtn.Text = $"策略: {(actions.GetStrategyName?.Invoke() ?? "?")}";
+                stratBtn.Text = I18N.T("panel.ai.strategy", "Strategy: {0}", actions.GetStrategyName?.Invoke() ?? "?");
             };
             vbox.AddChild(stratBtn);
 
-            speedBtn = CreatePlainButton($"速度: {(actions.GetSpeedLabel?.Invoke() ?? "正常")}");
+            speedBtn = CreatePlainButton(I18N.T("panel.ai.speed", "Speed: {0}", actions.GetSpeedLabel?.Invoke() ?? I18N.T("ai.speed.normal", "Normal")));
             speedBtn.Pressed += () =>
             {
                 actions.OnCycleSpeed?.Invoke();
-                speedBtn.Text = $"速度: {(actions.GetSpeedLabel?.Invoke() ?? "?")}";
+                speedBtn.Text = I18N.T("panel.ai.speed", "Speed: {0}", actions.GetSpeedLabel?.Invoke() ?? "?");
             };
             vbox.AddChild(speedBtn);
         }
@@ -275,17 +275,17 @@ internal static class DevPanelUI
 
     private static void BuildCardTopBar(HBoxContainer bar, Func<CardTarget, bool>? cardTargetAvailable = null)
     {
-        var modeLabels  = new[] { "图鉴", "添加", "升级", "删除" };
+        var modeLabels  = new[] { I18N.T("topbar.card.view","View"), I18N.T("topbar.card.add","Add"), I18N.T("topbar.card.upgrade","Upgrade"), I18N.T("topbar.card.delete","Delete") };
         var modes       = new[] { CardMode.View, CardMode.Add, CardMode.Upgrade, CardMode.Delete };
         var modeButtons = new Button[modeLabels.Length];
 
         bool showTargets  = DevModeState.CardMode is CardMode.Add or CardMode.Upgrade or CardMode.Delete;
-        var targetLabels  = new[] { "手牌", "抽牌堆", "弃牌堆", "牌组" };
+        var targetLabels  = new[] { I18N.T("topbar.card.hand","Hand"), I18N.T("topbar.card.drawPile","Draw Pile"), I18N.T("topbar.card.discardPile","Discard"), I18N.T("topbar.card.deck","Deck") };
         var targets       = new[] { CardTarget.Hand, CardTarget.DrawPile, CardTarget.DiscardPile, CardTarget.Deck };
         var targetButtons = showTargets ? new Button[targetLabels.Length] : null;
 
         bool showDuration   = showTargets;
-        var durationLabels  = new[] { "本场", "永久" };
+        var durationLabels  = new[] { I18N.T("topbar.card.temporary","Temp"), I18N.T("topbar.card.permanent","Perm") };
         var durations       = new[] { EffectDuration.Temporary, EffectDuration.Permanent };
         var durationButtons = showDuration ? new Button[durationLabels.Length] : null;
 
@@ -381,7 +381,7 @@ internal static class DevPanelUI
 
     private static void BuildRelicTopBar(HBoxContainer bar)
     {
-        var labels  = new[] { "图鉴", "添加", "删除" };
+        var labels  = new[] { I18N.T("topbar.relic.view","View"), I18N.T("topbar.relic.add","Add"), I18N.T("topbar.relic.delete","Delete") };
         var modes   = new[] { RelicMode.View, RelicMode.Add, RelicMode.Delete };
         var buttons = new Button[labels.Length];
 
@@ -415,7 +415,7 @@ internal static class DevPanelUI
     private static void BuildEnemyTopBar(HBoxContainer bar)
     {
         // Left group: encounter override modes
-        var labels = new[] { "全局", "按类型", "按楼层", "关闭" };
+        var labels = new[] { I18N.T("topbar.enemy.global","Global"), I18N.T("topbar.enemy.byType","By Type"), I18N.T("topbar.enemy.byFloor","By Floor"), I18N.T("topbar.enemy.off","Off") };
         var modes  = new[] { EnemyMode.Global, EnemyMode.PerType, EnemyMode.Off, EnemyMode.Off };
         var buttons = new Button[labels.Length];
 
@@ -466,13 +466,13 @@ internal static class DevPanelUI
         {
             bar.AddChild(new Control { CustomMinimumSize = new Vector2(12, 0) });
 
-            var addBtn = CreateToggleButton("添加怪物");
+            var addBtn = CreateToggleButton(I18N.T("topbar.enemy.addMonster", "Add Monster"));
             ApplyToggleStyle(addBtn, false, 1); // left corners
             addBtn.Pressed += () => _onRefreshPanel?.Invoke(); // handled by DevPanel
             addBtn.SetMeta("combat_action", "add");
             bar.AddChild(addBtn);
 
-            var killBtn = CreateToggleButton("击杀敌人");
+            var killBtn = CreateToggleButton(I18N.T("topbar.enemy.killEnemy", "Kill Enemy"));
             ApplyToggleStyle(killBtn, false, 2); // right corners
             killBtn.Pressed += () =>
             {

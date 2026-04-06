@@ -25,7 +25,7 @@ internal static class SkipAnimControl
     }
 
     /// <summary>Get the display label for the current state.</summary>
-    public static string GetLabel() => _skipping ? "开" : "关";
+    public static string GetLabel() => _skipping ? I18N.T("skipanim.on", "On") : I18N.T("skipanim.off", "Off");
 
     /// <summary>Restore original fast mode (called on run end / detach).</summary>
     public static void Reset()

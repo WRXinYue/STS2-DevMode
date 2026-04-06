@@ -59,8 +59,8 @@ internal static class AIControl
         {
             object? raw = _strategy?.GetValue(null);
             int val = raw != null ? Convert.ToInt32(raw) : -1;
-            if (val == _stratRuleBased)      return "规则";
-            if (val == _stratExternalBridge) return "桥接";
+            if (val == _stratRuleBased)      return I18N.T("ai.strategy.rule", "Rule");
+            if (val == _stratExternalBridge) return I18N.T("ai.strategy.bridge", "Bridge");
             return "?";
         }
         catch { return "N/A"; }
@@ -112,10 +112,10 @@ internal static class AIControl
             int ms = (int?)_actionDelayMs?.GetValue(null) ?? 500;
             return ms switch
             {
-                <= 200 => "极速",
-                <= 500 => "快速",
-                <= 800 => "正常",
-                _ => "慢速",
+                <= 200 => I18N.T("ai.speed.extreme", "Extreme"),
+                <= 500 => I18N.T("ai.speed.fast", "Fast"),
+                <= 800 => I18N.T("ai.speed.normal", "Normal"),
+                _ => I18N.T("ai.speed.slow", "Slow"),
             };
         }
         catch { return "N/A"; }

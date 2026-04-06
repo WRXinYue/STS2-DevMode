@@ -14,6 +14,10 @@ public class MainFile
     public static void Initialize()
     {
         Logger.Info("DevMode initializing...");
+
+        // Initialize localization before anything else
+        I18N.Initialize();
+
         var harmony = new Harmony(ModID);
         harmony.PatchAll();
         Logger.Info("DevMode initialized — Harmony patches applied.");

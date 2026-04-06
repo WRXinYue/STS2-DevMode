@@ -55,7 +55,7 @@ public static class MainMenuPatch
 
         if (_devModeButton.label != null)
         {
-            _devModeButton.label.Text = "Developer Mode";
+            _devModeButton.label.Text = I18N.T("menu.developerMode", "Developer Mode");
             // Reset any disabled/animation state copied from the template
             _devModeButton.label.Modulate = Colors.White;
             _devModeButton.label.SelfModulate = new Color("FFF6E2"); // StsColors.cream

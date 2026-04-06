@@ -97,7 +97,7 @@ internal static class EnemySelectUI
         {
             var fallback = new Label
             {
-                Text = "预览不可用",
+                Text = I18N.T("enemy.previewUnavailable", "Preview unavailable"),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 MouseFilter = Control.MouseFilterEnum.Ignore
@@ -147,10 +147,10 @@ internal static class EnemySelectUI
         {
             Text = filter switch
             {
-                RoomType.Monster => "选择普通战斗",
-                RoomType.Elite   => "选择精英战斗",
-                RoomType.Boss    => "选择Boss战斗",
-                _                => "选择战斗遭遇"
+                RoomType.Monster => I18N.T("enemy.selectNormal", "Select Normal Combat"),
+                RoomType.Elite   => I18N.T("enemy.selectElite", "Select Elite Combat"),
+                RoomType.Boss    => I18N.T("enemy.selectBoss", "Select Boss Combat"),
+                _                => I18N.T("enemy.selectAny", "Select Combat Encounter")
             },
             HorizontalAlignment = HorizontalAlignment.Center
         };
@@ -161,7 +161,7 @@ internal static class EnemySelectUI
         var filterBar = new HBoxContainer();
         filterBar.AddThemeConstantOverride("separation", 4);
         RoomType?[] filters = [null, RoomType.Monster, RoomType.Elite, RoomType.Boss];
-        string[] filterNames = ["全部", "普通", "精英", "Boss"];
+        string[] filterNames = [I18N.T("enemy.filterAll","All"), I18N.T("enemy.filterNormal","Normal"), I18N.T("enemy.filterElite","Elite"), I18N.T("enemy.filterBoss","Boss")];
         for (int i = 0; i < filters.Length; i++)
         {
             int idx = i;
@@ -186,7 +186,7 @@ internal static class EnemySelectUI
         // ── Search box ──
         var searchBox = new LineEdit
         {
-            PlaceholderText = "搜索...",
+            PlaceholderText = I18N.T("enemy.searchPlaceholder", "Search..."),
             CustomMinimumSize = new Vector2(0, 32),
             ClearButtonEnabled = true
         };
@@ -240,7 +240,7 @@ internal static class EnemySelectUI
 
         var previewNameLabel = new Label
         {
-            Text = "悬停查看预览",
+            Text = I18N.T("enemy.hoverPreview", "Hover to preview"),
             HorizontalAlignment = HorizontalAlignment.Center
         };
         previewNameLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.85f, 0.7f));
@@ -320,9 +320,9 @@ internal static class EnemySelectUI
 
             var roomTag = enc.RoomType switch
             {
-                RoomType.Monster => "[普通]",
-                RoomType.Elite   => "[精英]",
-                RoomType.Boss    => "[Boss]",
+                RoomType.Monster => I18N.T("enemy.tagNormal", "[Normal]"),
+                RoomType.Elite   => I18N.T("enemy.tagElite", "[Elite]"),
+                RoomType.Boss    => I18N.T("enemy.tagBoss", "[Boss]"),
                 _                => ""
             };
 
@@ -428,7 +428,7 @@ internal static class EnemySelectUI
         // ── Close button ──
         var closeBtn = new Button
         {
-            Text = "关闭",
+            Text = I18N.T("enemy.close", "Close"),
             CustomMinimumSize = new Vector2(0, 36),
             FocusMode = Control.FocusModeEnum.None
         };
@@ -502,7 +502,7 @@ internal static class EnemySelectUI
 
         var title = new Label
         {
-            Text = "按楼层自定义敌人",
+            Text = I18N.T("enemy.byFloorTitle", "Customize enemies by floor"),
             HorizontalAlignment = HorizontalAlignment.Center
         };
         title.AddThemeColorOverride("font_color", new Color(0.9f, 0.85f, 0.7f));
@@ -530,7 +530,7 @@ internal static class EnemySelectUI
             {
                 overridesList.AddChild(new Label
                 {
-                    Text = "暂无楼层自定义",
+                    Text = I18N.T("enemy.noFloorCustom", "No floor customizations"),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     Modulate = new Color(0.6f, 0.6f, 0.6f)
                 });
@@ -544,7 +544,8 @@ internal static class EnemySelectUI
 
                 var label = new Label
                 {
-                    Text = $"楼层 {kv.Key}: {(kv.Value != null ? EnemyActions.GetShortName(kv.Value) : "无")}",
+                    Text = I18N.T("enemy.floorEntry", "Floor {0}: {1}", kv.Key,
+                        kv.Value != null ? EnemyActions.GetShortName(kv.Value) : I18N.T("enemy.floorEntryNone", "None")),
                     SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
                 };
                 hbox.AddChild(label);
@@ -579,13 +580,13 @@ internal static class EnemySelectUI
             MaxValue = 99,
             Value = 1,
             CustomMinimumSize = new Vector2(80, 32),
-            Prefix = "楼层:"
+            Prefix = I18N.T("enemy.floorLabel", "Floor:")
         };
         addBar.AddChild(floorInput);
 
         var pickBtn = new Button
         {
-            Text = "选择遭遇",
+            Text = I18N.T("enemy.selectEncounter", "Select Encounter"),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             CustomMinimumSize = new Vector2(0, 32),
             FocusMode = Control.FocusModeEnum.None
@@ -609,7 +610,7 @@ internal static class EnemySelectUI
 
         var clearBtn = new Button
         {
-            Text = "清除全部",
+            Text = I18N.T("enemy.clearAll", "Clear All"),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             CustomMinimumSize = new Vector2(0, 36),
             FocusMode = Control.FocusModeEnum.None
@@ -623,7 +624,7 @@ internal static class EnemySelectUI
 
         var closeBtn = new Button
         {
-            Text = "关闭",
+            Text = I18N.T("enemy.close", "Close"),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             CustomMinimumSize = new Vector2(0, 36),
             FocusMode = Control.FocusModeEnum.None
@@ -662,7 +663,7 @@ internal static class EnemySelectUI
 
         var title = new Label
         {
-            Text = "选择要击杀的敌人",
+            Text = I18N.T("enemy.killTitle", "Select enemy to kill"),
             HorizontalAlignment = HorizontalAlignment.Center
         };
         title.AddThemeColorOverride("font_color", new Color(0.9f, 0.85f, 0.7f));
@@ -681,12 +682,12 @@ internal static class EnemySelectUI
         foreach (var enemy in enemies)
         {
             if (enemy.IsDead) continue;
-            var name = enemy.Monster?.Title?.GetFormattedText() ?? "???";
+            var name = enemy.Monster?.Title?.GetFormattedText() ?? I18N.T("enemy.unknownName", "???");
             var hp = $"{enemy.CurrentHp}/{enemy.MaxHp}";
 
             var btn = new Button
             {
-                Text = $"{name}  HP: {hp}",
+                Text = I18N.T("enemy.killEntry", "{0}  HP: {1}", name, hp),
                 CustomMinimumSize = new Vector2(0, 34),
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
                 FocusMode = Control.FocusModeEnum.None
@@ -705,7 +706,7 @@ internal static class EnemySelectUI
         // Kill all button
         var killAllBtn = new Button
         {
-            Text = "击杀全部",
+            Text = I18N.T("enemy.killAll", "Kill All"),
             CustomMinimumSize = new Vector2(0, 36),
             FocusMode = Control.FocusModeEnum.None
         };
@@ -728,7 +729,7 @@ internal static class EnemySelectUI
 
         var closeBtn = new Button
         {
-            Text = "关闭",
+            Text = I18N.T("enemy.close", "Close"),
             CustomMinimumSize = new Vector2(0, 36),
             FocusMode = Control.FocusModeEnum.None
         };
