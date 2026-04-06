@@ -33,34 +33,18 @@ if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     throw "dotnet not found. Make sure .NET SDK is on PATH."
 }
 
-# ── Build ─────────────────────────────────────────────────────────────────────
+# ── Build + zip (reuse make zip) ───────────────────────────────────────────
 
-Write-Host "Building DevMode..."
-& dotnet publish DevMode.csproj
-if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
-
-# ── Collect artifacts ─────────────────────────────────────────────────────────
-
-$buildDir = "build\DevMode"
-$dll      = "$buildDir\DevMode.dll"
-$json     = "DevMode.json"
-
-if (-not (Test-Path $dll)) {
-    throw "Build artifact not found: $dll"
-}
-
-# ── Package into zip ──────────────────────────────────────────────────────────
+Write-Host "Building and packaging..."
+& make zip
+if ($LASTEXITCODE -ne 0) { throw "make zip failed" }
 
 $zipName = "DevMode-v$Version.zip"
 $zipPath = "build\$zipName"
 
-Write-Host "Packaging $zipPath..."
-if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-
-# Copy DevMode.json into buildDir temporarily so it's included in the zip
-Copy-Item -LiteralPath $json -Destination "$buildDir\DevMode.json" -Force
-Compress-Archive -Path "$buildDir\*" -DestinationPath $zipPath
-Remove-Item "$buildDir\DevMode.json" -Force -ErrorAction SilentlyContinue
+if (-not (Test-Path $zipPath)) {
+    throw "Zip not found: $zipPath"
+}
 
 # ── Extract release notes from CHANGELOG.md ──────────────────────────────────
 
