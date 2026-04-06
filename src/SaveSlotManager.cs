@@ -11,7 +11,7 @@ using MegaCrit.Sts2.Core.Saves;
 
 namespace DevMode;
 
-internal static class SnapshotManager
+internal static class SaveSlotManager
 {
     public const int SlotCount = 3;
 
@@ -46,12 +46,12 @@ internal static class SnapshotManager
             var meta = CaptureMetaFromState(state, name);
             File.WriteAllText(MetaPath(slot), JsonSerializer.Serialize(meta));
 
-            MainFile.Logger.Info($"SnapshotManager: Saved to slot {slot}.");
+            MainFile.Logger.Info($"SaveSlotManager: Saved to slot {slot}.");
             return true;
         }
         catch (Exception ex)
         {
-            MainFile.Logger.Warn($"SnapshotManager: Save slot {slot} failed: {ex.Message}");
+            MainFile.Logger.Warn($"SaveSlotManager: Save slot {slot} failed: {ex.Message}");
             return false;
         }
     }
@@ -63,7 +63,7 @@ internal static class SnapshotManager
             var path = SlotPath(slot);
             if (!File.Exists(path))
             {
-                MainFile.Logger.Warn($"SnapshotManager: Slot {slot} is empty.");
+                MainFile.Logger.Warn($"SaveSlotManager: Slot {slot} is empty.");
                 return false;
             }
 
@@ -71,28 +71,28 @@ internal static class SnapshotManager
             var result = SaveManager.FromJson<SerializableRun>(json);
             if (result.SaveData == null)
             {
-                MainFile.Logger.Warn($"SnapshotManager: Failed to deserialize slot {slot}.");
+                MainFile.Logger.Warn($"SaveSlotManager: Failed to deserialize slot {slot}.");
                 return false;
             }
 
-            return LoadFromSnapshot(result.SaveData);
+            return LoadFromSave(result.SaveData);
         }
         catch (Exception ex)
         {
-            MainFile.Logger.Warn($"SnapshotManager: Load slot {slot} failed: {ex.Message}");
+            MainFile.Logger.Warn($"SaveSlotManager: Load slot {slot} failed: {ex.Message}");
             return false;
         }
     }
 
     public static bool HasSlot(int slot) => File.Exists(SlotPath(slot));
 
-    public static SnapshotMeta? LoadMeta(int slot)
+    public static SaveSlotMeta? LoadMeta(int slot)
     {
         var path = MetaPath(slot);
         if (!File.Exists(path)) return null;
         try
         {
-            return JsonSerializer.Deserialize<SnapshotMeta>(File.ReadAllText(path));
+            return JsonSerializer.Deserialize<SaveSlotMeta>(File.ReadAllText(path));
         }
         catch
         {
@@ -102,10 +102,10 @@ internal static class SnapshotManager
 
     public static void RenameSlot(int slot, string name)
     {
-        var meta = LoadMeta(slot) ?? new SnapshotMeta();
+        var meta = LoadMeta(slot) ?? new SaveSlotMeta();
         meta.Name = name;
         try { File.WriteAllText(MetaPath(slot), JsonSerializer.Serialize(meta)); }
-        catch (Exception ex) { MainFile.Logger.Warn($"SnapshotManager: Rename slot {slot} failed: {ex.Message}"); }
+        catch (Exception ex) { MainFile.Logger.Warn($"SaveSlotManager: Rename slot {slot} failed: {ex.Message}"); }
     }
 
     // ──────── Helpers ────────
@@ -113,10 +113,10 @@ internal static class SnapshotManager
     private static string SlotPath(int slot) => Path.Combine(SnapshotDir, $"slot{slot}.json");
     private static string MetaPath(int slot) => Path.Combine(SnapshotDir, $"slot{slot}_meta.json");
 
-    private static SnapshotMeta CaptureMetaFromState(RunState state, string name)
+    private static SaveSlotMeta CaptureMetaFromState(RunState state, string name)
     {
         var player = state.Players.FirstOrDefault();
-        var meta = new SnapshotMeta
+        var meta = new SaveSlotMeta
         {
             Name = name,
             SaveTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
@@ -143,27 +143,27 @@ internal static class SnapshotManager
 
     // ──────── Internal load ────────
 
-    private static bool LoadFromSnapshot(SerializableRun save)
+    private static bool LoadFromSave(SerializableRun save)
     {
         try
         {
             if (RunManager.Instance == null)
             {
-                MainFile.Logger.Warn("SnapshotManager: No RunManager instance.");
+                MainFile.Logger.Warn("SaveSlotManager: No RunManager instance.");
                 return false;
             }
 
-            TaskHelper.RunSafely(LoadFromSnapshotAsync(save));
+            TaskHelper.RunSafely(LoadFromSaveAsync(save));
             return true;
         }
         catch (Exception ex)
         {
-            MainFile.Logger.Warn($"SnapshotManager: Load snapshot failed: {ex.Message}");
+            MainFile.Logger.Warn($"SaveSlotManager: Load save failed: {ex.Message}");
             return false;
         }
     }
 
-    private static async Task LoadFromSnapshotAsync(SerializableRun save)
+    private static async Task LoadFromSaveAsync(SerializableRun save)
     {
         var game = NGame.Instance!;
         var rm = RunManager.Instance;
@@ -187,6 +187,6 @@ internal static class SnapshotManager
         await game.LoadRun(state, save.PreFinishedRoom);
         await game.Transition.FadeIn();
 
-        MainFile.Logger.Info("SnapshotManager: Snapshot loaded successfully.");
+        MainFile.Logger.Info("SaveSlotManager: Save loaded successfully.");
     }
 }

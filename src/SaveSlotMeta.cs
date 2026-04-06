@@ -4,10 +4,10 @@ using System.Collections.Generic;
 namespace DevMode;
 
 /// <summary>
-/// Lightweight sidecar metadata stored alongside each snapshot slot.
+/// Lightweight sidecar metadata stored alongside each save slot.
 /// Used to populate the slot selection UI without deserializing the full run save.
 /// </summary>
-internal sealed class SnapshotMeta
+internal sealed class SaveSlotMeta
 {
     public string Name { get; set; } = "";
     public long SaveTime { get; set; }

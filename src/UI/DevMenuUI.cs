@@ -62,19 +62,19 @@ internal static class DevMenuUI
         AddButton(container, template, I18N.T("devmenu.newTest", "New Test"), () => { Hide(); actions.OnNewTest(); });
 
         bool anySlot = false;
-        for (int i = 0; i <= SnapshotManager.SlotCount; i++)
+        for (int i = 0; i <= SaveSlotManager.SlotCount; i++)
         {
-            if (SnapshotManager.HasSlot(i)) { anySlot = true; break; }
+            if (SaveSlotManager.HasSlot(i)) { anySlot = true; break; }
         }
 
-        var loadBtn = AddButton(container, template, I18N.T("devmenu.loadSnapshot", "Load Snapshot"), () =>
+        var loadBtn = AddButton(container, template, I18N.T("devmenu.loadSnapshot", "Load Save"), () =>
         {
             // Attach to tree root so FullRect covers the whole screen
-            SnapshotSlotUI.Show(mainMenu.GetTree().Root, saveMode: false, onConfirm: slot =>
+            SaveSlotUI.Show(mainMenu.GetTree().Root, saveMode: false, onConfirm: slot =>
             {
-                SnapshotSlotUI.Hide();
+                SaveSlotUI.Hide();
                 Hide();
-                SnapshotManager.LoadFromSlot(slot);
+                SaveSlotManager.LoadFromSlot(slot);
             });
         });
         if (!anySlot)
@@ -89,7 +89,7 @@ internal static class DevMenuUI
     {
         if (_mainMenu == null || !GodotObject.IsInstanceValid(_mainMenu)) return;
 
-        SnapshotSlotUI.Hide();
+        SaveSlotUI.Hide();
 
         foreach (var btn in _addedButtons)
         {

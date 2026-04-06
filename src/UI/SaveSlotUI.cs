@@ -4,13 +4,13 @@ using Godot;
 namespace DevMode.UI;
 
 /// <summary>
-/// Full-screen overlay for saving or loading snapshot slots.
+/// Full-screen overlay for saving or loading save slots.
 /// Slot 0 = Quick Save (special, no rename).  Slots 1-N = normal slots.
 /// Left panel: slot list.  Right panel: details + rename + confirm.
 /// </summary>
-internal static class SnapshotSlotUI
+internal static class SaveSlotUI
 {
-    private const string RootName = "SnapshotSlotUIRoot";
+    private const string RootName = "SaveSlotUIRoot";
 
     private static Control? _root;
     private static ColorRect? _bg;
@@ -33,7 +33,7 @@ internal static class SnapshotSlotUI
     private static Button?   _confirmBtn;
     private static Control?  _rightPanel;
 
-    private static readonly Button[] _slotBtns = new Button[SnapshotManager.SlotCount + 1];
+    private static readonly Button[] _slotBtns = new Button[SaveSlotManager.SlotCount + 1];
 
     // ──────── Public API ────────
 
@@ -193,7 +193,7 @@ internal static class SnapshotSlotUI
             vbox.AddChild(HSep());
         }
 
-        for (int i = 1; i <= SnapshotManager.SlotCount; i++)
+        for (int i = 1; i <= SaveSlotManager.SlotCount; i++)
         {
             int slot = i;
             var btn = new Button
@@ -337,7 +337,7 @@ internal static class SnapshotSlotUI
     private static void RefreshDetail(int slot)
     {
         bool isQuick = slot == 0;
-        var meta = SnapshotManager.LoadMeta(slot);
+        var meta = SaveSlotManager.LoadMeta(slot);
         bool empty = meta == null;
 
         if (_nameLabel != null) _nameLabel.Visible = !isQuick;
@@ -389,7 +389,7 @@ internal static class SnapshotSlotUI
 
         bool isQuick = _selectedSlot == 0;
         if (_isSaveMode && !isQuick)
-            SnapshotManager.RenameSlot(_selectedSlot, _nameInput?.Text ?? "");
+            SaveSlotManager.RenameSlot(_selectedSlot, _nameInput?.Text ?? "");
 
         _onConfirm?.Invoke(_selectedSlot);
 
@@ -409,7 +409,7 @@ internal static class SnapshotSlotUI
 
     private static string QuickSlotLabel()
     {
-        var meta = SnapshotManager.LoadMeta(0);
+        var meta = SaveSlotManager.LoadMeta(0);
         var qs = I18N.T("snapshot.quickSave", "⚡ Quick Save");
         var empty = I18N.T("snapshot.empty", "[empty]");
         return meta == null ? $"{qs}\n{empty}" : $"{qs}\n{meta.FormattedTime}";
@@ -417,7 +417,7 @@ internal static class SnapshotSlotUI
 
     private static string SlotLabel(int slot)
     {
-        var meta = SnapshotManager.LoadMeta(slot);
+        var meta = SaveSlotManager.LoadMeta(slot);
         var slotStr = I18N.T("snapshot.slot", "Slot {0}", slot);
         var empty = I18N.T("snapshot.empty", "[empty]");
         return meta == null ? $"{slotStr}\n{empty}" : $"{slotStr}  {meta.DisplayName}\n{meta.FormattedTime}";
