@@ -126,7 +126,7 @@ internal static class DevPanelUI
         saveBtn.Pressed += () => { CloseAllOverlays(globalUi); ShowSaveLoadOverlay(globalUi, actions); };
         railVBox.AddChild(saveBtn);
 
-        var cheatsBtn = CreateRailIcon(MdiIcon.Cog, I18N.T("panel.cheats", "Settings & Cheats"));
+        var cheatsBtn = CreateRailIcon(MdiIcon.Cog, I18N.T("panel.settings", "Settings"));
         cheatsBtn.Pressed += () => { CloseAllOverlays(globalUi); ShowCheatsOverlay(globalUi, actions); };
         railVBox.AddChild(cheatsBtn);
 
@@ -356,7 +356,7 @@ internal static class DevPanelUI
             // Title
             var title = new Label
             {
-                Text = I18N.T("panel.cheats", "Settings & Cheats"),
+                Text = I18N.T("panel.settings", "Settings"),
                 HorizontalAlignment = HorizontalAlignment.Center
             };
             title.AddThemeFontSizeOverride("font_size", 16);
@@ -626,6 +626,10 @@ internal static class DevPanelUI
                 SizeFlagsVertical   = Control.SizeFlags.ShrinkCenter
             };
             btnBox.AddThemeConstantOverride("separation", 12);
+
+            var newTestBtn = CreateOverlayButton(I18N.T("panel.newTest", "New Test"), MdiIcon.Plus);
+            newTestBtn.Pressed += () => { CloseOverlay(globalUi); actions.OnNewTest(); };
+            btnBox.AddChild(newTestBtn);
 
             var saveBtn = CreateOverlayButton(I18N.T("panel.save", "Save"), MdiIcon.ContentSave);
             saveBtn.Pressed += () => { CloseOverlay(globalUi); actions.OnOpenSave(); };
@@ -1490,6 +1494,7 @@ internal sealed class DevPanelActions
     public required Action OnOpenEnemies  { get; init; }
     public required Action OnOpenSave     { get; init; }
     public required Action OnOpenLoad     { get; init; }
+    public required Action OnNewTest      { get; init; }
     public required Action OnRefreshPanel { get; init; }
 
     public required Action OnOpenPowers   { get; init; }

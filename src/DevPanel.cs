@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Godot;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Helpers;
+using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
 using MegaCrit.Sts2.Core.Nodes.Screens.RelicCollection;
@@ -95,6 +96,7 @@ internal static class DevPanel
                                     slot => SaveSlotManager.SaveToSlot(slot)),
                 OnOpenLoad    = () => SaveSlotUI.Show(globalUi, saveMode: false,
                                     slot => SaveSlotManager.LoadFromSlot(slot)),
+                OnNewTest     = StartNewTest,
                 OnRefreshPanel = RefreshPanel,
                 OnToggleAI      = AIControl.IsAvailable ? AIControl.Toggle : null,
                 OnCycleStrategy = AIControl.IsAvailable ? AIControl.CycleStrategy : null,
@@ -355,6 +357,37 @@ internal static class DevPanel
         if (!RunContext.TryGetRunAndPlayer(out _, out var player)) return;
 
         CardEditUI.Show(_globalUi, player);
+    }
+
+    private static void StartNewTest()
+    {
+        try
+        {
+            var game = NGame.Instance;
+            var rm = RunManager.Instance;
+            if (game == null || rm == null) return;
+
+            TaskHelper.RunSafely(StartNewTestAsync(game, rm));
+        }
+        catch (Exception ex)
+        {
+            MainFile.Logger.Warn($"DevPanel: StartNewTest failed: {ex.Message}");
+        }
+    }
+
+    private static async Task StartNewTestAsync(NGame game, RunManager rm)
+    {
+        await game.Transition.FadeOut();
+
+        if (rm.IsInProgress)
+            rm.CleanUp();
+
+        DevModeState.IsActive = true;
+
+        await game.ReturnToMainMenu();
+        await game.Transition.FadeIn();
+
+        MainFile.Logger.Info("DevPanel: Returned to main menu for new test run.");
     }
 
     private static void RefreshPanel()
