@@ -49,12 +49,6 @@ public static class RunStartPatch
 
     private static void InjectForPlayer(Player player)
     {
-        if (DevModeState.StartingGold > 0)
-        {
-            player.Gold = DevModeState.StartingGold;
-            MainFile.Logger.Info($"DevMode: Set gold to {DevModeState.StartingGold}");
-        }
-
         if (DevModeState.MaxEnergy > 0)
         {
             player.MaxEnergy = DevModeState.MaxEnergy;

@@ -88,8 +88,6 @@ public static class DevModeState
     /// <summary>Called when a menu preview submenu closes, to pop the compendium wrapper.</summary>
     public static Action? OnMenuPreviewClosed { get; set; }
 
-    public static int StartingGold { get; set; } = 9999;
-
     public static int MaxEnergy { get; set; } = 0;
 
     public static CardTarget CardTarget { get; set; } = CardTarget.Deck;
