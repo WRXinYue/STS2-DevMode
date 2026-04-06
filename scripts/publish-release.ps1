@@ -1,0 +1,109 @@
+<#
+.SYNOPSIS
+    Build the mod and publish a GitHub Release for the given version.
+
+.PARAMETER Version
+    The version to release, e.g. 0.2.0
+    If omitted, auto-detected from DevMode.json.
+
+.EXAMPLE
+    scripts/publish-release.ps1 -Version 0.2.0
+    make publish VERSION=0.2.0
+#>
+param(
+    [string]$Version = ""
+)
+
+$ErrorActionPreference = "Stop"
+
+# ── Resolve version from DevMode.json if not provided ────────────────────────
+
+if (-not $Version) {
+    $manifest = Get-Content -LiteralPath "DevMode.json" -Raw | ConvertFrom-Json
+    $Version = $manifest.version
+    Write-Host "Version auto-detected from DevMode.json: $Version"
+}
+
+# ── Preflight checks ─────────────────────────────────────────────────────────
+
+if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+    throw "GitHub CLI (gh) not found. Install: winget install --id GitHub.cli"
+}
+if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
+    throw "dotnet not found. Make sure .NET SDK is on PATH."
+}
+
+# ── Build ─────────────────────────────────────────────────────────────────────
+
+Write-Host "Building DevMode..."
+& dotnet publish DevMode.csproj
+if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
+
+# ── Collect artifacts ─────────────────────────────────────────────────────────
+
+$buildDir = "build\DevMode"
+$dll      = "$buildDir\DevMode.dll"
+$json     = "DevMode.json"
+
+if (-not (Test-Path $dll)) {
+    throw "Build artifact not found: $dll"
+}
+
+# ── Package into zip ──────────────────────────────────────────────────────────
+
+$zipName = "DevMode-v$Version.zip"
+$zipPath = "build\$zipName"
+
+Write-Host "Packaging $zipPath..."
+if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+
+# Copy DevMode.json into buildDir temporarily so it's included in the zip
+Copy-Item -LiteralPath $json -Destination "$buildDir\DevMode.json" -Force
+Compress-Archive -Path "$buildDir\*" -DestinationPath $zipPath
+Remove-Item "$buildDir\DevMode.json" -Force -ErrorAction SilentlyContinue
+
+# ── Extract release notes from CHANGELOG.md ──────────────────────────────────
+
+function Get-ChangelogSection([string]$File, [string]$Ver) {
+    if (-not (Test-Path -LiteralPath $File)) { return "" }
+    $lines  = Get-Content -LiteralPath $File
+    $found  = $false
+    $result = [System.Collections.Generic.List[string]]::new()
+    foreach ($line in $lines) {
+        if ($line -match "^## \[$([regex]::Escape($Ver))\]") { $found = $true; continue }
+        if ($found -and $line -match "^## \[") { break }
+        if ($found) { $result.Add($line) }
+    }
+    while ($result.Count -gt 0 -and $result[0].Trim() -eq "")              { $result.RemoveAt(0) }
+    while ($result.Count -gt 0 -and $result[$result.Count - 1].Trim() -eq "") { $result.RemoveAt($result.Count - 1) }
+    return $result -join "`n"
+}
+
+$notes = Get-ChangelogSection -File "CHANGELOG.md" -Ver $Version
+if (-not $notes) {
+    Write-Warning "No changelog section found for [$Version] in CHANGELOG.md - release will have no notes."
+    $notes = "Release $Version"
+}
+
+$notesFile = [System.IO.Path]::GetTempFileName() + ".md"
+Set-Content -LiteralPath $notesFile -Value $notes -Encoding UTF8
+
+# ── Create GitHub Release ─────────────────────────────────────────────────────
+
+$tag    = "v$Version"
+$assets = @($zipPath)
+
+Write-Host "Creating GitHub Release $tag..."
+Write-Host "  Assets: $($assets -join ', ')"
+
+$ErrorActionPreference = "SilentlyContinue"
+& gh release delete $tag --yes 2>$null
+$ErrorActionPreference = "Stop"
+& gh release create $tag @assets --title $tag --notes-file $notesFile
+$exitCode = $LASTEXITCODE
+
+Remove-Item -LiteralPath $notesFile -Force -ErrorAction SilentlyContinue
+
+if ($exitCode -ne 0) { throw "gh release create failed" }
+
+Write-Host "Done! GitHub Release $tag published."

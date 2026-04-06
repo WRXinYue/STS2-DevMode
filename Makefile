@@ -10,7 +10,7 @@ MOD_MAIN := DevMode.csproj
 
 DEPLOY_TO_GAME := /p:DeployToGame=true
 
-.PHONY: help init build deploy sync compile pck clean
+.PHONY: help init build deploy sync compile pck publish clean
 
 help:
 	@echo DevMode — targets
@@ -21,6 +21,7 @@ help:
 	@echo   deploy     dotnet publish with DeployToGame=true
 	@echo   compile    dotnet build to game mods (no .pck)
 	@echo   pck        dotnet publish to game mods + .pck
+	@echo   publish    build + create GitHub Release (requires gh CLI)
 	@echo   clean      remove build/ + dotnet clean
 
 init:
@@ -43,3 +44,6 @@ pck:
 clean:
 	@if exist build rmdir /s /q build
 	$(DOTNET) clean DevMode.sln
+
+publish:
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/publish-release.ps1 $(if $(VERSION),-Version $(VERSION),)
