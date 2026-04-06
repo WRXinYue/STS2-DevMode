@@ -10,7 +10,7 @@ namespace DevMode.UI;
 /// </summary>
 internal static class SaveSlotUI
 {
-    private const string RootName = "SaveSlotUIRoot";
+    private const string RootName = "DevModeSaveSlot";
 
     private static Control? _root;
     private static ColorRect? _bg;

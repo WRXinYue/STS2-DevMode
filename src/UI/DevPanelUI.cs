@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Rooms;
@@ -253,27 +254,28 @@ internal static class DevPanelUI
     }
 
     // ──────── Close all known overlays (internal + external UIs) ────────
-    private static readonly string[] _externalOverlayNames =
-    {
-        "DevModeConsole", "DevModePresets", "DevModePowerSelect",
-        "DevModePotionSelect", "DevModeEventSelect", "DevModeCardEdit",
-        "DevModeEnemySelect", "DevModeSaveSlot"
-    };
+    private static readonly HashSet<string> _keepNodes = new() { RootName, TopBarName };
 
-    private static void CloseAllOverlays(NGlobalUi globalUi)
+    /// <summary>
+    /// Close the internal overlay (cheats/save/ai) and remove all DevMode external
+    /// panels from globalUi.  Uses the "DevMode" naming convention so new panels are
+    /// picked up automatically — no list to maintain.
+    /// </summary>
+    public static void CloseAllOverlays(NGlobalUi globalUi)
     {
         // Close our internal overlay (cheats/save/ai)
         CloseOverlay(globalUi);
 
-        // Close all external UI overlays — use immediate removal to avoid same-frame conflicts
+        // Remove every DevMode child except the rail root and top bar
         var parent = (Node)globalUi;
-        foreach (var name in _externalOverlayNames)
+        foreach (var child in parent.GetChildren())
         {
-            var node = parent.GetNodeOrNull<Control>(name);
-            if (node != null)
+            if (child is Control ctrl
+                && ctrl.Name.ToString().StartsWith("DevMode", StringComparison.Ordinal)
+                && !_keepNodes.Contains(ctrl.Name))
             {
-                parent.RemoveChild(node);
-                node.QueueFree();
+                parent.RemoveChild(ctrl);
+                ctrl.QueueFree();
             }
         }
     }
@@ -328,25 +330,20 @@ internal static class DevPanelUI
         var root = ((Node)globalUi).GetNodeOrNull<Control>(RootName);
         if (root == null) { _activeOverlayId = null; return; }
 
-        // Remove clickaway
+        // Remove clickaway immediately
         var clickaway = root.GetNodeOrNull<Control>("OverlayClickaway");
-        clickaway?.QueueFree();
+        if (clickaway != null)
+        {
+            root.RemoveChild(clickaway);
+            clickaway.QueueFree();
+        }
 
-        // Animate panel out
+        // Remove panel immediately (no lingering animation)
         var panel = root.GetNodeOrNull<PanelContainer>(OverlayName);
         if (panel != null)
         {
-            float slideUp = 30f;
-            var tween = panel.CreateTween();
-            tween.TweenProperty(panel, "modulate:a", 0f, 0.15f)
-                 .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.In);
-            tween.Parallel()
-                 .TweenProperty(panel, "offset_top", panel.OffsetTop - slideUp, 0.15f)
-                 .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.In);
-            tween.Parallel()
-                 .TweenProperty(panel, "offset_bottom", panel.OffsetBottom - slideUp, 0.15f)
-                 .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.In);
-            tween.TweenCallback(Callable.From(() => panel.QueueFree()));
+            root.RemoveChild(panel);
+            panel.QueueFree();
         }
         _activeOverlayId = null;
     }

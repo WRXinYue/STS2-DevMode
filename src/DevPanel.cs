@@ -382,16 +382,9 @@ internal static class DevPanel
         NavigationHelper.CloseCapstone();
         NavigationHelper.CloseOverlays();
 
-        // Dismiss new overlay panels
+        // Dismiss all DevMode overlay panels in one shot
         if (_globalUi != null)
-        {
-            PowerSelectUI.Remove(_globalUi);
-            PotionSelectUI.Remove(_globalUi);
-            EventSelectUI.Remove(_globalUi);
-            ConsoleUI.Remove(_globalUi);
-            PresetUI.Remove(_globalUi);
-            CardEditUI.Remove(_globalUi);
-        }
+            DevPanelUI.CloseAllOverlays(_globalUi);
 
         return true;
     }
