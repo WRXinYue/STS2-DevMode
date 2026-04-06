@@ -9,10 +9,14 @@ internal static class DevPanelUI
 {
     private const string RootName   = "DevModeSidebarRoot";
     private const string TopBarName = "DevModeTopBar";
-    private const float  PanelW     = 180f;
+    private const float  DefaultPanelW = 280f;
+    private const float  MinPanelW     = 200f;
+    private const float  MaxPanelW     = 500f;
+    private const float  ResizeHandleW = 6f;
     private const float  TabW       = 24f;
     private const float  TabH       = 56f;
 
+    private static float _panelW = DefaultPanelW;
     private static ImageTexture? _arrowRight;
     private static ImageTexture? _arrowLeft;
     private static Action? _onRefreshPanel;
@@ -39,9 +43,9 @@ internal static class DevPanelUI
             MouseFilter         = Control.MouseFilterEnum.Pass,
             AnchorLeft          = 0, AnchorRight  = 0,
             AnchorTop           = 0, AnchorBottom = 1,
-            OffsetLeft          = -PanelW,
+            OffsetLeft          = -_panelW,
             OffsetRight         = TabW,
-            CustomMinimumSize   = new Vector2(PanelW + TabW, 0)
+            CustomMinimumSize   = new Vector2(_panelW + TabW, 0)
         };
         root.AddChild(drawer);
 
@@ -52,12 +56,12 @@ internal static class DevPanelUI
             AnchorLeft        = 0, AnchorRight  = 0,
             AnchorTop         = 0, AnchorBottom = 1,
             OffsetLeft        = 0,
-            OffsetRight       = PanelW,
+            OffsetRight       = _panelW,
         };
         var panelStyle = new StyleBoxFlat
         {
             BgColor              = new Color(0.08f, 0.08f, 0.10f, 0.95f),
-            ContentMarginLeft    = 8, ContentMarginRight  = 8,
+            ContentMarginLeft    = 8, ContentMarginRight  = 4,
             ContentMarginTop     = 8, ContentMarginBottom = 8,
             CornerRadiusTopRight    = 0, CornerRadiusBottomRight = 0,
             CornerRadiusTopLeft     = 0, CornerRadiusBottomLeft  = 0,
@@ -67,17 +71,178 @@ internal static class DevPanelUI
         panel.AddThemeStyleboxOverride("panel", panelStyle);
         panel.MouseFilter = Control.MouseFilterEnum.Stop;
 
+        var scroll = new ScrollContainer
+        {
+            SizeFlagsVertical   = Control.SizeFlags.ExpandFill,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
+        };
+
+        var contentMargin = new MarginContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+        };
+        contentMargin.AddThemeConstantOverride("margin_right", 6);
+        contentMargin.AddThemeConstantOverride("margin_left", 0);
+        contentMargin.AddThemeConstantOverride("margin_top", 0);
+        contentMargin.AddThemeConstantOverride("margin_bottom", 0);
+
         var vbox = new VBoxContainer();
-        vbox.AddThemeConstantOverride("separation", 6);
+        vbox.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        vbox.AddThemeConstantOverride("separation", 4);
+
+        // ── Section: Actions ──
+        vbox.AddChild(CreateSectionHeader(I18N.T("panel.section.actions", "Actions")));
         vbox.AddChild(CreateButton(I18N.T("panel.cards", "Cards"), actions.OnOpenCards));
         vbox.AddChild(CreateButton(I18N.T("panel.relics", "Relics"), actions.OnOpenRelics));
         vbox.AddChild(CreateButton(I18N.T("panel.enemies", "Enemies"), actions.OnOpenEnemies));
-        vbox.AddChild(CreateSeparator());
+
+        // ── Section: Save ──
+        vbox.AddChild(CreateSectionHeader(I18N.T("panel.section.save", "Save")));
         vbox.AddChild(CreateButton(I18N.T("panel.save", "Save"), actions.OnOpenSave));
         vbox.AddChild(CreateButton(I18N.T("panel.load", "Load"), actions.OnOpenLoad));
 
-        // Game speed control
-        vbox.AddChild(CreateSeparator());
+        // ── Section: Player ──
+        vbox.AddChild(CreateSectionHeader(I18N.T("panel.section.player", "Player")));
+        vbox.AddChild(CreateCheatToggle(
+            I18N.T("cheat.infiniteHp", "Infinite HP"),
+            I18N.T("cheat.infiniteHp.desc", "Player cannot lose HP"),
+            () => DevModeState.InfiniteHp,
+            v => DevModeState.InfiniteHp = v));
+        vbox.AddChild(CreateCheatToggle(
+            I18N.T("cheat.infiniteBlock", "Infinite Shield"),
+            I18N.T("cheat.infiniteBlock.desc", "Block refills to 999 after loss"),
+            () => DevModeState.InfiniteBlock,
+            v => DevModeState.InfiniteBlock = v));
+        vbox.AddChild(CreateCheatToggle(
+            I18N.T("cheat.infiniteEnergy", "Infinite Energy"),
+            I18N.T("cheat.infiniteEnergy.desc", "Energy refills after spending"),
+            () => DevModeState.InfiniteEnergy,
+            v => DevModeState.InfiniteEnergy = v));
+        vbox.AddChild(CreateCheatToggle(
+            I18N.T("cheat.infiniteStars", "Infinite Stars"),
+            I18N.T("cheat.infiniteStars.desc", "Stars refill after spending"),
+            () => DevModeState.InfiniteStars,
+            v => DevModeState.InfiniteStars = v));
+        vbox.AddChild(CreateCheatToggle(
+            I18N.T("cheat.alwaysPotion", "Always Reward Potion"),
+            null,
+            () => DevModeState.AlwaysRewardPotion,
+            v => DevModeState.AlwaysRewardPotion = v));
+        vbox.AddChild(CreateCheatToggle(
+            I18N.T("cheat.alwaysUpgrade", "Always Upgrade Reward"),
+            I18N.T("cheat.alwaysUpgrade.desc", "Card rewards are always upgraded"),
+            () => DevModeState.AlwaysUpgradeCardReward,
+            v => DevModeState.AlwaysUpgradeCardReward = v));
+        vbox.AddChild(CreateCheatToggle(
+            I18N.T("cheat.maxRarity", "Max Card Reward Rarity"),
+            I18N.T("cheat.maxRarity.desc", "All card rewards are Rare"),
+            () => DevModeState.MaxCardRewardRarity,
+            v => DevModeState.MaxCardRewardRarity = v));
+        vbox.AddChild(CreateCheatSlider(
+            I18N.T("cheat.defenseMultiplier", "Defense Multiplier"),
+            I18N.T("cheat.defenseMultiplier.desc", "Multiply block gained"),
+            0, 10, 0.5f,
+            () => DevModeState.DefenseMultiplier,
+            v => DevModeState.DefenseMultiplier = v));
+
+        // ── Section: Inventory ──
+        vbox.AddChild(CreateSectionHeader(I18N.T("panel.section.inventory", "Inventory")));
+        vbox.AddChild(CreateCheatNumberEdit(
+            I18N.T("cheat.editGold", "Edit Gold"),
+            0, 99999,
+            () =>
+            {
+                if (!RunContext.TryGetRunAndPlayer(out _, out var p)) return 0;
+                return p.Gold;
+            },
+            v =>
+            {
+                if (!RunContext.TryGetRunAndPlayer(out _, out var p)) return;
+                p.Gold = (int)v;
+            }));
+        vbox.AddChild(CreateCheatSlider(
+            I18N.T("cheat.goldMultiplier", "Gold Multiplier"),
+            I18N.T("cheat.goldMultiplier.desc", "Multiply gold gained"),
+            0, 10, 0.5f,
+            () => DevModeState.GoldMultiplier,
+            v => DevModeState.GoldMultiplier = v));
+        vbox.AddChild(CreateCheatToggle(
+            I18N.T("cheat.freeShop", "Free Shop"),
+            I18N.T("cheat.freeShop.desc", "All shop purchases are free"),
+            () => DevModeState.FreeShop,
+            v => DevModeState.FreeShop = v));
+
+        // ── Section: Status ──
+        vbox.AddChild(CreateSectionHeader(I18N.T("panel.section.status", "Status")));
+        vbox.AddChild(CreateCheatNumberEdit(
+            I18N.T("cheat.editEnergyCap", "Edit Energy Cap"),
+            0, 99,
+            () =>
+            {
+                if (!RunContext.TryGetRunAndPlayer(out _, out var p)) return 0;
+                return p.MaxEnergy;
+            },
+            v =>
+            {
+                if (!RunContext.TryGetRunAndPlayer(out _, out var p)) return;
+                p.MaxEnergy = (int)v;
+            }));
+        vbox.AddChild(CreateCheatNumberEdit(
+            I18N.T("cheat.editPotionSlots", "Edit Potion Slots"),
+            0, 20,
+            () =>
+            {
+                if (!RunContext.TryGetRunAndPlayer(out _, out var p)) return 0;
+                return p.MaxPotionCount;
+            },
+            v =>
+            {
+                if (!RunContext.TryGetRunAndPlayer(out _, out var p)) return;
+                int current = p.MaxPotionCount;
+                int diff = (int)v - current;
+                if (diff > 0) p.AddToMaxPotionCount(diff);
+                else if (diff < 0) p.SubtractFromMaxPotionCount(-diff);
+            }));
+        vbox.AddChild(CreateCheatToggle(
+            I18N.T("cheat.maxScore", "Max Score"),
+            I18N.T("cheat.maxScore.desc", "Enable max score tracking"),
+            () => DevModeState.MaxScore,
+            v => DevModeState.MaxScore = v));
+        vbox.AddChild(CreateCheatSlider(
+            I18N.T("cheat.scoreMultiplier", "Score Multiplier"),
+            I18N.T("cheat.scoreMultiplier.desc", "Multiply score gained"),
+            0, 10, 0.5f,
+            () => DevModeState.ScoreMultiplier,
+            v => DevModeState.ScoreMultiplier = v));
+
+        // ── Section: Enemy ──
+        vbox.AddChild(CreateSectionHeader(I18N.T("panel.section.enemy", "Enemy")));
+        vbox.AddChild(CreateCheatToggle(
+            I18N.T("cheat.freezeEnemies", "Freeze Enemies"),
+            I18N.T("cheat.freezeEnemies.desc", "Enemies skip their turns"),
+            () => DevModeState.FreezeEnemies,
+            v => DevModeState.FreezeEnemies = v));
+        vbox.AddChild(CreateCheatToggle(
+            I18N.T("cheat.oneHitKill", "One-Hit Kill"),
+            I18N.T("cheat.oneHitKill.desc", "Deal massive damage to enemies"),
+            () => DevModeState.OneHitKill,
+            v => DevModeState.OneHitKill = v));
+        vbox.AddChild(CreateCheatSlider(
+            I18N.T("cheat.damageMultiplier", "Damage Multiplier"),
+            I18N.T("cheat.damageMultiplier.desc", "Multiply damage dealt to enemies"),
+            0, 10, 0.5f,
+            () => DevModeState.DamageMultiplier,
+            v => DevModeState.DamageMultiplier = v));
+
+        // ── Section: Game ──
+        vbox.AddChild(CreateSectionHeader(I18N.T("panel.section.game", "Game")));
+        vbox.AddChild(CreateCheatToggle(
+            I18N.T("cheat.unknownTreasure", "Unknown → Treasure"),
+            I18N.T("cheat.unknownTreasure.desc", "Unknown map nodes always give treasure"),
+            () => DevModeState.UnknownMapAlwaysTreasure,
+            v => DevModeState.UnknownMapAlwaysTreasure = v));
+
         var gameSpeedBtn = CreatePlainButton(I18N.T("panel.speed", "Speed: {0}", actions.GetGameSpeedLabel()));
         gameSpeedBtn.Pressed += () =>
         {
@@ -94,10 +259,10 @@ internal static class DevPanelUI
         };
         vbox.AddChild(skipAnimBtn);
 
-        // AI control section
+        // ── Section: AI (optional) ──
         if (actions.OnToggleAI != null)
         {
-            vbox.AddChild(CreateSeparator());
+            vbox.AddChild(CreateSectionHeader(I18N.T("panel.section.ai", "AI")));
 
             var aiBtn = CreatePlainButton(I18N.T("panel.ai.off", "AI: Off"));
             Button? stratBtn = null;
@@ -130,8 +295,23 @@ internal static class DevPanelUI
             vbox.AddChild(speedBtn);
         }
 
-        panel.AddChild(vbox);
+        contentMargin.AddChild(vbox);
+        scroll.AddChild(contentMargin);
+        panel.AddChild(scroll);
         drawer.AddChild(panel);
+
+        // ── Resize handle (right edge of panel, draggable) ──
+        var resizeHandle = new Control
+        {
+            Name              = "ResizeHandle",
+            AnchorLeft        = 0, AnchorRight  = 0,
+            AnchorTop         = 0, AnchorBottom = 1,
+            OffsetLeft        = _panelW - ResizeHandleW,
+            OffsetRight       = _panelW,
+            MouseFilter       = Control.MouseFilterEnum.Stop,
+            MouseDefaultCursorShape = Control.CursorShape.Hsize
+        };
+        drawer.AddChild(resizeHandle);
 
         // ── Arrow tab (sits at the right edge of the drawer, vertically centred) ──
         _arrowRight ??= CreateChevronTexture(true);
@@ -143,8 +323,8 @@ internal static class DevPanelUI
             CustomMinimumSize = new Vector2(TabW, TabH),
             AnchorLeft        = 0, AnchorRight  = 0,
             AnchorTop         = 0.5f, AnchorBottom = 0.5f,
-            OffsetLeft        = PanelW,
-            OffsetRight       = PanelW + TabW,
+            OffsetLeft        = _panelW,
+            OffsetRight       = _panelW + TabW,
             OffsetTop         = -TabH / 2f,
             OffsetBottom      = TabH / 2f,
             MouseFilter       = Control.MouseFilterEnum.Stop
@@ -171,6 +351,21 @@ internal static class DevPanelUI
         Tween? tween = null;
         SceneTreeTimer? closeTimer = null;
 
+        void UpdateLayout()
+        {
+            panel.OffsetRight = _panelW;
+            resizeHandle.OffsetLeft  = _panelW - ResizeHandleW;
+            resizeHandle.OffsetRight = _panelW;
+            tab.OffsetLeft  = _panelW;
+            tab.OffsetRight = _panelW + TabW;
+            drawer.CustomMinimumSize = new Vector2(_panelW + TabW, 0);
+            if (open)
+            {
+                drawer.OffsetLeft  = 0f;
+                drawer.OffsetRight = _panelW + TabW;
+            }
+        }
+
         void Slide(bool toOpen)
         {
             if (open == toOpen) return;
@@ -179,13 +374,45 @@ internal static class DevPanelUI
 
             tween?.Kill();
             tween = drawer.CreateTween();
-            float target = open ? 0f : -PanelW;
-            tween.TweenProperty(drawer, "offset_left",  target,         0.18f)
+            float targetLeft  = open ? 0f : -_panelW;
+            float targetRight = open ? _panelW + TabW : TabW;
+            tween.TweenProperty(drawer, "offset_left",  targetLeft,  0.18f)
                  .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
             tween.Parallel()
-                 .TweenProperty(drawer, "offset_right", target + TabW,  0.18f)
+                 .TweenProperty(drawer, "offset_right", targetRight, 0.18f)
                  .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
         }
+
+        // ── Resize drag logic ──
+        bool dragging = false;
+        float dragStartX = 0;
+        float dragStartW = 0;
+
+        resizeHandle.GuiInput += (InputEvent @event) =>
+        {
+            if (@event is InputEventMouseButton mb && mb.ButtonIndex == MouseButton.Left)
+            {
+                if (mb.Pressed)
+                {
+                    dragging = true;
+                    dragStartX = mb.GlobalPosition.X;
+                    dragStartW = _panelW;
+                }
+                else
+                {
+                    dragging = false;
+                }
+            }
+            else if (@event is InputEventMouseMotion mm && dragging)
+            {
+                float delta = mm.GlobalPosition.X - dragStartX;
+                _panelW = Math.Clamp(dragStartW + delta, MinPanelW, MaxPanelW);
+                UpdateLayout();
+            }
+        };
+
+        // Also keep resize handle from triggering panel close
+        resizeHandle.MouseEntered += () => CancelClose();
 
         void CancelClose()
         {
@@ -207,17 +434,33 @@ internal static class DevPanelUI
 
         tab.MouseEntered    += () => { CancelClose(); Slide(true); };
         panel.MouseEntered  += CancelClose;
+        scroll.MouseEntered += CancelClose;
         tab.MouseExited     += ScheduleClose;
         panel.MouseExited   += ScheduleClose;
 
-        // Prevent close when hovering child controls inside the panel
-        foreach (var child in vbox.GetChildren())
+        // Wire the scrollbar once it's ready — it's a child of ScrollContainer
+        scroll.Ready += () =>
         {
-            if (child is Control ctrl)
+            var vScrollBar = scroll.GetVScrollBar();
+            if (vScrollBar != null)
             {
-                ctrl.MouseEntered += CancelClose;
+                vScrollBar.MouseEntered += CancelClose;
+            }
+        };
+
+        // Prevent close when hovering child controls inside the panel
+        void WireMouseEntered(Control parent)
+        {
+            foreach (var child in parent.GetChildren())
+            {
+                if (child is Control ctrl)
+                {
+                    ctrl.MouseEntered += CancelClose;
+                    WireMouseEntered(ctrl);
+                }
             }
         }
+        WireMouseEntered(vbox);
 
         ((Node)globalUi).AddChild(root);
     }
@@ -570,6 +813,184 @@ internal static class DevPanelUI
         var sep = new HSeparator();
         sep.AddThemeConstantOverride("separation", 8);
         return sep;
+    }
+
+    private static Control CreateSectionHeader(string text)
+    {
+        var container = new HBoxContainer();
+        container.AddThemeConstantOverride("separation", 6);
+
+        var line1 = new HSeparator
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical   = Control.SizeFlags.ShrinkCenter
+        };
+        line1.AddThemeStyleboxOverride("separator", new StyleBoxFlat
+        {
+            BgColor            = new Color(0.35f, 0.35f, 0.45f, 0.4f),
+            ContentMarginTop   = 0, ContentMarginBottom = 0,
+            ContentMarginLeft  = 0, ContentMarginRight  = 0
+        });
+        line1.AddThemeConstantOverride("separation", 1);
+
+        var label = new Label
+        {
+            Text                = text,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter
+        };
+        label.AddThemeFontSizeOverride("font_size", 11);
+        label.AddThemeColorOverride("font_color", new Color(0.55f, 0.55f, 0.65f));
+
+        var line2 = new HSeparator
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical   = Control.SizeFlags.ShrinkCenter
+        };
+        line2.AddThemeStyleboxOverride("separator", new StyleBoxFlat
+        {
+            BgColor            = new Color(0.35f, 0.35f, 0.45f, 0.4f),
+            ContentMarginTop   = 0, ContentMarginBottom = 0,
+            ContentMarginLeft  = 0, ContentMarginRight  = 0
+        });
+        line2.AddThemeConstantOverride("separation", 1);
+
+        container.AddChild(line1);
+        container.AddChild(label);
+        container.AddChild(line2);
+        return container;
+    }
+
+    private static Control CreateCheatToggle(string label, string? tooltip, Func<bool> getter, Action<bool> setter)
+    {
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 4);
+        row.CustomMinimumSize = new Vector2(0, 30);
+
+        var lbl = new Label
+        {
+            Text = label,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            ClipText = true
+        };
+        lbl.AddThemeFontSizeOverride("font_size", 12);
+        if (tooltip != null) lbl.TooltipText = tooltip;
+        row.AddChild(lbl);
+
+        string onText  = I18N.T("cheat.off", "Off");
+        string offText = I18N.T("cheat.on", "On");
+
+        var offBtn = new Button { Text = onText, CustomMinimumSize = new Vector2(36, 26), FocusMode = Control.FocusModeEnum.None };
+        var onBtn  = new Button { Text = offText, CustomMinimumSize = new Vector2(36, 26), FocusMode = Control.FocusModeEnum.None };
+
+        void Refresh()
+        {
+            bool active = getter();
+            ApplyToggleStyle(offBtn, !active, 1);
+            ApplyToggleStyle(onBtn,  active,  2);
+        }
+
+        offBtn.Pressed += () => { setter(false); Refresh(); };
+        onBtn.Pressed  += () => { setter(true);  Refresh(); };
+
+        row.AddChild(offBtn);
+        row.AddChild(onBtn);
+        Refresh();
+        return row;
+    }
+
+    private static Control CreateCheatSlider(string label, string? tooltip, float min, float max, float step,
+        Func<float> getter, Action<float> setter)
+    {
+        var col = new VBoxContainer();
+        col.AddThemeConstantOverride("separation", 2);
+
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 4);
+
+        var lbl = new Label { Text = label, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, ClipText = true };
+        lbl.AddThemeFontSizeOverride("font_size", 12);
+        if (tooltip != null) lbl.TooltipText = tooltip;
+        row.AddChild(lbl);
+
+        var valLabel = new Label { Text = getter().ToString("0.#"), CustomMinimumSize = new Vector2(28, 0) };
+        valLabel.AddThemeFontSizeOverride("font_size", 12);
+        valLabel.HorizontalAlignment = HorizontalAlignment.Right;
+        row.AddChild(valLabel);
+
+        col.AddChild(row);
+
+        var slider = new HSlider
+        {
+            MinValue = min,
+            MaxValue = max,
+            Step = step,
+            Value = getter(),
+            CustomMinimumSize = new Vector2(0, 20),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+        };
+        slider.ValueChanged += v =>
+        {
+            setter((float)v);
+            valLabel.Text = ((float)v).ToString("0.#");
+        };
+        col.AddChild(slider);
+        return col;
+    }
+
+    private static Control CreateCheatNumberEdit(string label, int min, int max, Func<int> getter, Action<int> setter)
+    {
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 4);
+        row.CustomMinimumSize = new Vector2(0, 30);
+
+        var lbl = new Label { Text = label, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, ClipText = true };
+        lbl.AddThemeFontSizeOverride("font_size", 12);
+        row.AddChild(lbl);
+
+        var minusBtn = new Button { Text = "−", CustomMinimumSize = new Vector2(26, 26), FocusMode = Control.FocusModeEnum.None };
+        row.AddChild(minusBtn);
+
+        var spinBox = new SpinBox
+        {
+            MinValue = min,
+            MaxValue = max,
+            Step = 1,
+            Value = getter(),
+            CustomMinimumSize = new Vector2(50, 26),
+            SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
+            Alignment = HorizontalAlignment.Center
+        };
+        row.AddChild(spinBox);
+
+        var plusBtn = new Button { Text = "+", CustomMinimumSize = new Vector2(26, 26), FocusMode = Control.FocusModeEnum.None };
+        row.AddChild(plusBtn);
+
+        var applyBtn = new Button { Text = "✓", CustomMinimumSize = new Vector2(26, 26), FocusMode = Control.FocusModeEnum.None };
+        var applyStyle = new StyleBoxFlat
+        {
+            BgColor = new Color(0.2f, 0.5f, 0.4f, 0.9f),
+            ContentMarginLeft = 4, ContentMarginRight = 4,
+            ContentMarginTop = 2, ContentMarginBottom = 2,
+            CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4,
+            CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4
+        };
+        applyBtn.AddThemeStyleboxOverride("normal", applyStyle);
+        applyBtn.AddThemeStyleboxOverride("hover", applyStyle);
+        applyBtn.AddThemeStyleboxOverride("pressed", applyStyle);
+        row.AddChild(applyBtn);
+
+        minusBtn.Pressed += () => spinBox.Value = Math.Max(min, spinBox.Value - 1);
+        plusBtn.Pressed  += () => spinBox.Value = Math.Min(max, spinBox.Value + 1);
+        applyBtn.Pressed += () => setter((int)spinBox.Value);
+
+        // Refresh value when panel reopens
+        row.VisibilityChanged += () =>
+        {
+            if (row.Visible) spinBox.Value = getter();
+        };
+
+        return row;
     }
 
     private static ImageTexture CreateChevronTexture(bool pointRight)

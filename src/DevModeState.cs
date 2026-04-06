@@ -79,6 +79,37 @@ public static class DevModeState
     /// <summary>Current game speed multiplier (1.0 = normal).</summary>
     public static float GameSpeed { get; set; } = 1.0f;
 
+    // ── Player cheats ──
+
+    public static bool InfiniteHp { get; set; }
+    public static bool InfiniteBlock { get; set; }
+    public static bool InfiniteEnergy { get; set; }
+    public static bool InfiniteStars { get; set; }
+    public static bool AlwaysRewardPotion { get; set; }
+    public static bool AlwaysUpgradeCardReward { get; set; }
+    public static bool MaxCardRewardRarity { get; set; }
+    public static float DefenseMultiplier { get; set; } = 1.0f;
+
+    // ── Inventory cheats ──
+
+    public static float GoldMultiplier { get; set; } = 1.0f;
+    public static bool FreeShop { get; set; }
+
+    // ── Status cheats ──
+
+    public static bool MaxScore { get; set; }
+    public static float ScoreMultiplier { get; set; } = 1.0f;
+
+    // ── Enemy cheats ──
+
+    public static bool FreezeEnemies { get; set; }
+    public static bool OneHitKill { get; set; }
+    public static float DamageMultiplier { get; set; } = 1.0f;
+
+    // ── Game cheats ──
+
+    public static bool UnknownMapAlwaysTreasure { get; set; }
+
     // ── Enemy override state ──
 
     public static EnemyMode EnemyMode { get; set; } = EnemyMode.Off;
@@ -133,5 +164,26 @@ public static class DevModeState
         InDevRun = false;
         GameSpeed = 1.0f;
         ClearEnemyOverrides();
+        ResetCheats();
+    }
+
+    private static void ResetCheats()
+    {
+        InfiniteHp = false;
+        InfiniteBlock = false;
+        InfiniteEnergy = false;
+        InfiniteStars = false;
+        AlwaysRewardPotion = false;
+        AlwaysUpgradeCardReward = false;
+        MaxCardRewardRarity = false;
+        DefenseMultiplier = 1.0f;
+        GoldMultiplier = 1.0f;
+        FreeShop = false;
+        MaxScore = false;
+        ScoreMultiplier = 1.0f;
+        FreezeEnemies = false;
+        OneHitKill = false;
+        DamageMultiplier = 1.0f;
+        UnknownMapAlwaysTreasure = false;
     }
 }
