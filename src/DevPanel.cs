@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
@@ -14,6 +15,7 @@ using MegaCrit.Sts2.Core.Nodes.Screens.Overlays;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
 using DevMode.Actions;
+using DevMode.Actions.CardModes;
 using DevMode.AI;
 using DevMode.Icons;
 using DevMode.Navigation;
@@ -36,7 +38,7 @@ internal static class DevPanel
     // prevents the old action's completion callback from firing, eliminating
     // the race between TryDismissCurrent and in-flight async wrappers.
 
-    private sealed class ActionSession
+    internal sealed class ActionSession
     {
         private int  _gen;
         public bool IsBusy { get; private set; }
@@ -77,6 +79,18 @@ internal static class DevPanel
 
     private static readonly ActionSession _session = new();
     private static NGlobalUi? _globalUi;
+
+    private static readonly Dictionary<CardMode, ICardModeHandler> _cardHandlers = new()
+    {
+        [CardMode.View]    = new ViewModeHandler(),
+        [CardMode.Add]     = new AddModeHandler(),
+        [CardMode.Upgrade] = new UpgradeModeHandler(),
+        [CardMode.Delete]  = new DeleteModeHandler(),
+        [CardMode.Edit]    = new EditModeHandler(),
+    };
+
+    private static ICardModeHandler CurrentCardHandler
+        => _cardHandlers[DevModeState.CardMode];
 
     // ──────── Lifecycle ────────
 
@@ -168,46 +182,9 @@ internal static class DevPanel
         DevModeState.ActivePanel = ActivePanel.Cards;
         UpdateTopBar();
 
-        switch (DevModeState.CardMode)
-        {
-            case CardMode.View:
-                if (!RunContext.TryGetRunAndPlayer(out var state, out _)) return;
-                NavigationHelper.TryOpenCardLibrary(state);
-                break;
-
-            case CardMode.Add:
-                if (!RunContext.TryGetRunAndPlayer(out state, out var addPlayer)) return;
-                RunContext.Begin(state, addPlayer);
-                if (!NavigationHelper.TryOpenCardLibrary(state))
-                    ClearState();
-                break;
-
-            case CardMode.Upgrade:
-                NavigationHelper.ClosePauseMenu();
-                if (!RunContext.TryGetRunAndPlayer(out _, out var player)) return;
-                _session.Run(
-                    () => CardActions.UpgradeCards(player),
-                    "Upgrade cards",
-                    onCompleted: ResetPanel
-                );
-                break;
-
-            case CardMode.Delete:
-                NavigationHelper.ClosePauseMenu();
-                if (!RunContext.TryGetRunAndPlayer(out state, out player)) return;
-                _session.Run(
-                    () => CardActions.RemoveCards(state, player),
-                    "Remove cards",
-                    onCompleted: ResetPanel
-                );
-                break;
-            case CardMode.Edit:
-                if (!RunContext.TryGetRunAndPlayer(out state, out var editPlayer)) return;
-                RunContext.Begin(state, editPlayer);
-                if (!NavigationHelper.TryOpenCardLibrary(state))
-                    ClearState();
-                break;
-        }
+        if (_globalUi == null) return;
+        if (!RunContext.TryGetRunAndPlayer(out var state, out var player)) return;
+        CurrentCardHandler.Execute(_globalUi, _session, state, player);
     }
 
     private static void OpenRelics()
@@ -454,20 +431,8 @@ internal static class DevPanel
             return true;
         }
 
-        if (DevModeState.CardMode == CardMode.Add)
-        {
-            TaskHelper.RunSafely(CardActions.AddCard(state, player, holder.CardModel));
-            return true;
-        }
-
-        if (DevModeState.CardMode == CardMode.Edit)
-        {
-            if (_globalUi != null)
-                CardEditUI.ShowForCard(_globalUi, holder.CardModel);
-            return true;
-        }
-
-        return false;
+        if (_globalUi == null) return false;
+        return CurrentCardHandler.TryHandleCardSelection(_globalUi, holder, state, player);
     }
 
     public static bool TryHandleRelicSelection(NRelicCollectionEntry entry)
@@ -492,19 +457,10 @@ internal static class DevPanel
     public static void NotifyCardLibraryClosed()
     {
         if (DevModeState.ActivePanel != ActivePanel.Cards) return;
-        if (DevModeState.CardMode is CardMode.View)
-        {
-            ResetPanel();
-            ClearState();
-            // TryOpenCardLibrary opens NPauseMenu as a backing screen; close the
-            // whole capstone so the pause menu doesn't linger after the library exits.
-            NavigationHelper.CloseCapstone();
-        }
-        else if (DevModeState.CardMode is CardMode.Add or CardMode.Edit)
-        {
-            ResetPanel();
-            ClearState();
-        }
+        if (_globalUi != null)
+            CurrentCardHandler.OnLibraryClosed(_globalUi);
+        ResetPanel();
+        ClearState();
     }
 
     public static void NotifyRelicCollectionClosed()
@@ -525,7 +481,7 @@ internal static class DevPanel
 
     // ──────── Private ────────
 
-    private static void ResetPanel()
+    internal static void ResetPanel()
     {
         DevModeState.ActivePanel = ActivePanel.None;
         UpdateTopBar();
@@ -535,16 +491,14 @@ internal static class DevPanel
     {
         if (_globalUi == null) return;
 
-        Func<CardTarget, bool>? cardTargetAvailable = null;
+        CardTopBarConfig config = CardTopBarConfig.None;
         if (DevModeState.ActivePanel == ActivePanel.Cards
-            && DevModeState.CardMode != CardMode.View
             && RunContext.TryGetRunAndPlayer(out _, out var player))
         {
-            var mode = DevModeState.CardMode;
-            cardTargetAvailable = target => CardActions.HasRelevantCards(player, target, mode);
+            config = new CardTopBarConfig(CurrentCardHandler, player);
         }
 
-        DevPanelUI.UpdateTopBar(_globalUi, cardTargetAvailable);
+        DevPanelUI.UpdateTopBar(_globalUi, config);
     }
 
     private static void ClearState()

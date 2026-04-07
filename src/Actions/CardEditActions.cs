@@ -19,75 +19,159 @@ internal static class CardEditActions
 {
     private const BindingFlags ReflFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
+    // ── Cost: STS2 uses EnergyCost.Canonical / SetCustomBaseCost ──
+
     public static bool TrySetBaseCost(CardModel card, int cost)
     {
+        try { card.EnergyCost.SetCustomBaseCost(cost); return true; } catch { }
         return TrySetProperty(card, "BaseCost", cost)
             || TrySetProperty(card, "Cost", cost)
             || TrySetField(card, "_baseCost", cost);
     }
 
+    public static int? GetBaseCost(CardModel card)
+    {
+        try { return card.EnergyCost.Canonical; } catch { }
+        return TryGetInt(card, "CanonicalEnergyCost")
+            ?? TryGetInt(card, "BaseCost")
+            ?? TryGetInt(card, "Cost");
+    }
+
+    // ── Replay: STS2 uses BaseReplayCount ──
+
     public static bool TrySetReplayCount(CardModel card, int count)
     {
+        try { card.BaseReplayCount = count; return true; } catch { }
         return TrySetProperty(card, "ReplayCount", count)
             || TrySetProperty(card, "Replay", count)
             || TrySetField(card, "_replayCount", count);
     }
 
+    public static int? GetReplayCount(CardModel card)
+    {
+        try { return card.BaseReplayCount; } catch { }
+        return TryGetInt(card, "ReplayCount") ?? TryGetInt(card, "Replay");
+    }
+
+    // ── Damage / Block: STS2 stores these as DynamicVars, not CardModel properties ──
+
     public static bool TrySetDamage(CardModel card, int damage)
     {
+        try
+        {
+            if (card.DynamicVars.TryGetValue("Damage", out var dv))
+            {
+                dv.BaseValue = damage;
+                dv.PreviewValue = damage;
+                return true;
+            }
+        }
+        catch { }
         return TrySetProperty(card, "BaseDamage", damage)
             || TrySetProperty(card, "Damage", damage)
             || TrySetField(card, "_baseDamage", damage);
     }
 
+    public static int? GetDamage(CardModel card)
+    {
+        try
+        {
+            if (card.DynamicVars.TryGetValue("Damage", out var dv))
+                return (int)Math.Round(dv.BaseValue);
+        }
+        catch { }
+        return TryGetInt(card, "BaseDamage") ?? TryGetInt(card, "Damage");
+    }
+
     public static bool TrySetBlock(CardModel card, int block)
     {
+        try
+        {
+            if (card.DynamicVars.TryGetValue("Block", out var dv))
+            {
+                dv.BaseValue = block;
+                dv.PreviewValue = block;
+                return true;
+            }
+        }
+        catch { }
         return TrySetProperty(card, "BaseBlock", block)
             || TrySetProperty(card, "Block", block)
             || TrySetField(card, "_baseBlock", block);
     }
 
+    public static int? GetBlock(CardModel card)
+    {
+        try
+        {
+            if (card.DynamicVars.TryGetValue("Block", out var dv))
+                return (int)Math.Round(dv.BaseValue);
+        }
+        catch { }
+        return TryGetInt(card, "BaseBlock") ?? TryGetInt(card, "Block");
+    }
+
+    // ── Keywords: STS2 uses Keywords set + AddKeyword/RemoveKeyword ──
+
+    public static bool? GetExhaust(CardModel card)
+    {
+        try { return card.Keywords.Contains(CardKeyword.Exhaust); } catch { }
+        return TryGetBool(card, "Exhaust");
+    }
+
+    public static bool? GetEthereal(CardModel card)
+    {
+        try { return card.Keywords.Contains(CardKeyword.Ethereal); } catch { }
+        return TryGetBool(card, "Ethereal");
+    }
+
+    public static bool? GetUnplayable(CardModel card)
+    {
+        try { return card.Keywords.Contains(CardKeyword.Unplayable); } catch { }
+        return TryGetBool(card, "Unplayable");
+    }
+
     public static bool TrySetExhaust(CardModel card, bool exhaust)
     {
+        try
+        {
+            if (exhaust) card.AddKeyword(CardKeyword.Exhaust);
+            else card.RemoveKeyword(CardKeyword.Exhaust);
+            return true;
+        }
+        catch { }
         return TrySetProperty(card, "Exhaust", exhaust)
             || TrySetField(card, "_exhaust", exhaust);
     }
 
     public static bool TrySetEthereal(CardModel card, bool ethereal)
     {
+        try
+        {
+            if (ethereal) card.AddKeyword(CardKeyword.Ethereal);
+            else card.RemoveKeyword(CardKeyword.Ethereal);
+            return true;
+        }
+        catch { }
         return TrySetProperty(card, "Ethereal", ethereal)
             || TrySetField(card, "_ethereal", ethereal);
     }
 
     public static bool TrySetUnplayable(CardModel card, bool unplayable)
     {
+        try
+        {
+            if (unplayable) card.AddKeyword(CardKeyword.Unplayable);
+            else card.RemoveKeyword(CardKeyword.Unplayable);
+            return true;
+        }
+        catch { }
         return TrySetProperty(card, "Unplayable", unplayable)
             || TrySetField(card, "_unplayable", unplayable);
     }
 
-    public static int? GetBaseCost(CardModel card)
-    {
-        return TryGetInt(card, "BaseCost") ?? TryGetInt(card, "Cost");
-    }
+    // ── Other card flags ──
 
-    public static int? GetReplayCount(CardModel card)
-    {
-        return TryGetInt(card, "ReplayCount") ?? TryGetInt(card, "Replay");
-    }
-
-    public static int? GetDamage(CardModel card)
-    {
-        return TryGetInt(card, "BaseDamage") ?? TryGetInt(card, "Damage");
-    }
-
-    public static int? GetBlock(CardModel card)
-    {
-        return TryGetInt(card, "BaseBlock") ?? TryGetInt(card, "Block");
-    }
-
-    public static bool? GetExhaust(CardModel card) => TryGetBool(card, "Exhaust");
-    public static bool? GetEthereal(CardModel card) => TryGetBool(card, "Ethereal");
-    public static bool? GetUnplayable(CardModel card) => TryGetBool(card, "Unplayable");
     public static bool? GetExhaustOnNextPlay(CardModel card) => TryGetBool(card, "ExhaustOnNextPlay", "_exhaustOnNextPlay");
     public static bool? GetSingleTurnRetain(CardModel card) => TryGetBool(card, "HasSingleTurnRetain", "_hasSingleTurnRetain");
     public static bool? GetSingleTurnSly(CardModel card) => TryGetBool(card, "HasSingleTurnSly", "_hasSingleTurnSly");
@@ -96,16 +180,26 @@ internal static class CardEditActions
     public static bool TrySetSingleTurnRetain(CardModel card, bool enabled) => TrySetBool(card, enabled, "HasSingleTurnRetain", "_hasSingleTurnRetain");
     public static bool TrySetSingleTurnSly(CardModel card, bool enabled) => TrySetBool(card, enabled, "HasSingleTurnSly", "_hasSingleTurnSly");
 
+    private static readonly HashSet<string> _builtInVarKeys = new(StringComparer.OrdinalIgnoreCase) { "Damage", "Block" };
+
     public static IReadOnlyList<string> GetDynamicVarKeys(CardModel card)
     {
         try
         {
-            return card.DynamicVars?.Keys?.OrderBy(k => k, StringComparer.OrdinalIgnoreCase).ToArray() ?? Array.Empty<string>();
+            return card.DynamicVars?.Keys?
+                .Where(k => !_builtInVarKeys.Contains(k))
+                .OrderBy(k => k, StringComparer.OrdinalIgnoreCase)
+                .ToArray() ?? Array.Empty<string>();
         }
         catch
         {
             return Array.Empty<string>();
         }
+    }
+
+    public static string GetDynamicVarDisplayName(string key)
+    {
+        return I18N.T($"cardEdit.dynVar.{key}", key);
     }
 
     public static int? GetDynamicVar(CardModel card, string key)

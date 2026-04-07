@@ -1,6 +1,7 @@
 using System;
 using Godot;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using DevMode.Actions.CardModes;
 
 namespace DevMode.UI;
 
@@ -9,20 +10,16 @@ internal static partial class DevPanelUI
     private static Action? _onCombatKill;
     public static void SetCombatKillCallback(Action? callback) => _onCombatKill = callback;
 
-    public static void UpdateTopBar(NGlobalUi globalUi, Func<CardTarget, bool>? cardTargetAvailable = null)
+    public static void UpdateTopBar(NGlobalUi globalUi, CardTopBarConfig cardConfig = default)
     {
         RemoveTopBar(globalUi);
 
         if (DevModeState.ActivePanel == ActivePanel.None)
             return;
 
-        bool isCardView   = DevModeState.ActivePanel == ActivePanel.Cards
-            && DevModeState.CardMode == CardMode.View;
-        bool showDuration = DevModeState.ActivePanel == ActivePanel.Cards
-            && DevModeState.CardMode is CardMode.Add or CardMode.Upgrade or CardMode.Edit or CardMode.Delete;
         float barHalfW = DevModeState.ActivePanel switch
         {
-            ActivePanel.Cards   => isCardView ? 130 : showDuration ? 340 : 270,
+            ActivePanel.Cards   => !cardConfig.ShowTargets ? 130 : cardConfig.ShowDuration ? 340 : 270,
             ActivePanel.Relics  => 110,
             ActivePanel.Enemies => Actions.CombatEnemyActions.GetCombatState() != null ? 340 : 220,
             _                   => 110
@@ -41,7 +38,7 @@ internal static partial class DevPanelUI
         bar.AddThemeConstantOverride("separation", 0);
 
         if (DevModeState.ActivePanel == ActivePanel.Cards)
-            BuildCardTopBar(bar, cardTargetAvailable);
+            BuildCardTopBar(bar, cardConfig);
         else if (DevModeState.ActivePanel == ActivePanel.Enemies)
             BuildEnemyTopBar(bar);
         else
@@ -50,21 +47,22 @@ internal static partial class DevPanelUI
         ((Node)globalUi).AddChild(bar);
     }
 
-    private static void BuildCardTopBar(HBoxContainer bar, Func<CardTarget, bool>? cardTargetAvailable = null)
+    private static void BuildCardTopBar(HBoxContainer bar, CardTopBarConfig config)
     {
         var modeLabels  = new[] { I18N.T("topbar.card.view","View"), I18N.T("topbar.card.add","Add"), I18N.T("topbar.card.upgrade","Upgrade"), I18N.T("topbar.card.edit","Edit"), I18N.T("topbar.card.delete","Delete") };
         var modes       = new[] { CardMode.View, CardMode.Add, CardMode.Upgrade, CardMode.Edit, CardMode.Delete };
         var modeButtons = new Button[modeLabels.Length];
 
-        bool showTargets  = DevModeState.CardMode is CardMode.Add or CardMode.Upgrade or CardMode.Edit or CardMode.Delete;
         var targetLabels  = new[] { I18N.T("topbar.card.hand","Hand"), I18N.T("topbar.card.drawPile","Draw Pile"), I18N.T("topbar.card.discardPile","Discard"), I18N.T("topbar.card.deck","Deck") };
         var targets       = new[] { CardTarget.Hand, CardTarget.DrawPile, CardTarget.DiscardPile, CardTarget.Deck };
-        var targetButtons = showTargets ? new Button[targetLabels.Length] : null;
+        var targetButtons = config.ShowTargets ? new Button[targetLabels.Length] : null;
 
-        bool showDuration   = showTargets;
         var durationLabels  = new[] { I18N.T("topbar.card.temporary","Temp"), I18N.T("topbar.card.permanent","Perm") };
         var durations       = new[] { EffectDuration.Temporary, EffectDuration.Permanent };
-        var durationButtons = showDuration ? new Button[durationLabels.Length] : null;
+        var durationButtons = config.ShowDuration ? new Button[durationLabels.Length] : null;
+
+        bool refreshOnTargetChange = config.RefreshOnTargetChange;
+        var  targetAvailable       = config.TargetAvailable;
 
         void Refresh()
         {
@@ -78,7 +76,7 @@ internal static partial class DevPanelUI
             {
                 for (int i = 0; i < targetButtons.Length; i++)
                 {
-                    bool available = cardTargetAvailable == null || cardTargetAvailable(targets[i]);
+                    bool available = targetAvailable == null || targetAvailable(targets[i]);
                     bool active    = available && DevModeState.CardTarget == targets[i];
                     int  corners   = (i == 0 ? 1 : 0) | (i == targetButtons.Length - 1 ? 2 : 0);
                     targetButtons[i].Disabled = !available;
@@ -113,7 +111,7 @@ internal static partial class DevPanelUI
             bar.AddChild(btn);
         }
 
-        if (showTargets && targetButtons != null)
+        if (config.ShowTargets && targetButtons != null)
         {
             bar.AddChild(new Control { CustomMinimumSize = new Vector2(12, 0) });
             for (int i = 0; i < targetLabels.Length; i++)
@@ -124,14 +122,15 @@ internal static partial class DevPanelUI
                 {
                     DevModeState.CardTarget = targets[idx];
                     Refresh();
-                    _onRefreshPanel?.Invoke();
+                    if (refreshOnTargetChange)
+                        _onRefreshPanel?.Invoke();
                 };
                 targetButtons[i] = btn;
                 bar.AddChild(btn);
             }
         }
 
-        if (showDuration && durationButtons != null)
+        if (config.ShowDuration && durationButtons != null)
         {
             bar.AddChild(new Control { CustomMinimumSize = new Vector2(12, 0) });
             for (int i = 0; i < durationLabels.Length; i++)

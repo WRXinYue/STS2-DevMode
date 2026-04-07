@@ -260,9 +260,27 @@
   "cardEdit.exhaust": "消耗",
   "cardEdit.ethereal": "虚无",
   "cardEdit.unplayable": "不可打出",
+  "cardEdit.exhaustOnNextPlay": "下次打出后消耗",
+  "cardEdit.singleTurnRetain": "单回合保留",
+  "cardEdit.singleTurnSly": "单回合灵巧",
+  "cardEdit.dynamicVars": "动态变量",
+  "cardEdit.titleText": "名称覆盖",
+  "cardEdit.descText": "描述覆盖",
+  "cardEdit.presetName": "预设名称...",
+  "cardEdit.savePreset": "保存",
+  "cardEdit.applyPreset": "应用",
+  "cardEdit.deletePreset": "删除",
   "cardEdit.enchantment": "附魔",
   "cardEdit.applyEnchant": "附加",
   "cardEdit.forceEnchant": "强制",
   "cardEdit.clearEnchant": "清除附魔",
-  "cardEdit.apply": "设置"
+  "cardEdit.apply": "设置",
+
+  "cardEdit.dynVar.SummonCount": "召唤数量",
+  "cardEdit.dynVar.Repeat": "重复次数",
+  "cardEdit.dynVar.Cards": "卡牌数",
+  "cardEdit.dynVar.Heal": "治疗量",
+  "cardEdit.dynVar.Draw": "抽牌数",
+  "cardEdit.dynVar.Discard": "弃牌数",
+  "cardEdit.dynVar.Scry": "预见数"
 }

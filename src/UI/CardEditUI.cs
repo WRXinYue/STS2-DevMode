@@ -196,8 +196,9 @@ internal static class CardEditUI
                 editorContent.AddChild(new Label { Text = I18N.T("cardEdit.dynamicVars", "Dynamic Vars") });
                 foreach (var key in dynamicKeys)
                 {
-                    AddIntEditor(editorContent, key, CardEditActions.GetDynamicVar(card, key) ?? 0,
-                        v => { CardEditActions.TrySetDynamicVar(card, key, v); statusLabel.Text = $"{key} set."; });
+                    var displayKey = CardEditActions.GetDynamicVarDisplayName(key);
+                    AddIntEditor(editorContent, displayKey, CardEditActions.GetDynamicVar(card, key) ?? 0,
+                        v => { CardEditActions.TrySetDynamicVar(card, key, v); statusLabel.Text = $"{displayKey} set."; });
                 }
             }
 
@@ -352,8 +353,9 @@ internal static class CardEditUI
         var dynamicKeys = CardEditActions.GetDynamicVarKeys(card);
         foreach (var key in dynamicKeys)
         {
-            AddIntEditor(editorContent, key, CardEditActions.GetDynamicVar(card, key) ?? 0,
-                v => { CardEditActions.TrySetDynamicVar(card, key, v); statusLabel.Text = $"{key} set."; });
+            var displayKey = CardEditActions.GetDynamicVarDisplayName(key);
+            AddIntEditor(editorContent, displayKey, CardEditActions.GetDynamicVar(card, key) ?? 0,
+                v => { CardEditActions.TrySetDynamicVar(card, key, v); statusLabel.Text = $"{displayKey} set."; });
         }
 
         AddTextEditor(editorContent, I18N.T("cardEdit.titleText", "Name Override"), CardEditActions.GetTitleText(card),

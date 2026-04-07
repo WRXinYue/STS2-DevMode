@@ -260,9 +260,27 @@
   "cardEdit.exhaust": "Exhaust",
   "cardEdit.ethereal": "Ethereal",
   "cardEdit.unplayable": "Unplayable",
+  "cardEdit.exhaustOnNextPlay": "Exhaust On Next Play",
+  "cardEdit.singleTurnRetain": "Single-Turn Retain",
+  "cardEdit.singleTurnSly": "Single-Turn Sly",
+  "cardEdit.dynamicVars": "Dynamic Vars",
+  "cardEdit.titleText": "Name Override",
+  "cardEdit.descText": "Description Override",
+  "cardEdit.presetName": "Preset name...",
+  "cardEdit.savePreset": "Save",
+  "cardEdit.applyPreset": "Apply",
+  "cardEdit.deletePreset": "Delete",
   "cardEdit.enchantment": "Enchantment",
   "cardEdit.applyEnchant": "Apply",
   "cardEdit.forceEnchant": "Force",
   "cardEdit.clearEnchant": "Clear Enchantment",
-  "cardEdit.apply": "Set"
+  "cardEdit.apply": "Set",
+
+  "cardEdit.dynVar.SummonCount": "Summon Count",
+  "cardEdit.dynVar.Repeat": "Repeat",
+  "cardEdit.dynVar.Cards": "Cards",
+  "cardEdit.dynVar.Heal": "Heal",
+  "cardEdit.dynVar.Draw": "Draw",
+  "cardEdit.dynVar.Discard": "Discard",
+  "cardEdit.dynVar.Scry": "Scry"
 }
