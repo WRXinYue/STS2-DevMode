@@ -11,13 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dynamic theme system with dark, light, OLED, and warm color modes.
 - Room Teleport panel in the dev sidebar.
-- Custom card browser top bar (CardBrowserUI) with rail sliding indicator.
+
+### Changed
+
+- Redesigned Powers panel as a two-pane browser layout.
+- Rebuilt Potion browser with a visual grid.
+- Preset Manager enhanced with scope-based save/load and combat snapshot support.
 
 ### Fixed
 
 - Power apply not working correctly in the Powers panel.
 - Add Potion API not functioning properly.
-- MDI icon tree-shaking regression causing missing icons after build.
 
 ## [0.1.0] - 2026-04-07
 
@@ -39,6 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Console command reference UI with search, native and DevMode command sections.
 - 10 new console command modules (card, cheat, enemy, event, game, potion, power, relic, runtime, save).
 - Redesigned DevPanel as Apple-style icon rail with unified overlay system and slide-down animations.
+- Custom card browser top bar (CardBrowserUI) with rail sliding indicator.
+- Self-drawn RelicBrowserUI replacing the vanilla relic collection.
+- Extensible panel registry for DevMode rail tabs.
 - Iconify MDI adapter with build-time tree-shaking; replaced all text icons with real MDI icons.
 - Click-to-lock toggle for sidebar panel.
 - Always-enable DevMode toggle for normal (non-dev) runs.
@@ -56,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Infinite block not refilling correctly after loss.
 - Potion slot removal and stat lock values not updating live.
 - Overlay panels stacking on tab switch instead of closing.
+- MDI icon tree-shaking regression causing missing icons after build.
 - UTF-8 encoding for changelog read/write to prevent Chinese garbling.
 
 ## [0.0.1] - 2026-04-06
