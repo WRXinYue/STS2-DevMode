@@ -13,8 +13,8 @@ using DevMode.Actions;
 namespace DevMode.UI;
 
 /// <summary>
-/// Full-screen overlay that lets the user pick an encounter from a scrollable list.
-/// Supports filtering by room type and a search box.
+/// Encounter picker — spliced to the DevMode rail (full-width), matching card / relic browser layout.
+/// Supports filtering by room type, search, and creature-visual preview.
 /// </summary>
 internal static class EnemySelectUI
 {
@@ -124,71 +124,70 @@ internal static class EnemySelectUI
 
     public static void Show(NGlobalUi globalUi, RoomType? filter, Action<EncounterModel> onSelected)
     {
-        // Remove any existing instance
         Hide(globalUi);
 
         var encounters = EnemyActions.GetAllEncounters(filter);
         if (encounters.Count == 0) return;
 
-        var root = CreateOverlayRoot();
-        var backdrop = DevPanelUI.CreateStandardBackdrop(() => Hide(globalUi));
-        root.AddChild(backdrop);
+        DevPanelUI.PinRail();
+        DevPanelUI.SpliceRail(globalUi, joined: true);
 
-        var panel = DevPanelUI.CreateStandardPanel(880f);
+        var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1250 };
+        root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        root.TreeExiting += () =>
+        {
+            DevPanelUI.UnpinRail();
+            DevPanelUI.SpliceRail(globalUi, joined: false);
+        };
+
+        root.AddChild(DevPanelUI.CreateBrowserBackdrop(() => Hide(globalUi)));
+        var panel = DevPanelUI.CreateBrowserPanel();
         root.AddChild(panel);
 
         var vbox = panel.GetNode<VBoxContainer>("Content");
-        vbox.AddThemeConstantOverride("separation", 8);
+        vbox.AddThemeConstantOverride("separation", 10);
 
         // ── Title ──
-        var titleLabel = new Label
+        var titleText = filter switch
         {
-            Text = filter switch
-            {
-                RoomType.Monster => I18N.T("enemy.selectNormal", "Select Normal Combat"),
-                RoomType.Elite   => I18N.T("enemy.selectElite", "Select Elite Combat"),
-                RoomType.Boss    => I18N.T("enemy.selectBoss", "Select Boss Combat"),
-                _                => I18N.T("enemy.selectAny", "Select Combat Encounter")
-            },
-            HorizontalAlignment = HorizontalAlignment.Center
+            RoomType.Monster => I18N.T("enemy.selectNormal", "Select Normal Combat"),
+            RoomType.Elite   => I18N.T("enemy.selectElite",  "Select Elite Combat"),
+            RoomType.Boss    => I18N.T("enemy.selectBoss",   "Select Boss Combat"),
+            _                => I18N.T("enemy.selectAny",    "Select Combat Encounter")
         };
-        titleLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.85f, 0.7f));
-        vbox.AddChild(titleLabel);
+        vbox.AddChild(DevPanelUI.CreatePanelTitle(titleText));
+        vbox.AddChild(DevPanelUI.CreateOverlaySeparator());
 
-        // ── Filter tabs ──
+        // ── Filter chips ──
         var filterBar = new HBoxContainer();
-        filterBar.AddThemeConstantOverride("separation", 4);
+        filterBar.AddThemeConstantOverride("separation", 5);
         RoomType?[] filters = [null, RoomType.Monster, RoomType.Elite, RoomType.Boss];
-        string[] filterNames = [I18N.T("enemy.filterAll","All"), I18N.T("enemy.filterNormal","Normal"), I18N.T("enemy.filterElite","Elite"), I18N.T("enemy.filterBoss","Boss")];
+        string[] filterNames =
+        [
+            I18N.T("enemy.filterAll",    "All"),
+            I18N.T("enemy.filterNormal", "Normal"),
+            I18N.T("enemy.filterElite",  "Elite"),
+            I18N.T("enemy.filterBoss",   "Boss")
+        ];
         for (int i = 0; i < filters.Length; i++)
         {
             int idx = i;
-            var fbtn = new Button
-            {
-                Text = filterNames[idx],
-                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-                FocusMode = Control.FocusModeEnum.None,
-                CustomMinimumSize = new Vector2(0, 28)
-            };
             bool active = filter == filters[idx];
-            ApplyFilterStyle(fbtn, active);
-            fbtn.Pressed += () =>
+            var chip = DevPanelUI.CreateFilterChip(filterNames[idx], active);
+            chip.Toggled += on =>
             {
+                if (!on) return;
                 Hide(globalUi);
                 Show(globalUi, filters[idx], onSelected);
             };
-            filterBar.AddChild(fbtn);
+            filterBar.AddChild(chip);
         }
         vbox.AddChild(filterBar);
 
         // ── Search box ──
-        var searchBox = new LineEdit
-        {
-            PlaceholderText = I18N.T("enemy.searchPlaceholder", "Search..."),
-            CustomMinimumSize = new Vector2(0, 32),
-            ClearButtonEnabled = true
-        };
-        vbox.AddChild(searchBox);
+        var (searchRowCtrl, searchBox) = DevPanelUI.CreateSearchRow(
+            I18N.T("enemy.searchPlaceholder", "Search encounters..."));
+        vbox.AddChild(searchRowCtrl);
 
         // ── Main content: grid left, preview right ──
         var contentHBox = new HBoxContainer();
@@ -221,19 +220,19 @@ internal static class EnemySelectUI
         };
         var previewStyle = new StyleBoxFlat
         {
-            BgColor = new Color(0.07f, 0.07f, 0.1f, 0.9f),
-            CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6,
-            CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
-            ContentMarginLeft = 8, ContentMarginRight = 8,
-            ContentMarginTop = 8, ContentMarginBottom = 8,
+            BgColor = new Color(0.09f, 0.09f, 0.12f, 0.90f),
+            CornerRadiusTopLeft = 10, CornerRadiusTopRight = 10,
+            CornerRadiusBottomLeft = 10, CornerRadiusBottomRight = 10,
+            ContentMarginLeft = 12, ContentMarginRight = 12,
+            ContentMarginTop = 12, ContentMarginBottom = 12,
             BorderWidthTop = 1, BorderWidthBottom = 1, BorderWidthLeft = 1, BorderWidthRight = 1,
-            BorderColor = new Color(0.3f, 0.3f, 0.4f, 0.5f)
+            BorderColor = new Color(1f, 1f, 1f, 0.06f)
         };
         previewPanel.AddThemeStyleboxOverride("panel", previewStyle);
         contentHBox.AddChild(previewPanel);
 
         var previewVBox = new VBoxContainer();
-        previewVBox.AddThemeConstantOverride("separation", 4);
+        previewVBox.AddThemeConstantOverride("separation", 6);
         previewPanel.AddChild(previewVBox);
 
         var previewNameLabel = new Label
@@ -241,7 +240,8 @@ internal static class EnemySelectUI
             Text = I18N.T("enemy.hoverPreview", "Hover to preview"),
             HorizontalAlignment = HorizontalAlignment.Center
         };
-        previewNameLabel.AddThemeColorOverride("font_color", new Color(0.9f, 0.85f, 0.7f));
+        previewNameLabel.AddThemeFontSizeOverride("font_size", 14);
+        previewNameLabel.AddThemeColorOverride("font_color", new Color(0.90f, 0.88f, 0.83f));
         previewVBox.AddChild(previewNameLabel);
 
         var previewIdLabel = new Label
@@ -249,8 +249,8 @@ internal static class EnemySelectUI
             Text = "",
             HorizontalAlignment = HorizontalAlignment.Center
         };
-        previewIdLabel.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.6f));
-        previewIdLabel.AddThemeFontSizeOverride("font_size", 12);
+        previewIdLabel.AddThemeColorOverride("font_color", new Color(0.45f, 0.45f, 0.52f));
+        previewIdLabel.AddThemeFontSizeOverride("font_size", 11);
         previewVBox.AddChild(previewIdLabel);
 
         var previewMonstersLabel = new Label
@@ -259,7 +259,7 @@ internal static class EnemySelectUI
             HorizontalAlignment = HorizontalAlignment.Center,
             AutowrapMode = TextServer.AutowrapMode.WordSmart
         };
-        previewMonstersLabel.AddThemeColorOverride("font_color", new Color(0.7f, 0.75f, 0.85f));
+        previewMonstersLabel.AddThemeColorOverride("font_color", new Color(0.65f, 0.70f, 0.82f));
         previewMonstersLabel.AddThemeFontSizeOverride("font_size", 12);
         previewVBox.AddChild(previewMonstersLabel);
 
@@ -331,6 +331,19 @@ internal static class EnemySelectUI
                 _              => new Color(0.53f, 0.8f, 0.53f)
             };
 
+            var cellBaseBg = enc.RoomType switch
+            {
+                RoomType.Elite => new Color(0.18f, 0.14f, 0.07f, 0.75f),
+                RoomType.Boss  => new Color(0.18f, 0.08f, 0.08f, 0.75f),
+                _              => new Color(0.10f, 0.10f, 0.14f, 0.70f)
+            };
+            var cellBorderRest = enc.RoomType switch
+            {
+                RoomType.Elite => new Color(0.80f, 0.60f, 0.20f, 0.18f),
+                RoomType.Boss  => new Color(0.90f, 0.25f, 0.25f, 0.18f),
+                _              => new Color(1f, 1f, 1f, 0.05f)
+            };
+
             var cell = new PanelContainer
             {
                 CustomMinimumSize = new Vector2(150, 52),
@@ -339,18 +352,13 @@ internal static class EnemySelectUI
             };
             var cellStyle = new StyleBoxFlat
             {
-                BgColor = enc.RoomType switch
-                {
-                    RoomType.Elite => new Color(0.2f, 0.17f, 0.1f, 0.7f),
-                    RoomType.Boss  => new Color(0.2f, 0.1f, 0.1f, 0.7f),
-                    _              => new Color(0.1f, 0.15f, 0.12f, 0.7f)
-                },
-                ContentMarginLeft = 6, ContentMarginRight = 6,
-                ContentMarginTop = 4, ContentMarginBottom = 4,
-                CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4,
-                CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4,
+                BgColor = cellBaseBg,
+                ContentMarginLeft = 8, ContentMarginRight = 8,
+                ContentMarginTop = 6, ContentMarginBottom = 6,
+                CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6,
+                CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
                 BorderWidthTop = 1, BorderWidthBottom = 1, BorderWidthLeft = 1, BorderWidthRight = 1,
-                BorderColor = new Color(0.25f, 0.25f, 0.35f, 0.5f)
+                BorderColor = cellBorderRest
             };
             cell.AddThemeStyleboxOverride("panel", cellStyle);
 
@@ -379,25 +387,24 @@ internal static class EnemySelectUI
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
                 MouseFilter = Control.MouseFilterEnum.Ignore
             };
-            nameLabel.AddThemeColorOverride("font_color", new Color(0.85f, 0.85f, 0.9f));
+            nameLabel.AddThemeColorOverride("font_color", new Color(0.88f, 0.88f, 0.92f));
             nameLabel.AddThemeFontSizeOverride("font_size", 12);
             cellVBox.AddChild(nameLabel);
 
             cell.AddChild(cellVBox);
 
             // Hover
-            var bgDefault = cellStyle.BgColor;
             var captured = enc;
             cell.MouseEntered += () =>
             {
-                cellStyle.BorderColor = new Color(0.5f, 0.6f, 0.9f, 0.8f);
-                cellStyle.BgColor = bgDefault + new Color(0.08f, 0.08f, 0.1f, 0.15f);
+                cellStyle.BorderColor = new Color(0.40f, 0.68f, 1f, 0.55f);
+                cellStyle.BgColor = cellBaseBg.Lightened(0.10f);
                 ShowPreview(captured);
             };
             cell.MouseExited += () =>
             {
-                cellStyle.BorderColor = new Color(0.25f, 0.25f, 0.35f, 0.5f);
-                cellStyle.BgColor = bgDefault;
+                cellStyle.BorderColor = cellBorderRest;
+                cellStyle.BgColor = cellBaseBg;
             };
 
             // Click
@@ -423,20 +430,6 @@ internal static class EnemySelectUI
                 cell.Visible = string.IsNullOrEmpty(query) || key.Contains(query);
         };
 
-        // ── Close button ──
-        var closeBtn = new Button
-        {
-            Text = I18N.T("enemy.close", "Close"),
-            CustomMinimumSize = new Vector2(0, 36),
-            FocusMode = Control.FocusModeEnum.None
-        };
-        closeBtn.Pressed += () =>
-        {
-            ClearViewport(subViewport, activeVisuals);
-            Hide(globalUi);
-        };
-        vbox.AddChild(closeBtn);
-
         ((Node)globalUi).AddChild(root);
         searchBox.GrabFocus();
     }
@@ -457,29 +450,26 @@ internal static class EnemySelectUI
     {
         Hide(globalUi);
 
-        var root = new Control
-        {
-            Name = RootName,
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-            ZIndex = 1300
-        };
+        DevPanelUI.PinRail();
+        DevPanelUI.SpliceRail(globalUi, joined: true);
+
+        var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1250 };
         root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        root.TreeExiting += () =>
+        {
+            DevPanelUI.UnpinRail();
+            DevPanelUI.SpliceRail(globalUi, joined: false);
+        };
 
-        root.AddChild(DevPanelUI.CreateStandardBackdrop(() => Hide(globalUi)));
-
-        var panel = DevPanelUI.CreateStandardPanel();
+        root.AddChild(DevPanelUI.CreateBrowserBackdrop(() => Hide(globalUi)));
+        var panel = DevPanelUI.CreateBrowserPanel(600f);
         root.AddChild(panel);
 
         var vbox = panel.GetNode<VBoxContainer>("Content");
-        vbox.AddThemeConstantOverride("separation", 8);
+        vbox.AddThemeConstantOverride("separation", 10);
 
-        var title = new Label
-        {
-            Text = I18N.T("enemy.byFloorTitle", "Customize enemies by floor"),
-            HorizontalAlignment = HorizontalAlignment.Center
-        };
-        title.AddThemeColorOverride("font_color", new Color(0.9f, 0.85f, 0.7f));
-        vbox.AddChild(title);
+        vbox.AddChild(DevPanelUI.CreatePanelTitle(I18N.T("enemy.byFloorTitle", "Customize Enemies by Floor")));
+        vbox.AddChild(DevPanelUI.CreateOverlaySeparator());
 
         // Current floor overrides list
         var overridesScroll = new ScrollContainer
@@ -623,22 +613,26 @@ internal static class EnemySelectUI
             return;
         }
 
-        var root = CreateOverlayRoot();
-        root.AddChild(DevPanelUI.CreateStandardBackdrop(() => Hide(globalUi)));
+        DevPanelUI.PinRail();
+        DevPanelUI.SpliceRail(globalUi, joined: true);
 
-        var panel = DevPanelUI.CreateStandardPanel();
+        var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1250 };
+        root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        root.TreeExiting += () =>
+        {
+            DevPanelUI.UnpinRail();
+            DevPanelUI.SpliceRail(globalUi, joined: false);
+        };
+
+        root.AddChild(DevPanelUI.CreateBrowserBackdrop(() => Hide(globalUi)));
+        var panel = DevPanelUI.CreateBrowserPanel(520f);
         root.AddChild(panel);
 
         var vbox = panel.GetNode<VBoxContainer>("Content");
-        vbox.AddThemeConstantOverride("separation", 8);
+        vbox.AddThemeConstantOverride("separation", 10);
 
-        var title = new Label
-        {
-            Text = I18N.T("enemy.killTitle", "Select enemy to kill"),
-            HorizontalAlignment = HorizontalAlignment.Center
-        };
-        title.AddThemeColorOverride("font_color", new Color(0.9f, 0.85f, 0.7f));
-        vbox.AddChild(title);
+        vbox.AddChild(DevPanelUI.CreatePanelTitle(I18N.T("enemy.killTitle", "Select Enemy to Kill")));
+        vbox.AddChild(DevPanelUI.CreateOverlaySeparator());
 
         var scroll = new ScrollContainer
         {
@@ -653,17 +647,28 @@ internal static class EnemySelectUI
         foreach (var enemy in enemies)
         {
             if (enemy.IsDead) continue;
-            var name = enemy.Monster?.Title?.GetFormattedText() ?? I18N.T("enemy.unknownName", "???");
+            var enemyName = enemy.Monster?.Title?.GetFormattedText() ?? I18N.T("enemy.unknownName", "???");
             var hp = $"{enemy.CurrentHp}/{enemy.MaxHp}";
 
-            var btn = new Button
+            var btn = DevPanelUI.CreateListItemButton(
+                I18N.T("enemy.killEntry", "{0}  HP: {1}", enemyName, hp));
+
+            // Tint the button with a subtle red accent
+            StyleBoxFlat MakeKillStyle(Color bg) => new()
             {
-                Text = I18N.T("enemy.killEntry", "{0}  HP: {1}", name, hp),
-                CustomMinimumSize = new Vector2(0, 34),
-                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-                FocusMode = Control.FocusModeEnum.None
+                BgColor = bg,
+                CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6,
+                CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
+                ContentMarginLeft = 10, ContentMarginRight = 10,
+                ContentMarginTop = 4, ContentMarginBottom = 4,
+                BorderWidthLeft = 1, BorderWidthRight = 1,
+                BorderWidthTop = 1, BorderWidthBottom = 1,
+                BorderColor = new Color(0.8f, 0.25f, 0.25f, 0.20f)
             };
-            ApplyKillItemStyle(btn);
+            btn.AddThemeStyleboxOverride("normal",  MakeKillStyle(new Color(0.35f, 0.10f, 0.10f, 0.30f)));
+            btn.AddThemeStyleboxOverride("hover",   MakeKillStyle(new Color(0.50f, 0.15f, 0.15f, 0.45f)));
+            btn.AddThemeStyleboxOverride("pressed", MakeKillStyle(new Color(0.60f, 0.18f, 0.18f, 0.55f)));
+            btn.AddThemeStyleboxOverride("focus",   MakeKillStyle(new Color(0.35f, 0.10f, 0.10f, 0.30f)));
 
             var captured = enemy;
             btn.Pressed += () =>
@@ -675,22 +680,19 @@ internal static class EnemySelectUI
         }
 
         // Kill all button
-        var killAllBtn = new Button
+        var killAllBtn = DevPanelUI.CreateListItemButton(I18N.T("enemy.killAll", "Kill All"));
+        killAllBtn.Alignment = HorizontalAlignment.Center;
+        StyleBoxFlat MakeRedStyle(Color bg) => new()
         {
-            Text = I18N.T("enemy.killAll", "Kill All"),
-            CustomMinimumSize = new Vector2(0, 36),
-            FocusMode = Control.FocusModeEnum.None
+            BgColor = bg,
+            CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6,
+            CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
+            ContentMarginLeft = 10, ContentMarginRight = 10,
+            ContentMarginTop = 4, ContentMarginBottom = 4
         };
-        var killAllStyle = new StyleBoxFlat
-        {
-            BgColor = new Color(0.7f, 0.15f, 0.15f, 0.8f),
-            ContentMarginLeft = 8, ContentMarginRight = 8,
-            ContentMarginTop = 4, ContentMarginBottom = 4,
-            CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4,
-            CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4
-        };
-        foreach (var state in new[] { "normal", "hover", "pressed", "focus" })
-            killAllBtn.AddThemeStyleboxOverride(state, killAllStyle);
+        killAllBtn.AddThemeStyleboxOverride("normal",  MakeRedStyle(new Color(0.60f, 0.12f, 0.12f, 0.85f)));
+        killAllBtn.AddThemeStyleboxOverride("hover",   MakeRedStyle(new Color(0.72f, 0.15f, 0.15f, 0.90f)));
+        killAllBtn.AddThemeStyleboxOverride("pressed", MakeRedStyle(new Color(0.78f, 0.18f, 0.18f, 0.95f)));
         killAllBtn.Pressed += () =>
         {
             TaskHelper.RunSafely(CombatEnemyActions.KillAllEnemies());
@@ -698,73 +700,7 @@ internal static class EnemySelectUI
         };
         vbox.AddChild(killAllBtn);
 
-        var closeBtn = new Button
-        {
-            Text = I18N.T("enemy.close", "Close"),
-            CustomMinimumSize = new Vector2(0, 36),
-            FocusMode = Control.FocusModeEnum.None
-        };
-        closeBtn.Pressed += () => Hide(globalUi);
-        vbox.AddChild(closeBtn);
-
         ((Node)globalUi).AddChild(root);
     }
 
-    // ── Shared UI builders ──
-
-    private static Control CreateOverlayRoot()
-    {
-        var root = new Control
-        {
-            Name = RootName,
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-            ZIndex = 1300
-        };
-        root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        return root;
-    }
-
-    // ── Styling helpers ──
-
-    private static void ApplyFilterStyle(Button btn, bool active)
-    {
-        var s = new StyleBoxFlat
-        {
-            BgColor = active ? new Color(0.25f, 0.4f, 0.6f, 0.9f) : new Color(0.15f, 0.15f, 0.18f, 0.85f),
-            ContentMarginLeft = 8, ContentMarginRight = 8,
-            ContentMarginTop = 2, ContentMarginBottom = 2,
-            CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4,
-            CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4,
-            BorderWidthTop = 1, BorderWidthBottom = 1, BorderWidthLeft = 1, BorderWidthRight = 1,
-            BorderColor = active ? new Color(0.5f, 0.7f, 0.9f, 0.8f) : new Color(0.3f, 0.3f, 0.4f, 0.5f)
-        };
-        foreach (var state in new[] { "normal", "hover", "pressed", "focus" })
-            btn.AddThemeStyleboxOverride(state, s);
-    }
-
-    private static void ApplyKillItemStyle(Button btn)
-    {
-        var s = new StyleBoxFlat
-        {
-            BgColor = new Color(0.35f, 0.15f, 0.15f, 0.2f),
-            ContentMarginLeft = 8, ContentMarginRight = 8,
-            ContentMarginTop = 2, ContentMarginBottom = 2,
-            CornerRadiusTopLeft = 3, CornerRadiusTopRight = 3,
-            CornerRadiusBottomLeft = 3, CornerRadiusBottomRight = 3
-        };
-        var hover = new StyleBoxFlat
-        {
-            BgColor = new Color(0.5f, 0.2f, 0.2f, 0.35f),
-            ContentMarginLeft = 8, ContentMarginRight = 8,
-            ContentMarginTop = 2, ContentMarginBottom = 2,
-            CornerRadiusTopLeft = 3, CornerRadiusTopRight = 3,
-            CornerRadiusBottomLeft = 3, CornerRadiusBottomRight = 3,
-            BorderWidthTop = 1, BorderWidthBottom = 1, BorderWidthLeft = 1, BorderWidthRight = 1,
-            BorderColor = new Color(0.7f, 0.3f, 0.3f, 0.5f)
-        };
-        btn.AddThemeStyleboxOverride("normal", s);
-        btn.AddThemeStyleboxOverride("hover", hover);
-        btn.AddThemeStyleboxOverride("pressed", hover);
-        btn.AddThemeStyleboxOverride("focus", s);
-    }
 }

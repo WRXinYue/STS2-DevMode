@@ -6,6 +6,221 @@ namespace DevMode.UI;
 
 internal static partial class DevPanelUI
 {
+    // ── Browser-panel factory (spliced to rail, same visual language as Cards/Relics) ─────────
+
+    /// <summary>
+    /// Creates a panel spliced to the left rail — flat left edge, rounded right corners,
+    /// slide-in from left animation.
+    /// <para>
+    /// <paramref name="fixedWidth"/> &gt; 0 → panel is that many pixels wide (narrow list panels).
+    /// <paramref name="fixedWidth"/> = 0 → panel expands to the right edge of the screen (full-width browsers).
+    /// </para>
+    /// </summary>
+    public static PanelContainer CreateBrowserPanel(float fixedWidth = 0f)
+    {
+        var panel = new PanelContainer
+        {
+            Name = "BrowserPanel",
+            MouseFilter = Control.MouseFilterEnum.Stop,
+            AnchorTop    = 0.15f, AnchorBottom = 0.85f,
+            OffsetTop    = 0, OffsetBottom = 0
+        };
+
+        if (fixedWidth > 0f)
+        {
+            panel.AnchorLeft  = 0; panel.AnchorRight  = 0;
+            panel.OffsetLeft  = BrowserPanelLeft;
+            panel.OffsetRight = BrowserPanelLeft + fixedWidth;
+        }
+        else
+        {
+            panel.AnchorLeft  = 0; panel.AnchorRight  = 1;
+            panel.OffsetLeft  = BrowserPanelLeft;
+            panel.OffsetRight = -BrowserPanelRight;
+        }
+
+        var style = new StyleBoxFlat
+        {
+            BgColor = ColOverlayBg,
+            CornerRadiusTopLeft     = 0, CornerRadiusBottomLeft  = 0,
+            CornerRadiusTopRight    = BrowserRailRadius, CornerRadiusBottomRight = BrowserRailRadius,
+            ContentMarginLeft       = 20, ContentMarginRight  = 20,
+            ContentMarginTop        = 14, ContentMarginBottom = 16,
+            BorderWidthLeft         = 0,
+            BorderWidthTop          = 1, BorderWidthBottom = 1, BorderWidthRight = 1,
+            BorderColor             = ColOverlayBorder,
+            ShadowColor             = new Color(0, 0, 0, 0.40f),
+            ShadowSize              = 20
+        };
+        panel.AddThemeStyleboxOverride("panel", style);
+
+        var content = new VBoxContainer { Name = "Content" };
+        content.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        content.SizeFlagsVertical   = Control.SizeFlags.ExpandFill;
+        content.AddThemeConstantOverride("separation", 10);
+        panel.AddChild(content);
+
+        return panel;
+    }
+
+    /// <summary>
+    /// Transparent full-area backdrop that closes the panel when clicking anywhere outside
+    /// the rail (to the right of the rail, full height). Add this as the FIRST child of the
+    /// panel root so the panel itself sits on top and receives clicks first.
+    /// Only used for fixed-width browser panels; full-width panels fill the available area.
+    /// </summary>
+    public static ColorRect CreateBrowserBackdrop(Action onClose)
+    {
+        bool closed = false;
+        void SafeClose()
+        {
+            if (closed) return;
+            closed = true;
+            onClose();
+        }
+
+        var backdrop = new ColorRect
+        {
+            Color       = new Color(0, 0, 0, 0),
+            MouseFilter = Control.MouseFilterEnum.Stop,
+            AnchorLeft  = 0, AnchorRight  = 1,
+            AnchorTop   = 0, AnchorBottom = 1,
+            OffsetLeft  = BrowserPanelLeft, OffsetRight  = 0,
+            OffsetTop   = 0,                OffsetBottom = 0
+        };
+
+        backdrop.GuiInput += e =>
+        {
+            if (e is InputEventMouseButton { Pressed: true })
+                SafeClose();
+        };
+
+        return backdrop;
+    }
+
+    // ── Shared overlay widget factories ──────────────────────────────────────
+
+    /// <summary>Standard panel title label — matches relic / card browser headers.</summary>
+    public static Label CreatePanelTitle(string text)
+    {
+        var lbl = new Label
+        {
+            Text = text,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+        };
+        lbl.AddThemeFontSizeOverride("font_size", 16);
+        lbl.AddThemeColorOverride("font_color", new Color(0.90f, 0.88f, 0.83f));
+        return lbl;
+    }
+
+    /// <summary>
+    /// Standard search row with magnify icon — matches relic / card browser search bars.
+    /// Returns the row container and the inner LineEdit.
+    /// </summary>
+    public static (HBoxContainer row, LineEdit input) CreateSearchRow(string placeholder)
+    {
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 6);
+
+        row.AddChild(new TextureRect
+        {
+            Texture = MdiIcon.Magnify.Texture(18, new Color(0.55f, 0.55f, 0.62f)),
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            CustomMinimumSize = new Vector2(22, 22),
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter
+        });
+
+        var input = new LineEdit
+        {
+            PlaceholderText = placeholder,
+            ClearButtonEnabled = true,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+        };
+        row.AddChild(input);
+
+        return (row, input);
+    }
+
+    /// <summary>
+    /// Styled list-item button used in scroll lists (Powers, Potions, Events, etc.).
+    /// Left-aligned text, subtle dark background, accent hover.
+    /// </summary>
+    public static Button CreateListItemButton(string text)
+    {
+        var btn = new Button
+        {
+            Text = text,
+            Alignment = HorizontalAlignment.Left,
+            CustomMinimumSize = new Vector2(0, 34),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            FocusMode = Control.FocusModeEnum.None,
+            ClipText = true
+        };
+
+        StyleBoxFlat MakeStyle(Color bg, Color border) => new()
+        {
+            BgColor = bg,
+            CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6,
+            CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
+            ContentMarginLeft = 10, ContentMarginRight = 10,
+            ContentMarginTop = 4, ContentMarginBottom = 4,
+            BorderWidthLeft = 1, BorderWidthRight = 1,
+            BorderWidthTop = 1, BorderWidthBottom = 1,
+            BorderColor = border
+        };
+
+        btn.AddThemeStyleboxOverride("normal",  MakeStyle(new Color(1f, 1f, 1f, 0.04f), new Color(1f, 1f, 1f, 0.05f)));
+        btn.AddThemeStyleboxOverride("hover",   MakeStyle(new Color(1f, 1f, 1f, 0.09f), new Color(0.40f, 0.68f, 1f, 0.30f)));
+        btn.AddThemeStyleboxOverride("pressed", MakeStyle(new Color(0.40f, 0.68f, 1f, 0.15f), new Color(0.40f, 0.68f, 1f, 0.50f)));
+        btn.AddThemeStyleboxOverride("focus",   MakeStyle(new Color(1f, 1f, 1f, 0.04f), new Color(1f, 1f, 1f, 0.05f)));
+
+        btn.AddThemeColorOverride("font_color",         new Color(0.82f, 0.82f, 0.88f));
+        btn.AddThemeColorOverride("font_hover_color",   new Color(0.95f, 0.95f, 1.00f));
+        btn.AddThemeColorOverride("font_pressed_color", new Color(0.95f, 0.95f, 1.00f));
+        btn.AddThemeFontSizeOverride("font_size", 13);
+
+        return btn;
+    }
+
+    /// <summary>Pill-shaped segment filter chip — matches relic browser rarity chips.</summary>
+    public static Button CreateFilterChip(string text, bool active = false)
+    {
+        var btn = new Button
+        {
+            Text = text,
+            ToggleMode = true,
+            ButtonPressed = active,
+            FocusMode = Control.FocusModeEnum.None,
+            MouseFilter = Control.MouseFilterEnum.Stop,
+            CustomMinimumSize = new Vector2(0, 26)
+        };
+
+        StyleBoxFlat MakeStyle(Color bg) => new()
+        {
+            BgColor = bg,
+            CornerRadiusTopLeft = 13, CornerRadiusTopRight = 13,
+            CornerRadiusBottomLeft = 13, CornerRadiusBottomRight = 13,
+            ContentMarginLeft = 12, ContentMarginRight = 12,
+            ContentMarginTop = 2, ContentMarginBottom = 2
+        };
+
+        btn.AddThemeStyleboxOverride("normal",        MakeStyle(new Color(0.14f, 0.14f, 0.18f, 0.80f)));
+        btn.AddThemeStyleboxOverride("hover",         MakeStyle(new Color(0.20f, 0.20f, 0.26f, 0.85f)));
+        btn.AddThemeStyleboxOverride("pressed",       MakeStyle(new Color(0.25f, 0.40f, 0.65f, 0.90f)));
+        btn.AddThemeStyleboxOverride("hover_pressed", MakeStyle(new Color(0.30f, 0.48f, 0.75f, 0.95f)));
+        btn.AddThemeStyleboxOverride("focus",         MakeStyle(new Color(0.14f, 0.14f, 0.18f, 0.80f)));
+
+        btn.AddThemeColorOverride("font_color",           new Color(0.60f, 0.60f, 0.68f));
+        btn.AddThemeColorOverride("font_hover_color",     new Color(0.78f, 0.78f, 0.85f));
+        btn.AddThemeColorOverride("font_pressed_color",   new Color(0.92f, 0.92f, 0.98f));
+        btn.AddThemeFontSizeOverride("font_size", 11);
+
+        return btn;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+
     private static Button CreateRailIcon(MdiIcon icon, string tooltip)
     {
         var btn = new Button
@@ -260,7 +475,7 @@ internal static partial class DevPanelUI
         return btn;
     }
 
-    private static HSeparator CreateOverlaySeparator()
+    public static HSeparator CreateOverlaySeparator()
     {
         var sep = new HSeparator();
         sep.AddThemeStyleboxOverride("separator", new StyleBoxFlat
@@ -273,7 +488,7 @@ internal static partial class DevPanelUI
         return sep;
     }
 
-    private static Control CreateSectionHeader(string text)
+    public static Control CreateSectionHeader(string text)
     {
         var container = new HBoxContainer();
         container.AddThemeConstantOverride("separation", 8);

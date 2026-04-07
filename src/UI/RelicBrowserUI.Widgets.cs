@@ -19,12 +19,7 @@ internal static partial class RelicBrowserUI
     private static Color ColPanelBorder => DevModeTheme.PanelBorder;
     private static Color ColSubtle      => DevModeTheme.Subtle;
 
-    // ── Tile colours ──
-
-    private static readonly Color ColTileBg       = new(0.13f, 0.13f, 0.17f, 0.90f);
-    private static readonly Color ColTileHover    = new(0.18f, 0.18f, 0.23f, 0.95f);
-    private static readonly Color ColTileSelected = new(0.22f, 0.30f, 0.42f, 0.95f);
-    private static readonly Color ColTileBorder   = new(1f, 1f, 1f, 0.05f);
+    // (tile frame colours defined in RelicBrowserUI.Grid.cs)
 
     // ── Sort button colours ──
 
@@ -172,23 +167,8 @@ internal static partial class RelicBrowserUI
         var content = new VBoxContainer { Name = "Content" };
         content.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         content.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
-        content.AddThemeConstantOverride("separation", 8);
+        content.AddThemeConstantOverride("separation", 10);
         panel.AddChild(content);
-
-        float finalLeft = PanelLeft;
-        panel.Ready += () =>
-        {
-            float slideOffset = 60f;
-            panel.OffsetLeft = finalLeft - slideOffset;
-            panel.Modulate = new Color(1, 1, 1, 0);
-
-            var tween = panel.CreateTween();
-            tween.TweenProperty(panel, "offset_left", finalLeft, 0.25f)
-                 .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
-            tween.Parallel()
-                 .TweenProperty(panel, "modulate:a", 1f, 0.18f)
-                 .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
-        };
 
         return panel;
     }

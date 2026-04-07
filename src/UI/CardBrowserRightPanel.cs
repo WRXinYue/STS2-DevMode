@@ -57,17 +57,15 @@ internal static class CardBrowserRightPanel
             container.AddChild(infoLabel);
         }
 
-        var desc = CardEditActions.GetDescriptionText(card);
+        string desc;
+        try { desc = card.GetDescriptionForPile(PileType.None); }
+        catch { desc = CardEditActions.GetDescriptionText(card); }
         if (!string.IsNullOrWhiteSpace(desc))
         {
-            var descLabel = new Label
-            {
-                Text = desc,
-                AutowrapMode = TextServer.AutowrapMode.WordSmart,
-                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
-            };
-            descLabel.AddThemeFontSizeOverride("font_size", 12);
-            descLabel.AddThemeColorOverride("font_color", new Color(0.8f, 0.8f, 0.85f));
+            var descLabel = DevModeTheme.CreateGameBbcodeLabel();
+            descLabel.Text = DevModeTheme.ConvertGameBbcode(desc);
+            descLabel.AddThemeFontSizeOverride("normal_font_size", 12);
+            descLabel.AddThemeColorOverride("default_color", new Color(0.8f, 0.8f, 0.85f));
             container.AddChild(descLabel);
         }
 

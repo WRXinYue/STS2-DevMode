@@ -65,6 +65,7 @@ internal static partial class RelicBrowserUI
         // Selection
         public RelicModel? SelectedRelic;
         public Panel? SelectedBg;
+        public Color SelectedRarityCol;
 
         public State(NGlobalUi globalUi, RunState runState, Player player)
         {
@@ -110,6 +111,7 @@ internal static partial class RelicBrowserUI
             SpliceRail(globalUi, joined: false);
         };
 
+        root.AddChild(DevPanelUI.CreateBrowserBackdrop(() => Remove(globalUi)));
         var panel = CreateBrowserPanel();
         root.AddChild(panel);
         var content = panel.GetNode<VBoxContainer>("Content");
@@ -239,6 +241,9 @@ internal static partial class RelicBrowserUI
             content.AddChild(chipRow);
         }
 
+        // ── Spacer between controls and content body ──
+        content.AddChild(new Control { CustomMinimumSize = new Vector2(0, 2) });
+
         // ── Body: grid (left) + detail panel (right) ──
         var body = new HSplitContainer
         {
@@ -259,8 +264,8 @@ internal static partial class RelicBrowserUI
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             Columns = 1
         };
-        s.RelicGrid.AddThemeConstantOverride("h_separation", GridSeparation);
-        s.RelicGrid.AddThemeConstantOverride("v_separation", GridSeparation);
+        s.RelicGrid.AddThemeConstantOverride("h_separation", GridHSep);
+        s.RelicGrid.AddThemeConstantOverride("v_separation", GridVSep);
 
         var gridPad = new MarginContainer
         {
@@ -302,7 +307,7 @@ internal static partial class RelicBrowserUI
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
         };
         s.RightContent = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        s.RightContent.AddThemeConstantOverride("separation", 8);
+        s.RightContent.AddThemeConstantOverride("separation", 10);
         AddPlaceholder(s.RightContent);
 
         rightScroll.AddChild(s.RightContent);
@@ -426,15 +431,8 @@ internal static partial class RelicBrowserUI
         if (!string.IsNullOrWhiteSpace(desc))
         {
             container.AddChild(new HSeparator());
-            var descLabel = new RichTextLabel
-            {
-                BbcodeEnabled = true,
-                Text = desc,
-                FitContent = true,
-                ScrollActive = false,
-                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-                MouseFilter = Control.MouseFilterEnum.Ignore
-            };
+            var descLabel = DevModeTheme.CreateGameBbcodeLabel();
+            descLabel.Text = DevModeTheme.ConvertGameBbcode(desc);
             descLabel.AddThemeFontSizeOverride("normal_font_size", 12);
             descLabel.AddThemeColorOverride("default_color", new Color(0.75f, 0.75f, 0.82f));
             container.AddChild(descLabel);
@@ -443,14 +441,10 @@ internal static partial class RelicBrowserUI
         // Flavor text
         if (!string.IsNullOrWhiteSpace(flavor) && flavor != desc)
         {
-            var flavorLabel = new Label
-            {
-                Text = flavor,
-                AutowrapMode = TextServer.AutowrapMode.WordSmart,
-                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
-            };
-            flavorLabel.AddThemeFontSizeOverride("font_size", 11);
-            flavorLabel.AddThemeColorOverride("font_color", new Color(0.55f, 0.55f, 0.62f));
+            var flavorLabel = DevModeTheme.CreateGameBbcodeLabel();
+            flavorLabel.Text = DevModeTheme.ConvertGameBbcode(flavor);
+            flavorLabel.AddThemeFontSizeOverride("normal_font_size", 11);
+            flavorLabel.AddThemeColorOverride("default_color", new Color(0.55f, 0.55f, 0.62f));
             container.AddChild(flavorLabel);
         }
 

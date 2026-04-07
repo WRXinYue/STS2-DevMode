@@ -123,6 +123,7 @@ internal static partial class CardBrowserUI
             SpliceRail(globalUi, joined: false);
         };
 
+        root.AddChild(DevPanelUI.CreateBrowserBackdrop(() => Remove(globalUi)));
         var panel = CreateBrowserPanel();
         root.AddChild(panel);
         var content = panel.GetNode<VBoxContainer>("Content");

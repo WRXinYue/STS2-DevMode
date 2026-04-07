@@ -165,21 +165,6 @@ internal static partial class CardBrowserUI
         content.AddThemeConstantOverride("separation", 8);
         panel.AddChild(content);
 
-        float finalLeft = PanelLeft;
-        panel.Ready += () =>
-        {
-            float slideOffset = 60f;
-            panel.OffsetLeft = finalLeft - slideOffset;
-            panel.Modulate = new Color(1, 1, 1, 0);
-
-            var tween = panel.CreateTween();
-            tween.TweenProperty(panel, "offset_left", finalLeft, 0.25f)
-                 .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
-            tween.Parallel()
-                 .TweenProperty(panel, "modulate:a", 1f, 0.18f)
-                 .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
-        };
-
         return panel;
     }
 }

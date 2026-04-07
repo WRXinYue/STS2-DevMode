@@ -10,14 +10,25 @@ namespace DevMode.UI;
 
 internal static partial class RelicBrowserUI
 {
-    private const float TileMinWidth   = 74f;
-    private const float TileHeight     = 92f;
-    private const float IconSize       = 44f;
-    private const int   GridSeparation = 6;
-    private const int   GridPadH       = 14;
-    private const int   GridPadV       = 10;
-    private const float TierStripH     = 3f;
-    private const int   MaxColumns     = 8;
+    private const float TileMinWidth   = 110f;
+    private const float IconFrameSize  = 96f;
+    private const float IconPad        = 12f;
+    private const float IconSize       = IconFrameSize - IconPad * 2f;
+    private const int   FrameRadius    = 20;
+    private const int   GridHSep       = 12;   // horizontal gap between columns
+    private const int   GridVSep       = 20;   // vertical gap between rows (bigger: name label adds height)
+    private const int   GridPadH       = 18;
+    private const int   GridPadV       = 16;
+    private const int   MaxColumns     = 6;
+
+    // Frame colors
+    private static readonly Color ColFrameBg       = new(0.13f, 0.13f, 0.17f, 0.70f);
+    private static readonly Color ColFrameHover    = new(0.17f, 0.17f, 0.22f, 0.85f);
+    private static readonly Color ColFrameSelected = new(0.18f, 0.22f, 0.30f, 0.92f);
+
+    private const float BorderAlphaRest     = 0.22f;
+    private const float BorderAlphaHover    = 0.55f;
+    private const float BorderAlphaSelected = 0.88f;
 
     private static Control CreateRelicTile(RelicModel relic, Player? player, State s)
     {
@@ -25,46 +36,49 @@ internal static partial class RelicBrowserUI
         var rarityCol = RarityToColor(rarity);
         var name = GetRelicDisplayName(relic);
 
-        var outer = new Control
+        var outer = new VBoxContainer
         {
-            CustomMinimumSize = new Vector2(TileMinWidth, TileHeight),
+            CustomMinimumSize = new Vector2(TileMinWidth, 0),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
             MouseFilter = Control.MouseFilterEnum.Stop,
             FocusMode = Control.FocusModeEnum.None,
             TooltipText = name
         };
+        outer.AddThemeConstantOverride("separation", 6);
 
-        // Background panel
-        var bg = new Panel();
-        bg.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        bg.MouseFilter = Control.MouseFilterEnum.Ignore;
-        var bgStyle = new StyleBoxFlat
-        {
-            BgColor = ColTileBg,
-            CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6,
-            CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
-            BorderWidthLeft = 1, BorderWidthRight = 1,
-            BorderWidthTop = 1, BorderWidthBottom = 1,
-            BorderColor = ColTileBorder
-        };
-        bg.AddThemeStyleboxOverride("panel", bgStyle);
-        outer.AddChild(bg);
+        // ── Icon frame (rounded square, app-icon style) ──
 
-        // Content VBox
-        var vbox = new VBoxContainer
+        var frameCenter = new CenterContainer
         {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             MouseFilter = Control.MouseFilterEnum.Ignore
         };
-        vbox.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        vbox.AddThemeConstantOverride("separation", 2);
-        vbox.OffsetLeft = 4; vbox.OffsetRight = -4;
-        vbox.OffsetTop = 6; vbox.OffsetBottom = -6;
 
-        // Spacer above icon for vertical centering
-        vbox.AddChild(new Control { CustomMinimumSize = new Vector2(0, 2), MouseFilter = Control.MouseFilterEnum.Ignore });
+        var frameHost = new Control
+        {
+            CustomMinimumSize = new Vector2(IconFrameSize, IconFrameSize),
+            MouseFilter = Control.MouseFilterEnum.Ignore
+        };
 
-        // Icon
+        var frame = new Panel();
+        frame.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        frame.MouseFilter = Control.MouseFilterEnum.Ignore;
+        var frameStyle = new StyleBoxFlat
+        {
+            BgColor = ColFrameBg,
+            CornerRadiusTopLeft    = FrameRadius,
+            CornerRadiusTopRight   = FrameRadius,
+            CornerRadiusBottomLeft = FrameRadius,
+            CornerRadiusBottomRight = FrameRadius,
+            BorderWidthLeft = 2, BorderWidthRight = 2,
+            BorderWidthTop = 2, BorderWidthBottom = 2,
+            BorderColor = RarityBorderColor(rarityCol, BorderAlphaRest)
+        };
+        frame.AddThemeStyleboxOverride("panel", frameStyle);
+        frameHost.AddChild(frame);
+
+        // Icon texture
         Texture2D? iconTex = null;
         try { iconTex = relic.Icon; } catch { }
 
@@ -74,27 +88,63 @@ internal static partial class RelicBrowserUI
             {
                 Texture = iconTex,
                 CustomMinimumSize = new Vector2(IconSize, IconSize),
-                SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
                 StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
                 ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-                MouseFilter = Control.MouseFilterEnum.Ignore
+                MouseFilter = Control.MouseFilterEnum.Ignore,
+                AnchorLeft = 0.5f, AnchorRight = 0.5f,
+                AnchorTop = 0.5f, AnchorBottom = 0.5f,
+                OffsetLeft = -IconSize / 2f, OffsetRight = IconSize / 2f,
+                OffsetTop = -IconSize / 2f, OffsetBottom = IconSize / 2f
             };
-            vbox.AddChild(iconRect);
+            frameHost.AddChild(iconRect);
         }
         else
         {
-            // Fallback: colored square with first char
             var fallback = new ColorRect
             {
                 Color = rarityCol.Darkened(0.5f),
-                CustomMinimumSize = new Vector2(IconSize, IconSize),
-                SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
-                MouseFilter = Control.MouseFilterEnum.Ignore
+                MouseFilter = Control.MouseFilterEnum.Ignore,
+                AnchorLeft = 0.5f, AnchorRight = 0.5f,
+                AnchorTop = 0.5f, AnchorBottom = 0.5f,
+                OffsetLeft = -IconSize / 2f, OffsetRight = IconSize / 2f,
+                OffsetTop = -IconSize / 2f, OffsetBottom = IconSize / 2f
             };
-            vbox.AddChild(fallback);
+            frameHost.AddChild(fallback);
         }
 
-        // Name label
+        // Owned badge — rounded dot at bottom-right of frame
+        if (IsAllSource && player != null && IsRelicOwned(relic, player))
+        {
+            var badge = new Panel
+            {
+                MouseFilter = Control.MouseFilterEnum.Ignore,
+                AnchorLeft = 1, AnchorRight = 1,
+                AnchorTop = 1, AnchorBottom = 1,
+                OffsetLeft = -18, OffsetRight = -4,
+                OffsetTop = -18, OffsetBottom = -4
+            };
+            var badgeStyle = new StyleBoxFlat
+            {
+                BgColor = new Color(0.28f, 0.72f, 0.42f, 0.92f),
+                CornerRadiusTopLeft = 7, CornerRadiusTopRight = 7,
+                CornerRadiusBottomLeft = 7, CornerRadiusBottomRight = 7,
+                BorderWidthLeft = 2, BorderWidthRight = 2,
+                BorderWidthTop = 2, BorderWidthBottom = 2,
+                BorderColor = new Color(0.1f, 0.1f, 0.14f, 0.9f)
+            };
+            badge.AddThemeStyleboxOverride("panel", badgeStyle);
+            frameHost.AddChild(badge);
+        }
+
+        frameCenter.AddChild(frameHost);
+        outer.AddChild(frameCenter);
+
+        // ── Name label (rarity-tinted, below the frame) ──
+
+        var nameColor = rarity == RelicRarity.None
+            ? new Color(0.60f, 0.60f, 0.66f)
+            : rarityCol.Lerp(new Color(0.85f, 0.85f, 0.90f), 0.45f);
+
         var label = new Label
         {
             Text = name,
@@ -103,78 +153,56 @@ internal static partial class RelicBrowserUI
             MouseFilter = Control.MouseFilterEnum.Ignore,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
         };
-        label.AddThemeFontSizeOverride("font_size", 9);
-        label.AddThemeColorOverride("font_color", new Color(0.72f, 0.72f, 0.78f));
-        vbox.AddChild(label);
+        label.AddThemeFontSizeOverride("font_size", 11);
+        label.AddThemeColorOverride("font_color", nameColor);
+        outer.AddChild(label);
 
-        outer.AddChild(vbox);
+        // ── Hover / click ──
 
-        // Rarity accent strip at bottom
-        var strip = new ColorRect
-        {
-            Color = rarityCol,
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-            AnchorLeft = 0, AnchorRight = 1,
-            AnchorTop = 1, AnchorBottom = 1,
-            OffsetLeft = 8, OffsetRight = -8,
-            OffsetTop = -TierStripH - 3, OffsetBottom = -3
-        };
-        outer.AddChild(strip);
-
-        // Owned badge (green dot in top-right for "All" view)
-        if (IsAllSource && player != null && IsRelicOwned(relic, player))
-        {
-            var badge = new ColorRect
-            {
-                Color = new Color(0.3f, 0.75f, 0.45f, 0.85f),
-                MouseFilter = Control.MouseFilterEnum.Ignore,
-                AnchorLeft = 1, AnchorRight = 1,
-                AnchorTop = 0, AnchorBottom = 0,
-                OffsetLeft = -12, OffsetRight = -4,
-                OffsetTop = 4, OffsetBottom = 12
-            };
-            outer.AddChild(badge);
-        }
-
-        // Hover / click
         outer.MouseEntered += () =>
         {
             if (s.SelectedRelic != relic)
-                SetBgStyle(bg, ColTileHover, ColTileBorder);
+                SetFrameStyle(frame, ColFrameHover, rarityCol, BorderAlphaHover);
         };
         outer.MouseExited += () =>
         {
             if (s.SelectedRelic != relic)
-                SetBgStyle(bg, ColTileBg, ColTileBorder);
+                SetFrameStyle(frame, ColFrameBg, rarityCol, BorderAlphaRest);
         };
         outer.GuiInput += evt =>
         {
             if (evt is not InputEventMouseButton mb || !mb.Pressed || mb.ButtonIndex != MouseButton.Left)
                 return;
-            SelectTile(s, bg, relic);
+            SelectTile(s, frame, relic, rarityCol);
             outer.AcceptEvent();
         };
 
         return outer;
     }
 
-    private static void SetBgStyle(Panel panel, Color bgColor, Color borderColor)
+    // ── Frame styling ──
+
+    private static Color RarityBorderColor(Color rarity, float alpha)
+        => new(rarity.R, rarity.G, rarity.B, alpha);
+
+    private static void SetFrameStyle(Panel frame, Color bg, Color rarityCol, float borderAlpha)
     {
-        if (panel.GetThemeStylebox("panel") is StyleBoxFlat sb)
+        if (frame.GetThemeStylebox("panel") is StyleBoxFlat sb)
         {
-            sb.BgColor = bgColor;
-            sb.BorderColor = borderColor;
+            sb.BgColor = bg;
+            sb.BorderColor = RarityBorderColor(rarityCol, borderAlpha);
         }
     }
 
-    private static void SelectTile(State s, Panel tileBg, RelicModel relic)
+    private static void SelectTile(State s, Panel frame, RelicModel relic, Color rarityCol)
     {
         if (s.SelectedBg != null)
-            SetBgStyle(s.SelectedBg, ColTileBg, ColTileBorder);
+            SetFrameStyle(s.SelectedBg, ColFrameBg, s.SelectedRarityCol, BorderAlphaRest);
 
-        s.SelectedBg = tileBg;
+        s.SelectedBg = frame;
         s.SelectedRelic = relic;
-        SetBgStyle(tileBg, ColTileSelected, new Color(0.40f, 0.68f, 1f, 0.35f));
+        s.SelectedRarityCol = rarityCol;
+        SetFrameStyle(frame, ColFrameSelected, rarityCol, BorderAlphaSelected);
         ShowRightPanel(s, relic);
     }
 
@@ -245,7 +273,7 @@ internal static partial class RelicBrowserUI
         if (!s.RelicGrid.IsNodeReady()) return;
         float w = s.GridScroll.GetRect().Size.X - 2f * GridPadH;
         if (w < 2f) return;
-        float slotW = TileMinWidth + GridSeparation;
+        float slotW = TileMinWidth + GridHSep;
         int cols = Math.Max(1, (int)Math.Floor((w - 4f) / slotW));
         cols = Math.Min(cols, MaxColumns);
         if (s.RelicGrid.Columns != cols)

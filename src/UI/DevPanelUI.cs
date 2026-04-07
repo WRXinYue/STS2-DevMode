@@ -16,13 +16,39 @@ internal static partial class DevPanelUI
     private const float  OverlayW        = 560f;
     private const int    Radius          = 14;
 
+    // ── Panel geometry (shared by browser panels) ──
+    public const float BrowserRailLeft   = 24f;
+    public const float BrowserRailW      = RailW;
+    public const float BrowserPanelLeft  = BrowserRailLeft + BrowserRailW;   // 76f
+    public const float BrowserPanelRight = 24f;
+    public const int   BrowserRailRadius = Radius;
+
     private static Action? _onRefreshPanel;
     private static string? _activeOverlayId;
     private static int _pinRailCount;
 
     /// <summary>Pin the rail visible (e.g. while an external overlay is open). Call Unpin when done.</summary>
-    public static void PinRail()  => _pinRailCount++;
+    public static void PinRail()   => _pinRailCount++;
     public static void UnpinRail() => _pinRailCount = Math.Max(0, _pinRailCount - 1);
+
+    /// <summary>
+    /// Remove (joined=true) or restore (joined=false) the rail's right border/radius so browser
+    /// panels appear seamlessly connected.
+    /// </summary>
+    public static void SpliceRail(NGlobalUi globalUi, bool joined)
+    {
+        var railRoot = ((Node)globalUi).GetNodeOrNull<Control>(RootName);
+        var rail = railRoot?.GetNodeOrNull<PanelContainer>("Rail");
+        if (rail == null) return;
+
+        if (rail.GetThemeStylebox("panel") is StyleBoxFlat sb)
+        {
+            int r = joined ? 0 : BrowserRailRadius;
+            sb.CornerRadiusTopRight    = r;
+            sb.CornerRadiusBottomRight = r;
+            sb.BorderWidthRight = joined ? 0 : 1;
+        }
+    }
 
     // ── Apple-style colour palette ──
     private static readonly Color ColRailBg       = new(0.10f, 0.10f, 0.12f, 0.88f);
