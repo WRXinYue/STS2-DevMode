@@ -14,12 +14,12 @@ internal static partial class DevPanelUI
     {
         RemoveTopBar(globalUi);
 
-        if (DevModeState.ActivePanel == ActivePanel.None)
+        // Cards use CardBrowserUI's own nav bar — no top bar needed
+        if (DevModeState.ActivePanel is ActivePanel.None or ActivePanel.Cards)
             return;
 
         float barHalfW = DevModeState.ActivePanel switch
         {
-            ActivePanel.Cards   => !cardConfig.ShowTargets ? 130 : cardConfig.ShowDuration ? 340 : 270,
             ActivePanel.Relics  => 110,
             ActivePanel.Enemies => Actions.CombatEnemyActions.GetCombatState() != null ? 340 : 220,
             _                   => 110
@@ -37,117 +37,12 @@ internal static partial class DevPanelUI
         };
         bar.AddThemeConstantOverride("separation", 0);
 
-        if (DevModeState.ActivePanel == ActivePanel.Cards)
-            BuildCardTopBar(bar, cardConfig);
-        else if (DevModeState.ActivePanel == ActivePanel.Enemies)
+        if (DevModeState.ActivePanel == ActivePanel.Enemies)
             BuildEnemyTopBar(bar);
         else
             BuildRelicTopBar(bar);
 
         ((Node)globalUi).AddChild(bar);
-    }
-
-    private static void BuildCardTopBar(HBoxContainer bar, CardTopBarConfig config)
-    {
-        var modeLabels  = new[] { I18N.T("topbar.card.view","View"), I18N.T("topbar.card.add","Add"), I18N.T("topbar.card.upgrade","Upgrade"), I18N.T("topbar.card.edit","Edit"), I18N.T("topbar.card.delete","Delete") };
-        var modes       = new[] { CardMode.View, CardMode.Add, CardMode.Upgrade, CardMode.Edit, CardMode.Delete };
-        var modeButtons = new Button[modeLabels.Length];
-
-        var targetLabels  = new[] { I18N.T("topbar.card.hand","Hand"), I18N.T("topbar.card.drawPile","Draw Pile"), I18N.T("topbar.card.discardPile","Discard"), I18N.T("topbar.card.deck","Deck") };
-        var targets       = new[] { CardTarget.Hand, CardTarget.DrawPile, CardTarget.DiscardPile, CardTarget.Deck };
-        var targetButtons = config.ShowTargets ? new Button[targetLabels.Length] : null;
-
-        var durationLabels  = new[] { I18N.T("topbar.card.temporary","Temp"), I18N.T("topbar.card.permanent","Perm") };
-        var durations       = new[] { EffectDuration.Temporary, EffectDuration.Permanent };
-        var durationButtons = config.ShowDuration ? new Button[durationLabels.Length] : null;
-
-        bool refreshOnTargetChange = config.RefreshOnTargetChange;
-        var  targetAvailable       = config.TargetAvailable;
-
-        void Refresh()
-        {
-            for (int i = 0; i < modeButtons.Length; i++)
-            {
-                bool active = DevModeState.CardMode == modes[i];
-                int corners = (i == 0 ? 1 : 0) | (i == modeButtons.Length - 1 ? 2 : 0);
-                ApplyToggleStyle(modeButtons[i], active, corners);
-            }
-            if (targetButtons != null)
-            {
-                for (int i = 0; i < targetButtons.Length; i++)
-                {
-                    bool available = targetAvailable == null || targetAvailable(targets[i]);
-                    bool active    = available && DevModeState.CardTarget == targets[i];
-                    int  corners   = (i == 0 ? 1 : 0) | (i == targetButtons.Length - 1 ? 2 : 0);
-                    targetButtons[i].Disabled = !available;
-                    if (available)
-                        ApplyToggleStyle(targetButtons[i], active, corners);
-                    else
-                        ApplyDisabledStyle(targetButtons[i], corners);
-                }
-            }
-            if (durationButtons != null)
-            {
-                for (int i = 0; i < durationButtons.Length; i++)
-                {
-                    bool active = DevModeState.EffectDuration == durations[i];
-                    int corners = (i == 0 ? 1 : 0) | (i == durationButtons.Length - 1 ? 2 : 0);
-                    ApplyToggleStyle(durationButtons[i], active, corners);
-                }
-            }
-        }
-
-        for (int i = 0; i < modeLabels.Length; i++)
-        {
-            int idx = i;
-            var btn = CreateToggleButton(modeLabels[idx]);
-            btn.Pressed += () =>
-            {
-                DevModeState.CardMode = modes[idx];
-                Refresh();
-                _onRefreshPanel?.Invoke();
-            };
-            modeButtons[i] = btn;
-            bar.AddChild(btn);
-        }
-
-        if (config.ShowTargets && targetButtons != null)
-        {
-            bar.AddChild(new Control { CustomMinimumSize = new Vector2(12, 0) });
-            for (int i = 0; i < targetLabels.Length; i++)
-            {
-                int idx = i;
-                var btn = CreateToggleButton(targetLabels[idx]);
-                btn.Pressed += () =>
-                {
-                    DevModeState.CardTarget = targets[idx];
-                    Refresh();
-                    if (refreshOnTargetChange)
-                        _onRefreshPanel?.Invoke();
-                };
-                targetButtons[i] = btn;
-                bar.AddChild(btn);
-            }
-        }
-
-        if (config.ShowDuration && durationButtons != null)
-        {
-            bar.AddChild(new Control { CustomMinimumSize = new Vector2(12, 0) });
-            for (int i = 0; i < durationLabels.Length; i++)
-            {
-                int idx = i;
-                var btn = CreateToggleButton(durationLabels[idx]);
-                btn.Pressed += () =>
-                {
-                    DevModeState.EffectDuration = durations[idx];
-                    Refresh();
-                };
-                durationButtons[i] = btn;
-                bar.AddChild(btn);
-            }
-        }
-
-        Refresh();
     }
 
     private static void BuildRelicTopBar(HBoxContainer bar)

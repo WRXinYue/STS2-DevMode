@@ -13,6 +13,11 @@ namespace DevMode.Navigation;
 
 internal static class NavigationHelper
 {
+    /// <summary>
+    /// Deprecated: CardBrowserUI now provides a self-drawn card browser.
+    /// Kept for potential external usage (e.g. main menu preview).
+    /// </summary>
+    [Obsolete("Use CardBrowserUI.Show instead for in-game card browsing")]
     public static bool TryOpenCardLibrary(RunState state)
     {
         try

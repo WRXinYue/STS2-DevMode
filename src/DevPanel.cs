@@ -1,17 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Godot;
-using MegaCrit.Sts2.Core.CardSelection;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
 using MegaCrit.Sts2.Core.Nodes.Screens.RelicCollection;
-using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
-using MegaCrit.Sts2.Core.Nodes.Screens.Overlays;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
 using DevMode.Actions;
@@ -180,11 +176,11 @@ internal static class DevPanel
     {
         if (!TryDismissCurrent()) return;
         DevModeState.ActivePanel = ActivePanel.Cards;
-        UpdateTopBar();
+        DevPanelUI.UpdateTopBar(_globalUi!, CardTopBarConfig.None);
 
         if (_globalUi == null) return;
         if (!RunContext.TryGetRunAndPlayer(out var state, out var player)) return;
-        CurrentCardHandler.Execute(_globalUi, _session, state, player);
+        CardBrowserUI.Show(_globalUi, state, player);
     }
 
     private static void OpenRelics()
@@ -418,21 +414,13 @@ internal static class DevPanel
 
     // ──────── Interception Handlers (called from Harmony patches) ────────
 
+    /// <summary>
+    /// Card selection is now handled entirely by CardBrowserUI's self-drawn grid.
+    /// This handler remains for backward compatibility with existing Harmony patches.
+    /// </summary>
     public static bool TryHandleCardSelection(NCardHolder holder)
     {
-        if (DevModeState.ActivePanel != ActivePanel.Cards)
-            return false;
-
-        if (holder?.CardModel == null) return true;
-
-        if (!RunContext.TryResolvePending(out var state, out var player))
-        {
-            ClearState();
-            return true;
-        }
-
-        if (_globalUi == null) return false;
-        return CurrentCardHandler.TryHandleCardSelection(_globalUi, holder, state, player);
+        return false;
     }
 
     public static bool TryHandleRelicSelection(NRelicCollectionEntry entry)
@@ -454,13 +442,16 @@ internal static class DevPanel
 
     // ──────── Lifecycle Notifications ────────
 
+    /// <summary>
+    /// Called when the official NCardLibrary closes. Since CardBrowserUI is now
+    /// self-drawn this is mostly a no-op, but kept for safety in case the user
+    /// opens the official library through the pause menu.
+    /// </summary>
     public static void NotifyCardLibraryClosed()
     {
+        // Only reset if we were actively using the Cards panel
         if (DevModeState.ActivePanel != ActivePanel.Cards) return;
-        if (_globalUi != null)
-            CurrentCardHandler.OnLibraryClosed(_globalUi);
         ResetPanel();
-        ClearState();
     }
 
     public static void NotifyRelicCollectionClosed()
@@ -490,15 +481,8 @@ internal static class DevPanel
     private static void UpdateTopBar()
     {
         if (_globalUi == null) return;
-
-        CardTopBarConfig config = CardTopBarConfig.None;
-        if (DevModeState.ActivePanel == ActivePanel.Cards
-            && RunContext.TryGetRunAndPlayer(out _, out var player))
-        {
-            config = new CardTopBarConfig(CurrentCardHandler, player);
-        }
-
-        DevPanelUI.UpdateTopBar(_globalUi, config);
+        // CardBrowserUI has its own integrated UI; TopBar not needed for cards
+        DevPanelUI.UpdateTopBar(_globalUi, CardTopBarConfig.None);
     }
 
     private static void ClearState()

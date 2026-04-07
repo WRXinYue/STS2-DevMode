@@ -10,7 +10,7 @@ internal sealed class EditModeHandler : ICardModeHandler
 {
     public string Id => "edit";
     public bool ShowTargets => true;
-    public bool ShowDuration => true;
+    public bool ShowDuration => false;
     public bool RefreshOnTargetChange => true;
 
     public bool HasRelevantCards(Player player, CardTarget target)
@@ -18,8 +18,7 @@ internal sealed class EditModeHandler : ICardModeHandler
 
     public void Execute(NGlobalUi globalUi, DevPanel.ActionSession session, RunState state, Player player)
     {
-        var cards = CardActions.GetCardsForTarget(player, DevModeState.CardTarget);
-        CardEditUI.Show(globalUi, player, cards);
+        CardBrowserUI.Show(globalUi, state, player);
     }
 
     public bool TryHandleCardSelection(NGlobalUi globalUi, NCardHolder holder,

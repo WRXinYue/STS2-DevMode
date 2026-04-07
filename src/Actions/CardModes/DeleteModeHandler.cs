@@ -1,17 +1,28 @@
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using MegaCrit.Sts2.Core.Entities.Players;
-using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Runs;
+using DevMode.UI;
 
 namespace DevMode.Actions.CardModes;
 
-internal sealed class DeleteModeHandler : CardSelectorModeHandler
+internal sealed class DeleteModeHandler : ICardModeHandler
 {
-    public override string Id => "delete";
+    public string Id => "delete";
+    public bool ShowTargets => true;
+    public bool ShowDuration => true;
+    public bool RefreshOnTargetChange => true;
 
-    protected override List<CardModel> FilterCards(List<CardModel> cards) => cards;
+    public bool HasRelevantCards(Player player, CardTarget target)
+        => CardActions.GetCardsForTarget(player, target).Count > 0;
 
-    protected override Task ExecuteAsync(RunState state, Player player)
-        => CardActions.RemoveCards(state, player);
+    public void Execute(NGlobalUi globalUi, DevPanel.ActionSession session, RunState state, Player player)
+    {
+        CardBrowserUI.Show(globalUi, state, player);
+    }
+
+    public bool TryHandleCardSelection(NGlobalUi globalUi, NCardHolder holder,
+                                       RunState state, Player player) => false;
+
+    public void OnLibraryClosed(NGlobalUi globalUi) { }
 }

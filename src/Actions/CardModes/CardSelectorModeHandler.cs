@@ -12,10 +12,11 @@ using DevMode.Navigation;
 namespace DevMode.Actions.CardModes;
 
 /// <summary>
-/// Template base for modes that collect cards from a target pile,
-/// show a multi-select screen, then execute an action on the selection.
-/// Shared by Upgrade and Delete.
+/// Deprecated: Previously used by Upgrade and Delete mode handlers to show
+/// NDeckCardSelectScreen. Now replaced by CardBrowserUI's self-drawn grid.
+/// Kept for potential external usage.
 /// </summary>
+[Obsolete("Upgrade/Delete handlers now use CardBrowserUI directly")]
 internal abstract class CardSelectorModeHandler : ICardModeHandler
 {
     public abstract string Id { get; }

@@ -1,9 +1,8 @@
 using MegaCrit.Sts2.Core.Entities.Players;
-using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Runs;
-using DevMode.Navigation;
+using DevMode.UI;
 
 namespace DevMode.Actions.CardModes;
 
@@ -19,17 +18,11 @@ internal sealed class AddModeHandler : ICardModeHandler
 
     public void Execute(NGlobalUi globalUi, DevPanel.ActionSession session, RunState state, Player player)
     {
-        RunContext.Begin(state, player);
-        if (!NavigationHelper.TryOpenCardLibrary(state))
-            RunContext.Clear();
+        CardBrowserUI.Show(globalUi, state, player);
     }
 
     public bool TryHandleCardSelection(NGlobalUi globalUi, NCardHolder holder,
-                                       RunState state, Player player)
-    {
-        TaskHelper.RunSafely(CardActions.AddCard(state, player, holder.CardModel!));
-        return true;
-    }
+                                       RunState state, Player player) => false;
 
     public void OnLibraryClosed(NGlobalUi globalUi) { }
 }

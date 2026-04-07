@@ -18,41 +18,20 @@ internal static partial class DevPanelUI
             Icon              = icon.Texture(20, ColIconNormal)
         };
 
-        var normal = new StyleBoxFlat
+        var flat = new StyleBoxFlat
         {
-            BgColor = new Color(0, 0, 0, 0),
+            BgColor = Colors.Transparent,
             CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
             CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
             ContentMarginLeft = 0, ContentMarginRight = 0,
             ContentMarginTop = 0, ContentMarginBottom = 0
         };
-        var hover = new StyleBoxFlat
-        {
-            BgColor = new Color(1f, 1f, 1f, 0.08f),
-            CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
-            CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
-            ContentMarginLeft = 0, ContentMarginRight = 0,
-            ContentMarginTop = 0, ContentMarginBottom = 0
-        };
-        btn.AddThemeStyleboxOverride("normal",  normal);
-        btn.AddThemeStyleboxOverride("hover",   hover);
-        btn.AddThemeStyleboxOverride("pressed", hover);
-        btn.AddThemeStyleboxOverride("focus",   normal);
+        btn.AddThemeStyleboxOverride("normal",  flat);
+        btn.AddThemeStyleboxOverride("hover",   flat);
+        btn.AddThemeStyleboxOverride("pressed", flat);
+        btn.AddThemeStyleboxOverride("focus",   flat);
 
         return btn;
-    }
-
-    private static void ApplyRailIconStyle(Button btn, bool active)
-    {
-        var bg = active ? ColIconActiveBg : new Color(0, 0, 0, 0);
-        var s = new StyleBoxFlat
-        {
-            BgColor = bg,
-            CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
-            CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8
-        };
-        btn.AddThemeStyleboxOverride("normal", s);
-        btn.Icon = btn.Icon; // force redraw
     }
 
     private static PanelContainer CreateOverlayPanel()

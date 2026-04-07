@@ -78,22 +78,53 @@ internal static partial class DevPanelUI
         };
         rail.AddThemeStyleboxOverride("panel", railStyle);
 
+        // Wrapper allows absolute positioning for the sliding indicator
+        var railWrapper = new Control
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill
+        };
+
+        // Sliding indicator (drawn behind buttons, rounded corners)
+        var railIndicator = new Panel
+        {
+            AnchorLeft = 0, AnchorRight = 1,
+            AnchorTop = 0, AnchorBottom = 0,
+            OffsetLeft = 2, OffsetRight = -2,
+            OffsetTop = 0, OffsetBottom = IconBtnSize,
+            Visible = false,
+            MouseFilter = Control.MouseFilterEnum.Ignore
+        };
+        railIndicator.AddThemeStyleboxOverride("panel", new StyleBoxFlat
+        {
+            BgColor = ColIconActiveBg,
+            CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
+            CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8
+        });
+        railWrapper.AddChild(railIndicator);
+
         var railVBox = new VBoxContainer
         {
             SizeFlagsVertical = Control.SizeFlags.ExpandFill
         };
+        railVBox.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         railVBox.AddThemeConstantOverride("separation", 2);
+
+        var railButtons = new List<Button>();
 
         // ── Primary group: from registry ──
         foreach (var tab in DevPanelRegistry.GetTabs(DevPanelTabGroup.Primary))
         {
             var t = tab;
             var btn = CreateRailIcon(t.Icon, t.DisplayName);
+            int btnIdx = railButtons.Count;
             btn.Pressed += () =>
             {
+                MoveRailIndicator(btnIdx, true);
                 CloseAllOverlays(globalUi);
                 t.OnActivate(globalUi);
             };
+            railButtons.Add(btn);
             railVBox.AddChild(btn);
         }
 
@@ -116,15 +147,44 @@ internal static partial class DevPanelUI
         {
             var t = tab;
             var btn = CreateRailIcon(t.Icon, t.DisplayName);
+            int btnIdx = railButtons.Count;
             btn.Pressed += () =>
             {
+                MoveRailIndicator(btnIdx, true);
                 CloseAllOverlays(globalUi);
                 t.OnActivate(globalUi);
             };
+            railButtons.Add(btn);
             railVBox.AddChild(btn);
         }
 
-        rail.AddChild(railVBox);
+        railWrapper.AddChild(railVBox);
+        rail.AddChild(railWrapper);
+
+        void MoveRailIndicator(int btnIdx, bool animate)
+        {
+            if (btnIdx < 0 || btnIdx >= railButtons.Count) return;
+            var btn = railButtons[btnIdx];
+            float top = btn.Position.Y;
+            float bottom = top + btn.Size.Y;
+
+            railIndicator.Visible = true;
+
+            if (animate && railIndicator.IsInsideTree())
+            {
+                var tw = railIndicator.CreateTween();
+                tw.SetParallel(true);
+                tw.TweenProperty(railIndicator, "offset_top", top, 0.25f)
+                  .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
+                tw.TweenProperty(railIndicator, "offset_bottom", bottom, 0.25f)
+                  .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
+            }
+            else
+            {
+                railIndicator.OffsetTop = top;
+                railIndicator.OffsetBottom = bottom;
+            }
+        }
         root.AddChild(rail);
 
         // ── Peek tab (small arrow visible when rail is hidden) ──
