@@ -84,26 +84,18 @@ internal static partial class DevPanelUI
         };
         railVBox.AddThemeConstantOverride("separation", 2);
 
-        // ── Top group: action icons ──
-        void AddIcon(MdiIcon icon, string tooltip, Action onClick)
+        // ── Primary group: from registry ──
+        foreach (var tab in DevPanelRegistry.GetTabs(DevPanelTabGroup.Primary))
         {
-            var btn = CreateRailIcon(icon, tooltip);
+            var t = tab;
+            var btn = CreateRailIcon(t.Icon, t.DisplayName);
             btn.Pressed += () =>
             {
                 CloseAllOverlays(globalUi);
-                onClick();
+                t.OnActivate(globalUi);
             };
             railVBox.AddChild(btn);
         }
-
-        AddIcon(MdiIcon.Cards,       I18N.T("panel.cards", "Cards"),       actions.OnOpenCards);
-        AddIcon(MdiIcon.Diamond,      I18N.T("panel.relics", "Relics"),     actions.OnOpenRelics);
-        AddIcon(MdiIcon.Skull,        I18N.T("panel.enemies", "Enemies"),   actions.OnOpenEnemies);
-        AddIcon(MdiIcon.Flash,        I18N.T("panel.powers", "Powers"),     actions.OnOpenPowers);
-        AddIcon(MdiIcon.Potion,       I18N.T("panel.potions", "Potions"),   actions.OnOpenPotions);
-        AddIcon(MdiIcon.CalendarStar, I18N.T("panel.events", "Events"),     actions.OnOpenEvents);
-        AddIcon(MdiIcon.Console,      I18N.T("panel.console", "Console"),   actions.OnOpenConsole);
-        AddIcon(MdiIcon.BookOpen,     I18N.T("panel.presets", "Presets"),    actions.OnOpenPresets);
 
         // ── Spacer ──
         railVBox.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill });
@@ -119,20 +111,17 @@ internal static partial class DevPanelUI
         sep.AddThemeConstantOverride("separation", 8);
         railVBox.AddChild(sep);
 
-        // ── Bottom group: Save, Cheats, AI ──
-        var saveBtn = CreateRailIcon(MdiIcon.ContentSave, I18N.T("panel.save", "Save / Load"));
-        saveBtn.Pressed += () => { CloseAllOverlays(globalUi); ShowSaveLoadOverlay(globalUi, actions); };
-        railVBox.AddChild(saveBtn);
-
-        var cheatsBtn = CreateRailIcon(MdiIcon.Cog, I18N.T("panel.settings", "Settings"));
-        cheatsBtn.Pressed += () => { CloseAllOverlays(globalUi); ShowCheatsOverlay(globalUi, actions); };
-        railVBox.AddChild(cheatsBtn);
-
-        if (actions.OnToggleAI != null)
+        // ── Utility group: from registry ──
+        foreach (var tab in DevPanelRegistry.GetTabs(DevPanelTabGroup.Utility))
         {
-            var aiBtn = CreateRailIcon(MdiIcon.Robot, I18N.T("panel.ai", "AI Control"));
-            aiBtn.Pressed += () => { CloseAllOverlays(globalUi); ShowAIOverlay(globalUi, actions); };
-            railVBox.AddChild(aiBtn);
+            var t = tab;
+            var btn = CreateRailIcon(t.Icon, t.DisplayName);
+            btn.Pressed += () =>
+            {
+                CloseAllOverlays(globalUi);
+                t.OnActivate(globalUi);
+            };
+            railVBox.AddChild(btn);
         }
 
         rail.AddChild(railVBox);

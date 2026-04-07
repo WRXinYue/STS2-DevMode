@@ -87,14 +87,6 @@ internal static class DevPanel
 
             var actions = new DevPanelActions
             {
-                OnOpenCards   = OpenCards,
-                OnOpenRelics  = OpenRelics,
-                OnOpenEnemies = OpenEnemies,
-                OnOpenPowers  = OpenPowers,
-                OnOpenPotions = OpenPotions,
-                OnOpenEvents  = OpenEvents,
-                OnOpenConsole = OpenConsole,
-                OnOpenPresets = OpenPresets,
                 OnOpenSave    = () => SaveSlotUI.Show(globalUi, saveMode: true,
                                     slot => SaveSlotManager.SaveToSlot(slot)),
                 OnOpenLoad    = () => SaveSlotUI.Show(globalUi, saveMode: false,
@@ -113,6 +105,8 @@ internal static class DevPanel
                 GetSkipAnimLabel   = SkipAnimControl.GetLabel,
             };
 
+            RegisterBuiltInTabs(globalUi, actions);
+
             DevPanelUI.Attach(globalUi, actions);
             ((Node)globalUi).TreeExiting += () => Detach(globalUi);
 
@@ -128,6 +122,7 @@ internal static class DevPanel
     {
         try
         {
+            DevPanelRegistry.DeactivateAll(globalUi);
             DevPanelUI.Detach(globalUi);
             ClearState();
             SpeedControl.Reset();
@@ -137,6 +132,30 @@ internal static class DevPanel
         catch (Exception ex)
         {
             MainFile.Logger.Warn($"DevPanel: Failed to detach: {ex.Message}");
+        }
+    }
+
+    // ──────── Built-in Tab Registration ────────
+
+    private static void RegisterBuiltInTabs(NGlobalUi globalUi, DevPanelActions actions)
+    {
+        // Primary group — main feature panels
+        DevPanelRegistry.Register("devmode.cards",   Icons.MdiIcon.Cards,       I18N.T("panel.cards", "Cards"),       100, DevPanelTabGroup.Primary, _ => OpenCards());
+        DevPanelRegistry.Register("devmode.relics",  Icons.MdiIcon.Diamond,     I18N.T("panel.relics", "Relics"),     200, DevPanelTabGroup.Primary, _ => OpenRelics());
+        DevPanelRegistry.Register("devmode.enemies", Icons.MdiIcon.Skull,       I18N.T("panel.enemies", "Enemies"),   300, DevPanelTabGroup.Primary, _ => OpenEnemies());
+        DevPanelRegistry.Register("devmode.powers",  Icons.MdiIcon.Flash,       I18N.T("panel.powers", "Powers"),     400, DevPanelTabGroup.Primary, _ => OpenPowers());
+        DevPanelRegistry.Register("devmode.potions", Icons.MdiIcon.Potion,      I18N.T("panel.potions", "Potions"),   500, DevPanelTabGroup.Primary, _ => OpenPotions());
+        DevPanelRegistry.Register("devmode.events",  Icons.MdiIcon.CalendarStar,I18N.T("panel.events", "Events"),     600, DevPanelTabGroup.Primary, _ => OpenEvents());
+        DevPanelRegistry.Register("devmode.console", Icons.MdiIcon.Console,     I18N.T("panel.console", "Console"),   700, DevPanelTabGroup.Primary, _ => OpenConsole());
+        DevPanelRegistry.Register("devmode.presets", Icons.MdiIcon.BookOpen,    I18N.T("panel.presets", "Presets"),    800, DevPanelTabGroup.Primary, _ => OpenPresets());
+
+        // Utility group — settings / tools
+        DevPanelRegistry.Register("devmode.save",     Icons.MdiIcon.ContentSave, I18N.T("panel.save", "Save / Load"), 100, DevPanelTabGroup.Utility, gui => DevPanelUI.ShowSaveLoadOverlay(gui, actions));
+        DevPanelRegistry.Register("devmode.settings", Icons.MdiIcon.Cog,         I18N.T("panel.settings", "Settings"),200, DevPanelTabGroup.Utility, gui => DevPanelUI.ShowCheatsOverlay(gui, actions));
+
+        if (AIControl.IsAvailable)
+        {
+            DevPanelRegistry.Register("devmode.ai", Icons.MdiIcon.Robot, I18N.T("panel.ai", "AI Control"), 300, DevPanelTabGroup.Utility, gui => DevPanelUI.ShowAIOverlay(gui, actions));
         }
     }
 

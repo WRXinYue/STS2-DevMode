@@ -6,7 +6,7 @@ namespace DevMode.UI;
 
 internal static partial class DevPanelUI
 {
-    private static void ShowCheatsOverlay(NGlobalUi globalUi, DevPanelActions actions)
+    internal static void ShowCheatsOverlay(NGlobalUi globalUi, DevPanelActions actions)
     {
         ToggleOverlay(globalUi, "cheats", content =>
         {
@@ -285,7 +285,7 @@ internal static partial class DevPanelUI
         });
     }
 
-    private static void ShowSaveLoadOverlay(NGlobalUi globalUi, DevPanelActions actions)
+    internal static void ShowSaveLoadOverlay(NGlobalUi globalUi, DevPanelActions actions)
     {
         ToggleOverlay(globalUi, "saveload", content =>
         {
@@ -323,7 +323,7 @@ internal static partial class DevPanelUI
         });
     }
 
-    private static void ShowAIOverlay(NGlobalUi globalUi, DevPanelActions actions)
+    internal static void ShowAIOverlay(NGlobalUi globalUi, DevPanelActions actions)
     {
         ToggleOverlay(globalUi, "ai", content =>
         {
