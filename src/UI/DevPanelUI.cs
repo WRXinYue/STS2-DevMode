@@ -29,13 +29,13 @@ internal static partial class DevPanelUI
     private static readonly Color ColRailBorder    = new(1f, 1f, 1f, 0.06f);
     private static readonly Color ColIconNormal    = new(0.62f, 0.62f, 0.68f);
     private static readonly Color ColIconHover     = new(0.85f, 0.85f, 0.92f);
-    private static readonly Color ColIconActive    = new(0.40f, 0.68f, 1f);
+    private static Color ColIconActive    => DevModeTheme.Accent;
     private static readonly Color ColIconActiveBg  = new(0.40f, 0.68f, 1f, 0.15f);
-    private static readonly Color ColOverlayBg     = new(0.11f, 0.11f, 0.14f, 0.96f);
-    private static readonly Color ColOverlayBorder = new(1f, 1f, 1f, 0.08f);
+    private static Color ColOverlayBg     => DevModeTheme.PanelBg;
+    private static Color ColOverlayBorder => DevModeTheme.PanelBorder;
     private static readonly Color ColBackdrop      = new(0f, 0f, 0f, 0.50f);
-    private static readonly Color ColSectionText   = new(0.50f, 0.50f, 0.58f);
-    private static readonly Color ColSeparator     = new(1f, 1f, 1f, 0.06f);
+    private static Color ColSectionText   => DevModeTheme.Subtle;
+    private static Color ColSeparator     => DevModeTheme.Separator;
 
     // ──────── Attach ────────
     public static void Attach(NGlobalUi globalUi, DevPanelActions actions)

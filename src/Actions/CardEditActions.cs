@@ -505,8 +505,14 @@ internal static class CardEditActions
         if (value == null || value.IsEmpty) return string.Empty;
         try
         {
-            var text = value.GetRawText();
+            var text = value.GetFormattedText();
             if (!string.IsNullOrWhiteSpace(text)) return text.Trim();
+        }
+        catch { }
+        try
+        {
+            var raw = value.GetRawText();
+            if (!string.IsNullOrWhiteSpace(raw)) return raw.Trim();
         }
         catch { }
         return value.LocEntryKey ?? string.Empty;

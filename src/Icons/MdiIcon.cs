@@ -121,4 +121,7 @@ public readonly struct MdiIcon
     public static readonly MdiIcon AccountGroup       = new("account-group");
     public static readonly MdiIcon PlusCircle         = new("plus-circle");
     public static readonly MdiIcon CloseCircle        = new("close-circle");
+    public static readonly MdiIcon FilterVariant      = new("filter-variant");
+    public static readonly MdiIcon SortAscending      = new("sort-ascending");
+    public static readonly MdiIcon SortDescending     = new("sort-descending");
 }
