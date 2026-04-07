@@ -96,7 +96,7 @@ internal static class EventSelectUI
         row.AddChild(tab);
         row.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         vbox.AddChild(row);
-        vbox.AddChild(new ColorRect { CustomMinimumSize = new Vector2(0, 1), Color = new Color(1f, 1f, 1f, 0.06f), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
+        vbox.AddChild(new ColorRect { CustomMinimumSize = new Vector2(0, 1), Color = DevModeTheme.Separator, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
     }
 
     private static Label BuildStatusLabel()

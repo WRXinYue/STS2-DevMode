@@ -1,5 +1,6 @@
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Modding;
+using DevMode.Settings;
 
 namespace DevMode;
 
@@ -14,6 +15,9 @@ public class MainFile
     public static void Initialize()
     {
         Logger.Info("DevMode initializing...");
+
+        // Load persisted settings (theme, etc.) before anything else
+        SettingsStore.Load();
 
         // Initialize localization before anything else
         I18N.Initialize();

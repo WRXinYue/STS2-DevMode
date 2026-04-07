@@ -4,23 +4,30 @@ namespace DevMode.UI;
 
 /// <summary>
 /// Shared color and sizing constants for the DevMode UI (rail, browser, overlays).
-/// Centralises values previously duplicated across DevPanelUI and CardBrowserUI.
+/// All color values delegate to <see cref="ThemeManager.Current"/> so they update
+/// automatically when the user switches themes.
 /// </summary>
 internal static class DevModeTheme
 {
     // ── Panel / overlay backgrounds ──
-    public static readonly Color PanelBg     = new(0.11f, 0.11f, 0.14f, 0.96f);
-    public static readonly Color PanelBorder = new(1f, 1f, 1f, 0.08f);
+    public static Color PanelBg     => ThemeManager.Current.PanelBg;
+    public static Color PanelBorder => ThemeManager.Current.PanelBorder;
 
     // ── Text / label tones ──
-    public static readonly Color Subtle   = new(0.50f, 0.50f, 0.58f);
-    public static readonly Color Separator = new(1f, 1f, 1f, 0.06f);
+    public static Color Subtle    => ThemeManager.Current.Subtle;
+    public static Color Separator => ThemeManager.Current.Separator;
 
-    // ── Accent (shared active / highlight blue) ──
-    public static readonly Color Accent      = new(0.40f, 0.68f, 1f);
-    public static readonly Color AccentAlpha = new(0.40f, 0.68f, 1f, 0.85f);
+    // ── Accent (shared active / highlight) ──
+    public static Color Accent      => ThemeManager.Current.Accent;
+    public static Color AccentAlpha => ThemeManager.Current.AccentAlpha;
 
-    // ── Rarity colors ──
+    // ── Widget surface / text ──
+    public static Color TextPrimary    => ThemeManager.Current.TextPrimary;
+    public static Color TextSecondary  => ThemeManager.Current.TextSecondary;
+    public static Color ButtonBgNormal => ThemeManager.Current.ButtonBgNormal;
+    public static Color ButtonBgHover  => ThemeManager.Current.ButtonBgHover;
+
+    // ── Rarity colors — fixed across all themes ──
     public static readonly Color RarityCommon   = new(0.55f, 0.55f, 0.58f);
     public static readonly Color RarityUncommon = new(0.35f, 0.55f, 0.85f);
     public static readonly Color RarityRare     = new(0.85f, 0.72f, 0.25f);

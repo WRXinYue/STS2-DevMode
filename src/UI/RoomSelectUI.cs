@@ -126,7 +126,7 @@ internal static class RoomSelectUI
         var card = new PanelContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         var cardStyle = new StyleBoxFlat
         {
-            BgColor                = new Color(1f, 1f, 1f, 0.04f),
+            BgColor                = DevModeTheme.ButtonBgNormal,
             CornerRadiusTopLeft    = 8, CornerRadiusTopRight    = 8,
             CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
             BorderWidthLeft        = 3,
@@ -164,7 +164,7 @@ internal static class RoomSelectUI
 
         var nameLabel = new Label { Text = I18N.T(entry.NameKey, entry.NameFallback) };
         nameLabel.AddThemeFontSizeOverride("font_size", 13);
-        nameLabel.AddThemeColorOverride("font_color", new Color(0.88f, 0.88f, 0.93f));
+        nameLabel.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
         nameLabel.MouseFilter = Control.MouseFilterEnum.Ignore;
         textCol.AddChild(nameLabel);
 
@@ -183,7 +183,7 @@ internal static class RoomSelectUI
         // Chevron arrow
         var arrowRect = new TextureRect
         {
-            Texture           = MdiIcon.ChevronRight.Texture(16, new Color(1f, 1f, 1f, 0.30f)),
+            Texture           = MdiIcon.ChevronRight.Texture(16, DevModeTheme.Subtle),
             StretchMode       = TextureRect.StretchModeEnum.KeepAspectCentered,
             CustomMinimumSize = new Vector2(20, 20),
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
@@ -197,12 +197,12 @@ internal static class RoomSelectUI
         // ── Hover style ──
         card.MouseEntered += () =>
         {
-            cardStyle.BgColor      = new Color(1f, 1f, 1f, 0.09f);
+            cardStyle.BgColor      = DevModeTheme.ButtonBgHover;
             cardStyle.BorderColor  = entry.Accent with { A = 0.90f };
         };
         card.MouseExited += () =>
         {
-            cardStyle.BgColor      = new Color(1f, 1f, 1f, 0.04f);
+            cardStyle.BgColor      = DevModeTheme.ButtonBgNormal;
             cardStyle.BorderColor  = entry.Accent with { A = 0.60f };
         };
 
@@ -252,7 +252,7 @@ internal static class RoomSelectUI
         vbox.AddChild(new ColorRect
         {
             CustomMinimumSize   = new Vector2(0, 1),
-            Color               = new Color(1f, 1f, 1f, 0.06f),
+            Color               = DevModeTheme.Separator,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         });
     }

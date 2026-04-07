@@ -65,7 +65,7 @@ internal static class CardBrowserRightPanel
             var descLabel = DevModeTheme.CreateGameBbcodeLabel();
             descLabel.Text = DevModeTheme.ConvertGameBbcode(desc);
             descLabel.AddThemeFontSizeOverride("normal_font_size", 12);
-            descLabel.AddThemeColorOverride("default_color", new Color(0.8f, 0.8f, 0.85f));
+            descLabel.AddThemeColorOverride("default_color", DevModeTheme.TextSecondary);
             container.AddChild(descLabel);
         }
 

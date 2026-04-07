@@ -50,7 +50,8 @@ internal static partial class DevPanelUI
             BorderWidthTop          = 1, BorderWidthBottom = 1, BorderWidthRight = 1,
             BorderColor             = ColOverlayBorder,
             ShadowColor             = new Color(0, 0, 0, 0.40f),
-            ShadowSize              = 20
+            ShadowSize              = 20,
+            ShadowOffset            = new Vector2(20, 0)
         };
         panel.AddThemeStyleboxOverride("panel", style);
 
@@ -110,7 +111,7 @@ internal static partial class DevPanelUI
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
         };
         lbl.AddThemeFontSizeOverride("font_size", 16);
-        lbl.AddThemeColorOverride("font_color", new Color(0.90f, 0.88f, 0.83f));
+        lbl.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
         return lbl;
     }
 
@@ -125,7 +126,7 @@ internal static partial class DevPanelUI
 
         row.AddChild(new TextureRect
         {
-            Texture = MdiIcon.Magnify.Texture(18, new Color(0.55f, 0.55f, 0.62f)),
+            Texture = MdiIcon.Magnify.Texture(18, DevModeTheme.Subtle),
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             CustomMinimumSize = new Vector2(22, 22),
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter
@@ -170,14 +171,16 @@ internal static partial class DevPanelUI
             BorderColor = border
         };
 
-        btn.AddThemeStyleboxOverride("normal",  MakeStyle(new Color(1f, 1f, 1f, 0.04f), new Color(1f, 1f, 1f, 0.05f)));
-        btn.AddThemeStyleboxOverride("hover",   MakeStyle(new Color(1f, 1f, 1f, 0.09f), new Color(0.40f, 0.68f, 1f, 0.30f)));
-        btn.AddThemeStyleboxOverride("pressed", MakeStyle(new Color(0.40f, 0.68f, 1f, 0.15f), new Color(0.40f, 0.68f, 1f, 0.50f)));
-        btn.AddThemeStyleboxOverride("focus",   MakeStyle(new Color(1f, 1f, 1f, 0.04f), new Color(1f, 1f, 1f, 0.05f)));
+        var accent = DevModeTheme.Accent;
+        var bgNormal = DevModeTheme.ButtonBgNormal;
+        btn.AddThemeStyleboxOverride("normal",  MakeStyle(bgNormal,                               new Color(bgNormal.R, bgNormal.G, bgNormal.B, bgNormal.A * 0.8f)));
+        btn.AddThemeStyleboxOverride("hover",   MakeStyle(DevModeTheme.ButtonBgHover,             new Color(accent.R, accent.G, accent.B, 0.30f)));
+        btn.AddThemeStyleboxOverride("pressed", MakeStyle(new Color(accent.R, accent.G, accent.B, 0.15f), new Color(accent.R, accent.G, accent.B, 0.50f)));
+        btn.AddThemeStyleboxOverride("focus",   MakeStyle(bgNormal,                               new Color(bgNormal.R, bgNormal.G, bgNormal.B, bgNormal.A * 0.8f)));
 
-        btn.AddThemeColorOverride("font_color",         new Color(0.82f, 0.82f, 0.88f));
-        btn.AddThemeColorOverride("font_hover_color",   new Color(0.95f, 0.95f, 1.00f));
-        btn.AddThemeColorOverride("font_pressed_color", new Color(0.95f, 0.95f, 1.00f));
+        btn.AddThemeColorOverride("font_color",         DevModeTheme.TextPrimary);
+        btn.AddThemeColorOverride("font_hover_color",   DevModeTheme.TextPrimary);
+        btn.AddThemeColorOverride("font_pressed_color", DevModeTheme.TextPrimary);
         btn.AddThemeFontSizeOverride("font_size", 13);
 
         return btn;
@@ -205,15 +208,16 @@ internal static partial class DevPanelUI
             ContentMarginTop = 2, ContentMarginBottom = 2
         };
 
-        btn.AddThemeStyleboxOverride("normal",        MakeStyle(new Color(0.14f, 0.14f, 0.18f, 0.80f)));
-        btn.AddThemeStyleboxOverride("hover",         MakeStyle(new Color(0.20f, 0.20f, 0.26f, 0.85f)));
-        btn.AddThemeStyleboxOverride("pressed",       MakeStyle(new Color(0.25f, 0.40f, 0.65f, 0.90f)));
-        btn.AddThemeStyleboxOverride("hover_pressed", MakeStyle(new Color(0.30f, 0.48f, 0.75f, 0.95f)));
-        btn.AddThemeStyleboxOverride("focus",         MakeStyle(new Color(0.14f, 0.14f, 0.18f, 0.80f)));
+        var accent = DevModeTheme.Accent;
+        btn.AddThemeStyleboxOverride("normal",        MakeStyle(DevModeTheme.ButtonBgNormal));
+        btn.AddThemeStyleboxOverride("hover",         MakeStyle(DevModeTheme.ButtonBgHover));
+        btn.AddThemeStyleboxOverride("pressed",       MakeStyle(DevModeTheme.AccentAlpha));
+        btn.AddThemeStyleboxOverride("hover_pressed", MakeStyle(new Color(accent.R, accent.G, accent.B, 0.95f)));
+        btn.AddThemeStyleboxOverride("focus",         MakeStyle(DevModeTheme.ButtonBgNormal));
 
-        btn.AddThemeColorOverride("font_color",           new Color(0.60f, 0.60f, 0.68f));
-        btn.AddThemeColorOverride("font_hover_color",     new Color(0.78f, 0.78f, 0.85f));
-        btn.AddThemeColorOverride("font_pressed_color",   new Color(0.92f, 0.92f, 0.98f));
+        btn.AddThemeColorOverride("font_color",           DevModeTheme.Subtle);
+        btn.AddThemeColorOverride("font_hover_color",     DevModeTheme.TextPrimary);
+        btn.AddThemeColorOverride("font_pressed_color",   DevModeTheme.TextPrimary);
         btn.AddThemeFontSizeOverride("font_size", 11);
 
         return btn;
@@ -360,11 +364,11 @@ internal static partial class DevPanelUI
     {
         var s = new StyleBoxFlat
         {
-            BgColor           = new Color(0.08f, 0.08f, 0.10f, 0.4f),
+            BgColor           = DevModeTheme.ButtonBgNormal,
             ContentMarginLeft = 12, ContentMarginRight = 12,
             ContentMarginTop  = 4,  ContentMarginBottom = 4,
             BorderWidthTop    = 1, BorderWidthBottom = 1, BorderWidthLeft = 1, BorderWidthRight = 1,
-            BorderColor       = new Color(0.25f, 0.25f, 0.30f, 0.4f),
+            BorderColor       = DevModeTheme.Separator,
             CornerRadiusTopLeft     = (cornerFlags & 1) != 0 ? 6 : 0,
             CornerRadiusBottomLeft  = (cornerFlags & 1) != 0 ? 6 : 0,
             CornerRadiusTopRight    = (cornerFlags & 2) != 0 ? 6 : 0,
@@ -372,18 +376,19 @@ internal static partial class DevPanelUI
         };
         foreach (var state in new[] { "normal", "hover", "pressed", "focus", "disabled" })
             btn.AddThemeStyleboxOverride(state, s);
-        btn.AddThemeColorOverride("font_disabled_color", new Color(0.4f, 0.4f, 0.45f, 0.6f));
+        btn.AddThemeColorOverride("font_disabled_color", DevModeTheme.Subtle);
     }
 
     private static void ApplyToggleStyle(Button btn, bool active, int cornerFlags)
     {
+        var accent = DevModeTheme.Accent;
         var s = new StyleBoxFlat
         {
-            BgColor           = active ? new Color(0.25f, 0.4f, 0.6f, 0.9f) : new Color(0.12f, 0.12f, 0.15f, 0.85f),
+            BgColor           = active ? new Color(accent.R, accent.G, accent.B, 0.25f) : DevModeTheme.ButtonBgNormal,
             ContentMarginLeft = 12, ContentMarginRight = 12,
             ContentMarginTop  = 4,  ContentMarginBottom = 4,
             BorderWidthTop    = 1, BorderWidthBottom = 1, BorderWidthLeft = 1, BorderWidthRight = 1,
-            BorderColor       = active ? new Color(0.5f, 0.7f, 0.9f, 0.8f) : new Color(0.35f, 0.35f, 0.45f, 0.6f),
+            BorderColor       = active ? new Color(accent.R, accent.G, accent.B, 0.6f) : DevModeTheme.Separator,
             CornerRadiusTopLeft     = (cornerFlags & 1) != 0 ? 6 : 0,
             CornerRadiusBottomLeft  = (cornerFlags & 1) != 0 ? 6 : 0,
             CornerRadiusTopRight    = (cornerFlags & 2) != 0 ? 6 : 0,
@@ -393,6 +398,48 @@ internal static partial class DevPanelUI
         btn.AddThemeStyleboxOverride("hover",   s);
         btn.AddThemeStyleboxOverride("pressed", s);
         btn.AddThemeStyleboxOverride("focus",   s);
+        btn.AddThemeColorOverride("font_color", active ? DevModeTheme.Accent : DevModeTheme.TextPrimary);
+    }
+
+    private static void ApplySmallButtonStyle(Button btn)
+    {
+        var normal = new StyleBoxFlat
+        {
+            BgColor = DevModeTheme.ButtonBgNormal,
+            ContentMarginLeft = 4, ContentMarginRight = 4,
+            ContentMarginTop = 2, ContentMarginBottom = 2,
+            CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4,
+            CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4
+        };
+        var hover = new StyleBoxFlat
+        {
+            BgColor = DevModeTheme.ButtonBgHover,
+            ContentMarginLeft = 4, ContentMarginRight = 4,
+            ContentMarginTop = 2, ContentMarginBottom = 2,
+            CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4,
+            CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4
+        };
+        btn.AddThemeStyleboxOverride("normal", normal);
+        btn.AddThemeStyleboxOverride("hover", hover);
+        btn.AddThemeStyleboxOverride("pressed", hover);
+        btn.AddThemeStyleboxOverride("focus", normal);
+    }
+
+    private static void ApplySpinBoxTheme(SpinBox spinBox)
+    {
+        var lineEdit = spinBox.GetLineEdit();
+        lineEdit.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
+        var bg = new StyleBoxFlat
+        {
+            BgColor = DevModeTheme.ButtonBgNormal,
+            ContentMarginLeft = 4, ContentMarginRight = 4,
+            ContentMarginTop = 2, ContentMarginBottom = 2,
+            CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4,
+            CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4
+        };
+        lineEdit.AddThemeStyleboxOverride("normal", bg);
+        lineEdit.AddThemeStyleboxOverride("focus", bg);
+        lineEdit.AddThemeStyleboxOverride("read_only", bg);
     }
 
     private static Button CreateButton(string text, Action action, MdiIcon? icon = null)
@@ -418,7 +465,7 @@ internal static partial class DevPanelUI
         }
         var normal = new StyleBoxFlat
         {
-            BgColor = new Color(1f, 1f, 1f, 0.06f),
+            BgColor = DevModeTheme.ButtonBgNormal,
             CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
             CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
             ContentMarginLeft = 12, ContentMarginRight = 12,
@@ -426,7 +473,7 @@ internal static partial class DevPanelUI
         };
         var hover = new StyleBoxFlat
         {
-            BgColor = new Color(1f, 1f, 1f, 0.10f),
+            BgColor = DevModeTheme.ButtonBgHover,
             CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
             CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
             ContentMarginLeft = 12, ContentMarginRight = 12,
@@ -436,24 +483,28 @@ internal static partial class DevPanelUI
         btn.AddThemeStyleboxOverride("hover",   hover);
         btn.AddThemeStyleboxOverride("pressed", hover);
         btn.AddThemeStyleboxOverride("focus",   normal);
+        btn.AddThemeColorOverride("font_color",         DevModeTheme.TextPrimary);
+        btn.AddThemeColorOverride("font_hover_color",   DevModeTheme.TextPrimary);
+        btn.AddThemeColorOverride("font_pressed_color", DevModeTheme.TextPrimary);
         btn.AddThemeFontSizeOverride("font_size", 13);
         return btn;
     }
 
     private static Button CreateOverlayButton(string text, MdiIcon icon)
     {
+        var accent = DevModeTheme.Accent;
         var btn = new Button
         {
             Text              = text,
             CustomMinimumSize = new Vector2(200, 48),
             FocusMode         = Control.FocusModeEnum.None,
-            Icon              = icon.Texture(20),
+            Icon              = icon.Texture(20, DevModeTheme.TextPrimary),
             IconAlignment     = HorizontalAlignment.Left,
             Alignment         = HorizontalAlignment.Center
         };
         var style = new StyleBoxFlat
         {
-            BgColor = new Color(1f, 1f, 1f, 0.08f),
+            BgColor = DevModeTheme.ButtonBgNormal,
             CornerRadiusTopLeft = 10, CornerRadiusTopRight = 10,
             CornerRadiusBottomLeft = 10, CornerRadiusBottomRight = 10,
             ContentMarginLeft = 16, ContentMarginRight = 16,
@@ -461,7 +512,7 @@ internal static partial class DevPanelUI
         };
         var hoverStyle = new StyleBoxFlat
         {
-            BgColor = new Color(0.40f, 0.68f, 1f, 0.18f),
+            BgColor = new Color(accent.R, accent.G, accent.B, 0.18f),
             CornerRadiusTopLeft = 10, CornerRadiusTopRight = 10,
             CornerRadiusBottomLeft = 10, CornerRadiusBottomRight = 10,
             ContentMarginLeft = 16, ContentMarginRight = 16,
@@ -472,6 +523,7 @@ internal static partial class DevPanelUI
         btn.AddThemeStyleboxOverride("pressed", hoverStyle);
         btn.AddThemeStyleboxOverride("focus",   style);
         btn.AddThemeFontSizeOverride("font_size", 14);
+        btn.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
         return btn;
     }
 
@@ -547,6 +599,7 @@ internal static partial class DevPanelUI
             ClipText = true
         };
         lbl.AddThemeFontSizeOverride("font_size", 12);
+        lbl.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
         if (tooltip != null) lbl.TooltipText = tooltip;
         row.AddChild(lbl);
 
@@ -589,11 +642,13 @@ internal static partial class DevPanelUI
 
         var lbl = new Label { Text = label, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, ClipText = true };
         lbl.AddThemeFontSizeOverride("font_size", 12);
+        lbl.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
         if (tooltip != null) lbl.TooltipText = tooltip;
         row.AddChild(lbl);
 
         var valLabel = new Label { Text = getter().ToString("0.#"), CustomMinimumSize = new Vector2(28, 0) };
         valLabel.AddThemeFontSizeOverride("font_size", 12);
+        valLabel.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
         valLabel.HorizontalAlignment = HorizontalAlignment.Right;
         row.AddChild(valLabel);
 
@@ -633,10 +688,12 @@ internal static partial class DevPanelUI
 
         var lbl = new Label { Text = label, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, ClipText = true };
         lbl.AddThemeFontSizeOverride("font_size", 12);
+        lbl.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
         row.AddChild(lbl);
 
         var minusBtn = new Button { CustomMinimumSize = new Vector2(26, 26), FocusMode = Control.FocusModeEnum.None };
-        minusBtn.Icon = MdiIcon.Minus.Texture(14);
+        minusBtn.Icon = MdiIcon.Minus.Texture(14, DevModeTheme.TextPrimary);
+        ApplySmallButtonStyle(minusBtn);
         row.AddChild(minusBtn);
 
         var spinBox = new SpinBox
@@ -647,14 +704,16 @@ internal static partial class DevPanelUI
             SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
             Alignment = HorizontalAlignment.Center
         };
+        ApplySpinBoxTheme(spinBox);
         row.AddChild(spinBox);
 
         var plusBtn = new Button { CustomMinimumSize = new Vector2(26, 26), FocusMode = Control.FocusModeEnum.None };
-        plusBtn.Icon = MdiIcon.Plus.Texture(14);
+        plusBtn.Icon = MdiIcon.Plus.Texture(14, DevModeTheme.TextPrimary);
+        ApplySmallButtonStyle(plusBtn);
         row.AddChild(plusBtn);
 
         var applyBtn = new Button { CustomMinimumSize = new Vector2(26, 26), FocusMode = Control.FocusModeEnum.None };
-        applyBtn.Icon = MdiIcon.Check.Texture(14);
+        applyBtn.Icon = MdiIcon.Check.Texture(14, DevModeTheme.TextPrimary);
         var applyStyle = new StyleBoxFlat
         {
             BgColor = new Color(0.2f, 0.5f, 0.4f, 0.9f),
@@ -696,6 +755,7 @@ internal static partial class DevPanelUI
 
         var check = new CheckBox { Text = label, ButtonPressed = lockGetter() };
         check.AddThemeFontSizeOverride("font_size", 12);
+        check.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
         check.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         check.ClipText = true;
         row.AddChild(check);
@@ -708,6 +768,7 @@ internal static partial class DevPanelUI
             SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd,
             Alignment = HorizontalAlignment.Center
         };
+        ApplySpinBoxTheme(spinBox);
         row.AddChild(spinBox);
 
         check.Toggled += v =>

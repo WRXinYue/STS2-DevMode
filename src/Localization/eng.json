@@ -384,5 +384,17 @@
   "cardBrowser.chipOther": "Other",
   "cardBrowser.filterCommon": "Common",
   "cardBrowser.filterUncommon": "Uncommon",
-  "cardBrowser.filterRare": "Rare"
+  "cardBrowser.filterRare": "Rare",
+
+  "appearance.title": "Appearance",
+  "appearance.mode": "Mode",
+  "appearance.mode.dark": "Dark",
+  "appearance.mode.light": "Light",
+  "appearance.darkTheme": "Dark Theme: {0}",
+  "appearance.lightTheme": "Light Theme: {0}",
+
+  "theme.dark": "Dark",
+  "theme.oled": "OLED",
+  "theme.light": "Light",
+  "theme.warm": "Warm"
 }

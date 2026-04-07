@@ -172,7 +172,7 @@ internal static class SaveSlotUI
             HorizontalAlignment = HorizontalAlignment.Center
         };
         title.AddThemeFontSizeOverride("font_size", 22);
-        title.AddThemeColorOverride("font_color", new Color("FFF6E2"));
+        title.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
         vbox.AddChild(title);
         vbox.AddChild(HSep());
 
@@ -230,12 +230,12 @@ internal static class SaveSlotUI
         var headerRow = new HBoxContainer();
         _detailName = new Label { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         _detailName.AddThemeFontSizeOverride("font_size", 20);
-        _detailName.AddThemeColorOverride("font_color", new Color("FFF6E2"));
+        _detailName.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
         headerRow.AddChild(_detailName);
 
         _detailTime = new Label { HorizontalAlignment = HorizontalAlignment.Right };
         _detailTime.AddThemeFontSizeOverride("font_size", 14);
-        _detailTime.AddThemeColorOverride("font_color", new Color(0.7f, 0.7f, 0.7f));
+        _detailTime.AddThemeColorOverride("font_color", DevModeTheme.TextSecondary);
         headerRow.AddChild(_detailTime);
         vbox.AddChild(headerRow);
 
@@ -260,7 +260,7 @@ internal static class SaveSlotUI
             CustomMinimumSize = new Vector2(0, 60)
         };
         _detailCards.AddThemeFontSizeOverride("font_size", 12);
-        _detailCards.AddThemeColorOverride("font_color", new Color(0.85f, 0.85f, 0.85f));
+        _detailCards.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
         vbox.AddChild(_detailCards);
 
         vbox.AddChild(SectionHeader(I18N.T("snapshot.relics", "Relics")));
@@ -271,7 +271,7 @@ internal static class SaveSlotUI
             CustomMinimumSize = new Vector2(0, 40)
         };
         _detailRelics.AddThemeFontSizeOverride("font_size", 12);
-        _detailRelics.AddThemeColorOverride("font_color", new Color(0.85f, 0.85f, 0.85f));
+        _detailRelics.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
         vbox.AddChild(_detailRelics);
 
         vbox.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill });
@@ -282,7 +282,7 @@ internal static class SaveSlotUI
 
         _nameLabel = new Label { Text = I18N.T("snapshot.nameLabel", "Name:") };
         _nameLabel.AddThemeFontSizeOverride("font_size", 14);
-        _nameLabel.AddThemeColorOverride("font_color", new Color("FFF6E2"));
+        _nameLabel.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
         bottomRow.AddChild(_nameLabel);
 
         _nameInput = new LineEdit
@@ -427,7 +427,7 @@ internal static class SaveSlotUI
     {
         var lbl = new Label { Text = text };
         lbl.AddThemeFontSizeOverride("font_size", 13);
-        lbl.AddThemeColorOverride("font_color", new Color("FFF6E2"));
+        lbl.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
         return lbl;
     }
 
@@ -435,7 +435,7 @@ internal static class SaveSlotUI
     {
         var lbl = new Label { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         lbl.AddThemeFontSizeOverride("font_size", 14);
-        lbl.AddThemeColorOverride("font_color", new Color("FFF6E2"));
+        lbl.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
         return lbl;
     }
 

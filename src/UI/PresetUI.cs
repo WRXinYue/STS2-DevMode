@@ -16,8 +16,8 @@ internal static class PresetUI
     private static readonly Color ColCards  = new(0.35f, 0.58f, 0.95f);
     private static readonly Color ColRelics = new(0.88f, 0.72f, 0.22f);
     private static readonly Color ColStats  = new(0.32f, 0.76f, 0.50f);
-    private static readonly Color ColLight  = new(0.85f, 0.85f, 0.90f);
-    private static readonly Color ColDetailBg = new(0.09f, 0.09f, 0.14f, 1f);
+    private static Color ColLight => DevModeTheme.TextPrimary;
+    private static Color ColDetailBg => DevModeTheme.ButtonBgNormal;
 
     // ─────────────────────────────── State ───────────────────────────────
 
@@ -115,11 +115,6 @@ internal static class PresetUI
         title.AddThemeColorOverride("font_color", DevModeTheme.Accent);
         row.AddChild(title);
 
-        row.AddChild(new ColorRect
-        {
-            Color             = DevModeTheme.Accent,
-            CustomMinimumSize = new Vector2(2, 18),
-        });
         row.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         vbox.AddChild(row);
     }
@@ -137,7 +132,7 @@ internal static class PresetUI
 
         // ── New preset card ──
         var newCard = new PanelContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        newCard.AddThemeStyleboxOverride("panel", MakeCardStyle(new Color(1f, 1f, 1f, 0.04f)));
+        newCard.AddThemeStyleboxOverride("panel", MakeCardStyle(DevModeTheme.Separator));
 
         var newInner = new VBoxContainer();
         newInner.AddThemeConstantOverride("separation", 8);
@@ -378,7 +373,7 @@ internal static class PresetUI
             var row = new PanelContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
             var rowStyle = MakeCardStyle(isSelected
                 ? new Color(0.24f, 0.34f, 0.50f, 0.90f)
-                : new Color(1f, 1f, 1f, 0.04f));
+                : DevModeTheme.Separator);
             if (isSelected)
             {
                 rowStyle.BorderWidthLeft = rowStyle.BorderWidthRight = rowStyle.BorderWidthTop = rowStyle.BorderWidthBottom = 1;
@@ -716,7 +711,7 @@ internal static class PresetUI
         CornerRadiusTopLeft    = 6, CornerRadiusTopRight    = 6,
         CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
         BorderWidthLeft = 1, BorderWidthRight = 1, BorderWidthTop = 1, BorderWidthBottom = 1,
-        BorderColor            = new Color(1f, 1f, 1f, 0.05f),
+        BorderColor            = DevModeTheme.PanelBorder,
     };
 
     private static ColorRect MakeDivider() => new()

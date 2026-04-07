@@ -23,14 +23,14 @@ internal static class PowerSelectUI
     private const float  GridHSep     = 8f;
     private const float  GridVSep     = 8f;
 
-    private static readonly Color ColFrameBg       = new(0.14f, 0.14f, 0.20f, 1f);
-    private static readonly Color ColFrameHover    = new(0.22f, 0.22f, 0.30f, 1f);
-    private static readonly Color ColFrameSelected = new(0.24f, 0.34f, 0.50f, 1f);
-    private static readonly Color ColDetailBg      = new(0.09f, 0.09f, 0.14f, 1f);
+    private static Color ColFrameBg       => DevModeTheme.ButtonBgNormal;
+    private static Color ColFrameHover    => DevModeTheme.ButtonBgHover;
+    private static Color ColFrameSelected => DevModeTheme.AccentAlpha;
+    private static Color ColDetailBg      => DevModeTheme.ButtonBgNormal;
     private static readonly Color ColBuff          = new(0.30f, 0.75f, 0.45f);
     private static readonly Color ColDebuff        = new(0.85f, 0.35f, 0.30f);
     private static readonly Color ColNone          = new(0.55f, 0.55f, 0.65f);
-    private static readonly Color ColLight         = new(0.85f, 0.85f, 0.90f);
+    private static Color ColLight => DevModeTheme.TextPrimary;
 
     // ─────────────────────────────── State ───────────────────────────────
 
@@ -150,13 +150,6 @@ internal static class PowerSelectUI
         title.AddThemeFontSizeOverride("font_size", 14);
         title.AddThemeColorOverride("font_color", DevModeTheme.Accent);
         row1.AddChild(title);
-
-        var accentLine = new ColorRect
-        {
-            Color = DevModeTheme.Accent,
-            CustomMinimumSize = new Vector2(2, 18),
-        };
-        row1.AddChild(accentLine);
 
         row1.AddChild(new Control { CustomMinimumSize = new Vector2(6, 0) });
 
@@ -333,7 +326,7 @@ internal static class PowerSelectUI
         s.DetailDesc = DevModeTheme.CreateGameBbcodeLabel();
         s.DetailDesc.CustomMinimumSize = new Vector2(0, 50);
         s.DetailDesc.AddThemeFontSizeOverride("normal_font_size", 11);
-        s.DetailDesc.AddThemeColorOverride("default_color", DevModeTheme.Subtle);
+        s.DetailDesc.AddThemeColorOverride("default_color", DevModeTheme.TextSecondary);
         inner.AddChild(s.DetailDesc);
 
         inner.AddChild(MakeDivider());

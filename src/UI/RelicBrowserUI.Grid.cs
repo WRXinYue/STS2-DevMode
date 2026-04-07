@@ -142,8 +142,8 @@ internal static partial class RelicBrowserUI
         // ── Name label (rarity-tinted, below the frame) ──
 
         var nameColor = rarity == RelicRarity.None
-            ? new Color(0.60f, 0.60f, 0.66f)
-            : rarityCol.Lerp(new Color(0.85f, 0.85f, 0.90f), 0.45f);
+            ? DevModeTheme.Subtle
+            : rarityCol.Lerp(DevModeTheme.TextPrimary, 0.45f);
 
         var label = new Label
         {

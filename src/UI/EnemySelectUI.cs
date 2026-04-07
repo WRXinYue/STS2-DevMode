@@ -102,7 +102,7 @@ internal static class EnemySelectUI
                 VerticalAlignment = VerticalAlignment.Center,
                 MouseFilter = Control.MouseFilterEnum.Ignore
             };
-            fallback.AddThemeColorOverride("font_color", new Color(0.5f, 0.5f, 0.6f));
+            fallback.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
             fallback.Position = new Vector2(totalWidth / 2 - 40, viewport.Size.Y / 2 - 10);
             viewport.AddChild(fallback);
         }
@@ -226,7 +226,7 @@ internal static class EnemySelectUI
             ContentMarginLeft = 12, ContentMarginRight = 12,
             ContentMarginTop = 12, ContentMarginBottom = 12,
             BorderWidthTop = 1, BorderWidthBottom = 1, BorderWidthLeft = 1, BorderWidthRight = 1,
-            BorderColor = new Color(1f, 1f, 1f, 0.06f)
+            BorderColor = DevModeTheme.Separator
         };
         previewPanel.AddThemeStyleboxOverride("panel", previewStyle);
         contentHBox.AddChild(previewPanel);
@@ -241,7 +241,7 @@ internal static class EnemySelectUI
             HorizontalAlignment = HorizontalAlignment.Center
         };
         previewNameLabel.AddThemeFontSizeOverride("font_size", 14);
-        previewNameLabel.AddThemeColorOverride("font_color", new Color(0.90f, 0.88f, 0.83f));
+        previewNameLabel.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
         previewVBox.AddChild(previewNameLabel);
 
         var previewIdLabel = new Label
@@ -249,7 +249,7 @@ internal static class EnemySelectUI
             Text = "",
             HorizontalAlignment = HorizontalAlignment.Center
         };
-        previewIdLabel.AddThemeColorOverride("font_color", new Color(0.45f, 0.45f, 0.52f));
+        previewIdLabel.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
         previewIdLabel.AddThemeFontSizeOverride("font_size", 11);
         previewVBox.AddChild(previewIdLabel);
 
@@ -259,7 +259,7 @@ internal static class EnemySelectUI
             HorizontalAlignment = HorizontalAlignment.Center,
             AutowrapMode = TextServer.AutowrapMode.WordSmart
         };
-        previewMonstersLabel.AddThemeColorOverride("font_color", new Color(0.65f, 0.70f, 0.82f));
+        previewMonstersLabel.AddThemeColorOverride("font_color", DevModeTheme.TextSecondary);
         previewMonstersLabel.AddThemeFontSizeOverride("font_size", 12);
         previewVBox.AddChild(previewMonstersLabel);
 
@@ -341,7 +341,7 @@ internal static class EnemySelectUI
             {
                 RoomType.Elite => new Color(0.80f, 0.60f, 0.20f, 0.18f),
                 RoomType.Boss  => new Color(0.90f, 0.25f, 0.25f, 0.18f),
-                _              => new Color(1f, 1f, 1f, 0.05f)
+                _              => DevModeTheme.Separator
             };
 
             var cell = new PanelContainer
@@ -387,7 +387,7 @@ internal static class EnemySelectUI
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
                 MouseFilter = Control.MouseFilterEnum.Ignore
             };
-            nameLabel.AddThemeColorOverride("font_color", new Color(0.88f, 0.88f, 0.92f));
+            nameLabel.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
             nameLabel.AddThemeFontSizeOverride("font_size", 12);
             cellVBox.AddChild(nameLabel);
 
@@ -495,7 +495,7 @@ internal static class EnemySelectUI
                 {
                     Text = I18N.T("enemy.noFloorCustom", "No floor customizations"),
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    Modulate = new Color(0.6f, 0.6f, 0.6f)
+                    Modulate = DevModeTheme.Subtle
                 });
                 return;
             }

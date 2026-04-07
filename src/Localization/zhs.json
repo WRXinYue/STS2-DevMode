@@ -416,5 +416,17 @@
   "cardBrowser.chipOther": "其他",
   "cardBrowser.filterCommon": "普通",
   "cardBrowser.filterUncommon": "罕见",
-  "cardBrowser.filterRare": "稀有"
+  "cardBrowser.filterRare": "稀有",
+
+  "appearance.title": "外观",
+  "appearance.mode": "模式",
+  "appearance.mode.dark": "黑夜",
+  "appearance.mode.light": "白天",
+  "appearance.darkTheme": "暗色主题: {0}",
+  "appearance.lightTheme": "亮色主题: {0}",
+
+  "theme.dark": "深色",
+  "theme.oled": "OLED 纯黑",
+  "theme.light": "浅色",
+  "theme.warm": "暖色"
 }

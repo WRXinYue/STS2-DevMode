@@ -9,8 +9,8 @@ internal static partial class RelicBrowserUI
     // ── Nav / accent colours ──
 
     private static Color ColNavActive   => DevModeTheme.Accent;
-    private static readonly Color ColNavInactive = new(0.55f, 0.55f, 0.62f);
-    private static readonly Color ColNavHover    = new(0.78f, 0.78f, 0.85f);
+    private static Color ColNavInactive => DevModeTheme.Subtle;
+    private static Color ColNavHover    => DevModeTheme.TextPrimary;
     private static Color ColNavAccent   => DevModeTheme.AccentAlpha;
 
     // ── Panel / border colours ──
@@ -23,14 +23,14 @@ internal static partial class RelicBrowserUI
 
     // ── Sort button colours ──
 
-    private static readonly Color ColSortBg      = new(0.16f, 0.16f, 0.20f, 0.85f);
-    private static readonly Color ColSortHover   = new(0.22f, 0.22f, 0.28f, 0.90f);
-    private static readonly Color ColSortPressed = new(0.26f, 0.26f, 0.34f, 0.95f);
+    private static Color ColSortBg      => DevModeTheme.ButtonBgNormal;
+    private static Color ColSortHover   => DevModeTheme.ButtonBgHover;
+    private static Color ColSortPressed => DevModeTheme.AccentAlpha;
 
     // ── Segment filter colours (pill-shaped toggle) ──
 
-    private static readonly Color ColSegOff      = new(0.14f, 0.14f, 0.18f, 0.80f);
-    private static readonly Color ColSegHover    = new(0.20f, 0.20f, 0.26f, 0.85f);
+    private static Color ColSegOff      => DevModeTheme.ButtonBgNormal;
+    private static Color ColSegHover    => DevModeTheme.ButtonBgHover;
     private static readonly Color ColSegOn       = new(0.25f, 0.40f, 0.65f, 0.90f);
     private static readonly Color ColSegOnHover  = new(0.30f, 0.48f, 0.75f, 0.95f);
 
@@ -127,9 +127,9 @@ internal static partial class RelicBrowserUI
         btn.AddThemeStyleboxOverride("hover_pressed",  MakeStyle(ColSegOnHover));
         btn.AddThemeStyleboxOverride("focus",          MakeStyle(ColSegOff));
 
-        btn.AddThemeColorOverride("font_color",           new Color(0.60f, 0.60f, 0.68f));
-        btn.AddThemeColorOverride("font_hover_color",     new Color(0.78f, 0.78f, 0.85f));
-        btn.AddThemeColorOverride("font_pressed_color",   new Color(0.92f, 0.92f, 0.98f));
+        btn.AddThemeColorOverride("font_color",           DevModeTheme.Subtle);
+        btn.AddThemeColorOverride("font_hover_color",     DevModeTheme.TextPrimary);
+        btn.AddThemeColorOverride("font_pressed_color",   DevModeTheme.TextPrimary);
         btn.AddThemeFontSizeOverride("font_size", 11);
 
         return btn;
@@ -160,7 +160,8 @@ internal static partial class RelicBrowserUI
             BorderWidthTop = 1, BorderWidthBottom = 1, BorderWidthRight = 1,
             BorderColor = ColPanelBorder,
             ShadowColor = new Color(0, 0, 0, 0.40f),
-            ShadowSize = 20
+            ShadowSize = 20,
+            ShadowOffset = new Vector2(20, 0)
         };
         panel.AddThemeStyleboxOverride("panel", style);
 

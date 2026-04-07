@@ -27,6 +27,15 @@ internal static partial class DevPanelUI
     private static string? _activeOverlayId;
     private static int _pinRailCount;
 
+    // ── Stored StyleBoxFlat refs for live theme refresh ──
+    private static StyleBoxFlat? _railStyle;
+    private static StyleBoxFlat? _railIndicatorStyle;
+    private static StyleBoxFlat? _railSepStyle;
+    private static StyleBoxFlat? _peekTabStyle;
+    private static Button? _peekTabBtn;
+    private static int _activeRailBtnIdx = -1;
+    private static readonly List<(Button btn, MdiIcon icon)> _railIconButtons = new();
+
     /// <summary>Pin the rail visible (e.g. while an external overlay is open). Call Unpin when done.</summary>
     public static void PinRail()   => _pinRailCount++;
     public static void UnpinRail() => _pinRailCount = Math.Max(0, _pinRailCount - 1);
@@ -50,18 +59,48 @@ internal static partial class DevPanelUI
         }
     }
 
-    // ── Apple-style colour palette ──
-    private static readonly Color ColRailBg       = new(0.10f, 0.10f, 0.12f, 0.88f);
-    private static readonly Color ColRailBorder    = new(1f, 1f, 1f, 0.06f);
-    private static readonly Color ColIconNormal    = new(0.62f, 0.62f, 0.68f);
-    private static readonly Color ColIconHover     = new(0.85f, 0.85f, 0.92f);
-    private static Color ColIconActive    => DevModeTheme.Accent;
-    private static readonly Color ColIconActiveBg  = new(0.40f, 0.68f, 1f, 0.15f);
+    // ── Colour palette — delegates to active theme ──
+    private static Color ColRailBg       => ThemeManager.Current.RailBg;
+    private static Color ColRailBorder   => ThemeManager.Current.RailBorder;
+    private static Color ColIconNormal   => ThemeManager.Current.IconNormal;
+    private static Color ColIconHover    => ThemeManager.Current.IconHover;
+    private static Color ColIconActive   => DevModeTheme.Accent;
+    private static Color ColIconActiveBg => ThemeManager.Current.IconActiveBg;
     private static Color ColOverlayBg     => DevModeTheme.PanelBg;
     private static Color ColOverlayBorder => DevModeTheme.PanelBorder;
-    private static readonly Color ColBackdrop      = new(0f, 0f, 0f, 0.50f);
+    private static readonly Color ColBackdrop = new(0f, 0f, 0f, 0.50f);
     private static Color ColSectionText   => DevModeTheme.Subtle;
     private static Color ColSeparator     => DevModeTheme.Separator;
+
+    /// <summary>Applies the current theme colors to the persistent rail widgets in-place.</summary>
+    private static void ApplyRailTheme()
+    {
+        if (_railStyle != null)
+        {
+            _railStyle.BgColor     = ColRailBg;
+            _railStyle.BorderColor = ColRailBorder;
+        }
+        if (_railIndicatorStyle != null)
+            _railIndicatorStyle.BgColor = ColIconActiveBg;
+        if (_railSepStyle != null)
+            _railSepStyle.BgColor = ColSeparator;
+        if (_peekTabStyle != null)
+            _peekTabStyle.BgColor = new Color(ColRailBg.R, ColRailBg.G, ColRailBg.B, 0.6f);
+        if (_peekTabBtn != null)
+            _peekTabBtn.Icon = MdiIcon.ChevronRight.Texture(12, ColIconNormal);
+
+        RefreshRailIconTints();
+    }
+
+    private static void RefreshRailIconTints()
+    {
+        for (int i = 0; i < _railIconButtons.Count; i++)
+        {
+            var (btn, icon) = _railIconButtons[i];
+            bool active = i == _activeRailBtnIdx;
+            btn.Icon = icon.Texture(20, active ? ColIconActive : ColIconNormal);
+        }
+    }
 
     // ──────── Attach ────────
     public static void Attach(NGlobalUi globalUi, DevPanelActions actions)
@@ -71,6 +110,16 @@ internal static partial class DevPanelUI
 
         _onRefreshPanel = actions.OnRefreshPanel;
         _activeOverlayId = null;
+        _railStyle = null;
+        _railIndicatorStyle = null;
+        _railSepStyle = null;
+        _peekTabStyle = null;
+        _peekTabBtn = null;
+        _activeRailBtnIdx = -1;
+        _railIconButtons.Clear();
+
+        ThemeManager.OnThemeChanged -= ApplyRailTheme;
+        ThemeManager.OnThemeChanged += ApplyRailTheme;
 
         var root = new Control
         {
@@ -90,7 +139,7 @@ internal static partial class DevPanelUI
             OffsetLeft  = 24, OffsetRight  = 24 + RailW,
             OffsetTop   = 0, OffsetBottom = 0
         };
-        var railStyle = new StyleBoxFlat
+        _railStyle = new StyleBoxFlat
         {
             BgColor                 = ColRailBg,
             CornerRadiusTopLeft     = Radius, CornerRadiusBottomLeft  = Radius,
@@ -102,7 +151,7 @@ internal static partial class DevPanelUI
             ShadowColor             = new Color(0, 0, 0, 0.25f),
             ShadowSize              = 8
         };
-        rail.AddThemeStyleboxOverride("panel", railStyle);
+        rail.AddThemeStyleboxOverride("panel", _railStyle);
 
         // Wrapper allows absolute positioning for the sliding indicator
         var railWrapper = new Control
@@ -121,12 +170,13 @@ internal static partial class DevPanelUI
             Visible = false,
             MouseFilter = Control.MouseFilterEnum.Ignore
         };
-        railIndicator.AddThemeStyleboxOverride("panel", new StyleBoxFlat
+        _railIndicatorStyle = new StyleBoxFlat
         {
             BgColor = ColIconActiveBg,
             CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
             CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8
-        });
+        };
+        railIndicator.AddThemeStyleboxOverride("panel", _railIndicatorStyle);
         railWrapper.AddChild(railIndicator);
 
         var railVBox = new VBoxContainer
@@ -151,6 +201,7 @@ internal static partial class DevPanelUI
                 t.OnActivate(globalUi);
             };
             railButtons.Add(btn);
+            _railIconButtons.Add((btn, t.Icon));
             railVBox.AddChild(btn);
         }
 
@@ -159,12 +210,13 @@ internal static partial class DevPanelUI
 
         // ── Separator line ──
         var sep = new HSeparator();
-        sep.AddThemeStyleboxOverride("separator", new StyleBoxFlat
+        _railSepStyle = new StyleBoxFlat
         {
             BgColor = ColSeparator,
             ContentMarginTop = 0, ContentMarginBottom = 0,
             ContentMarginLeft = 4, ContentMarginRight = 4
-        });
+        };
+        sep.AddThemeStyleboxOverride("separator", _railSepStyle);
         sep.AddThemeConstantOverride("separation", 8);
         railVBox.AddChild(sep);
 
@@ -181,6 +233,7 @@ internal static partial class DevPanelUI
                 t.OnActivate(globalUi);
             };
             railButtons.Add(btn);
+            _railIconButtons.Add((btn, t.Icon));
             railVBox.AddChild(btn);
         }
 
@@ -190,6 +243,7 @@ internal static partial class DevPanelUI
         void MoveRailIndicator(int btnIdx, bool animate)
         {
             if (btnIdx < 0 || btnIdx >= railButtons.Count) return;
+            _activeRailBtnIdx = btnIdx;
             var btn = railButtons[btnIdx];
             float top = btn.Position.Y;
             float bottom = top + btn.Size.Y;
@@ -210,6 +264,8 @@ internal static partial class DevPanelUI
                 railIndicator.OffsetTop = top;
                 railIndicator.OffsetBottom = bottom;
             }
+
+            RefreshRailIconTints();
         }
         root.AddChild(rail);
 
@@ -227,18 +283,19 @@ internal static partial class DevPanelUI
             IconAlignment     = HorizontalAlignment.Center,
             Icon              = MdiIcon.ChevronRight.Texture(12, ColIconNormal)
         };
-        var peekStyle = new StyleBoxFlat
+        _peekTabStyle = new StyleBoxFlat
         {
-            BgColor = new Color(0.12f, 0.12f, 0.15f, 0.6f),
+            BgColor = new Color(ColRailBg.R, ColRailBg.G, ColRailBg.B, 0.6f),
             CornerRadiusTopLeft = 0, CornerRadiusBottomLeft = 0,
             CornerRadiusTopRight = 8, CornerRadiusBottomRight = 8,
             ContentMarginLeft = 0, ContentMarginRight = 0,
             ContentMarginTop = 0, ContentMarginBottom = 0
         };
-        peekTab.AddThemeStyleboxOverride("normal",  peekStyle);
-        peekTab.AddThemeStyleboxOverride("hover",   peekStyle);
-        peekTab.AddThemeStyleboxOverride("pressed", peekStyle);
-        peekTab.AddThemeStyleboxOverride("focus",   peekStyle);
+        peekTab.AddThemeStyleboxOverride("normal",  _peekTabStyle);
+        peekTab.AddThemeStyleboxOverride("hover",   _peekTabStyle);
+        peekTab.AddThemeStyleboxOverride("pressed", _peekTabStyle);
+        peekTab.AddThemeStyleboxOverride("focus",   _peekTabStyle);
+        _peekTabBtn = peekTab;
         root.AddChild(peekTab);
 
         // ── Auto-hide: timer-based mouse position polling ──
@@ -315,6 +372,11 @@ internal static partial class DevPanelUI
     {
         _activeOverlayId = null;
         _pinRailCount = 0;
+        ThemeManager.OnThemeChanged -= ApplyRailTheme;
+        _railStyle = null;
+        _railIndicatorStyle = null;
+        _railSepStyle = null;
+        _railIconButtons.Clear();
         ((Node)globalUi).GetNodeOrNull<Control>(RootName)?.QueueFree();
         RemoveTopBar(globalUi);
         _onRefreshPanel = null;

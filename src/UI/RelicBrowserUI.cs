@@ -165,7 +165,7 @@ internal static partial class RelicBrowserUI
         navOuter.AddChild(new ColorRect
         {
             CustomMinimumSize = new Vector2(0, 1),
-            Color = new Color(1f, 1f, 1f, 0.06f),
+            Color = DevModeTheme.Separator,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
         });
         content.AddChild(navOuter);
@@ -176,7 +176,7 @@ internal static partial class RelicBrowserUI
 
         searchRow.AddChild(new TextureRect
         {
-            Texture = MdiIcon.Magnify.Texture(18, new Color(0.65f, 0.65f, 0.72f)),
+            Texture = MdiIcon.Magnify.Texture(18, DevModeTheme.Subtle),
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             CustomMinimumSize = new Vector2(22, 22),
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter
@@ -220,7 +220,7 @@ internal static partial class RelicBrowserUI
 
             var filterIcon = new TextureRect
             {
-                Texture = MdiIcon.FilterVariant.Texture(16, new Color(0.55f, 0.55f, 0.62f)),
+                Texture = MdiIcon.FilterVariant.Texture(16, DevModeTheme.Subtle),
                 StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
                 CustomMinimumSize = new Vector2(18, 18),
                 SizeFlagsVertical = Control.SizeFlags.ShrinkCenter
@@ -291,12 +291,12 @@ internal static partial class RelicBrowserUI
         };
         var rightStyle = new StyleBoxFlat
         {
-            BgColor = new Color(0.09f, 0.09f, 0.12f, 0.90f),
+            BgColor = DevModeTheme.PanelBg,
             CornerRadiusTopLeft = 10, CornerRadiusTopRight = 10,
             CornerRadiusBottomLeft = 10, CornerRadiusBottomRight = 10,
             ContentMarginLeft = 14, ContentMarginRight = 14,
             ContentMarginTop = 14, ContentMarginBottom = 14,
-            BorderWidthLeft = 1, BorderColor = new Color(1f, 1f, 1f, 0.06f)
+            BorderWidthLeft = 1, BorderColor = DevModeTheme.PanelBorder
         };
         rightPanel.AddThemeStyleboxOverride("panel", rightStyle);
 
@@ -423,7 +423,7 @@ internal static partial class RelicBrowserUI
         {
             var idLabel = new Label { Text = id, HorizontalAlignment = HorizontalAlignment.Center };
             idLabel.AddThemeFontSizeOverride("font_size", 10);
-            idLabel.AddThemeColorOverride("font_color", new Color(0.40f, 0.40f, 0.48f));
+            idLabel.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
             container.AddChild(idLabel);
         }
 
@@ -434,7 +434,7 @@ internal static partial class RelicBrowserUI
             var descLabel = DevModeTheme.CreateGameBbcodeLabel();
             descLabel.Text = DevModeTheme.ConvertGameBbcode(desc);
             descLabel.AddThemeFontSizeOverride("normal_font_size", 12);
-            descLabel.AddThemeColorOverride("default_color", new Color(0.75f, 0.75f, 0.82f));
+            descLabel.AddThemeColorOverride("default_color", DevModeTheme.TextSecondary);
             container.AddChild(descLabel);
         }
 
@@ -444,7 +444,7 @@ internal static partial class RelicBrowserUI
             var flavorLabel = DevModeTheme.CreateGameBbcodeLabel();
             flavorLabel.Text = DevModeTheme.ConvertGameBbcode(flavor);
             flavorLabel.AddThemeFontSizeOverride("normal_font_size", 11);
-            flavorLabel.AddThemeColorOverride("default_color", new Color(0.55f, 0.55f, 0.62f));
+            flavorLabel.AddThemeColorOverride("default_color", DevModeTheme.Subtle);
             container.AddChild(flavorLabel);
         }
 

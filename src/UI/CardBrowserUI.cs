@@ -179,7 +179,7 @@ internal static partial class CardBrowserUI
         navOuter.AddChild(new ColorRect
         {
             CustomMinimumSize = new Vector2(0, 1),
-            Color = new Color(1f, 1f, 1f, 0.06f),
+            Color = DevModeTheme.Separator,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
         });
         content.AddChild(navOuter);
@@ -190,7 +190,7 @@ internal static partial class CardBrowserUI
 
         sortRow.AddChild(new TextureRect
         {
-            Texture = MdiIcon.FilterVariant.Texture(18, new Color(0.65f, 0.65f, 0.72f)),
+            Texture = MdiIcon.FilterVariant.Texture(18, DevModeTheme.Subtle),
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             CustomMinimumSize = new Vector2(22, 22),
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter
@@ -246,7 +246,7 @@ internal static partial class CardBrowserUI
             if (chipRow.GetChildCount() > 0)
             {
                 var sep = new VSeparator { CustomMinimumSize = new Vector2(1, 0) };
-                sep.AddThemeColorOverride("separator", new Color(1f, 1f, 1f, 0.08f));
+                sep.AddThemeColorOverride("separator", DevModeTheme.Separator);
                 chipRow.AddChild(sep);
             }
             var groupLbl = new Label { Text = groupLabel };
@@ -338,12 +338,12 @@ internal static partial class CardBrowserUI
         };
         var rightStyle = new StyleBoxFlat
         {
-            BgColor = new Color(0.09f, 0.09f, 0.12f, 0.90f),
+            BgColor = DevModeTheme.PanelBg,
             CornerRadiusTopLeft = 10, CornerRadiusTopRight = 10,
             CornerRadiusBottomLeft = 10, CornerRadiusBottomRight = 10,
             ContentMarginLeft = 12, ContentMarginRight = 12,
             ContentMarginTop = 12, ContentMarginBottom = 12,
-            BorderWidthLeft = 1, BorderColor = new Color(1f, 1f, 1f, 0.06f)
+            BorderWidthLeft = 1, BorderColor = DevModeTheme.PanelBorder
         };
         rightPanel.AddThemeStyleboxOverride("panel", rightStyle);
 

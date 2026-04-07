@@ -100,7 +100,7 @@ internal static class ConsoleUI
         vbox.AddChild(new ColorRect
         {
             CustomMinimumSize = new Vector2(0, 1),
-            Color = new Color(1f, 1f, 1f, 0.06f),
+            Color = DevModeTheme.ButtonBgNormal,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
         });
     }
@@ -179,12 +179,12 @@ internal static class ConsoleUI
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
             };
             descLabel.AddThemeFontSizeOverride("font_size", 11);
-            descLabel.AddThemeColorOverride("font_color", new Color(0.55f, 0.55f, 0.62f));
+            descLabel.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
             container.AddChild(descLabel);
         }
 
         var sep = new HSeparator();
-        sep.Modulate = new Color(1, 1, 1, 0.07f);
+        sep.Modulate = DevModeTheme.Separator;
         container.AddChild(sep);
 
         return container;
