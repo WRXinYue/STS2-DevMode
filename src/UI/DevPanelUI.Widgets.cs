@@ -238,8 +238,8 @@ internal static partial class DevPanelUI
             BgColor = Colors.Transparent,
             CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
             CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
-            ContentMarginLeft = 0, ContentMarginRight = 0,
-            ContentMarginTop = 0, ContentMarginBottom = 0
+            ContentMarginLeft = 6, ContentMarginRight = 6,
+            ContentMarginTop = 6, ContentMarginBottom = 6
         };
         btn.AddThemeStyleboxOverride("normal",  flat);
         btn.AddThemeStyleboxOverride("hover",   flat);

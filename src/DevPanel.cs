@@ -157,6 +157,7 @@ internal static class DevPanel
         DevPanelRegistry.Register("devmode.powers",  MdiIcon.Flash,       I18N.T("panel.powers", "Powers"),     400, DevPanelTabGroup.Primary, _ => OpenPowers());
         DevPanelRegistry.Register("devmode.potions", MdiIcon.Potion,      I18N.T("panel.potions", "Potions"),   500, DevPanelTabGroup.Primary, _ => OpenPotions());
         DevPanelRegistry.Register("devmode.events",  MdiIcon.CalendarStar,I18N.T("panel.events", "Events"),     600, DevPanelTabGroup.Primary, _ => OpenEvents());
+        DevPanelRegistry.Register("devmode.rooms",   MdiIcon.MapMarker,   I18N.T("panel.rooms",  "Rooms"),      650, DevPanelTabGroup.Primary, _ => OpenRooms());
         DevPanelRegistry.Register("devmode.console", MdiIcon.Console,     I18N.T("panel.console", "Console"),   700, DevPanelTabGroup.Primary, _ => OpenConsole());
         DevPanelRegistry.Register("devmode.presets", MdiIcon.BookOpen,    I18N.T("panel.presets", "Presets"),    800, DevPanelTabGroup.Primary, _ => OpenPresets());
 
@@ -302,6 +303,16 @@ internal static class DevPanel
         });
     }
 
+    private static void OpenRooms()
+    {
+        if (_globalUi == null) return;
+        TryDismissCurrent();
+        DevModeState.ActivePanel = ActivePanel.Rooms;
+        UpdateTopBar();
+
+        RoomSelectUI.Show(_globalUi);
+    }
+
     private static void OpenConsole()
     {
         if (_globalUi == null) return;
@@ -363,6 +374,7 @@ internal static class DevPanel
             case ActivePanel.Powers:   OpenPowers();   break;
             case ActivePanel.Potions:  OpenPotions();  break;
             case ActivePanel.Events:   OpenEvents();   break;
+            case ActivePanel.Rooms:    OpenRooms();    break;
             case ActivePanel.Console:  OpenConsole();  break;
             case ActivePanel.Presets:  OpenPresets();  break;
             case ActivePanel.CardEdit: break;

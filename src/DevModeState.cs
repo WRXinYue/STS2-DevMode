@@ -28,6 +28,7 @@ public enum ActivePanel
     Powers,
     Potions,
     Events,
+    Rooms,
     Console,
     Presets,
     CardEdit
