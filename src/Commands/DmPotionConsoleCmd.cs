@@ -3,6 +3,7 @@ using System.Linq;
 using MegaCrit.Sts2.Core.DevConsole;
 using MegaCrit.Sts2.Core.DevConsole.ConsoleCommands;
 using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Models;
 using DevMode.Actions;
 
@@ -47,7 +48,7 @@ public class DmPotionConsoleCmd : AbstractConsoleCmd
                 if (!RunContext.TryGetRunAndPlayer(out _, out var player))
                     return new CmdResult(false, "No active run.");
 
-                PotionActions.AddPotion(player, potion);
+                TaskHelper.RunSafely(PotionActions.AddPotion(player, potion));
                 return new CmdResult(true, $"Added potion: {potionId}");
             }
             default:

@@ -289,10 +289,7 @@ internal static class DevPanel
 
         if (!RunContext.TryGetRunAndPlayer(out _, out var player)) return;
 
-        PotionSelectUI.Show(_globalUi, potion =>
-        {
-            PotionActions.AddPotion(player, potion);
-        });
+        PotionSelectUI.Show(_globalUi, player);
     }
 
     private static void OpenEvents()
