@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-08
+
 ### Added
 
 - 动态主题系统，支持深色、浅色、OLED 和暖色四种颜色模式。
