@@ -1,12 +1,16 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Godot;
+using MegaCrit.Sts2.Core.CardSelection;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
 using MegaCrit.Sts2.Core.Nodes.Screens.RelicCollection;
+using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
+using MegaCrit.Sts2.Core.Nodes.Screens.Overlays;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
 using DevMode.Actions;
@@ -91,7 +95,6 @@ internal static class DevPanel
                 OnOpenEvents  = OpenEvents,
                 OnOpenConsole = OpenConsole,
                 OnOpenPresets = OpenPresets,
-                OnOpenCardEdit = OpenCardEdit,
                 OnOpenSave    = () => SaveSlotUI.Show(globalUi, saveMode: true,
                                     slot => SaveSlotManager.SaveToSlot(slot)),
                 OnOpenLoad    = () => SaveSlotUI.Show(globalUi, saveMode: false,
@@ -177,6 +180,12 @@ internal static class DevPanel
                     "Remove cards",
                     onCompleted: ResetPanel
                 );
+                break;
+            case CardMode.Edit:
+                if (!RunContext.TryGetRunAndPlayer(out state, out var editPlayer)) return;
+                RunContext.Begin(state, editPlayer);
+                if (!NavigationHelper.TryOpenCardLibrary(state))
+                    ClearState();
                 break;
         }
     }
@@ -347,18 +356,6 @@ internal static class DevPanel
         PresetUI.Show(_globalUi);
     }
 
-    private static void OpenCardEdit()
-    {
-        if (_globalUi == null) return;
-        TryDismissCurrent();
-        DevModeState.ActivePanel = ActivePanel.CardEdit;
-        UpdateTopBar();
-
-        if (!RunContext.TryGetRunAndPlayer(out _, out var player)) return;
-
-        CardEditUI.Show(_globalUi, player);
-    }
-
     private static void StartNewTest()
     {
         try
@@ -402,7 +399,7 @@ internal static class DevPanel
             case ActivePanel.Events:   OpenEvents();   break;
             case ActivePanel.Console:  OpenConsole();  break;
             case ActivePanel.Presets:  OpenPresets();  break;
-            case ActivePanel.CardEdit: OpenCardEdit(); break;
+            case ActivePanel.CardEdit: break;
         }
     }
 
@@ -426,7 +423,7 @@ internal static class DevPanel
 
     public static bool TryHandleCardSelection(NCardHolder holder)
     {
-        if (DevModeState.ActivePanel != ActivePanel.Cards || DevModeState.CardMode != CardMode.Add)
+        if (DevModeState.ActivePanel != ActivePanel.Cards)
             return false;
 
         if (holder?.CardModel == null) return true;
@@ -437,8 +434,20 @@ internal static class DevPanel
             return true;
         }
 
-        TaskHelper.RunSafely(CardActions.AddCard(state, player, holder.CardModel));
-        return true;
+        if (DevModeState.CardMode == CardMode.Add)
+        {
+            TaskHelper.RunSafely(CardActions.AddCard(state, player, holder.CardModel));
+            return true;
+        }
+
+        if (DevModeState.CardMode == CardMode.Edit)
+        {
+            if (_globalUi != null)
+                CardEditUI.ShowForCard(_globalUi, holder.CardModel);
+            return true;
+        }
+
+        return false;
     }
 
     public static bool TryHandleRelicSelection(NRelicCollectionEntry entry)
@@ -471,7 +480,7 @@ internal static class DevPanel
             // whole capstone so the pause menu doesn't linger after the library exits.
             NavigationHelper.CloseCapstone();
         }
-        else if (DevModeState.CardMode is CardMode.Add)
+        else if (DevModeState.CardMode is CardMode.Add or CardMode.Edit)
         {
             ResetPanel();
             ClearState();

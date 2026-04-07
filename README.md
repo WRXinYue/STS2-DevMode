@@ -16,6 +16,10 @@ A developer mode mod for Slay the Spire 2.
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
+## Acknowledgments
+
+- [STS2-KaylaMod](https://github.com/mugongzi520/STS2-KaylaMod)
+
 ## License
 
 MIT

@@ -191,6 +191,11 @@ internal static class CardActions
         return cards.Count > 0;
     }
 
+    public static List<CardModel> GetCardsForTarget(Player player, CardTarget target)
+    {
+        return CollectCardsForTarget(player, target);
+    }
+
     private static List<CardModel> CollectCardsForTarget(Player player, CardTarget target)
     {
         if (target == CardTarget.Deck)

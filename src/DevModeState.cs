@@ -54,6 +54,7 @@ public enum CardMode
     View,
     Add,
     Upgrade,
+    Edit,
     Delete
 }
 

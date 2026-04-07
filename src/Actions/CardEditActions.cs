@@ -5,7 +5,9 @@ using System.Reflection;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Models;
+using DevMode.Presets;
 
 namespace DevMode.Actions;
 
@@ -86,6 +88,136 @@ internal static class CardEditActions
     public static bool? GetExhaust(CardModel card) => TryGetBool(card, "Exhaust");
     public static bool? GetEthereal(CardModel card) => TryGetBool(card, "Ethereal");
     public static bool? GetUnplayable(CardModel card) => TryGetBool(card, "Unplayable");
+    public static bool? GetExhaustOnNextPlay(CardModel card) => TryGetBool(card, "ExhaustOnNextPlay", "_exhaustOnNextPlay");
+    public static bool? GetSingleTurnRetain(CardModel card) => TryGetBool(card, "HasSingleTurnRetain", "_hasSingleTurnRetain");
+    public static bool? GetSingleTurnSly(CardModel card) => TryGetBool(card, "HasSingleTurnSly", "_hasSingleTurnSly");
+
+    public static bool TrySetExhaustOnNextPlay(CardModel card, bool enabled) => TrySetBool(card, enabled, "ExhaustOnNextPlay", "_exhaustOnNextPlay");
+    public static bool TrySetSingleTurnRetain(CardModel card, bool enabled) => TrySetBool(card, enabled, "HasSingleTurnRetain", "_hasSingleTurnRetain");
+    public static bool TrySetSingleTurnSly(CardModel card, bool enabled) => TrySetBool(card, enabled, "HasSingleTurnSly", "_hasSingleTurnSly");
+
+    public static IReadOnlyList<string> GetDynamicVarKeys(CardModel card)
+    {
+        try
+        {
+            return card.DynamicVars?.Keys?.OrderBy(k => k, StringComparer.OrdinalIgnoreCase).ToArray() ?? Array.Empty<string>();
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
+    }
+
+    public static int? GetDynamicVar(CardModel card, string key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return null;
+        try
+        {
+            if (TryGetDynamicVar(card, key, out var dynamicVar) && dynamicVar != null)
+                return (int)Math.Round(dynamicVar.BaseValue);
+        }
+        catch { }
+        return null;
+    }
+
+    public static bool TrySetDynamicVar(CardModel card, string key, int value)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return false;
+        try
+        {
+            if (!TryGetDynamicVar(card, key, out var dynamicVar) || dynamicVar == null) return false;
+            dynamicVar.BaseValue = value;
+            dynamicVar.PreviewValue = value;
+            dynamicVar.ResetToBase();
+            dynamicVar.PreviewValue = value;
+            return true;
+        }
+        catch { return false; }
+    }
+
+    public static string GetTitleText(CardModel card)
+    {
+        object? value = TryGetObject(card, "TitleLocString", "_titleLocString");
+        if (value is LocString loc) return GetLocText(loc);
+        return card.Title ?? string.Empty;
+    }
+
+    public static string GetDescriptionText(CardModel card)
+    {
+        object? value = TryGetObject(card, "Description", "_descriptionLocString", "_description");
+        return value switch
+        {
+            LocString loc => GetLocText(loc),
+            string s => s,
+            _ => string.Empty
+        };
+    }
+
+    public static bool TrySetTitleText(CardModel card, string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        var loc = new LocString(string.Empty, text.Trim());
+        return TrySetObject(card, loc, "TitleLocString", "_titleLocString");
+    }
+
+    public static bool TrySetDescriptionText(CardModel card, string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        var loc = new LocString(string.Empty, text.Trim());
+        return TrySetObject(card, loc, "Description", "_descriptionLocString", "_description");
+    }
+
+    public static CardEditTemplate CaptureTemplate(CardModel card)
+    {
+        var template = new CardEditTemplate
+        {
+            BaseCost = GetBaseCost(card),
+            ReplayCount = GetReplayCount(card),
+            Damage = GetDamage(card),
+            Block = GetBlock(card),
+            Exhaust = GetExhaust(card),
+            Ethereal = GetEthereal(card),
+            Unplayable = GetUnplayable(card),
+            ExhaustOnNextPlay = GetExhaustOnNextPlay(card),
+            SingleTurnRetain = GetSingleTurnRetain(card),
+            SingleTurnSly = GetSingleTurnSly(card),
+            NameOverride = GetTitleText(card),
+            DescriptionOverride = GetDescriptionText(card)
+        };
+
+        var vars = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var key in GetDynamicVarKeys(card))
+        {
+            var v = GetDynamicVar(card, key);
+            if (v.HasValue) vars[key] = v.Value;
+        }
+        if (vars.Count > 0) template.DynamicVars = vars;
+        return template;
+    }
+
+    public static void ApplyTemplate(CardModel card, CardEditTemplate template)
+    {
+        if (template.BaseCost.HasValue) TrySetBaseCost(card, template.BaseCost.Value);
+        if (template.ReplayCount.HasValue) TrySetReplayCount(card, template.ReplayCount.Value);
+        if (template.Damage.HasValue) TrySetDamage(card, template.Damage.Value);
+        if (template.Block.HasValue) TrySetBlock(card, template.Block.Value);
+
+        if (template.DynamicVars != null)
+        {
+            foreach (var kv in template.DynamicVars)
+                TrySetDynamicVar(card, kv.Key, kv.Value);
+        }
+
+        if (template.Exhaust.HasValue) TrySetExhaust(card, template.Exhaust.Value);
+        if (template.Ethereal.HasValue) TrySetEthereal(card, template.Ethereal.Value);
+        if (template.Unplayable.HasValue) TrySetUnplayable(card, template.Unplayable.Value);
+        if (template.ExhaustOnNextPlay.HasValue) TrySetExhaustOnNextPlay(card, template.ExhaustOnNextPlay.Value);
+        if (template.SingleTurnRetain.HasValue) TrySetSingleTurnRetain(card, template.SingleTurnRetain.Value);
+        if (template.SingleTurnSly.HasValue) TrySetSingleTurnSly(card, template.SingleTurnSly.Value);
+
+        if (!string.IsNullOrWhiteSpace(template.NameOverride)) TrySetTitleText(card, template.NameOverride);
+        if (!string.IsNullOrWhiteSpace(template.DescriptionOverride)) TrySetDescriptionText(card, template.DescriptionOverride);
+    }
 
     /// <summary>Get all enchantment types available in the game.</summary>
     public static IReadOnlyList<Type> GetEnchantmentTypes()
@@ -212,5 +344,91 @@ internal static class CardEditActions
         }
         catch { }
         return null;
+    }
+
+    private static bool? TryGetBool(object target, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            var v = TryGetBool(target, name);
+            if (v.HasValue) return v;
+        }
+        return null;
+    }
+
+    private static bool TrySetBool(object target, bool value, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (TrySetProperty(target, name, value) || TrySetField(target, name, value))
+                return true;
+        }
+        return false;
+    }
+
+    private static object? TryGetObject(object target, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            try
+            {
+                var prop = target.GetType().GetProperty(name, ReflFlags);
+                if (prop != null && prop.GetIndexParameters().Length == 0) return prop.GetValue(target);
+                var field = target.GetType().GetField(name, ReflFlags);
+                if (field != null) return field.GetValue(target);
+            }
+            catch { }
+        }
+        return null;
+    }
+
+    private static bool TrySetObject(object target, object value, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            try
+            {
+                var prop = target.GetType().GetProperty(name, ReflFlags);
+                if (prop != null && prop.CanWrite && prop.PropertyType.IsInstanceOfType(value))
+                {
+                    prop.SetValue(target, value);
+                    return true;
+                }
+                var field = target.GetType().GetField(name, ReflFlags);
+                if (field != null && !field.IsInitOnly && field.FieldType.IsInstanceOfType(value))
+                {
+                    field.SetValue(target, value);
+                    return true;
+                }
+            }
+            catch { }
+        }
+        return false;
+    }
+
+    private static string GetLocText(LocString? value)
+    {
+        if (value == null || value.IsEmpty) return string.Empty;
+        try
+        {
+            var text = value.GetRawText();
+            if (!string.IsNullOrWhiteSpace(text)) return text.Trim();
+        }
+        catch { }
+        return value.LocEntryKey ?? string.Empty;
+    }
+
+    private static bool TryGetDynamicVar(CardModel card, string key, out MegaCrit.Sts2.Core.Localization.DynamicVars.DynamicVar? dynamicVar)
+    {
+        dynamicVar = null;
+        try
+        {
+            if (card.DynamicVars == null) return false;
+            if (card.DynamicVars.TryGetValue(key, out dynamicVar) && dynamicVar != null) return true;
+            var actualKey = card.DynamicVars.Keys.FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase));
+            if (actualKey == null) return false;
+            return card.DynamicVars.TryGetValue(actualKey, out dynamicVar) && dynamicVar != null;
+        }
+        catch { return false; }
     }
 }

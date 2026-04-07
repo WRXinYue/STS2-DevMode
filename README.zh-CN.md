@@ -16,6 +16,10 @@
 
 版本历史请参阅 [CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md)。
 
+## 致谢
+
+- [STS2-KaylaMod](https://github.com/mugongzi520/STS2-KaylaMod)
+
 ## 许可证
 
 MIT

@@ -259,8 +259,24 @@ internal sealed class AssetWarmupService
             return;
         if (!_loadedScenePaths.Add(trimmed) || !ResourceLoader.Exists(trimmed)) return;
 
-        ResourceLoader.Load<PackedScene>(trimmed, null, ResourceLoader.CacheMode.Reuse);
-        _loadedScenes++;
+        try
+        {
+            var err = ResourceLoader.LoadThreadedRequest(trimmed, "PackedScene", true);
+            if (err == Error.Ok)
+                _loadedScenes++;
+            else
+            {
+                _errors++;
+                if (_errors <= MaxLoggedErrors)
+                    MainFile.Logger.Warn($"Failed to request scene '{trimmed}': {err}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _errors++;
+            if (_errors <= MaxLoggedErrors)
+                MainFile.Logger.Warn($"Failed to preload scene '{trimmed}': {ex.Message}");
+        }
     }
 
     private void TryTouchTexture(Texture2D? texture)
