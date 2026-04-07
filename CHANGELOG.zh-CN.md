@@ -11,17 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - 动态主题系统，支持深色、浅色、OLED 和暖色四种颜色模式。
 - 开发侧边栏新增房间传送面板。
+- 卡牌浏览器新增编辑模式，支持预设。
 
 ### Changed
 
 - 能力面板重新设计为双栏浏览器布局。
 - 药水浏览器重建为视觉网格样式。
 - 预设管理器新增作用域保存/读取与战斗快照支持。
+- 使用自绘 RelicBrowserUI 替代原生遗物选择界面。
+- 卡牌浏览器顶部栏替换为自定义 CardBrowserUI，含轨道滑动指示器。
+- 统一所有 DevMode 面板为轨道拼接浏览器-面板布局。
 
 ### Fixed
 
 - 修复能力面板中能力应用不生效的问题。
 - 修复添加药水 API 不正常的问题。
+- 修复 MDI 图标 tree-shaking 回退导致构建后图标丢失的问题。
 
 ## [0.1.0] - 2026-04-07
 
@@ -43,9 +48,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 控制台命令手册 UI，支持搜索、原生命令和 DevMode 命令分区。
 - 新增 10 个控制台命令模块（卡牌、作弊、敌人、事件、游戏、药水、能力、遗物、运行时、存档）。
 - 重新设计 DevPanel 为 Apple 风格图标栏，统一覆盖层系统与滑入动画。
-- 自定义卡牌浏览器顶部栏（CardBrowserUI），含轨道滑动指示器。
-- 使用自绘 RelicBrowserUI 替代原生遗物选择界面。
-- 新增可扩展的 DevMode 图标栏面板注册表。
 - Iconify MDI 适配器，构建时 tree-shaking；所有文字图标替换为真实 MDI 图标。
 - 侧边栏面板点击锁定切换。
 - 新增常驻开启 DevMode 开关，支持普通（非开发）对局使用。
@@ -63,7 +65,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 修复无限护盾在失去后未正确恢复的问题。
 - 修复药水槽移除及数值锁定值未实时更新的问题。
 - 修复切换标签页时覆盖层叠加而非关闭的问题。
-- 修复 MDI 图标 tree-shaking 回退导致构建后图标丢失的问题。
 - 修复 changelog 读写编码导致中文乱码的问题。
 
 ## [0.0.1] - 2026-04-06
