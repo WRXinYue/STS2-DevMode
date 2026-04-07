@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
+using MegaCrit.Sts2.Core.Helpers;
+using MegaCrit.Sts2.Core.Map;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
 
 namespace DevMode.Actions;
@@ -15,40 +17,37 @@ internal static class EventActions
         catch { return Enumerable.Empty<EventModel>(); }
     }
 
-    /// <summary>Force-enter an event by navigating to its room.</summary>
+    /// <summary>
+    /// Force-enter an event room, mirroring the game's own EventConsoleCmd.
+    /// Requires an active run; silently fails (with a log warning) otherwise.
+    /// </summary>
     public static bool TryForceEnterEvent(EventModel eventModel)
     {
         try
         {
-            var runManager = RunManager.Instance;
-            if (runManager == null || !runManager.IsInProgress) return false;
-
-            // Use reflection to find a method to enter an event room
-            var methods = typeof(RunManager).GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            var enterMethod = methods.FirstOrDefault(m =>
-                m.Name.Contains("Event", StringComparison.OrdinalIgnoreCase) &&
-                m.GetParameters().Any(p => typeof(AbstractModel).IsAssignableFrom(p.ParameterType)));
-
-            if (enterMethod != null)
+            if (!RunManager.Instance.IsInProgress)
             {
-                enterMethod.Invoke(runManager, new object[] { eventModel });
-                return true;
+                MainFile.Logger.Warn("[DevMode] ForceEnterEvent: no run in progress.");
+                return false;
             }
 
-            // Fallback: try CreateRoom with event room type
-            var createRoom = typeof(RunManager).GetMethod("CreateRoom", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (createRoom != null)
+            if (!RunContext.TryGetRunAndPlayer(out _, out var player))
             {
-                var roomType = (MegaCrit.Sts2.Core.Rooms.RoomType)5; // Event room type
-                createRoom.Invoke(runManager, new object[] { roomType, default(MegaCrit.Sts2.Core.Map.MapPointType), eventModel });
-                return true;
+                MainFile.Logger.Warn("[DevMode] ForceEnterEvent: could not get active player.");
+                return false;
             }
 
-            return false;
+            var mapPointType = eventModel is AncientEventModel
+                ? MapPointType.Ancient
+                : MapPointType.Unknown;
+
+            player.RunState.AppendToMapPointHistory(mapPointType, RoomType.Event, eventModel.Id);
+            TaskHelper.RunSafely(RunManager.Instance.EnterRoom(new EventRoom(eventModel)));
+            return true;
         }
         catch (Exception ex)
         {
-            MainFile.Logger.Warn($"ForceEnterEvent failed: {ex.Message}");
+            MainFile.Logger.Warn($"[DevMode] ForceEnterEvent failed: {ex.Message}");
             return false;
         }
     }

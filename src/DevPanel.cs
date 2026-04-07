@@ -274,10 +274,7 @@ internal static class DevPanel
 
         if (!RunContext.TryGetRunAndPlayer(out _, out var player)) return;
 
-        PowerSelectUI.Show(_globalUi, (power, amount, target) =>
-        {
-            TaskHelper.RunSafely(PowerActions.AddPower(player, power, amount, target));
-        });
+        PowerSelectUI.Show(_globalUi, player);
     }
 
     private static void OpenPotions()
