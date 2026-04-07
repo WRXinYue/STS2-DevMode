@@ -187,32 +187,11 @@ internal static class DevPanel
     {
         if (!TryDismissCurrent()) return;
         DevModeState.ActivePanel = ActivePanel.Relics;
-        UpdateTopBar();
+        DevPanelUI.UpdateTopBar(_globalUi!, CardTopBarConfig.None);
 
-        switch (DevModeState.RelicMode)
-        {
-            case RelicMode.View:
-                if (!RunContext.TryGetRunAndPlayer(out var state, out _)) return;
-                NavigationHelper.TryOpenRelicCollection(state);
-                break;
-
-            case RelicMode.Add:
-                if (!RunContext.TryGetRunAndPlayer(out state, out var player)) return;
-                RunContext.Begin(state, player);
-                if (!NavigationHelper.TryOpenRelicCollection(state))
-                    ClearState();
-                break;
-
-            case RelicMode.Delete:
-                NavigationHelper.ClosePauseMenu();
-                if (!RunContext.TryGetRunAndPlayer(out _, out player)) return;
-                _session.Run(
-                    () => RelicActions.RemoveRelics(player),
-                    "Remove relics",
-                    onCompleted: ResetPanel
-                );
-                break;
-        }
+        if (_globalUi == null) return;
+        if (!RunContext.TryGetRunAndPlayer(out var state, out var player)) return;
+        RelicBrowserUI.Show(_globalUi, state, player);
     }
 
     private static void OpenEnemies()
@@ -457,17 +436,8 @@ internal static class DevPanel
     public static void NotifyRelicCollectionClosed()
     {
         if (DevModeState.ActivePanel != ActivePanel.Relics) return;
-        if (DevModeState.RelicMode is RelicMode.View)
-        {
-            ResetPanel();
-            ClearState();
-            NavigationHelper.CloseCapstone();
-        }
-        else if (DevModeState.RelicMode is RelicMode.Add)
-        {
-            ResetPanel();
-            ClearState();
-        }
+        ResetPanel();
+        ClearState();
     }
 
     // ──────── Private ────────

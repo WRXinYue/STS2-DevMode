@@ -14,8 +14,8 @@ internal static partial class DevPanelUI
     {
         RemoveTopBar(globalUi);
 
-        // Cards use CardBrowserUI's own nav bar — no top bar needed
-        if (DevModeState.ActivePanel is ActivePanel.None or ActivePanel.Cards)
+        // Cards & Relics use their own integrated browser nav — no top bar needed
+        if (DevModeState.ActivePanel is ActivePanel.None or ActivePanel.Cards or ActivePanel.Relics)
             return;
 
         float barHalfW = DevModeState.ActivePanel switch
