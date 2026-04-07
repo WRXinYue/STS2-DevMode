@@ -15,6 +15,7 @@ using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
 using DevMode.Actions;
 using DevMode.AI;
+using DevMode.Icons;
 using DevMode.Navigation;
 using DevMode.UI;
 
@@ -140,22 +141,22 @@ internal static class DevPanel
     private static void RegisterBuiltInTabs(NGlobalUi globalUi, DevPanelActions actions)
     {
         // Primary group — main feature panels
-        DevPanelRegistry.Register("devmode.cards",   Icons.MdiIcon.Cards,       I18N.T("panel.cards", "Cards"),       100, DevPanelTabGroup.Primary, _ => OpenCards());
-        DevPanelRegistry.Register("devmode.relics",  Icons.MdiIcon.Diamond,     I18N.T("panel.relics", "Relics"),     200, DevPanelTabGroup.Primary, _ => OpenRelics());
-        DevPanelRegistry.Register("devmode.enemies", Icons.MdiIcon.Skull,       I18N.T("panel.enemies", "Enemies"),   300, DevPanelTabGroup.Primary, _ => OpenEnemies());
-        DevPanelRegistry.Register("devmode.powers",  Icons.MdiIcon.Flash,       I18N.T("panel.powers", "Powers"),     400, DevPanelTabGroup.Primary, _ => OpenPowers());
-        DevPanelRegistry.Register("devmode.potions", Icons.MdiIcon.Potion,      I18N.T("panel.potions", "Potions"),   500, DevPanelTabGroup.Primary, _ => OpenPotions());
-        DevPanelRegistry.Register("devmode.events",  Icons.MdiIcon.CalendarStar,I18N.T("panel.events", "Events"),     600, DevPanelTabGroup.Primary, _ => OpenEvents());
-        DevPanelRegistry.Register("devmode.console", Icons.MdiIcon.Console,     I18N.T("panel.console", "Console"),   700, DevPanelTabGroup.Primary, _ => OpenConsole());
-        DevPanelRegistry.Register("devmode.presets", Icons.MdiIcon.BookOpen,    I18N.T("panel.presets", "Presets"),    800, DevPanelTabGroup.Primary, _ => OpenPresets());
+        DevPanelRegistry.Register("devmode.cards",   MdiIcon.Cards,       I18N.T("panel.cards", "Cards"),       100, DevPanelTabGroup.Primary, _ => OpenCards());
+        DevPanelRegistry.Register("devmode.relics",  MdiIcon.Diamond,     I18N.T("panel.relics", "Relics"),     200, DevPanelTabGroup.Primary, _ => OpenRelics());
+        DevPanelRegistry.Register("devmode.enemies", MdiIcon.Skull,       I18N.T("panel.enemies", "Enemies"),   300, DevPanelTabGroup.Primary, _ => OpenEnemies());
+        DevPanelRegistry.Register("devmode.powers",  MdiIcon.Flash,       I18N.T("panel.powers", "Powers"),     400, DevPanelTabGroup.Primary, _ => OpenPowers());
+        DevPanelRegistry.Register("devmode.potions", MdiIcon.Potion,      I18N.T("panel.potions", "Potions"),   500, DevPanelTabGroup.Primary, _ => OpenPotions());
+        DevPanelRegistry.Register("devmode.events",  MdiIcon.CalendarStar,I18N.T("panel.events", "Events"),     600, DevPanelTabGroup.Primary, _ => OpenEvents());
+        DevPanelRegistry.Register("devmode.console", MdiIcon.Console,     I18N.T("panel.console", "Console"),   700, DevPanelTabGroup.Primary, _ => OpenConsole());
+        DevPanelRegistry.Register("devmode.presets", MdiIcon.BookOpen,    I18N.T("panel.presets", "Presets"),    800, DevPanelTabGroup.Primary, _ => OpenPresets());
 
         // Utility group — settings / tools
-        DevPanelRegistry.Register("devmode.save",     Icons.MdiIcon.ContentSave, I18N.T("panel.save", "Save / Load"), 100, DevPanelTabGroup.Utility, gui => DevPanelUI.ShowSaveLoadOverlay(gui, actions));
-        DevPanelRegistry.Register("devmode.settings", Icons.MdiIcon.Cog,         I18N.T("panel.settings", "Settings"),200, DevPanelTabGroup.Utility, gui => DevPanelUI.ShowCheatsOverlay(gui, actions));
+        DevPanelRegistry.Register("devmode.save",     MdiIcon.ContentSave, I18N.T("panel.save", "Save / Load"), 100, DevPanelTabGroup.Utility, gui => DevPanelUI.ShowSaveLoadOverlay(gui, actions));
+        DevPanelRegistry.Register("devmode.settings", MdiIcon.Cog,         I18N.T("panel.settings", "Settings"),200, DevPanelTabGroup.Utility, gui => DevPanelUI.ShowCheatsOverlay(gui, actions));
 
         if (AIControl.IsAvailable)
         {
-            DevPanelRegistry.Register("devmode.ai", Icons.MdiIcon.Robot, I18N.T("panel.ai", "AI Control"), 300, DevPanelTabGroup.Utility, gui => DevPanelUI.ShowAIOverlay(gui, actions));
+            DevPanelRegistry.Register("devmode.ai", MdiIcon.Robot, I18N.T("panel.ai", "AI Control"), 300, DevPanelTabGroup.Utility, gui => DevPanelUI.ShowAIOverlay(gui, actions));
         }
     }
 

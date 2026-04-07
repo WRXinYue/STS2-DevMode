@@ -57,6 +57,29 @@ DevPanelRegistry.Register(new MyTab());
 
 Built-in tabs use order values 100, 200, … 800 — pick values in between to control placement.
 
+### Icons
+
+DevMode bundles [Material Design Icons](https://pictogrammers.com/library/mdi/) via the `MdiIcon` struct (`DevMode.Icons` namespace). Pre-defined fields use PascalCase:
+
+```csharp
+MdiIcon.Bug           // "bug"
+MdiIcon.Star          // "star"
+MdiIcon.Cards         // "cards"
+MdiIcon.Robot         // "robot"
+```
+
+To get a Godot texture: `MdiIcon.Bug.Texture(size: 20, color: Colors.White)`.
+
+For any icon not pre-defined, use the kebab-case name:
+
+```csharp
+MdiIcon.Get("account-check", size: 24);
+```
+
+> **Tree-shaking:** Only icons referenced as `MdiIcon.XxxYyy` in source code are bundled at build time. If you use `MdiIcon.Get("...")` with a dynamic name, that icon must already be bundled by a static reference somewhere, or it will not be available at runtime.
+
+See [`src/Icons/MdiIcon.cs`](src/Icons/MdiIcon.cs) for the full list of pre-defined icons.
+
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.

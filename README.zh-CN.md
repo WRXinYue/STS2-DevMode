@@ -57,6 +57,29 @@ DevPanelRegistry.Register(new MyTab());
 
 内置标签页使用 100、200、…、800 的排序值，选择中间值即可控制位置。
 
+### 图标
+
+DevMode 通过 `MdiIcon` 结构体（`DevMode.Icons` 命名空间）内置了 [Material Design Icons](https://pictogrammers.com/library/mdi/) 图标集。预定义字段使用 PascalCase 命名：
+
+```csharp
+MdiIcon.Bug           // "bug"
+MdiIcon.Star          // "star"
+MdiIcon.Cards         // "cards"
+MdiIcon.Robot         // "robot"
+```
+
+获取 Godot 纹理：`MdiIcon.Bug.Texture(size: 20, color: Colors.White)`。
+
+对于未预定义的图标，可使用 kebab-case 名称：
+
+```csharp
+MdiIcon.Get("account-check", size: 24);
+```
+
+> **Tree-shaking 机制：** 构建时仅打包源码中以 `MdiIcon.XxxYyy` 方式引用的图标。若通过 `MdiIcon.Get("...")` 使用动态名称，该图标必须已被某处静态引用，否则运行时不可用。
+
+完整预定义图标列表见 [`src/Icons/MdiIcon.cs`](src/Icons/MdiIcon.cs)。
+
 ## 更新日志
 
 版本历史请参阅 [CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md)。
