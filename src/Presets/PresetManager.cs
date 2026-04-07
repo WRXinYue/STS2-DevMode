@@ -4,8 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using MegaCrit.Sts2.Core.Commands;
+using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Runs;
 
@@ -30,122 +32,188 @@ internal static class PresetManager
 
     public static PresetStore<LoadoutPreset> Loadouts => _loadouts.Value;
 
-    /// <summary>Capture current run state into a LoadoutPreset.</summary>
-    public static LoadoutPreset? CaptureFromRun()
+    /// <summary>Capture current run state into a LoadoutPreset, limited to <paramref name="scope"/>.</summary>
+    /// <param name="includeCombatSnapshot">When true and in combat, also snapshot hand/draw/discard piles.</param>
+    public static LoadoutPreset? CaptureFromRun(PresetContents scope = PresetContents.All, bool includeCombatSnapshot = false)
     {
-        if (!RunContext.TryGetRunAndPlayer(out var runState, out var player)) return null;
+        if (!RunContext.TryGetRunAndPlayer(out _, out var player)) return null;
 
-        var preset = new LoadoutPreset
-        {
-            Gold = player.Gold,
-            CurrentHp = player.Creature.CurrentHp,
-            MaxHp = player.Creature.MaxHp,
-            Energy = player.PlayerCombatState?.Energy ?? 0,
-            MaxEnergy = player.MaxEnergy,
-            Stars = player.PlayerCombatState?.Stars ?? 0,
-            OrbSlots = player.BaseOrbSlotCount
-        };
+        var preset = new LoadoutPreset { Contents = scope };
 
-        // Capture deck
-        var deckCards = player.Deck?.Cards;
-        if (deckCards != null)
+        if (scope.HasFlag(PresetContents.Stats))
         {
-            var grouped = deckCards
-                .Where(c => c != null)
-                .GroupBy(c => new { Id = ((AbstractModel)c).Id.Entry, Upgrade = c.CurrentUpgradeLevel })
-                .Select(g => new LoadoutCardEntry
-                {
-                    CardId = g.Key.Id,
-                    Count = g.Count(),
-                    UpgradeLevel = g.Key.Upgrade
-                });
-            preset.Cards.AddRange(grouped);
+            preset.Gold       = player.Gold;
+            preset.CurrentHp  = player.Creature.CurrentHp;
+            preset.MaxHp      = player.Creature.MaxHp;
+            preset.Energy     = player.PlayerCombatState?.Energy ?? 0;
+            preset.MaxEnergy  = player.MaxEnergy;
+            preset.Stars      = player.PlayerCombatState?.Stars ?? 0;
+            preset.OrbSlots   = player.BaseOrbSlotCount;
         }
 
-        // Capture relics
-        var relics = player.Relics;
-        if (relics != null)
+        if (scope.HasFlag(PresetContents.Cards))
         {
-            foreach (var relic in relics)
+            var deckCards = player.Deck?.Cards;
+            if (deckCards != null)
             {
-                if (relic != null)
-                    preset.Relics.Add(((AbstractModel)relic).Id.Entry);
+                preset.Cards.AddRange(GroupCards(deckCards));
+            }
+
+            if (includeCombatSnapshot && CombatManager.Instance?.IsInProgress == true)
+            {
+                preset.HandCards    = SnapshotPile(player, PileType.Hand);
+                preset.DrawCards    = SnapshotPile(player, PileType.Draw);
+                preset.DiscardCards = SnapshotPile(player, PileType.Discard);
+            }
+        }
+
+        if (scope.HasFlag(PresetContents.Relics))
+        {
+            var relics = player.Relics;
+            if (relics != null)
+            {
+                foreach (var relic in relics)
+                {
+                    if (relic != null)
+                        preset.Relics.Add(((AbstractModel)relic).Id.Entry);
+                }
             }
         }
 
         return preset;
     }
 
-    /// <summary>Apply a LoadoutPreset to the current run.</summary>
-    public static async Task ApplyToRunAsync(LoadoutPreset preset)
+    /// <summary>
+    /// Apply a LoadoutPreset to the current run.
+    /// <paramref name="scope"/> limits which parts are applied; intersected with <c>preset.Contents</c>.
+    /// </summary>
+    public static async Task ApplyToRunAsync(LoadoutPreset preset, PresetContents scope = PresetContents.All)
     {
         if (!RunContext.TryGetRunAndPlayer(out var runState, out var player)) return;
 
-        // Check not in combat
-        if (MegaCrit.Sts2.Core.Combat.CombatManager.Instance?.IsInProgress == true)
+        var effective = preset.Contents & scope;
+        var inCombat  = MegaCrit.Sts2.Core.Combat.CombatManager.Instance?.IsInProgress == true;
+        int applied   = 0;
+
+        if (effective.HasFlag(PresetContents.Stats))
         {
-            MainFile.Logger.Warn("Cannot apply preset during combat.");
-            return;
+            try
+            {
+                await PlayerCmd.SetGold((decimal)preset.Gold, player);
+                await Sts2ApiCompat.SetMaxHpAsync(player.Creature, preset.MaxHp);
+                await Sts2ApiCompat.SetCurrentHpAsync(player.Creature, preset.CurrentHp);
+                player.MaxEnergy        = preset.MaxEnergy;
+                player.BaseOrbSlotCount = preset.OrbSlots;
+                applied++;
+                MainFile.Logger.Info("[DevMode] Stats applied.");
+            }
+            catch (Exception ex)
+            {
+                MainFile.Logger.Warn($"[DevMode] Stats apply failed: {ex.Message}");
+            }
         }
 
-        try
+        if (effective.HasFlag(PresetContents.Relics))
         {
-            // Set gold
-            await PlayerCmd.SetGold((decimal)preset.Gold, player);
-
-            // Set HP
-            await Sts2ApiCompat.SetMaxHpAsync(player.Creature, preset.MaxHp);
-            await Sts2ApiCompat.SetCurrentHpAsync(player.Creature, preset.CurrentHp);
-
-            // Set energy
-            player.MaxEnergy = preset.MaxEnergy;
-
-            // Set orb slots
-            player.BaseOrbSlotCount = preset.OrbSlots;
-
-            // Remove all relics
-            foreach (var relic in player.Relics.ToArray())
+            try
             {
-                if (relic != null)
-                    await RelicCmd.Remove(relic);
-            }
+                foreach (var relic in player.Relics.ToArray())
+                    if (relic != null) await RelicCmd.Remove(relic);
 
-            // Add preset relics
-            foreach (var relicId in preset.Relics)
-            {
-                var model = ModelDb.AllRelics.FirstOrDefault(r => ((AbstractModel)r).Id.Entry == relicId);
-                if (model != null)
-                    await RelicCmd.Obtain(model.ToMutable(), player, -1);
-            }
-
-            // Remove all deck cards
-            foreach (var card in player.Deck.Cards.ToArray())
-            {
-                if (card != null)
-                    await CardPileCmd.RemoveFromDeck(card, false);
-            }
-
-            // Add preset cards
-            foreach (var entry in preset.Cards)
-            {
-                var model = ModelDb.AllCards.FirstOrDefault(c => ((AbstractModel)c).Id.Entry == entry.CardId);
-                if (model == null) continue;
-
-                for (int i = 0; i < entry.Count; i++)
+                foreach (var relicId in preset.Relics)
                 {
-                    var card = Sts2ApiCompat.CreateCardForCurrentContext(runState, model, player, false);
-                    for (int u = 0; u < entry.UpgradeLevel; u++)
-                        CardCmd.Upgrade(card);
-                    await CardPileCmd.Add(card, PileType.Deck, skipVisuals: true);
+                    var model = ModelDb.AllRelics.FirstOrDefault(r => ((AbstractModel)r).Id.Entry == relicId);
+                    if (model != null)
+                        await RelicCmd.Obtain(model.ToMutable(), player, -1);
                 }
+                applied++;
+                MainFile.Logger.Info("[DevMode] Relics applied.");
             }
+            catch (Exception ex)
+            {
+                MainFile.Logger.Warn($"[DevMode] Relics apply failed: {ex.Message}");
+            }
+        }
 
-            MainFile.Logger.Info("Preset applied successfully.");
-        }
-        catch (Exception ex)
+        if (effective.HasFlag(PresetContents.Cards))
         {
-            MainFile.Logger.Warn($"Preset apply failed: {ex.Message}");
+            try
+            {
+                var combatState = player.Creature?.CombatState;
+
+                if (inCombat && combatState != null)
+                {
+                    var combatCards = new List<CardModel>();
+                    foreach (PileType pt in new[] { PileType.Hand, PileType.Draw, PileType.Discard })
+                    {
+                        var pile = pt.GetPile(player);
+                        if (pile != null)
+                            combatCards.AddRange(pile.Cards.ToArray());
+                    }
+                    MainFile.Logger.Info($"[DevMode] Removing {combatCards.Count} combat cards...");
+                    if (combatCards.Count > 0)
+                        await CardPileCmd.RemoveFromCombat(combatCards, false);
+                }
+
+                var deckCards = player.Deck.Cards.ToArray();
+                MainFile.Logger.Info($"[DevMode] Removing {deckCards.Length} deck cards...");
+                foreach (var card in deckCards)
+                    if (card != null) await CardPileCmd.RemoveFromDeck(card, false);
+
+                foreach (var entry in preset.Cards)
+                {
+                    var model = ModelDb.AllCards.FirstOrDefault(c => ((AbstractModel)c).Id.Entry == entry.CardId);
+                    if (model == null) continue;
+                    for (int i = 0; i < entry.Count; i++)
+                    {
+                        var deckCard = ((RunState)runState).CreateCard(model.CanonicalInstance, player);
+                        for (int u = 0; u < entry.UpgradeLevel; u++)
+                            CardCmd.Upgrade(deckCard);
+                        await CardPileCmd.Add(deckCard, PileType.Deck, skipVisuals: true);
+                    }
+                }
+
+                if (inCombat && combatState != null)
+                {
+                    if (preset.HasCombatSnapshot)
+                    {
+                        MainFile.Logger.Info("[DevMode] Restoring combat snapshot (hand/draw/discard)...");
+                        await AddCombatCardsFromEntries(preset.HandCards,    PileType.Hand,    combatState, player);
+                        await AddCombatCardsFromEntries(preset.DrawCards,    PileType.Draw,    combatState, player);
+                        await AddCombatCardsFromEntries(preset.DiscardCards, PileType.Discard, combatState, player);
+                    }
+                    else
+                    {
+                        foreach (var entry in preset.Cards)
+                        {
+                            var model = ModelDb.AllCards.FirstOrDefault(c => ((AbstractModel)c).Id.Entry == entry.CardId);
+                            if (model == null) continue;
+                            for (int i = 0; i < entry.Count; i++)
+                            {
+                                var combatCard = combatState.CreateCard(model.CanonicalInstance, player);
+                                for (int u = 0; u < entry.UpgradeLevel; u++)
+                                    CardCmd.Upgrade(combatCard);
+                                await CardPileCmd.AddGeneratedCardToCombat(combatCard, PileType.Draw, true);
+                            }
+                        }
+                        const int handDraw = 5;
+                        MainFile.Logger.Info($"[DevMode] No snapshot — drawing {handDraw} cards into hand...");
+                        await CardPileCmd.Draw(new BlockingPlayerChoiceContext(), handDraw, player, false);
+                    }
+                }
+                applied++;
+                MainFile.Logger.Info("[DevMode] Cards applied.");
+            }
+            catch (Exception ex)
+            {
+                MainFile.Logger.Warn($"[DevMode] Cards apply failed: {ex.Message}");
+            }
         }
+
+        if (applied > 0)
+            MainFile.Logger.Info($"[DevMode] Preset applied (scope: {effective}, inCombat: {inCombat}).");
+        else
+            MainFile.Logger.Warn("[DevMode] Preset apply: nothing was applied.");
     }
 
     /// <summary>Export a preset to clipboard as JSON.</summary>
@@ -177,6 +245,52 @@ internal static class PresetManager
         catch
         {
             return (null, null);
+        }
+    }
+
+    // ─────────────────────────────── Helpers ───────────────────────────────
+
+    private static List<LoadoutCardEntry> GroupCards(IEnumerable<CardModel> cards)
+    {
+        return cards
+            .Where(c => c != null)
+            .GroupBy(c => new { Id = ((AbstractModel)c).Id.Entry, Upgrade = c.CurrentUpgradeLevel })
+            .Select(g => new LoadoutCardEntry
+            {
+                CardId       = g.Key.Id,
+                Count        = g.Count(),
+                UpgradeLevel = g.Key.Upgrade,
+            })
+            .ToList();
+    }
+
+    private static List<LoadoutCardEntry>? SnapshotPile(Player player, PileType pileType)
+    {
+        var pile = pileType.GetPile(player);
+        if (pile == null || pile.Cards.Count == 0) return new List<LoadoutCardEntry>();
+        return GroupCards(pile.Cards);
+    }
+
+    private static async Task AddCombatCardsFromEntries(
+        List<LoadoutCardEntry>? entries, PileType pileType,
+        CombatState combatState, Player player)
+    {
+        if (entries == null || entries.Count == 0) return;
+        foreach (var entry in entries)
+        {
+            var model = ModelDb.AllCards.FirstOrDefault(c => ((AbstractModel)c).Id.Entry == entry.CardId);
+            if (model == null)
+            {
+                MainFile.Logger.Warn($"[DevMode] Card not found for {pileType}: {entry.CardId}");
+                continue;
+            }
+            for (int i = 0; i < entry.Count; i++)
+            {
+                var combatCard = combatState.CreateCard(model.CanonicalInstance, player);
+                for (int u = 0; u < entry.UpgradeLevel; u++)
+                    CardCmd.Upgrade(combatCard);
+                await CardPileCmd.AddGeneratedCardToCombat(combatCard, pileType, true);
+            }
         }
     }
 }
