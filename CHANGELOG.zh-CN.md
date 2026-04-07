@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- 动态主题系统，支持深色、浅色、OLED 和暖色四种颜色模式。
+- 开发侧边栏新增房间传送面板。
+- 自定义卡牌浏览器顶部栏（CardBrowserUI），含轨道滑动指示器。
+
+### Fixed
+
+- 修复能力面板中能力应用不生效的问题。
+- 修复添加药水 API 不正常的问题。
+- 修复 MDI 图标 tree-shaking 回退导致构建后图标丢失的问题。
+
 ## [0.1.0] - 2026-04-07
 
 ### Added

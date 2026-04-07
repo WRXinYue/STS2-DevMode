@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Dynamic theme system with dark, light, OLED, and warm color modes.
+- Room Teleport panel in the dev sidebar.
+- Custom card browser top bar (CardBrowserUI) with rail sliding indicator.
+
+### Fixed
+
+- Power apply not working correctly in the Powers panel.
+- Add Potion API not functioning properly.
+- MDI icon tree-shaking regression causing missing icons after build.
+
 ## [0.1.0] - 2026-04-07
 
 ### Added
