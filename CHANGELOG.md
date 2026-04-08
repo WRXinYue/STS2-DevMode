@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-08
+
+### Added
+
+- **Hook System** — a new "Hooks" panel for defining automated Trigger → Condition → Action rules that fire during gameplay (e.g. apply a power every combat start, add a card every turn start).
+  - Triggers: Combat Start/End, Turn Start/End, On Draw, On Damage Dealt/Taken, On Potion Used.
+  - Conditions: HP Below/Above %, Floor Above/Below, Has Power, Not Has Power.
+  - Actions: Apply Power, Add Card, Use Potion, Save Slot.
+  - Rules are persisted across sessions and can be enabled/disabled individually.
+- **Auto-Apply shortcuts** — one-click "Add to Auto-Apply" button in the Power, Potion, and Card browsers to instantly create a Combat Start hook for the selected item.
+- **Copyable IDs** — all browser detail panels (Power, Potion, Card, Relic, Enemy) now show a **Copy** button next to the item ID for easy clipboard access.
+- **ID picker popup** — the Hook rule editor's ID field now has a `…` browse button that opens a searchable popup listing all available IDs for the chosen action type.
+- Hook rule editor uses **dropdown menus** (OptionButton) for Trigger, Action Type, Condition Type, and Target — no more cycling through values by clicking.
+
 ## [0.3.0] - 2026-04-08
 
 ### Added
