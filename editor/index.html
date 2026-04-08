@@ -91,10 +91,109 @@
       white-space: nowrap;
     }
 
+    /* ── Main area ── */
+    #main {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+
     /* ── Blockly area ── */
     #blocklyDiv {
       flex: 1;
+      min-width: 0;
       min-height: 0;
+    }
+
+    /* ── Script panel ── */
+    #scriptPanel {
+      width: 210px;
+      flex-shrink: 0;
+      background: #16213e;
+      border-left: 1px solid #0f3460;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #scriptPanelHeader {
+      padding: 8px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #7f8c8d;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #0f3460;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    #scriptPanelRefresh {
+      background: none;
+      border: none;
+      color: #7f8c8d;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0 2px;
+      transition: color 0.15s;
+    }
+    #scriptPanelRefresh:hover { color: #e94560; }
+    #scriptList {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 0;
+    }
+    #scriptList::-webkit-scrollbar { width: 4px; }
+    #scriptList::-webkit-scrollbar-track { background: transparent; }
+    #scriptList::-webkit-scrollbar-thumb { background: #0f3460; border-radius: 2px; }
+
+    .script-item {
+      padding: 7px 10px;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: background 0.1s, border-color 0.1s;
+    }
+    .script-item:hover {
+      background: #1a2a4a;
+      border-left-color: #e94560;
+    }
+    .script-item.active {
+      background: #1a2a4a;
+      border-left-color: #e94560;
+    }
+    .script-item .s-name {
+      font-size: 12px;
+      color: #e0e0e0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .script-item .s-file {
+      font-size: 10px;
+      color: #555;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 1px;
+    }
+    .script-item.has-error .s-name { color: #e74c3c; }
+    .script-item.disabled .s-name  { color: #666; }
+
+    .script-empty {
+      padding: 16px 10px;
+      font-size: 11px;
+      color: #555;
+      text-align: center;
+      line-height: 1.6;
+    }
+    .script-status-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-right: 5px;
+      vertical-align: middle;
     }
 
     /* ── Footer ── */
@@ -130,7 +229,6 @@
   <div class="sep"></div>
 
   <button id="btnSave" class="primary">Save</button>
-  <button id="btnLoad">Load</button>
   <button id="btnBindDir">Bind Folder</button>
   <span id="dirLabel"></span>
 
@@ -148,10 +246,24 @@
   </select>
 </header>
 
-<div id="blocklyDiv"></div>
+<div id="main">
+  <div id="blocklyDiv"></div>
+
+  <div id="scriptPanel">
+    <div id="scriptPanelHeader">
+      <span id="scriptPanelTitle">Scripts</span>
+      <button id="scriptPanelRefresh" title="Refresh">↻</button>
+    </div>
+    <div id="scriptList">
+      <div class="script-empty" id="scriptListEmpty">—</div>
+    </div>
+  </div>
+</div>
 
 <footer>
   <span id="status">Loading...</span>
+  <span id="stateBadge" style="font-size:11px;color:#7f8c8d;display:none"></span>
+  <span id="connBadge" style="font-size:11px;font-weight:600;cursor:default">○ Game not running</span>
   <span id="footerHint" class="hint">STS2 DevMode • SpireScratch Visual Scripting</span>
 </footer>
 

@@ -25,6 +25,7 @@ public class MainFile
         I18N.Initialize();
 
         ScriptManager.Initialize();
+        ScriptBridge.Start();
 
         var harmony = new Harmony(ModID);
         harmony.PatchAll();

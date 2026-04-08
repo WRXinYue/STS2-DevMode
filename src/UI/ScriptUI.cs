@@ -19,37 +19,69 @@ internal static class ScriptUI
     private static Color ColError  => new(0.9f, 0.35f, 0.3f);
     private static Color ColOk     => new(0.3f, 0.85f, 0.45f);
 
+    private static int _lastSeenVersion = -1;
+    private static bool _refreshing;
+
     public static void Show(NGlobalUi globalUi)
     {
-        Remove(globalUi);
-
-        DevPanelUI.PinRail();
-        DevPanelUI.SpliceRail(globalUi, joined: true);
-
-        var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1250 };
-        root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        root.TreeExiting += () =>
+        if (_refreshing) return;
+        _refreshing = true;
+        try
         {
-            DevPanelUI.UnpinRail();
-            DevPanelUI.SpliceRail(globalUi, joined: false);
-        };
+            Remove(globalUi);
+            _lastSeenVersion = ScriptManager.ReloadVersion;
 
-        root.AddChild(DevPanelUI.CreateBrowserBackdrop(() => Remove(globalUi)));
-        var panel = DevPanelUI.CreateBrowserPanel(PanelW);
-        root.AddChild(panel);
+            DevPanelUI.PinRail();
+            DevPanelUI.SpliceRail(globalUi, joined: true);
 
-        var vbox = panel.GetNode<VBoxContainer>("Content");
-        vbox.AddThemeConstantOverride("separation", 8);
+            var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1250 };
+            root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+            root.TreeExiting += () =>
+            {
+                DevPanelUI.UnpinRail();
+                DevPanelUI.SpliceRail(globalUi, joined: false);
+            };
 
-        BuildHeader(vbox, globalUi);
-        BuildScriptList(vbox);
-        BuildVariableSection(vbox);
+            root.AddChild(DevPanelUI.CreateBrowserBackdrop(() => Remove(globalUi)));
+            var panel = DevPanelUI.CreateBrowserPanel(PanelW);
+            root.AddChild(panel);
 
-        ((Node)globalUi).AddChild(root);
+            var vbox = panel.GetNode<VBoxContainer>("Content");
+            vbox.AddThemeConstantOverride("separation", 8);
+
+            BuildHeader(vbox, globalUi);
+            BuildScriptList(vbox);
+            BuildVariableSection(vbox);
+
+            var timer = new Timer { WaitTime = 1.0, Autostart = true, OneShot = false, Name = "ScriptAutoRefresh" };
+            timer.Timeout += () =>
+            {
+                if (ScriptManager.ReloadVersion != _lastSeenVersion)
+                    Show(globalUi);
+            };
+            root.AddChild(timer);
+
+            ((Node)globalUi).AddChild(root);
+        }
+        finally { _refreshing = false; }
     }
 
     public static void Remove(NGlobalUi globalUi)
-        => ((Node)globalUi).GetNodeOrNull<Control>(RootName)?.QueueFree();
+    {
+        var parent = (Node)globalUi;
+        // Remove ALL instances to clean up any leftover duplicates
+        while (true)
+        {
+            var root = parent.GetNodeOrNull<Control>(RootName);
+            if (root == null) break;
+            // Stop timer immediately so it can't trigger another Show()
+            root.GetNodeOrNull<Timer>("ScriptAutoRefresh")?.Stop();
+            // Detach from tree first — prevents QueueFree race where
+            // the old node is still findable by name
+            parent.RemoveChild(root);
+            root.QueueFree();
+        }
+    }
 
     // ──────── Header ────────
 

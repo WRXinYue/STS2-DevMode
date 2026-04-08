@@ -24,15 +24,19 @@ internal static class ScriptManager
         Converters = { new JsonStringEnumConverter() },
     };
 
-    private static readonly List<LoadedScript> _scripts = new();
+    private static volatile List<LoadedScript> _scripts = new();
+    private static readonly object _reloadLock = new();
     private static FileSystemWatcher? _watcher;
     private static bool _initialized;
-    private static bool _dirty;
+    private static volatile bool _dirty;
 
     public static string ScriptsDir { get; private set; } = "";
     public static DateTime LastReloadTime { get; private set; }
     public static string? LastError { get; private set; }
     public static IReadOnlyList<LoadedScript> Scripts => _scripts;
+
+    /// <summary>Monotonically increasing counter, bumped on every Reload().</summary>
+    public static int ReloadVersion { get; private set; }
 
     public sealed class LoadedScript
     {
@@ -71,9 +75,12 @@ internal static class ScriptManager
     public static void Shutdown()
     {
         StopWatcher();
-        _scripts.Clear();
+        _scripts = new List<LoadedScript>();
         _initialized = false;
     }
+
+    /// <summary>Mark scripts as needing reload on next game-thread tick.</summary>
+    public static void RequestReload() => _dirty = true;
 
     /// <summary>Call from game thread (e.g. process tick) to apply pending hot-reload.</summary>
     public static void ProcessPendingReload()
@@ -119,64 +126,89 @@ internal static class ScriptManager
 
     public static void Reload()
     {
-        _scripts.Clear();
-        LastError = null;
-        LastReloadTime = DateTime.Now;
-
-        if (!Directory.Exists(ScriptsDir)) return;
-
-        try
+        lock (_reloadLock)
         {
-            foreach (var file in Directory.GetFiles(ScriptsDir, "*.json"))
-            {
-                try
-                {
-                    var json = File.ReadAllText(file);
-                    var entry = JsonSerializer.Deserialize<ScriptEntry>(json, JsonOpts);
-                    if (entry == null) continue;
+            var next = new List<LoadedScript>();
+            LastError = null;
+            LastReloadTime = DateTime.Now;
 
-                    _scripts.Add(new LoadedScript
-                    {
-                        FilePath = file,
-                        FileName = Path.GetFileName(file),
-                        Entry = entry,
-                    });
-                }
-                catch (Exception ex)
+            if (!Directory.Exists(ScriptsDir)) { _scripts = next; return; }
+
+            try
+            {
+                foreach (var file in Directory.GetFiles(ScriptsDir, "*.json"))
                 {
-                    _scripts.Add(new LoadedScript
+                    try
                     {
-                        FilePath = file,
-                        FileName = Path.GetFileName(file),
-                        ParseError = ex.Message,
-                    });
-                    LastError = $"{Path.GetFileName(file)}: {ex.Message}";
-                    MainFile.Logger.Warn($"[ScriptManager] Parse error in {Path.GetFileName(file)}: {ex.Message}");
+                        var json = File.ReadAllText(file);
+                        var entry = JsonSerializer.Deserialize<ScriptEntry>(json, JsonOpts);
+                        if (entry == null) continue;
+
+                        next.Add(new LoadedScript
+                        {
+                            FilePath = file,
+                            FileName = Path.GetFileName(file),
+                            Entry = entry,
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        next.Add(new LoadedScript
+                        {
+                            FilePath = file,
+                            FileName = Path.GetFileName(file),
+                            ParseError = ex.Message,
+                        });
+                        LastError = $"{Path.GetFileName(file)}: {ex.Message}";
+                        MainFile.Logger.Warn($"[ScriptManager] Parse error in {Path.GetFileName(file)}: {ex.Message}");
+                    }
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            LastError = ex.Message;
-            MainFile.Logger.Warn($"[ScriptManager] Reload failed: {ex.Message}");
+            catch (Exception ex)
+            {
+                LastError = ex.Message;
+                MainFile.Logger.Warn($"[ScriptManager] Reload failed: {ex.Message}");
+            }
+
+            _scripts = next;
+            ReloadVersion++;
         }
     }
 
     public static void SaveScript(ScriptEntry entry, string fileName)
+    {
+        var json = JsonSerializer.Serialize(entry, JsonOpts);
+        SaveRaw(fileName, json);
+    }
+
+    /// <summary>Write raw JSON content directly to scripts/ (used by WebSocket bridge).</summary>
+    public static void SaveRaw(string fileName, string rawJson)
     {
         try
         {
             if (!Directory.Exists(ScriptsDir))
                 Directory.CreateDirectory(ScriptsDir);
 
-            var path = Path.Combine(ScriptsDir, fileName);
-            var json = JsonSerializer.Serialize(entry, JsonOpts);
-            File.WriteAllText(path, json);
+            var safe = Path.GetFileName(fileName);
+            if (!safe.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                safe += ".json";
+
+            File.WriteAllText(Path.Combine(ScriptsDir, safe), rawJson);
         }
         catch (Exception ex)
         {
             MainFile.Logger.Warn($"[ScriptManager] Save failed: {ex.Message}");
         }
+    }
+
+    public static string? ReadRaw(string fileName)
+    {
+        try
+        {
+            var path = Path.Combine(ScriptsDir, Path.GetFileName(fileName));
+            return File.Exists(path) ? File.ReadAllText(path) : null;
+        }
+        catch { return null; }
     }
 
     public static void DeleteScript(string fileName)

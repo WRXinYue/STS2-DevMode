@@ -1,11 +1,12 @@
 using Godot;
 using DevMode.Patches;
+using DevMode.Scripts;
 
 namespace DevMode;
 
 /// <summary>
 /// Lightweight Godot Node that hooks into the scene tree's _Process loop.
-/// Drives RuntimeStatModifiers and AssetWarmupService each frame.
+/// Drives RuntimeStatModifiers, AssetWarmupService, and script hot-reload each frame.
 /// </summary>
 internal partial class DevModeProcessNode : Node
 {
@@ -13,5 +14,6 @@ internal partial class DevModeProcessNode : Node
     {
         if (!DevModeState.InDevRun && !DevModeState.AlwaysEnabled) return;
         GlobalUiReadyPatch.Process(delta);
+        ScriptManager.ProcessPendingReload();
     }
 }
