@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **SpireScratch** — visual block scripting with a bundled Blockly editor: rules save as JSON in the mod `scripts` folder, reload on file changes, and run on the same hook triggers/conditions/actions as the Hooks system. The **Scripts** panel lists loaded scripts with per-script enable/disable, shortcuts to open the scripts folder or editor, and optional migration of existing Hook rules into script files.
+
 ## [0.4.0] - 2026-04-08
 
 ### Added
