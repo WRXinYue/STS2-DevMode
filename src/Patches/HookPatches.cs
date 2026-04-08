@@ -9,6 +9,7 @@ using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.ValueProps;
 using DevMode.Hooks;
+using DevMode.Scripts;
 
 namespace DevMode.Patches;
 
@@ -36,25 +37,30 @@ public static class HookCombatSetupPatch
 
         _turnStartHandler = combatState =>
         {
+            ScriptManager.ProcessPendingReload();
             RunContext.TryGetRunAndPlayer(out var runState, out var p);
             if (firstTurn)
             {
                 firstTurn = false;
                 HookManager.Fire(TriggerType.CombatStart, p);
+                ScriptManager.Fire(TriggerType.CombatStart, p);
             }
             HookManager.Fire(TriggerType.TurnStart, p);
+            ScriptManager.Fire(TriggerType.TurnStart, p);
         };
 
         _turnEndHandler = combatState =>
         {
             RunContext.TryGetRunAndPlayer(out var runState, out var p);
             HookManager.Fire(TriggerType.TurnEnd, p);
+            ScriptManager.Fire(TriggerType.TurnEnd, p);
         };
 
         _combatEndHandler = room =>
         {
             RunContext.TryGetRunAndPlayer(out var runState, out var p);
             HookManager.Fire(TriggerType.CombatEnd, p);
+            ScriptManager.Fire(TriggerType.CombatEnd, p);
         };
 
         __instance.TurnStarted += _turnStartHandler;
@@ -72,6 +78,7 @@ public static class HookDrawPatch
     {
         if (!DevModeState.InDevRun && !DevModeState.AlwaysEnabled) return;
         HookManager.Fire(TriggerType.OnDraw, player);
+        ScriptManager.Fire(TriggerType.OnDraw, player);
     }
 }
 
@@ -89,9 +96,15 @@ public static class HookDamagePatch
         RunContext.TryGetRunAndPlayer(out _, out player);
 
         if (__instance.Player != null)
+        {
             HookManager.Fire(TriggerType.OnDamageTaken, player);
+            ScriptManager.Fire(TriggerType.OnDamageTaken, player);
+        }
         else
+        {
             HookManager.Fire(TriggerType.OnDamageDealt, player);
+            ScriptManager.Fire(TriggerType.OnDamageDealt, player);
+        }
     }
 }
 
@@ -106,5 +119,62 @@ public static class HookPotionUsedPatch
         Player? player = null;
         RunContext.TryGetRunAndPlayer(out _, out player);
         HookManager.Fire(TriggerType.OnPotionUsed, player);
+        ScriptManager.Fire(TriggerType.OnPotionUsed, player);
+    }
+}
+
+/// <summary>
+/// Fire OnCardPlayed — applied at runtime via <see cref="ScriptCardPlayedPatch.TryApply"/>
+/// because the target method name varies across STS2 versions.
+/// </summary>
+public static class ScriptCardPlayedPatch
+{
+    private static readonly string[] CandidateMethods = ["PlayCard", "UseCard", "Play"];
+
+    public static void TryApply(HarmonyLib.Harmony harmony)
+    {
+        var cmType = typeof(CombatManager);
+        foreach (var name in CandidateMethods)
+        {
+            var method = cmType.GetMethod(name,
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            if (method == null) continue;
+
+            try
+            {
+                var postfix = new HarmonyMethod(typeof(ScriptCardPlayedPatch), nameof(Postfix));
+                harmony.Patch(method, postfix: postfix);
+                MainFile.Logger.Info($"[HookPatches] OnCardPlayed bound to CombatManager.{name}");
+                return;
+            }
+            catch (System.Exception ex)
+            {
+                MainFile.Logger.Warn($"[HookPatches] Failed to patch CombatManager.{name}: {ex.Message}");
+            }
+        }
+        MainFile.Logger.Info("[HookPatches] OnCardPlayed: no matching method found — trigger disabled.");
+    }
+
+    public static void Postfix()
+    {
+        if (!DevModeState.InDevRun && !DevModeState.AlwaysEnabled) return;
+        Player? player = null;
+        RunContext.TryGetRunAndPlayer(out _, out player);
+        HookManager.Fire(TriggerType.OnCardPlayed, player);
+        ScriptManager.Fire(TriggerType.OnCardPlayed, player);
+    }
+}
+
+/// <summary>Fire OnShuffle when the draw pile is shuffled.</summary>
+[HarmonyPatch(typeof(CardPileCmd), nameof(CardPileCmd.Shuffle))]
+public static class ScriptShufflePatch
+{
+    public static void Postfix()
+    {
+        if (!DevModeState.InDevRun && !DevModeState.AlwaysEnabled) return;
+        Player? player = null;
+        RunContext.TryGetRunAndPlayer(out _, out player);
+        HookManager.Fire(TriggerType.OnShuffle, player);
+        ScriptManager.Fire(TriggerType.OnShuffle, player);
     }
 }

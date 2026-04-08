@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SpireScratch — STS2</title>
+  <script src="https://unpkg.com/blockly/blockly.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #16213e;
+      border-bottom: 1px solid #0f3460;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #e94560;
+      white-space: nowrap;
+    }
+    header .sep {
+      width: 1px;
+      height: 24px;
+      background: #0f3460;
+    }
+    header label {
+      font-size: 12px;
+      color: #7f8c8d;
+    }
+    header input[type="text"] {
+      background: #1a1a2e;
+      border: 1px solid #0f3460;
+      color: #e0e0e0;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      width: 200px;
+    }
+    header input[type="text"]:focus {
+      outline: none;
+      border-color: #e94560;
+    }
+    header select {
+      background: #1a1a2e;
+      border: 1px solid #0f3460;
+      color: #e0e0e0;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    header select:focus { outline: none; border-color: #e94560; }
+    header button {
+      background: #0f3460;
+      color: #e0e0e0;
+      border: none;
+      padding: 5px 14px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    header button:hover { background: #e94560; }
+    header button.primary {
+      background: #e94560;
+      font-weight: 600;
+    }
+    header button.primary:hover { background: #c73750; }
+
+    #dirLabel {
+      font-size: 11px;
+      color: #7f8c8d;
+      white-space: nowrap;
+    }
+
+    /* ── Blockly area ── */
+    #blocklyDiv {
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* ── Footer ── */
+    footer {
+      background: #16213e;
+      border-top: 1px solid #0f3460;
+      padding: 6px 16px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    #status {
+      color: #7f8c8d;
+      flex: 1;
+    }
+    footer .hint {
+      color: #555;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1 id="headerTitle">SpireScratch</h1>
+  <div class="sep"></div>
+
+  <label id="labelName">Name:</label>
+  <input type="text" id="scriptName" value="My Script" placeholder="Script name">
+
+  <div class="sep"></div>
+
+  <button id="btnSave" class="primary">Save</button>
+  <button id="btnLoad">Load</button>
+  <button id="btnBindDir">Bind Folder</button>
+  <span id="dirLabel"></span>
+
+  <div class="sep"></div>
+
+  <button id="btnExport">Export XML</button>
+  <button id="btnImport">Import XML</button>
+  <button id="btnClear">Clear</button>
+
+  <div class="sep"></div>
+
+  <select id="langSelect">
+    <option value="en">English</option>
+    <option value="zh">中文</option>
+  </select>
+</header>
+
+<div id="blocklyDiv"></div>
+
+<footer>
+  <span id="status">Loading...</span>
+  <span id="footerHint" class="hint">STS2 DevMode • SpireScratch Visual Scripting</span>
+</footer>
+
+<script src="i18n.js"></script>
+<script src="blocks.js"></script>
+<script src="generators.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>

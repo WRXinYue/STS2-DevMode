@@ -33,7 +33,8 @@ public enum ActivePanel
     Console,
     Presets,
     CardEdit,
-    Hooks
+    Hooks,
+    Scripts
 }
 
 public enum PowerTarget

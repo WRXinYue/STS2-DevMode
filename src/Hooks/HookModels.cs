@@ -12,6 +12,8 @@ public enum TriggerType
     OnDamageDealt,
     OnDamageTaken,
     OnPotionUsed,
+    OnCardPlayed,
+    OnShuffle,
 }
 
 public enum ActionType

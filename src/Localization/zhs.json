@@ -513,5 +513,18 @@
 
   "hook.action.browse": "...",
   "hook.action.pickId": "选择 ID",
-  "hook.action.searchId": "搜索..."
+  "hook.action.searchId": "搜索...",
+
+  "hook.trigger.onCardPlayed": "打出卡牌时",
+  "hook.trigger.onShuffle": "洗牌时",
+
+  "panel.scripts": "脚本",
+  "script.title": "SpireScratch 可视化脚本",
+  "script.reload": "重新加载",
+  "script.openFolder": "打开文件夹",
+  "script.openEditor": "打开编辑器",
+  "script.status": "已加载 {0} 个脚本 — 上次刷新: {1}",
+  "script.empty": "未找到脚本。打开编辑器创建一个。",
+  "script.variables": "脚本变量",
+  "script.migrate": "迁移钩子规则 ({0})"
 }

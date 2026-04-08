@@ -161,6 +161,7 @@ internal static class DevPanel
         DevPanelRegistry.Register("devmode.console", MdiIcon.Console,     I18N.T("panel.console", "Console"),   700, DevPanelTabGroup.Primary, _ => OpenConsole());
         DevPanelRegistry.Register("devmode.presets", MdiIcon.BookOpen,    I18N.T("panel.presets", "Presets"),    800, DevPanelTabGroup.Primary, _ => OpenPresets());
         DevPanelRegistry.Register("devmode.hooks",  MdiIcon.LightningBolt, I18N.T("panel.hooks", "Hooks"),    900, DevPanelTabGroup.Primary, _ => OpenHooks());
+        DevPanelRegistry.Register("devmode.scripts", MdiIcon.PuzzleOutline, I18N.T("panel.scripts", "Scripts"), 950, DevPanelTabGroup.Primary, _ => OpenScripts());
 
         // Utility group — settings / tools
         DevPanelRegistry.Register("devmode.save",     MdiIcon.ContentSave, I18N.T("panel.save", "Save / Load"), 100, DevPanelTabGroup.Utility, gui => DevPanelUI.ShowSaveLoadOverlay(gui, actions));
@@ -344,6 +345,16 @@ internal static class DevPanel
         HookConfigUI.Show(_globalUi);
     }
 
+    private static void OpenScripts()
+    {
+        if (_globalUi == null) return;
+        TryDismissCurrent();
+        DevModeState.ActivePanel = ActivePanel.Scripts;
+        UpdateTopBar();
+
+        ScriptUI.Show(_globalUi);
+    }
+
     private static void StartNewTest()
     {
         try
@@ -389,6 +400,7 @@ internal static class DevPanel
             case ActivePanel.Console:  OpenConsole();  break;
             case ActivePanel.Presets:  OpenPresets();  break;
             case ActivePanel.Hooks:   OpenHooks();   break;
+            case ActivePanel.Scripts: OpenScripts(); break;
             case ActivePanel.CardEdit: break;
         }
     }

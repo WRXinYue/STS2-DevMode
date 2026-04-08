@@ -88,23 +88,33 @@
       <DeployFiles Include="$(PublishDir)\$(ModId).deps.json" />
       <DeployFiles Include="$(PublishDir)\$(ModId).pck" Condition="Exists('$(PublishDir)\$(ModId).pck')" />
       <DeployFiles Include="$(MSBuildProjectDirectory)\$(ModId).json" />
+      <EditorFiles Include="$(MSBuildProjectDirectory)\editor\**\*" />
     </ItemGroup>
     <MakeDir Directories="$(ModsDir)" />
     <MakeDir Directories="$(ModsDir)\localization" />
+    <MakeDir Directories="$(ModsDir)\editor" />
+    <MakeDir Directories="$(ModsDir)\scripts" />
     <Copy SourceFiles="@(DeployFiles)" DestinationFolder="$(ModsDir)" SkipUnchangedFiles="true" />
     <Copy SourceFiles="$(MSBuildProjectDirectory)\src\Localization\eng.json" DestinationFolder="$(ModsDir)\localization" SkipUnchangedFiles="true" />
     <Copy SourceFiles="$(MSBuildProjectDirectory)\src\Localization\zhs.json" DestinationFolder="$(ModsDir)\localization" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(EditorFiles)" DestinationFolder="$(ModsDir)\editor\%(RecursiveDir)" SkipUnchangedFiles="true" />
   </Target>
 
   <!-- Copy repo build artifacts to game mods (used by VS Code sync task) -->
   <Target Name="DeployRepoBuildToMods" DependsOnTargets="CheckLocalProps">
     <Error Condition="'$(DeployFromRepoBuild)' != 'true'" Text="Set DeployFromRepoBuild=true (e.g. make deploy)." />
+    <ItemGroup>
+      <RepoEditorFiles Include="$(MSBuildProjectDirectory)\editor\**\*" />
+    </ItemGroup>
     <MakeDir Directories="$(ModsDir)\" />
     <MakeDir Directories="$(ModsDir)\localization" />
+    <MakeDir Directories="$(ModsDir)\editor" />
+    <MakeDir Directories="$(ModsDir)\scripts" />
     <Copy SourceFiles="$(RepoBuildDir)\$(ModId).dll" DestinationFolder="$(ModsDir)\" SkipUnchangedFiles="true" Condition="Exists('$(RepoBuildDir)\$(ModId).dll')" />
     <Copy SourceFiles="$(RepoBuildDir)\$(ModId).json" DestinationFolder="$(ModsDir)\" SkipUnchangedFiles="true" Condition="Exists('$(RepoBuildDir)\$(ModId).json')" />
     <Copy SourceFiles="$(RepoBuildDir)\$(ModId).pck" DestinationFolder="$(ModsDir)\" SkipUnchangedFiles="true" Condition="Exists('$(RepoBuildDir)\$(ModId).pck')" />
     <Copy SourceFiles="$(MSBuildProjectDirectory)\src\Localization\eng.json" DestinationFolder="$(ModsDir)\localization" SkipUnchangedFiles="true" />
     <Copy SourceFiles="$(MSBuildProjectDirectory)\src\Localization\zhs.json" DestinationFolder="$(ModsDir)\localization" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(RepoEditorFiles)" DestinationFolder="$(ModsDir)\editor\%(RecursiveDir)" SkipUnchangedFiles="true" />
   </Target>
 </Project>

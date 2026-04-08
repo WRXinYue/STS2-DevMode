@@ -566,6 +566,8 @@ internal static class HookConfigUI
         TriggerType.OnDamageDealt => I18N.T("hook.trigger.onDamageDealt", "On Damage Dealt"),
         TriggerType.OnDamageTaken => I18N.T("hook.trigger.onDamageTaken", "On Damage Taken"),
         TriggerType.OnPotionUsed  => I18N.T("hook.trigger.onPotionUsed",  "On Potion Used"),
+        TriggerType.OnCardPlayed  => I18N.T("hook.trigger.onCardPlayed",  "On Card Played"),
+        TriggerType.OnShuffle     => I18N.T("hook.trigger.onShuffle",     "On Shuffle"),
         _ => "?"
     };
 
@@ -579,6 +581,8 @@ internal static class HookConfigUI
         TriggerType.OnDamageDealt => "💥",
         TriggerType.OnDamageTaken => "🩸",
         TriggerType.OnPotionUsed  => "🧪",
+        TriggerType.OnCardPlayed  => "🃏",
+        TriggerType.OnShuffle     => "🔀",
         _ => "?"
     };
 

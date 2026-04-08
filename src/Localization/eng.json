@@ -481,5 +481,18 @@
 
   "hook.action.browse": "...",
   "hook.action.pickId": "Select ID",
-  "hook.action.searchId": "Search..."
+  "hook.action.searchId": "Search...",
+
+  "hook.trigger.onCardPlayed": "On Card Played",
+  "hook.trigger.onShuffle": "On Shuffle",
+
+  "panel.scripts": "Scripts",
+  "script.title": "SpireScratch Scripts",
+  "script.reload": "Reload",
+  "script.openFolder": "Open Folder",
+  "script.openEditor": "Open Editor",
+  "script.status": "{0} script(s) loaded — last reload: {1}",
+  "script.empty": "No scripts found. Open the editor to create one.",
+  "script.variables": "Script Variables",
+  "script.migrate": "Migrate Hooks ({0})"
 }

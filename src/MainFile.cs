@@ -1,5 +1,7 @@
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Modding;
+using DevMode.Patches;
+using DevMode.Scripts;
 using DevMode.Settings;
 
 namespace DevMode;
@@ -22,8 +24,11 @@ public class MainFile
         // Initialize localization before anything else
         I18N.Initialize();
 
+        ScriptManager.Initialize();
+
         var harmony = new Harmony(ModID);
         harmony.PatchAll();
+        ScriptCardPlayedPatch.TryApply(harmony);
         Logger.Info("DevMode initialized — Harmony patches applied.");
     }
 }

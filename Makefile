@@ -60,10 +60,13 @@ zip: build
 	@if exist build\dist rmdir /s /q build\dist
 	@mkdir "$(DIST_DIR)"
 	@mkdir "$(DIST_DIR)\localization"
+	@mkdir "$(DIST_DIR)\editor"
+	@mkdir "$(DIST_DIR)\scripts"
 	@copy /y build\DevMode\DevMode.dll "$(DIST_DIR)\" >nul
 	@copy /y build\DevMode\DevMode.deps.json "$(DIST_DIR)\" >nul
 	@copy /y DevMode.json "$(DIST_DIR)\" >nul
 	@copy /y src\Localization\*.json "$(DIST_DIR)\localization\" >nul
+	@xcopy /s /y /q editor\* "$(DIST_DIR)\editor\" >nul
 	@if exist "$(ZIP_NAME)" del "$(ZIP_NAME)"
 	python -c "import zipfile,os;z=zipfile.ZipFile('$(ZIP_NAME)','w',zipfile.ZIP_DEFLATED);[z.write(os.path.join(r,f),os.path.join(os.path.relpath(r,'build\\dist'),f)) for r,_,fs in os.walk('build\\dist\\DevMode') for f in fs];z.close()"
 	@echo.

@@ -129,6 +129,9 @@ public readonly struct MdiIcon
     public static readonly MdiIcon Hook               = new("hook");
     public static readonly MdiIcon LightningBolt      = new("lightning-bolt");
 
+    // Scripts / SpireScratch
+    public static readonly MdiIcon PuzzleOutline      = new("puzzle-outline");
+
     // Appearance / theme
     public static readonly MdiIcon WeatherNight       = new("weather-night");
     public static readonly MdiIcon WeatherSunny       = new("weather-sunny");
