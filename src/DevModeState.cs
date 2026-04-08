@@ -32,7 +32,8 @@ public enum ActivePanel
     Rooms,
     Console,
     Presets,
-    CardEdit
+    CardEdit,
+    Hooks
 }
 
 public enum PowerTarget

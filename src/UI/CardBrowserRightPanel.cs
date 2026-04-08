@@ -10,7 +10,9 @@ using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Runs;
 using DevMode.Actions;
+using DevMode.Hooks;
 using DevMode.Presets;
+using DevMode.Settings;
 
 namespace DevMode.UI;
 
@@ -35,6 +37,11 @@ internal static class CardBrowserRightPanel
         };
         headerLabel.AddThemeFontSizeOverride("font_size", 16);
         container.AddChild(headerLabel);
+
+        var cardIdStr = ((AbstractModel)card).Id.Entry;
+        if (!string.IsNullOrEmpty(cardIdStr))
+            container.AddChild(DevModeTheme.CreateCopyableIdRow(cardIdStr,
+                msg => statusLabel.Text = msg));
 
         var infoLines = new List<string>();
         var typeName = CardBrowserUI.GetLocalizedTypeName(card);
@@ -143,6 +150,30 @@ internal static class CardBrowserRightPanel
                 CardEditActions.GetCardDisplayName(card));
         };
         container.AddChild(addBtn);
+
+        var autoApplyBtn = CreateActionButton(
+            I18N.T("cardBrowser.autoApply", "Add to Auto-Apply"),
+            new Color(0.25f, 0.55f, 0.38f, 0.85f));
+        autoApplyBtn.Pressed += () =>
+        {
+            var cardId = ((AbstractModel)card).Id.Entry;
+            var cardName = CardEditActions.GetCardDisplayName(card);
+            var entry = new HookEntry
+            {
+                Name    = cardName,
+                Trigger = TriggerType.CombatStart,
+                Actions = [new HookAction
+                {
+                    Type     = ActionType.AddCard,
+                    TargetId = cardId,
+                }],
+            };
+            SettingsStore.Current.Hooks.Add(entry);
+            SettingsStore.Save();
+            statusLabel.Text = string.Format(
+                I18N.T("cardBrowser.autoApplyAdded", "Auto-apply added: {0}"), cardName);
+        };
+        container.AddChild(autoApplyBtn);
     }
 
     // ── Owned card actions (Upgrade + Remove) ──

@@ -125,6 +125,10 @@ public readonly struct MdiIcon
     public static readonly MdiIcon SortAscending      = new("sort-ascending");
     public static readonly MdiIcon SortDescending     = new("sort-descending");
 
+    // Hooks
+    public static readonly MdiIcon Hook               = new("hook");
+    public static readonly MdiIcon LightningBolt      = new("lightning-bolt");
+
     // Appearance / theme
     public static readonly MdiIcon WeatherNight       = new("weather-night");
     public static readonly MdiIcon WeatherSunny       = new("weather-sunny");

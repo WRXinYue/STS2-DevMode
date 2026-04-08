@@ -451,5 +451,67 @@
   "theme.dark": "深色",
   "theme.oled": "OLED 纯黑",
   "theme.light": "浅色",
-  "theme.warm": "暖色"
+  "theme.warm": "暖色",
+
+  "panel.hooks": "钩子",
+
+  "hook.title": "钩子规则",
+  "hook.add": "+ 新建规则",
+  "hook.newRule": "新规则",
+  "hook.empty": "暂无规则配置。",
+  "hook.selectHint": "选择一条规则或新建",
+  "hook.name": "名称",
+  "hook.trigger": "触发点",
+  "hook.conditions": "条件",
+  "hook.noConditions": "（始终执行）",
+  "hook.actions": "动作",
+  "hook.delete": "删除规则",
+
+  "hook.trigger.combatStart": "战斗开始",
+  "hook.trigger.combatEnd": "战斗结束",
+  "hook.trigger.turnStart": "回合开始",
+  "hook.trigger.turnEnd": "回合结束",
+  "hook.trigger.onDraw": "抽牌时",
+  "hook.trigger.onDamageDealt": "造成伤害时",
+  "hook.trigger.onDamageTaken": "受到伤害时",
+  "hook.trigger.onPotionUsed": "使用药水时",
+
+  "hook.action.applyPower": "施加能力",
+  "hook.action.addCard": "添加卡牌",
+  "hook.action.saveSlot": "保存存档",
+  "hook.action.usePotion": "使用药水",
+  "hook.action.targetId": "ID",
+  "hook.action.amount": "数量",
+  "hook.action.target": "目标",
+  "hook.action.slot": "存档槽",
+
+  "hook.condition.none": "无",
+  "hook.condition.hpBelow": "HP 低于 %",
+  "hook.condition.hpAbove": "HP 高于 %",
+  "hook.condition.floorAbove": "楼层高于",
+  "hook.condition.floorBelow": "楼层低于",
+  "hook.condition.hasPower": "拥有能力",
+  "hook.condition.notHasPower": "未拥有能力",
+
+  "hook.target.player": "玩家",
+  "hook.target.enemies": "全体敌人",
+  "hook.target.allies": "友方",
+
+  "power.autoApply.add": "添加到自动施加",
+  "power.autoApply.title": "自动施加（战斗开始）",
+  "power.autoApply.empty": "暂无自动施加规则",
+  "power.autoApply.clearAll": "全部清除",
+
+  "potionBrowser.autoApply": "添加到自动施加",
+  "potionBrowser.autoApplyAdded": "已添加自动施加: {0}",
+
+  "cardBrowser.autoApply": "添加到自动施加",
+  "cardBrowser.autoApplyAdded": "已添加自动施加: {0}",
+
+  "common.copyId": "复制",
+  "common.copiedId": "已复制: {0}",
+
+  "hook.action.browse": "...",
+  "hook.action.pickId": "选择 ID",
+  "hook.action.searchId": "搜索..."
 }

@@ -9,6 +9,8 @@ using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using DevMode.Actions;
+using DevMode.Hooks;
+using DevMode.Settings;
 
 namespace DevMode.UI;
 
@@ -58,12 +60,15 @@ internal static class PowerSelectUI
         public Label                     DetailTypeBadge    = null!;
         public Label                     DetailStackBadge   = null!;
         public RichTextLabel             DetailDesc         = null!;
+        public VBoxContainer             DetailIdContainer  = null!;
         public Button                    BtnSelf            = null!;
         public Button                    BtnAllEnemies      = null!;
         public Button                    BtnAllies          = null!;
         public SpinBox                   AmountSpin         = null!;
         public Button                    ApplyBtn           = null!;
+        public Button                    AutoApplyBtn       = null!;
         public VBoxContainer             CurrentPowersList  = null!;
+        public VBoxContainer             AutoApplyList      = null!;
         public Label                     CombatWarningLabel = null!;
     }
 
@@ -319,6 +324,9 @@ internal static class PowerSelectUI
         badgeRow.AddChild(s.DetailStackBadge);
         nameCol.AddChild(badgeRow);
 
+        s.DetailIdContainer = new VBoxContainer();
+        nameCol.AddChild(s.DetailIdContainer);
+
         iconRow.AddChild(nameCol);
         inner.AddChild(iconRow);
 
@@ -396,6 +404,43 @@ internal static class PowerSelectUI
         };
         inner.AddChild(s.ApplyBtn);
 
+        // ── Add to Auto-Apply button ──
+        s.AutoApplyBtn = new Button
+        {
+            Text                = I18N.T("power.autoApply.add", "Add to Auto-Apply"),
+            Disabled            = true,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            CustomMinimumSize   = new Vector2(0, 30),
+        };
+        AutoApplyBtnStyle(s.AutoApplyBtn);
+        s.AutoApplyBtn.Pressed += () =>
+        {
+            if (s.Selected == null) return;
+            var powerId = ((AbstractModel)s.Selected).Id.Entry;
+            var target = s.Target switch
+            {
+                PowerTarget.AllEnemies => HookTargetType.AllEnemies,
+                PowerTarget.Allies    => HookTargetType.Allies,
+                _                     => HookTargetType.Player
+            };
+            var entry = new HookEntry
+            {
+                Name    = PowerActions.GetPowerDisplayName(s.Selected),
+                Trigger = TriggerType.CombatStart,
+                Actions = [new HookAction
+                {
+                    Type     = ActionType.ApplyPower,
+                    TargetId = powerId,
+                    Amount   = s.Amount,
+                    Target   = target,
+                }],
+            };
+            SettingsStore.Current.Hooks.Add(entry);
+            SettingsStore.Save();
+            RefreshAutoApplyList(s);
+        };
+        inner.AddChild(s.AutoApplyBtn);
+
         inner.AddChild(MakeDivider());
 
         // ── Active powers on player ──
@@ -432,11 +477,51 @@ internal static class PowerSelectUI
         curScroll.AddChild(s.CurrentPowersList);
         inner.AddChild(curScroll);
 
+        inner.AddChild(MakeDivider());
+
+        // ── Auto-Apply list ──
+        var autoHdr = new HBoxContainer();
+        autoHdr.AddThemeConstantOverride("separation", 8);
+        var autoLbl = new Label
+        {
+            Text                = I18N.T("power.autoApply.title", "Auto-Apply (Combat Start)"),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        autoLbl.AddThemeFontSizeOverride("font_size", 11);
+        autoLbl.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
+        autoHdr.AddChild(autoLbl);
+
+        var autoClearBtn = new Button { Text = I18N.T("power.autoApply.clearAll", "Clear All"), FocusMode = Control.FocusModeEnum.None };
+        autoClearBtn.AddThemeFontSizeOverride("font_size", 10);
+        autoClearBtn.Pressed += () =>
+        {
+            SettingsStore.Current.Hooks.RemoveAll(h =>
+                h.Trigger == TriggerType.CombatStart &&
+                h.Actions.Count == 1 &&
+                h.Actions[0].Type == ActionType.ApplyPower);
+            SettingsStore.Save();
+            RefreshAutoApplyList(s);
+        };
+        autoHdr.AddChild(autoClearBtn);
+        inner.AddChild(autoHdr);
+
+        var autoScroll = new ScrollContainer
+        {
+            SizeFlagsVertical    = Control.SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            CustomMinimumSize    = new Vector2(0, 50),
+        };
+        s.AutoApplyList = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        s.AutoApplyList.AddThemeConstantOverride("separation", 4);
+        autoScroll.AddChild(s.AutoApplyList);
+        inner.AddChild(autoScroll);
+
         margin.AddChild(inner);
         pane.AddChild(margin);
         body.AddChild(pane);
 
         RefreshCurrentPowers(s, player);
+        RefreshAutoApplyList(s);
     }
 
     // ─────────────────────────────── Grid rebuild ───────────────────────────────
@@ -600,7 +685,9 @@ internal static class PowerSelectUI
         s.DetailDesc.Text           = "";
         s.DetailIcon.Visible        = false;
         s.DetailIconFallback.Visible= true;
+        foreach (var c in s.DetailIdContainer.GetChildren()) ((Node)c).QueueFree();
         s.ApplyBtn.Disabled         = true;
+        s.AutoApplyBtn.Disabled     = true;
         s.CombatWarningLabel.Visible= false;
     }
 
@@ -614,6 +701,12 @@ internal static class PowerSelectUI
 
         s.DetailStackBadge.Text = power.StackType.ToString();
         s.DetailStackBadge.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
+
+        // ID row
+        foreach (var c in s.DetailIdContainer.GetChildren()) ((Node)c).QueueFree();
+        var powerId = ((AbstractModel)power).Id.Entry;
+        if (!string.IsNullOrEmpty(powerId))
+            s.DetailIdContainer.AddChild(DevModeTheme.CreateCopyableIdRow(powerId));
 
         // Icon — try BigIcon first, fall back to atlas Icon
         Texture2D? icon = null;
@@ -644,6 +737,7 @@ internal static class PowerSelectUI
         catch { s.DetailDesc.Text = I18N.T("power.no_desc", "(No description)"); }
 
         s.ApplyBtn.Disabled = false;
+        s.AutoApplyBtn.Disabled = false;
 
         // Show combat warning if not in combat
         var inCombat = CombatManager.Instance?.IsInProgress ?? false;
@@ -804,4 +898,144 @@ internal static class PowerSelectUI
         CustomMinimumSize = new Vector2(0, 1),
         SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
     };
+
+    // ─────────────────────────────── Auto-Apply list ───────────────────────────────
+
+    private static void RefreshAutoApplyList(State s)
+    {
+        foreach (var child in s.AutoApplyList.GetChildren())
+            ((Node)child).QueueFree();
+
+        var hooks = SettingsStore.Current.Hooks;
+        var autoBuffs = hooks
+            .Where(h => h.Actions.Any(a => a.Type == ActionType.ApplyPower))
+            .ToList();
+
+        if (autoBuffs.Count == 0)
+        {
+            var none = new Label { Text = I18N.T("power.autoApply.empty", "No auto-apply rules") };
+            none.AddThemeFontSizeOverride("font_size", 11);
+            none.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
+            s.AutoApplyList.AddChild(none);
+            return;
+        }
+
+        foreach (var hook in autoBuffs)
+        {
+            foreach (var action in hook.Actions.Where(a => a.Type == ActionType.ApplyPower))
+            {
+                var row = new HBoxContainer();
+                row.AddThemeConstantOverride("separation", 6);
+
+                var triggerLabel = new Label
+                {
+                    Text = GetTriggerShortLabel(hook.Trigger),
+                    CustomMinimumSize = new Vector2(18, 0),
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                triggerLabel.AddThemeFontSizeOverride("font_size", 9);
+                triggerLabel.AddThemeColorOverride("font_color", DevModeTheme.Accent);
+                row.AddChild(triggerLabel);
+
+                var targetCol = action.Target switch
+                {
+                    HookTargetType.AllEnemies => ColDebuff,
+                    HookTargetType.Allies    => new Color(0.45f, 0.65f, 0.85f),
+                    _                        => ColBuff
+                };
+
+                var nameLabel = new Label
+                {
+                    Text                = $"{action.TargetId}  x{action.Amount}",
+                    SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+                    VerticalAlignment   = VerticalAlignment.Center,
+                };
+                nameLabel.AddThemeFontSizeOverride("font_size", 11);
+                nameLabel.AddThemeColorOverride("font_color", targetCol.Lerp(ColLight, 0.4f));
+                row.AddChild(nameLabel);
+
+                var targetTag = new Label
+                {
+                    Text              = GetTargetShortLabel(action.Target),
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                targetTag.AddThemeFontSizeOverride("font_size", 9);
+                targetTag.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
+                row.AddChild(targetTag);
+
+                var toggleBtn = new CheckButton
+                {
+                    ButtonPressed = hook.Enabled,
+                    FocusMode     = Control.FocusModeEnum.None,
+                    CustomMinimumSize = new Vector2(40, 22),
+                };
+                var capturedHook = hook;
+                toggleBtn.Toggled += on =>
+                {
+                    capturedHook.Enabled = on;
+                    SettingsStore.Save();
+                };
+                row.AddChild(toggleBtn);
+
+                var removeBtn = new Button
+                {
+                    Text              = "×",
+                    CustomMinimumSize = new Vector2(24, 22),
+                    FocusMode         = Control.FocusModeEnum.None,
+                };
+                removeBtn.AddThemeFontSizeOverride("font_size", 13);
+                removeBtn.Pressed += () =>
+                {
+                    SettingsStore.Current.Hooks.Remove(capturedHook);
+                    SettingsStore.Save();
+                    RefreshAutoApplyList(s);
+                };
+                row.AddChild(removeBtn);
+
+                s.AutoApplyList.AddChild(row);
+            }
+        }
+    }
+
+    private static string GetTriggerShortLabel(TriggerType t) => t switch
+    {
+        TriggerType.CombatStart  => I18N.T("hook.trigger.combatStart.short",  "⚔"),
+        TriggerType.CombatEnd    => I18N.T("hook.trigger.combatEnd.short",    "🏁"),
+        TriggerType.TurnStart    => I18N.T("hook.trigger.turnStart.short",    "▶"),
+        TriggerType.TurnEnd      => I18N.T("hook.trigger.turnEnd.short",      "⏸"),
+        TriggerType.OnDraw       => I18N.T("hook.trigger.onDraw.short",       "🂠"),
+        TriggerType.OnDamageDealt=> I18N.T("hook.trigger.onDamageDealt.short","💥"),
+        TriggerType.OnDamageTaken=> I18N.T("hook.trigger.onDamageTaken.short","🩸"),
+        TriggerType.OnPotionUsed => I18N.T("hook.trigger.onPotionUsed.short", "🧪"),
+        _ => "?"
+    };
+
+    private static string GetTargetShortLabel(HookTargetType t) => t switch
+    {
+        HookTargetType.Player     => I18N.T("hook.target.player.short",  "P"),
+        HookTargetType.AllEnemies => I18N.T("hook.target.enemies.short", "E"),
+        HookTargetType.Allies    => I18N.T("hook.target.allies.short",  "A"),
+        _ => "?"
+    };
+
+    private static void AutoApplyBtnStyle(Button btn)
+    {
+        var style = new StyleBoxFlat
+        {
+            BgColor                = new Color(0.25f, 0.55f, 0.38f, 0.85f),
+            CornerRadiusTopLeft    = 6, CornerRadiusTopRight    = 6,
+            CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
+        };
+        var hoverStyle = new StyleBoxFlat
+        {
+            BgColor                = new Color(0.32f, 0.65f, 0.45f, 0.95f),
+            CornerRadiusTopLeft    = 6, CornerRadiusTopRight    = 6,
+            CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
+        };
+        btn.AddThemeStyleboxOverride("normal",  style);
+        btn.AddThemeStyleboxOverride("pressed", style);
+        btn.AddThemeStyleboxOverride("hover",   hoverStyle);
+        btn.AddThemeFontSizeOverride("font_size", 12);
+        btn.AddThemeColorOverride("font_color", ColLight);
+    }
 }

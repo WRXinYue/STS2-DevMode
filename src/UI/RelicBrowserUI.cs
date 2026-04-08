@@ -420,12 +420,8 @@ internal static partial class RelicBrowserUI
 
         // ID
         if (!string.IsNullOrEmpty(id))
-        {
-            var idLabel = new Label { Text = id, HorizontalAlignment = HorizontalAlignment.Center };
-            idLabel.AddThemeFontSizeOverride("font_size", 10);
-            idLabel.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
-            container.AddChild(idLabel);
-        }
+            container.AddChild(DevModeTheme.CreateCopyableIdRow(id,
+                msg => s.StatusLabel.Text = msg));
 
         // Description
         if (!string.IsNullOrWhiteSpace(desc))

@@ -419,5 +419,67 @@
   "theme.dark": "Dark",
   "theme.oled": "OLED",
   "theme.light": "Light",
-  "theme.warm": "Warm"
+  "theme.warm": "Warm",
+
+  "panel.hooks": "Hooks",
+
+  "hook.title": "Hook Rules",
+  "hook.add": "+ New Rule",
+  "hook.newRule": "New Rule",
+  "hook.empty": "No rules configured.",
+  "hook.selectHint": "Select a rule or create a new one",
+  "hook.name": "Name",
+  "hook.trigger": "Trigger",
+  "hook.conditions": "Conditions",
+  "hook.noConditions": "(Always execute)",
+  "hook.actions": "Actions",
+  "hook.delete": "Delete Rule",
+
+  "hook.trigger.combatStart": "Combat Start",
+  "hook.trigger.combatEnd": "Combat End",
+  "hook.trigger.turnStart": "Turn Start",
+  "hook.trigger.turnEnd": "Turn End",
+  "hook.trigger.onDraw": "On Draw",
+  "hook.trigger.onDamageDealt": "On Damage Dealt",
+  "hook.trigger.onDamageTaken": "On Damage Taken",
+  "hook.trigger.onPotionUsed": "On Potion Used",
+
+  "hook.action.applyPower": "Apply Power",
+  "hook.action.addCard": "Add Card",
+  "hook.action.saveSlot": "Save Slot",
+  "hook.action.usePotion": "Use Potion",
+  "hook.action.targetId": "ID",
+  "hook.action.amount": "Amount",
+  "hook.action.target": "Target",
+  "hook.action.slot": "Slot",
+
+  "hook.condition.none": "None",
+  "hook.condition.hpBelow": "HP Below %",
+  "hook.condition.hpAbove": "HP Above %",
+  "hook.condition.floorAbove": "Floor Above",
+  "hook.condition.floorBelow": "Floor Below",
+  "hook.condition.hasPower": "Has Power",
+  "hook.condition.notHasPower": "Not Has Power",
+
+  "hook.target.player": "Player",
+  "hook.target.enemies": "All Enemies",
+  "hook.target.allies": "Allies",
+
+  "power.autoApply.add": "Add to Auto-Apply",
+  "power.autoApply.title": "Auto-Apply (Combat Start)",
+  "power.autoApply.empty": "No auto-apply rules",
+  "power.autoApply.clearAll": "Clear All",
+
+  "potionBrowser.autoApply": "Add to Auto-Apply",
+  "potionBrowser.autoApplyAdded": "Auto-apply added: {0}",
+
+  "cardBrowser.autoApply": "Add to Auto-Apply",
+  "cardBrowser.autoApplyAdded": "Auto-apply added: {0}",
+
+  "common.copyId": "Copy",
+  "common.copiedId": "Copied: {0}",
+
+  "hook.action.browse": "...",
+  "hook.action.pickId": "Select ID",
+  "hook.action.searchId": "Search..."
 }

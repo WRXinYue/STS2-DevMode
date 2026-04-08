@@ -90,4 +90,39 @@ internal static class DevModeTheme
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
         };
     }
+
+    /// <summary>
+    /// Creates an HBoxContainer showing an item ID with a copy-to-clipboard button.
+    /// <paramref name="statusCallback"/> is invoked with feedback text after copy.
+    /// </summary>
+    public static HBoxContainer CreateCopyableIdRow(string id, System.Action<string>? statusCallback = null)
+    {
+        var row = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter };
+        row.AddThemeConstantOverride("separation", 4);
+
+        var label = new Label
+        {
+            Text              = id,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        label.AddThemeFontSizeOverride("font_size", 10);
+        label.AddThemeColorOverride("font_color", Subtle);
+        row.AddChild(label);
+
+        var copyBtn = new Button
+        {
+            Text              = I18N.T("common.copyId", "Copy"),
+            FocusMode         = Control.FocusModeEnum.None,
+            CustomMinimumSize = new Vector2(0, 20),
+        };
+        copyBtn.AddThemeFontSizeOverride("font_size", 9);
+        copyBtn.Pressed += () =>
+        {
+            DisplayServer.ClipboardSet(id);
+            statusCallback?.Invoke(string.Format(I18N.T("common.copiedId", "Copied: {0}"), id));
+        };
+        row.AddChild(copyBtn);
+
+        return row;
+    }
 }

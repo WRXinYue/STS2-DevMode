@@ -244,14 +244,11 @@ internal static class EnemySelectUI
         previewNameLabel.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
         previewVBox.AddChild(previewNameLabel);
 
-        var previewIdLabel = new Label
+        var previewIdContainer = new VBoxContainer
         {
-            Text = "",
-            HorizontalAlignment = HorizontalAlignment.Center
+            SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
         };
-        previewIdLabel.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
-        previewIdLabel.AddThemeFontSizeOverride("font_size", 11);
-        previewVBox.AddChild(previewIdLabel);
+        previewVBox.AddChild(previewIdContainer);
 
         var previewMonstersLabel = new Label
         {
@@ -287,7 +284,9 @@ internal static class EnemySelectUI
             var encTitle = enc.Title?.GetFormattedText();
             var encId = ((AbstractModel)enc).Id.Entry;
             previewNameLabel.Text = !string.IsNullOrEmpty(encTitle) ? encTitle : encId;
-            previewIdLabel.Text = encId != encTitle ? encId : "";
+            foreach (var c in previewIdContainer.GetChildren()) ((Node)c).QueueFree();
+            if (!string.IsNullOrEmpty(encId) && encId != encTitle)
+                previewIdContainer.AddChild(DevModeTheme.CreateCopyableIdRow(encId));
 
             var monsters = enc.AllPossibleMonsters?.ToList();
             if (monsters != null && monsters.Count > 0)

@@ -9,7 +9,9 @@ using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using DevMode.Actions;
+using DevMode.Hooks;
 using DevMode.Icons;
+using DevMode.Settings;
 
 namespace DevMode.UI;
 
@@ -630,12 +632,8 @@ internal static class PotionSelectUI
         // ID
         var id = ((AbstractModel)potion).Id.Entry;
         if (!string.IsNullOrEmpty(id))
-        {
-            var idLabel = new Label { Text = id, HorizontalAlignment = HorizontalAlignment.Center };
-            idLabel.AddThemeFontSizeOverride("font_size", 10);
-            idLabel.AddThemeColorOverride("font_color", new Color(0.40f, 0.40f, 0.48f));
-            container.AddChild(idLabel);
-        }
+            container.AddChild(DevModeTheme.CreateCopyableIdRow(id,
+                msg => s.StatusLabel.Text = msg));
 
         // Description
         string? desc = null;
@@ -664,6 +662,29 @@ internal static class PotionSelectUI
                 s.StatusLabel.Text = string.Format(I18N.T("potionBrowser.added", "Added: {0}"), name);
             };
             container.AddChild(addBtn);
+
+            var autoApplyBtn = CreateActionButton(
+                I18N.T("potionBrowser.autoApply", "Add to Auto-Apply"),
+                new Color(0.25f, 0.55f, 0.38f, 0.85f));
+            autoApplyBtn.Pressed += () =>
+            {
+                var potionId = ((AbstractModel)potion).Id.Entry;
+                var entry = new HookEntry
+                {
+                    Name    = name,
+                    Trigger = TriggerType.CombatStart,
+                    Actions = [new HookAction
+                    {
+                        Type     = ActionType.UsePotion,
+                        TargetId = potionId,
+                    }],
+                };
+                SettingsStore.Current.Hooks.Add(entry);
+                SettingsStore.Save();
+                s.StatusLabel.Text = string.Format(
+                    I18N.T("potionBrowser.autoApplyAdded", "Auto-apply added: {0}"), name);
+            };
+            container.AddChild(autoApplyBtn);
         }
         else
         {
