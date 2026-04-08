@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using DevMode.Presets;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Rooms;
 
@@ -144,6 +145,25 @@ public static class DevModeState
     public static MapRewriteMode MapRewriteMode { get; set; } = MapRewriteMode.None;
     public static bool MapKeepFinalBoss { get; set; } = true;
 
+    // ── Restart-with-Seed pending state ──
+
+    /// <summary>Cards/Relics to carry over into the next run. Consumed in RunStartPatch.</summary>
+    public static LoadoutPreset? PendingRestartPreset { get; set; }
+
+    /// <summary>Which parts of <see cref="PendingRestartPreset"/> to apply.</summary>
+    public static PresetContents PendingRestartScope { get; set; }
+
+    /// <summary>Gold amount to carry over. Null = don't carry gold.</summary>
+    public static int? PendingRestartGold { get; set; }
+
+    /// <summary>
+    /// Seed to inject into the next run via a Harmony prefix on NGame.StartNewSingleplayerRun.
+    /// Null = let the game generate a random seed as usual.
+    /// Note: NGame.DebugSeedOverride is overwritten/cleared by NCharacterSelectScreen.BeginRun,
+    /// so we inject the seed directly into the StartNewSingleplayerRun call instead.
+    /// </summary>
+    public static string? PendingRestartSeed { get; set; }
+
     // ── Runtime stat modifiers ──
 
     public static RuntimeStatModifiers? StatModifiers { get; set; }
@@ -197,12 +217,33 @@ public static class DevModeState
         IsActive = false;
     }
 
+    /// <summary>
+    /// When true, <see cref="MainMenuPatch"/> will automatically push character-select
+    /// as soon as the main menu is ready, bypassing the Dev menu submenu.
+    /// Used by "Restart with Seed" so the user doesn't have to click twice.
+    /// </summary>
+    public static bool AutoProceedToCharSelect { get; set; }
+
+    /// <summary>Clear pending restart state after it has been consumed (or the run was abandoned).</summary>
+    public static void ClearPendingRestart()
+    {
+        PendingRestartPreset     = null;
+        PendingRestartScope      = PresetContents.None;
+        PendingRestartGold       = null;
+        PendingRestartSeed       = null;
+        AutoProceedToCharSelect  = false;
+    }
+
     public static void OnRunEnded()
     {
         InDevRun = false;
         GameSpeed = 1.0f;
         ClearEnemyOverrides();
         ResetCheats();
+        // Note: PendingRestart is NOT cleared here — OnRunEnded fires when the *current* run
+        // is torn down (CleanUp), which happens right before starting the new run. Clearing
+        // here would discard the just-captured carry-over state. It is cleared in
+        // ApplyPendingRestart() after being consumed, or on the next run end if unused.
     }
 
     private static void ResetCheats()

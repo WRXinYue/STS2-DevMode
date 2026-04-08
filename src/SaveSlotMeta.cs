@@ -19,9 +19,15 @@ internal sealed class SaveSlotMeta
     public List<string> CardTitles { get; set; } = new();
     public List<string> RelicTitles { get; set; } = new();
 
+    /// <summary>Run seed string captured at save time.</summary>
+    public string Seed { get; set; } = "";
+
+    /// <summary>Loaded mods at save time, each entry is "Name vX.Y.Z".</summary>
+    public List<string> ModList { get; set; } = new();
+
     public string FormattedTime => SaveTime > 0
         ? DateTimeOffset.FromUnixTimeSeconds(SaveTime).LocalDateTime.ToString("MM/dd HH:mm")
         : "";
 
-    public string DisplayName => string.IsNullOrWhiteSpace(Name) ? $"Slot" : Name;
+    public string DisplayName => string.IsNullOrWhiteSpace(Name) ? "Save" : Name;
 }

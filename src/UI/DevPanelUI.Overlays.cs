@@ -1,16 +1,19 @@
 using System;
 using Godot;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using MegaCrit.Sts2.Core.Runs;
 using DevMode.Icons;
+using DevMode.Presets;
 using DevMode.Settings;
 
 namespace DevMode.UI;
 
 internal static partial class DevPanelUI
 {
-    private const string SettingsRootName  = "DevModeSettings";
-    private const string SaveLoadRootName  = "DevModeSaveLoad";
-    private const string AIRootName        = "DevModeAI";
+    private const string SettingsRootName   = "DevModeSettings";
+    private const string SaveLoadRootName   = "DevModeSaveLoad";
+    private const string RestartSeedRootName = "DevModeRestartSeed";
+    private const string AIRootName         = "DevModeAI";
 
     // ── Helper: build the standard browser-panel root ──────────────────────
 
@@ -305,6 +308,12 @@ internal static partial class DevPanelUI
         newTestBtn.Pressed += () => { ((Node)globalUi).GetNodeOrNull<Control>(SaveLoadRootName)?.QueueFree(); actions.OnNewTest(); };
         btnBox.AddChild(newTestBtn);
 
+        var restartSeedBtn = CreateListItemButton(I18N.T("panel.restartWithSeed", "Restart with Seed"));
+        restartSeedBtn.Icon = MdiIcon.Refresh.Texture(16);
+        restartSeedBtn.Alignment = HorizontalAlignment.Left;
+        restartSeedBtn.Pressed += () => ShowRestartSeedOverlay(globalUi, actions);
+        btnBox.AddChild(restartSeedBtn);
+
         var saveBtn = CreateListItemButton(I18N.T("panel.save", "Save"));
         saveBtn.Icon = MdiIcon.ContentSave.Texture(16);
         saveBtn.Alignment = HorizontalAlignment.Left;
@@ -321,6 +330,164 @@ internal static partial class DevPanelUI
         vbox.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill });
 
         ((Node)globalUi).AddChild(root);
+    }
+
+    // ── Restart with Seed ──────────────────────────────────────────────────
+
+    internal static void ShowRestartSeedOverlay(NGlobalUi globalUi, DevPanelActions actions)
+    {
+        ((Node)globalUi).GetNodeOrNull<Control>(RestartSeedRootName)?.QueueFree();
+        ((Node)globalUi).GetNodeOrNull<Control>(SaveLoadRootName)?.QueueFree();
+
+        var (root, vbox) = CreateOverlayRoot(globalUi, RestartSeedRootName, 520f);
+
+        AddBrowserNavTab(vbox, I18N.T("restart.title", "Restart with Seed"));
+
+        var inner = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        inner.AddThemeConstantOverride("separation", 12);
+
+        // ── Seed input ──
+        var seedSection = new VBoxContainer();
+        seedSection.AddThemeConstantOverride("separation", 4);
+
+        var seedLbl = new Label { Text = I18N.T("restart.seed.label", "Seed (leave empty for random):") };
+        seedLbl.AddThemeFontSizeOverride("font_size", 12);
+        seedLbl.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
+        seedSection.AddChild(seedLbl);
+
+        var seedInput = new LineEdit
+        {
+            PlaceholderText     = I18N.T("restart.seed.placeholder", "e.g. DEADBEEF"),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        seedSection.AddChild(seedInput);
+        inner.AddChild(seedSection);
+
+        // ── Divider ──
+        inner.AddChild(new ColorRect
+        {
+            Color = DevModeTheme.Separator,
+            CustomMinimumSize = new Vector2(0, 1),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+        });
+
+        // ── Carry-over scope ──
+        var carryLbl = new Label { Text = I18N.T("restart.carry.label", "Carry over from current run:") };
+        carryLbl.AddThemeFontSizeOverride("font_size", 12);
+        carryLbl.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
+        inner.AddChild(carryLbl);
+
+        bool hasRun = RunContext.TryGetRunAndPlayer(out _, out _);
+
+        var cardsToggle = new CheckButton
+        {
+            Text          = I18N.T("preset.scope.cards", "Cards"),
+            ButtonPressed = false,
+            Disabled      = !hasRun,
+            FocusMode     = Control.FocusModeEnum.None,
+        };
+        cardsToggle.AddThemeFontSizeOverride("font_size", 13);
+        cardsToggle.AddThemeColorOverride("font_color", new Color(0.35f, 0.58f, 0.95f));
+        inner.AddChild(cardsToggle);
+
+        var relicsToggle = new CheckButton
+        {
+            Text          = I18N.T("preset.scope.relics", "Relics"),
+            ButtonPressed = false,
+            Disabled      = !hasRun,
+            FocusMode     = Control.FocusModeEnum.None,
+        };
+        relicsToggle.AddThemeFontSizeOverride("font_size", 13);
+        relicsToggle.AddThemeColorOverride("font_color", new Color(0.88f, 0.72f, 0.22f));
+        inner.AddChild(relicsToggle);
+
+        var goldToggle = new CheckButton
+        {
+            Text          = I18N.T("restart.carry.gold", "Gold"),
+            ButtonPressed = false,
+            Disabled      = !hasRun,
+            FocusMode     = Control.FocusModeEnum.None,
+        };
+        goldToggle.AddThemeFontSizeOverride("font_size", 13);
+        goldToggle.AddThemeColorOverride("font_color", new Color(0.32f, 0.76f, 0.50f));
+        inner.AddChild(goldToggle);
+
+        if (!hasRun)
+        {
+            var noRunLbl = new Label { Text = I18N.T("restart.noRun", "(No active run — carry-over unavailable)") };
+            noRunLbl.AddThemeFontSizeOverride("font_size", 11);
+            noRunLbl.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
+            inner.AddChild(noRunLbl);
+        }
+
+        inner.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill });
+
+        // ── Status label ──
+        var statusLbl = new Label { HorizontalAlignment = HorizontalAlignment.Center };
+        statusLbl.AddThemeFontSizeOverride("font_size", 11);
+        statusLbl.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
+        inner.AddChild(statusLbl);
+
+        // ── Action buttons ──
+        var btnRow = new HBoxContainer();
+        btnRow.AddThemeConstantOverride("separation", 8);
+
+        var cancelBtn = CreateListItemButton(I18N.T("restart.cancel", "Cancel"));
+        cancelBtn.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        cancelBtn.Pressed += () => ((Node)globalUi).GetNodeOrNull<Control>(RestartSeedRootName)?.QueueFree();
+        btnRow.AddChild(cancelBtn);
+
+        var restartBtn = CreateListItemButton(I18N.T("restart.go", "Restart"));
+        restartBtn.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        restartBtn.Icon = MdiIcon.Refresh.Texture(16);
+        restartBtn.Alignment = HorizontalAlignment.Center;
+        restartBtn.Pressed += () =>
+        {
+            var seed = seedInput.Text?.Trim();
+
+            // Capture carry-over state from current run
+            var scope = PresetContents.None;
+            if (cardsToggle.ButtonPressed)  scope |= PresetContents.Cards;
+            if (relicsToggle.ButtonPressed) scope |= PresetContents.Relics;
+
+            if (scope != PresetContents.None && hasRun)
+            {
+                var preset = PresetManager.CaptureFromRun(scope);
+                if (preset != null)
+                {
+                    DevModeState.PendingRestartPreset = preset;
+                    DevModeState.PendingRestartScope  = scope;
+                    MainFile.Logger.Info($"[DevMode] RestartWithSeed: captured preset scope={scope}.");
+                }
+            }
+
+            if (goldToggle.ButtonPressed && hasRun && RunContext.TryGetRunAndPlayer(out _, out var player))
+            {
+                DevModeState.PendingRestartGold = player.Gold;
+                MainFile.Logger.Info($"[DevMode] RestartWithSeed: captured gold={player.Gold}.");
+            }
+
+            // Store seed for SeedInjectPatch to inject into NGame.StartNewSingleplayerRun.
+            // (NGame.DebugSeedOverride is unreliable — NCharacterSelectScreen clears it before the run.)
+            if (!string.IsNullOrEmpty(seed))
+            {
+                DevModeState.PendingRestartSeed = seed;
+                MainFile.Logger.Info($"[DevMode] RestartWithSeed: seed override set to '{seed}'.");
+            }
+
+            // Signal MainMenuPatch to skip the Dev menu and go straight to character select
+            DevModeState.AutoProceedToCharSelect = true;
+
+            ((Node)globalUi).GetNodeOrNull<Control>(RestartSeedRootName)?.QueueFree();
+            actions.OnNewTest();
+        };
+        btnRow.AddChild(restartBtn);
+
+        inner.AddChild(btnRow);
+
+        vbox.AddChild(inner);
+        ((Node)globalUi).AddChild(root);
+        seedInput.GrabFocus();
     }
 
     // ── AI Control ────────────────────────────────────────────────────────

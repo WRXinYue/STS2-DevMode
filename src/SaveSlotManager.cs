@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Helpers;
+using MegaCrit.Sts2.Core.Modding;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Runs;
 using MegaCrit.Sts2.Core.Saves;
@@ -13,21 +16,43 @@ namespace DevMode;
 
 internal static class SaveSlotManager
 {
-    public const int SlotCount = 3;
-
     private static readonly string SnapshotDir = Path.Combine(
         Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!,
         "snapshots");
 
-    // ──────── Quick save (slot 0) ────────
+    private static readonly Regex SlotMetaPattern = new(@"^slot(\d+)_meta\.json$", RegexOptions.Compiled);
 
-    public static bool QuickSave() => SaveToSlot(0, "Quick Save");
+    // ──────── Slot discovery ────────
+
+    /// <summary>Returns sorted list of all slot IDs that have save data on disk.</summary>
+    public static List<int> GetAllSlotIds()
+    {
+        if (!Directory.Exists(SnapshotDir)) return new List<int>();
+
+        return Directory.GetFiles(SnapshotDir, "slot*_meta.json")
+            .Select(f => SlotMetaPattern.Match(Path.GetFileName(f)))
+            .Where(m => m.Success)
+            .Select(m => int.Parse(m.Groups[1].Value))
+            .OrderBy(id => id)
+            .ToList();
+    }
+
+    /// <summary>Returns the next unused slot ID (always >= 1).</summary>
+    public static int NextSlotId()
+    {
+        var ids = GetAllSlotIds();
+        return ids.Count == 0 ? 1 : ids.Max() + 1;
+    }
+
+    // ──────── Quick save (slot 0, convenience for hotkey/console) ────────
+
+    public static bool QuickSave() => SaveToSlot(0);
 
     public static bool QuickLoad() => LoadFromSlot(0);
 
     public static bool HasQuickSnapshot => HasSlot(0);
 
-    // ──────── Slot save / load ────────
+    // ──────── Slot save / load / delete ────────
 
     public static bool SaveToSlot(int slot, string name = "")
     {
@@ -80,6 +105,28 @@ internal static class SaveSlotManager
         catch (Exception ex)
         {
             MainFile.Logger.Warn($"SaveSlotManager: Load slot {slot} failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    public static bool DeleteSlot(int slot)
+    {
+        try
+        {
+            var deleted = false;
+            var savePath = SlotPath(slot);
+            var metaPath = MetaPath(slot);
+
+            if (File.Exists(savePath)) { File.Delete(savePath); deleted = true; }
+            if (File.Exists(metaPath)) { File.Delete(metaPath); deleted = true; }
+
+            if (deleted)
+                MainFile.Logger.Info($"SaveSlotManager: Deleted slot {slot}.");
+            return deleted;
+        }
+        catch (Exception ex)
+        {
+            MainFile.Logger.Warn($"SaveSlotManager: Delete slot {slot} failed: {ex.Message}");
             return false;
         }
     }
@@ -137,6 +184,13 @@ internal static class SaveSlotManager
                 .Select(r => r.Title.GetFormattedText())
                 .ToList();
         }
+
+        meta.Seed = state.Rng?.StringSeed ?? "";
+
+        meta.ModList = ModManager.LoadedMods
+            .Where(m => m.manifest != null)
+            .Select(m => $"{m.manifest!.name} v{m.manifest!.version}")
+            .ToList();
 
         return meta;
     }

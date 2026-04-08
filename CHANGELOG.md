@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Restart with Seed** from the in-run Save/Load overlay: optional carry-over of cards, relics, and gold into a new run with a user-specified seed (seed injected via `NGame.StartNewSingleplayerRun` for reliable determinism).
+- **Main menu Developer Mode**: **New Test (Seed)** to start a run with a custom seed; overlay styling aligned with other DevMode panels.
+- **Save Manager** overhaul: dynamic slots discovered from disk, **+ New Slot**, per-slot **Delete** (two-click confirm), richer slot cards (HP bar, floor/gold), detail panel with stat badges and scrollable cards/relics/mods.
+- Save metadata now records **run seed** and **loaded mods** (name + version); shown in the save detail view.
+- **`dmsave` console**: `list` and `delete` subcommands; tab completion uses existing slots instead of a fixed range.
+
+### Changed
+
+- Save/load UI no longer treats a separate “quick save” slot; all slots are equal (console `dmsave quick` still targets slot 0 for convenience).
+- “Restart with Seed” carry-over toggles (cards/relics) default to off.
+
+### Fixed
+
+- Seed overrides no longer lost when character select cleared `DebugSeedOverride`.
+- Pending restart state no longer cleared during run teardown before the new run applied it.
+- Reopening the load/save overlay no longer throws `ObjectDisposedException` on disposed panel nodes.
+
 ## [0.2.0] - 2026-04-08
 
 ### Added

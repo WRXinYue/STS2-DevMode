@@ -1,8 +1,11 @@
 using System;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.Helpers;
+using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Runs;
 using MegaCrit.Sts2.Core.Saves;
+using DevMode.Presets;
 
 namespace DevMode.Patches;
 
@@ -36,8 +39,33 @@ public static class RunStartPatch
             InjectForPlayer(player);
         }
 
+        ApplyPendingRestart(__result);
+
         DevModeState.OnRunStarted();
         MainFile.Logger.Info("DevMode: Dev mode content injected successfully.");
+    }
+
+    private static void ApplyPendingRestart(RunState runState)
+    {
+        // Apply carried-over gold (direct, synchronous)
+        if (DevModeState.PendingRestartGold.HasValue)
+        {
+            var gold = DevModeState.PendingRestartGold.Value;
+            foreach (var player in runState.Players)
+                player.Gold = gold;
+            MainFile.Logger.Info($"[DevMode] Restart: applied gold {gold}.");
+        }
+
+        // Apply carried-over cards / relics (async via game command queue)
+        if (DevModeState.PendingRestartPreset != null)
+        {
+            var preset = DevModeState.PendingRestartPreset;
+            var scope  = DevModeState.PendingRestartScope;
+            MainFile.Logger.Info($"[DevMode] Restart: scheduling preset apply (scope: {scope}).");
+            TaskHelper.RunSafely(PresetManager.ApplyToRunAsync(preset, scope));
+        }
+
+        DevModeState.ClearPendingRestart();
     }
 
     [HarmonyPostfix]
@@ -68,5 +96,26 @@ public static class SaveProgressPatch
             return false;
         }
         return true;
+    }
+}
+
+/// <summary>
+/// Intercepts NGame.StartNewSingleplayerRun to inject PendingRestartSeed.
+/// NGame.DebugSeedOverride cannot be used here because NCharacterSelectScreen.BeginRun
+/// overwrites it from its own settings (and clears it) before the run launches.
+/// </summary>
+[HarmonyPatch(typeof(NGame), nameof(NGame.StartNewSingleplayerRun))]
+public static class SeedInjectPatch
+{
+    public static void Prefix(ref string seed)
+    {
+        if (DevModeState.PendingRestartSeed == null) return;
+
+        var canonicalized = SeedHelper.CanonicalizeSeed(DevModeState.PendingRestartSeed);
+        MainFile.Logger.Info($"[DevMode] SeedInject: overriding seed '{seed}' → '{canonicalized}'.");
+        seed = canonicalized;
+
+        // Consumed — clear so a subsequent normal run is not affected.
+        DevModeState.PendingRestartSeed = null;
     }
 }

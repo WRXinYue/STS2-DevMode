@@ -66,6 +66,16 @@ public static class MainMenuPatch
         _devModeButton.Connect(NClickableControl.SignalName.Released, Callable.From<NButton>(OnDevModeButtonPressed));
 
         MainFile.Logger.Info("DevMode: Button added to main menu.");
+
+        // "Restart with Seed" sets this flag so we skip the Dev menu submenu and go straight to char select.
+        if (DevModeState.AutoProceedToCharSelect)
+        {
+            DevModeState.AutoProceedToCharSelect = false;
+            MainFile.Logger.Info("DevMode: Auto-proceeding to character select (Restart with Seed).");
+            var charSelect = __instance.SubmenuStack.GetSubmenuType<NCharacterSelectScreen>();
+            charSelect.InitializeSingleplayer();
+            __instance.SubmenuStack.Push(charSelect);
+        }
     }
 
     /// <summary>
