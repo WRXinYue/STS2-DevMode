@@ -1,10 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Godot;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Models;
-using MegaCrit.Sts2.Core.Models.CardPools;
 
 namespace DevMode.UI;
 
@@ -130,23 +130,18 @@ internal static partial class CardBrowserUI
         catch { return true; }
     }
 
-    private static bool MatchesPoolSet(CardModel card, HashSet<string> active)
+    private static bool MatchesPoolSet(
+        CardModel card,
+        HashSet<string> active,
+        Dictionary<string, Func<CardModel, bool>> predicates)
     {
         if (active.Count == 0) return true;
         try
         {
-            var pool = card.Pool;
-            if (active.Contains("ironclad")    && pool is IroncladCardPool)    return true;
-            if (active.Contains("silent")      && pool is SilentCardPool)      return true;
-            if (active.Contains("defect")      && pool is DefectCardPool)      return true;
-            if (active.Contains("regent")      && pool is RegentCardPool)      return true;
-            if (active.Contains("necrobinder") && pool is NecrobinderCardPool) return true;
-            if (active.Contains("colorless")   && pool is ColorlessCardPool)   return true;
-            if (active.Contains("ancients")    && card.Rarity == CardRarity.Ancient) return true;
-            if (active.Contains("misc"))
+            foreach (var key in active)
             {
-                var r = (int)card.Rarity;
-                if ((uint)(r - 6) <= 4u) return true;
+                if (predicates.TryGetValue(key, out var pred) && pred(card))
+                    return true;
             }
             return false;
         }

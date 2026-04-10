@@ -14,7 +14,7 @@ internal static partial class CardBrowserUI
 {
     // ── Grid constants ──
 
-    private const float CardDisplayScale = 0.5f;
+    private const float CardDisplayScale = 0.65f;
     private const int CardGridSeparation = 6;
     private const float CardSlotInnerPad = 12f;
     private const int CardBrowserGridPadH = 14;
@@ -188,7 +188,7 @@ internal static partial class CardBrowserUI
             if (!MatchesTypeSet(c, s.ActiveTypeFilters)) return false;
             if (!MatchesRaritySet(c, s.ActiveRarityFilters)) return false;
             if (!MatchesCostSet(c, s.ActiveCostFilters)) return false;
-            if (IsLibrarySource && !MatchesPoolSet(c, s.ActivePoolFilters)) return false;
+            if (IsLibrarySource && !MatchesPoolSet(c, s.ActivePoolFilters, s.PoolFilterPredicates)) return false;
             if (!string.IsNullOrWhiteSpace(searchText))
             {
                 var name = CardEditActions.GetCardDisplayName(c);

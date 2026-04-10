@@ -5,6 +5,7 @@ using Godot;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Models.CardPools;
 using MegaCrit.Sts2.Core.Nodes.Cards;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Runs;
@@ -70,6 +71,7 @@ internal static partial class CardBrowserUI
         public readonly HashSet<CardRarity> ActiveRarityFilters = new();
         public readonly HashSet<int> ActiveCostFilters = new();
         public readonly HashSet<string> ActivePoolFilters = new();
+        public readonly Dictionary<string, Func<CardModel, bool>> PoolFilterPredicates = new();
 
         // UI refs for conditional visibility
         public HBoxContainer PoolChipRow = null!;
@@ -301,47 +303,86 @@ internal static partial class CardBrowserUI
         s.PoolChipRow.AddThemeConstantOverride("separation", 4);
         s.PoolChipRow.Visible = IsLibrarySource;
 
-        void AddPoolChipGroup(string groupLabel, (string key, string text)[] chips)
-        {
-            if (s.PoolChipRow.GetChildCount() > 0)
-            {
-                var sep = new VSeparator { CustomMinimumSize = new Vector2(1, 0) };
-                sep.AddThemeColorOverride("separator", DevModeTheme.Separator);
-                s.PoolChipRow.AddChild(sep);
-            }
-            var groupLbl = new Label { Text = groupLabel };
-            groupLbl.AddThemeFontSizeOverride("font_size", 11);
-            groupLbl.AddThemeColorOverride("font_color", ColSubtle);
-            groupLbl.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
-            s.PoolChipRow.AddChild(groupLbl);
+        // Register predicates for built-in pools
+        s.PoolFilterPredicates["ironclad"]    = c => c.Pool is IroncladCardPool;
+        s.PoolFilterPredicates["silent"]      = c => c.Pool is SilentCardPool;
+        s.PoolFilterPredicates["defect"]      = c => c.Pool is DefectCardPool;
+        s.PoolFilterPredicates["regent"]      = c => c.Pool is RegentCardPool;
+        s.PoolFilterPredicates["necrobinder"] = c => c.Pool is NecrobinderCardPool;
+        s.PoolFilterPredicates["colorless"]   = c => c.Pool is ColorlessCardPool;
+        s.PoolFilterPredicates["ancients"]    = c => c.Rarity == CardRarity.Ancient;
+        s.PoolFilterPredicates["status"]      = c => c.Rarity == CardRarity.Status;
+        s.PoolFilterPredicates["curse"]       = c => c.Rarity == CardRarity.Curse;
+        s.PoolFilterPredicates["event"]       = c => c.Rarity == CardRarity.Event;
+        s.PoolFilterPredicates["quest"]       = c => c.Rarity == CardRarity.Quest;
+        s.PoolFilterPredicates["token"]       = c => c.Rarity == CardRarity.Token;
 
-            foreach (var (key, text) in chips)
+        void AddPoolChip(string key, string text)
+        {
+            var chip = CreateFilterChip(text);
+            var capturedKey = key;
+            chip.Toggled += on =>
             {
-                var chip = CreateFilterChip(text);
-                var capturedKey = key;
-                chip.Toggled += on =>
-                {
-                    ToggleSet(s.ActivePoolFilters, capturedKey, on);
-                    RebuildGrid(s, s.SearchInput.Text ?? "");
-                };
-                s.PoolChipRow.AddChild(chip);
-            }
+                ToggleSet(s.ActivePoolFilters, capturedKey, on);
+                RebuildGrid(s, s.SearchInput.Text ?? "");
+            };
+            s.PoolChipRow.AddChild(chip);
         }
 
-        AddPoolChipGroup(I18N.T("cardBrowser.chipCharacter", "Character"), new (string, string)[]
+        void AddPoolChipGroupSep()
         {
-            ("ironclad",    I18N.T("cardBrowser.poolIronclad",    "Ironclad")),
-            ("silent",      I18N.T("cardBrowser.poolSilent",      "Silent")),
-            ("defect",      I18N.T("cardBrowser.poolDefect",      "Defect")),
-            ("regent",      I18N.T("cardBrowser.poolRegent",      "Regent")),
-            ("necrobinder", I18N.T("cardBrowser.poolNecrobinder", "Necrobinder")),
-            ("colorless",   I18N.T("cardBrowser.poolColorless",   "Colorless")),
-        });
-        AddPoolChipGroup(I18N.T("cardBrowser.chipSpecial", "Special"), new (string, string)[]
+            var sep = new VSeparator { CustomMinimumSize = new Vector2(1, 0) };
+            sep.AddThemeColorOverride("separator", DevModeTheme.Separator);
+            s.PoolChipRow.AddChild(sep);
+        }
+
+        void AddPoolChipGroupLabel(string label)
         {
-            ("ancients", I18N.T("cardBrowser.poolAncients", "Ancients")),
-            ("misc",     I18N.T("cardBrowser.poolMisc",     "Status/Curse")),
-        });
+            var lbl = new Label { Text = label };
+            lbl.AddThemeFontSizeOverride("font_size", 11);
+            lbl.AddThemeColorOverride("font_color", ColSubtle);
+            lbl.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+            s.PoolChipRow.AddChild(lbl);
+        }
+
+        // Character group (built-ins, Colorless last)
+        AddPoolChipGroupLabel(I18N.T("cardBrowser.chipCharacter", "Character"));
+        AddPoolChip("ironclad",    I18N.T("cardBrowser.poolIronclad",    "Ironclad"));
+        AddPoolChip("silent",      I18N.T("cardBrowser.poolSilent",      "Silent"));
+        AddPoolChip("defect",      I18N.T("cardBrowser.poolDefect",      "Defect"));
+        AddPoolChip("regent",      I18N.T("cardBrowser.poolRegent",      "Regent"));
+        AddPoolChip("necrobinder", I18N.T("cardBrowser.poolNecrobinder", "Necrobinder"));
+
+        // Mod characters: any character whose pool type isn't one of the 5 built-ins
+        var builtInPoolTypes = new System.Collections.Generic.HashSet<Type>
+        {
+            typeof(IroncladCardPool), typeof(SilentCardPool), typeof(DefectCardPool),
+            typeof(RegentCardPool),   typeof(NecrobinderCardPool)
+        };
+        foreach (var character in ModelDb.AllCharacters)
+        {
+            var pool = character.CardPool;
+            if (builtInPoolTypes.Contains(pool.GetType())) continue;
+            var key = "mod_" + pool.Title;
+            var capturedPool = pool;
+            s.PoolFilterPredicates[key] = c => c.Pool == capturedPool;
+            try { AddPoolChip(key, character.Title.GetFormattedText()); }
+            catch { AddPoolChip(key, pool.Title); }
+        }
+
+        // Colorless always last in the Character group
+        AddPoolChip("colorless", I18N.T("cardBrowser.poolColorless", "Colorless"));
+
+        // Special group
+        AddPoolChipGroupSep();
+        AddPoolChipGroupLabel(I18N.T("cardBrowser.chipSpecial", "Special"));
+        AddPoolChip("ancients", I18N.T("cardBrowser.poolAncients", "Ancients"));
+        AddPoolChip("status",   I18N.T("cardBrowser.poolStatus",   "Status"));
+        AddPoolChip("curse",    I18N.T("cardBrowser.poolCurse",    "Curse"));
+        AddPoolChip("event",    I18N.T("cardBrowser.poolEvent",    "Event"));
+        AddPoolChip("quest",    I18N.T("cardBrowser.poolQuest",    "Quest"));
+        AddPoolChip("token",    I18N.T("cardBrowser.poolToken",    "Token"));
+
         content.AddChild(s.PoolChipRow);
 
         // ── Body: card grid (left) + right panel ──

@@ -407,7 +407,11 @@
   "cardBrowser.poolNecrobinder": "Necrobinder",
   "cardBrowser.poolColorless": "Colorless",
   "cardBrowser.poolAncients": "Ancients",
-  "cardBrowser.poolMisc": "Status/Curse",
+  "cardBrowser.poolStatus": "Status",
+  "cardBrowser.poolCurse": "Curse",
+  "cardBrowser.poolEvent": "Event",
+  "cardBrowser.poolQuest": "Quest",
+  "cardBrowser.poolToken": "Token",
 
   "panel.restartWithSeed": "Restart with Seed",
 

@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SpireScratch** — visual block scripting with a bundled Blockly editor: rules save as JSON in the mod `scripts` folder, reload on file changes, and run on the same hook triggers/conditions/actions as the Hooks system. The **Scripts** panel lists loaded scripts with per-script enable/disable, shortcuts to open the scripts folder or editor, and optional migration of existing Hook rules into script files.
 - **Exhaust pile** target — the card browser's Add target picker and nav tabs now include the Exhaust pile alongside Hand, Draw, Discard, and Deck. The `dmcard add` console command also accepts `exhaust` as a target argument.
 - Card browser Add target defaults to **Hand** instead of Deck.
-- **Character / pool filter chips** in the card browser (All Cards tab): one-click chips for Ironclad, Silent, Defect, Regent, Necrobinder, Colorless, Ancients, and Status/Curse — combine freely with the existing Type, Rarity, and Cost filters.
+- **Character / pool filter chips** in the card browser (All Cards tab): Character group (Ironclad, Silent, Defect, Regent, Necrobinder, Colorless) and Special group (Ancients, Status, Curse, Event, Quest, Token) — combine freely with Type, Rarity, and Cost filters. Mod-added characters are detected automatically and appended to the Character group.
 
 ### Fixed
 
