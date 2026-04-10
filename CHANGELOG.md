@@ -7,18 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- **Breaking (external mods):** `DevPanelChrome` is replaced by `DevPanelModApi`, exposing only rail-spliced helpers (`CreateBrowserPanel`, `CreateBrowserBackdrop`, `PinRail`, `UnpinRail`, `SpliceRail`). Centered main-menu modal panels are no longer part of the public API.
-- Internally, former `CreateStandardPanel` / `CreateStandardBackdrop` are now `CreateMainMenuModalPanel` / `CreateMainMenuModalBackdrop` in `DevPanelUI.MainMenuModal.cs`.
+## [0.4.2] - 2026-04-11
 
 ### Fixed
 
 - `RegisterPanelWhenReady` callbacks are flushed after all mod initializers via a `LocManager.Initialize` Harmony prefix (`LocManagerExternalPanelRegistrationPatch`).
-
-### Docs
-
-- README / README.zh-CN: extension examples use `DevPanelModApi`; main-menu modal UI is documented as internal-only.
 
 ## [0.4.1] - 2026-04-10
 
