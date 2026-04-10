@@ -171,6 +171,13 @@ internal static class CardActions
             var combatCard = combatState.CreateCard(canonicalCard.CanonicalInstance, player);
             await CardPileCmd.AddGeneratedCardToCombat(combatCard, pileType, true);
 
+            // AddGeneratedCardToCombat silently calls AddInternal() for brand-new cards added to
+            // Draw/Discard without creating any VFX. The pile-count UI (NCombatCardPile) only
+            // updates via CardAddFinished, which is normally fired by the fly animation (NCardFlyVfx /
+            // NCardFlyShuffleVfx). For the silent path we must fire it manually.
+            if (pileType is PileType.Draw or PileType.Discard)
+                combatCard.Pile?.InvokeCardAddFinished();
+
             if (duration == EffectDuration.Permanent)
             {
                 var deckCard = state.CreateCard(canonicalCard.CanonicalInstance, player);

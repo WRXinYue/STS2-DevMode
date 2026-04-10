@@ -194,6 +194,7 @@ internal static class PresetManager
                                 for (int u = 0; u < entry.UpgradeLevel; u++)
                                     CardCmd.Upgrade(combatCard);
                                 await CardPileCmd.AddGeneratedCardToCombat(combatCard, PileType.Draw, true);
+                                combatCard.Pile?.InvokeCardAddFinished();
                             }
                         }
                         const int handDraw = 5;
@@ -290,6 +291,8 @@ internal static class PresetManager
                 for (int u = 0; u < entry.UpgradeLevel; u++)
                     CardCmd.Upgrade(combatCard);
                 await CardPileCmd.AddGeneratedCardToCombat(combatCard, pileType, true);
+                if (pileType is PileType.Draw or PileType.Discard)
+                    combatCard.Pile?.InvokeCardAddFinished();
             }
         }
     }
