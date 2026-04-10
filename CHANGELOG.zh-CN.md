@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-04-10
+
 ### Added
 
 - **SpireScratch 可视化脚本** — 内置 Blockly 积木编辑器编写规则，导出为 JSON 存放于模组 `scripts` 目录，文件变更后自动重载；与钩子系统共用触发点、条件与动作模型。新增 **脚本** 面板可查看已加载脚本、单独启用/禁用、打开脚本目录或编辑器，并可将现有钩子规则迁移为脚本文件。
