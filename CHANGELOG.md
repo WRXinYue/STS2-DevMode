@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `RegisterPanelWhenReady` callbacks are flushed after all mod initializers via a `LocManager.Initialize` Harmony prefix (`LocManagerExternalPanelRegistrationPatch`).
+- Map encounter override (right-click on a map node, global / per-type / per-floor): `PullNextEncounter` overrides must stay **canonical** because `RunManager.CreateRoom` already calls `ToMutable()` on the result. The patch previously returned a mutable clone, which caused `MutableModelException` when entering the room.
 
 ## [0.4.1] - 2026-04-10
 

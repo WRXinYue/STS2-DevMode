@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - 通过 `LocManager.Initialize` 的 Harmony 前缀（`LocManagerExternalPanelRegistrationPatch`）在所有 mod 初始化完成后刷新 `RegisterPanelWhenReady` 队列。
+- **地图遭遇覆盖**（地图节点右键、全局 / 按类型 / 按楼层）：`PullNextEncounter` 的覆盖结果须保持为**规范（canonical）**模型，因为 `RunManager.CreateRoom` 会再对其调用 `ToMutable()`。此前补丁在 Postfix 中已返回可变副本，进房时二次克隆会触发 `MutableModelException`。
 
 ## [0.4.1] - 2026-04-10
 

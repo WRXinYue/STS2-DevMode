@@ -32,7 +32,13 @@ public static class EnemyOverridePatch
         var overrideEnc = DevModeState.ResolveOverride(roomType, floor);
         if (overrideEnc == null) return;
 
-        __result = overrideEnc.ToMutable();
+        // RunManager.CreateRoom uses PullNextEncounter(roomType).ToMutable() — the return here must be
+        // canonical. Calling ToMutable() in this postfix produced a mutable instance and caused a
+        // second ToMutable() in CreateRoom, triggering MutableModelException.
+        var canonical = overrideEnc.IsCanonical
+            ? overrideEnc
+            : (overrideEnc.CanonicalInstance ?? ModelDb.GetById<EncounterModel>(((AbstractModel)overrideEnc).Id));
+        __result = canonical;
         MainFile.Logger.Info($"EnemyOverridePatch: Replaced {roomType} encounter with {((AbstractModel)overrideEnc).Id.Entry} (floor {floor})");
     }
 }
