@@ -14,13 +14,13 @@ namespace DevMode.Commands;
 public class DmCardConsoleCmd : AbstractConsoleCmd
 {
     public override string CmdName => "dmcard";
-    public override string Args => "<add|list> [cardId] [deck|hand|draw|discard] [perm|temp]";
+    public override string Args => "<add|list> [cardId] [deck|hand|draw|discard|exhaust] [perm|temp]";
     public override string Description => "[DevMode] Add cards or list all card IDs";
     public override bool IsNetworked => false;
     public override bool DebugOnly => false;
 
     private static readonly string[] SubCmds = { "add", "list" };
-    private static readonly string[] Targets = { "deck", "hand", "draw", "discard" };
+    private static readonly string[] Targets = { "deck", "hand", "draw", "discard", "exhaust" };
     private static readonly string[] Durations = { "perm", "temp" };
 
     public override CmdResult Process(Player? issuingPlayer, string[] args)
@@ -57,10 +57,11 @@ public class DmCardConsoleCmd : AbstractConsoleCmd
                 {
                     DevModeState.CardTarget = args[2].ToLowerInvariant() switch
                     {
-                        "hand" => CardTarget.Hand,
-                        "draw" => CardTarget.DrawPile,
+                        "hand"    => CardTarget.Hand,
+                        "draw"    => CardTarget.DrawPile,
                         "discard" => CardTarget.DiscardPile,
-                        _ => CardTarget.Deck
+                        "exhaust" => CardTarget.ExhaustPile,
+                        _         => CardTarget.Deck
                     };
                 }
 

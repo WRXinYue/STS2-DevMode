@@ -42,6 +42,7 @@
   "topbar.card.hand": "手牌",
   "topbar.card.drawPile": "抽牌堆",
   "topbar.card.discardPile": "弃牌堆",
+  "topbar.card.exhaustPile": "消耗牌堆",
   "topbar.card.deck": "牌组",
   "topbar.card.temporary": "本场",
   "topbar.card.permanent": "永久",

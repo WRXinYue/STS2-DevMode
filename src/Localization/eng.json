@@ -42,6 +42,7 @@
   "topbar.card.hand": "Hand",
   "topbar.card.drawPile": "Draw Pile",
   "topbar.card.discardPile": "Discard",
+  "topbar.card.exhaustPile": "Exhaust",
   "topbar.card.deck": "Deck",
   "topbar.card.temporary": "Temp",
   "topbar.card.permanent": "Perm",

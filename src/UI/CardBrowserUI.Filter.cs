@@ -15,7 +15,7 @@ internal static partial class CardBrowserUI
     private const int CostFilterX = -1;
 
     /// <summary>Where the card grid sources its cards from.</summary>
-    private enum BrowseSource { AllCards, Hand, DrawPile, DiscardPile, Deck }
+    private enum BrowseSource { AllCards, Hand, DrawPile, DiscardPile, ExhaustPile, Deck }
     private static BrowseSource _browseSource = BrowseSource.AllCards;
 
     private static CardTarget? BrowseSourceToTarget(BrowseSource src) => src switch
@@ -23,6 +23,7 @@ internal static partial class CardBrowserUI
         BrowseSource.Hand        => CardTarget.Hand,
         BrowseSource.DrawPile    => CardTarget.DrawPile,
         BrowseSource.DiscardPile => CardTarget.DiscardPile,
+        BrowseSource.ExhaustPile => CardTarget.ExhaustPile,
         BrowseSource.Deck        => CardTarget.Deck,
         _                        => null
     };

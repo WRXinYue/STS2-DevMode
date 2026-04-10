@@ -105,18 +105,21 @@ internal static class CardBrowserRightPanel
         targetPicker.AddItem(I18N.T("topbar.card.hand", "Hand"), 0);
         targetPicker.AddItem(I18N.T("topbar.card.drawPile", "Draw Pile"), 1);
         targetPicker.AddItem(I18N.T("topbar.card.discardPile", "Discard"), 2);
-        targetPicker.AddItem(I18N.T("topbar.card.deck", "Deck"), 3);
+        targetPicker.AddItem(I18N.T("topbar.card.exhaustPile", "Exhaust"), 3);
+        targetPicker.AddItem(I18N.T("topbar.card.deck", "Deck"), 4);
         targetPicker.Selected = DevModeState.CardTarget switch
         {
             CardTarget.Hand => 0, CardTarget.DrawPile => 1,
-            CardTarget.DiscardPile => 2, CardTarget.Deck => 3, _ => 3
+            CardTarget.DiscardPile => 2, CardTarget.ExhaustPile => 3,
+            CardTarget.Deck => 4, _ => 0
         };
         targetPicker.ItemSelected += idx =>
         {
             DevModeState.CardTarget = idx switch
             {
                 0 => CardTarget.Hand, 1 => CardTarget.DrawPile,
-                2 => CardTarget.DiscardPile, _ => CardTarget.Deck
+                2 => CardTarget.DiscardPile, 3 => CardTarget.ExhaustPile,
+                _ => CardTarget.Deck
             };
         };
         targetRow.AddChild(targetPicker);

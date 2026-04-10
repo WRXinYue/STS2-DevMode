@@ -52,7 +52,7 @@ internal static partial class CardBrowserUI
         public readonly BrowseSource[] Sources =
         {
             BrowseSource.AllCards, BrowseSource.Hand, BrowseSource.DrawPile,
-            BrowseSource.DiscardPile, BrowseSource.Deck
+            BrowseSource.DiscardPile, BrowseSource.ExhaustPile, BrowseSource.Deck
         };
         public int ActiveTabIdx;
 
@@ -135,6 +135,7 @@ internal static partial class CardBrowserUI
             I18N.T("topbar.card.hand", "Hand"),
             I18N.T("topbar.card.drawPile", "Draw Pile"),
             I18N.T("topbar.card.discardPile", "Discard"),
+            I18N.T("topbar.card.exhaustPile", "Exhaust"),
             I18N.T("topbar.card.deck", "Deck")
         };
         s.TabButtons = new Button[sourceLabels.Length];

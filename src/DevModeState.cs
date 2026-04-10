@@ -11,7 +11,8 @@ public enum CardTarget
     DrawPile,
     Hand,
     DiscardPile,
-    Deck
+    Deck,
+    ExhaustPile
 }
 
 public enum EffectDuration
@@ -101,7 +102,7 @@ public static class DevModeState
 
     public static int MaxEnergy { get; set; } = 0;
 
-    public static CardTarget CardTarget { get; set; } = CardTarget.Deck;
+    public static CardTarget CardTarget { get; set; } = CardTarget.Hand;
     public static EffectDuration EffectDuration { get; set; } = EffectDuration.Permanent;
     public static ActivePanel ActivePanel { get; set; } = ActivePanel.None;
     public static CardMode CardMode { get; set; } = CardMode.View;

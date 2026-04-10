@@ -165,6 +165,7 @@ internal static class CardActions
                 CardTarget.Hand        => PileType.Hand,
                 CardTarget.DrawPile    => PileType.Draw,
                 CardTarget.DiscardPile => PileType.Discard,
+                CardTarget.ExhaustPile => PileType.Exhaust,
                 _                      => PileType.Draw
             };
 
@@ -175,7 +176,7 @@ internal static class CardActions
             // Draw/Discard without creating any VFX. The pile-count UI (NCombatCardPile) only
             // updates via CardAddFinished, which is normally fired by the fly animation (NCardFlyVfx /
             // NCardFlyShuffleVfx). For the silent path we must fire it manually.
-            if (pileType is PileType.Draw or PileType.Discard)
+            if (pileType is PileType.Draw or PileType.Discard or PileType.Exhaust)
                 combatCard.Pile?.InvokeCardAddFinished();
 
             if (duration == EffectDuration.Permanent)
@@ -213,9 +214,10 @@ internal static class CardActions
 
         return target switch
         {
-            CardTarget.DrawPile    => combatState.DrawPile?.Cards.ToList() ?? new List<CardModel>(),
-            CardTarget.Hand        => combatState.Hand?.Cards.ToList()     ?? new List<CardModel>(),
+            CardTarget.DrawPile    => combatState.DrawPile?.Cards.ToList()    ?? new List<CardModel>(),
+            CardTarget.Hand        => combatState.Hand?.Cards.ToList()         ?? new List<CardModel>(),
             CardTarget.DiscardPile => combatState.DiscardPile?.Cards.ToList() ?? new List<CardModel>(),
+            CardTarget.ExhaustPile => combatState.ExhaustPile?.Cards.ToList() ?? new List<CardModel>(),
             _ => new List<CardModel>()
         };
     }
