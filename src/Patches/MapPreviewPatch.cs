@@ -54,16 +54,30 @@ public static class MapPointHoverPatch
 
         int floor = point.coord.row + 1;
 
-        // Check for floor override first
-        var overrideEnc = DevModeState.ResolveOverride(roomType, floor);
-        EncounterModel? encounter = overrideEnc ?? PredictEncounter(state, point, roomType);
-        if (encounter == null) return;
+        bool isCurrentRoom = state.CurrentMapCoord.HasValue &&
+                             point.coord.Equals(state.CurrentMapCoord.Value);
 
-        bool isOverride = overrideEnc != null;
-        ShowTooltip(__instance, encounter, floor, roomType, isOverride);
+        EncounterModel? encounter;
+        bool isOverride = false;
+
+        if (isCurrentRoom)
+        {
+            // Show the encounter that is actually running right now — read it directly
+            // from the combat room instead of deriving it from the queue counter.
+            encounter = (state.CurrentRoom as CombatRoom)?.Encounter;
+        }
+        else
+        {
+            var overrideEnc = DevModeState.ResolveOverride(roomType, floor);
+            encounter = overrideEnc ?? PredictEncounter(state, point, roomType);
+            isOverride = overrideEnc != null;
+        }
+
+        if (encounter == null) return;
+        ShowTooltip(__instance, encounter, floor, roomType, isOverride, isCurrentRoom);
     }
 
-    private static EncounterModel? PredictEncounter(RunState state, MapPoint point, RoomType roomType)
+    private static EncounterModel? PredictEncounter(RunState state, MapPoint targetPoint, RoomType roomType)
     {
         try
         {
@@ -77,18 +91,20 @@ public static class MapPointHoverPatch
             if (roomSet == null)
                 return act.PullNextEncounter(roomType);
 
-            int offset = CountSameTypeNodesBefore(state, point, roomType);
+            // Walk the map DAG from the player's current position to the target, counting
+            // how many same-type combat rooms lie on the shortest (fewest-hops) path before
+            // the target. Returns null if the target is not reachable from the current position
+            // (i.e. it's on a branch the player can no longer navigate to).
+            // null = unreachable from current position (bypassed branch).
+            // In that case offset = 0: entering the room right now (e.g. via teleport)
+            // would pull the current queue head, same as any other room entered next.
+            int offset = CountSameTypeRoomsOnPath(state, targetPoint, roomType) ?? 0;
 
             if (roomType == RoomType.Monster && roomSet.normalEncounters.Count > 0)
-            {
-                int idx = (roomSet.normalEncountersVisited + offset) % roomSet.normalEncounters.Count;
-                return roomSet.normalEncounters[idx];
-            }
-            else if (roomType == RoomType.Elite && roomSet.eliteEncounters.Count > 0)
-            {
-                int idx = (roomSet.eliteEncountersVisited + offset) % roomSet.eliteEncounters.Count;
-                return roomSet.eliteEncounters[idx];
-            }
+                return roomSet.normalEncounters[(roomSet.normalEncountersVisited + offset) % roomSet.normalEncounters.Count];
+
+            if (roomType == RoomType.Elite && roomSet.eliteEncounters.Count > 0)
+                return roomSet.eliteEncounters[(roomSet.eliteEncountersVisited + offset) % roomSet.eliteEncounters.Count];
         }
         catch (Exception ex)
         {
@@ -98,44 +114,79 @@ public static class MapPointHoverPatch
     }
 
     /// <summary>
-    /// Count how many unvisited nodes of the same room type appear before this node
-    /// in the map traversal order (row by row, left to right).
-    /// This gives us the offset into the encounter queue.
+    /// BFS from the player's current map position to <paramref name="target"/>.
+    /// Returns the minimum number of same-type combat rooms that appear strictly
+    /// between the current position and the target on the shortest path through
+    /// the map DAG.  Returns <c>null</c> if the target is not reachable from the
+    /// current position (i.e. the room is on a branch the player has already bypassed).
     /// </summary>
-    private static int CountSameTypeNodesBefore(RunState state, MapPoint targetPoint, RoomType roomType)
+    private static int? CountSameTypeRoomsOnPath(RunState state, MapPoint target, RoomType roomType)
     {
         var targetType = roomType == RoomType.Monster ? MapPointType.Monster : MapPointType.Elite;
-        int count = 0;
 
         try
         {
             var map = state.Map;
-            if (map == null) return 0;
+            if (map == null) return null;
 
-            var visited = new HashSet<MapCoord>(state.VisitedMapCoords);
-
-            // Get all map points sorted by row then column
-            var allPoints = map.GetAllMapPoints()
-                .Where(p => p.PointType == targetType)
-                .OrderBy(p => p.coord.row)
-                .ThenBy(p => p.coord.col)
-                .ToList();
-
-            // Count unvisited same-type nodes that come before target in row order
-            foreach (var p in allPoints)
+            // Determine starting nodes: children of the current node, or the map entry
+            // nodes if the run hasn't moved yet.
+            IEnumerable<MapPoint> startPoints;
+            if (state.CurrentMapCoord.HasValue)
             {
-                if (p.coord.row == targetPoint.coord.row && p.coord.col == targetPoint.coord.col)
-                    break;
-                if (!visited.Contains(p.coord))
-                    count++;
+                var cur = map.GetPoint(state.CurrentMapCoord.Value);
+                startPoints = cur?.Children ?? Enumerable.Empty<MapPoint>();
+            }
+            else
+            {
+                startPoints = map.GetAllMapPoints().Where(p => p.parents.Count == 0);
+            }
+
+            // Dijkstra / BFS where edge weight = 1 if the SOURCE node is the target type.
+            // minOffset[coord] = fewest same-type rooms we must pass through before coord.
+            var minOffset = new Dictionary<MapCoord, int>();
+            var queue = new Queue<(MapPoint point, int offset)>();
+
+            foreach (var sp in startPoints)
+            {
+                if (!minOffset.ContainsKey(sp.coord))
+                {
+                    minOffset[sp.coord] = 0;
+                    queue.Enqueue((sp, 0));
+                }
+            }
+
+            while (queue.Count > 0)
+            {
+                var (p, offset) = queue.Dequeue();
+
+                // Discard if a better path was already found
+                if (minOffset.TryGetValue(p.coord, out int best) && offset > best)
+                    continue;
+
+                if (p.coord.Equals(target.coord))
+                    return offset;
+
+                // Cost to pass THROUGH p: add 1 if p itself is the same room type
+                int costThrough = offset + (p.PointType == targetType ? 1 : 0);
+
+                foreach (var child in p.Children)
+                {
+                    if (!minOffset.TryGetValue(child.coord, out int childBest) || costThrough < childBest)
+                    {
+                        minOffset[child.coord] = costThrough;
+                        queue.Enqueue((child, costThrough));
+                    }
+                }
             }
         }
         catch { /* ignore */ }
 
-        return count;
+        // Target not reachable from current position — unreachable branch
+        return null;
     }
 
-    private static void ShowTooltip(NMapPoint mapPoint, EncounterModel encounter, int floor, RoomType roomType, bool isOverride)
+    private static void ShowTooltip(NMapPoint mapPoint, EncounterModel encounter, int floor, RoomType roomType, bool isOverride, bool isCurrentRoom = false)
     {
         // Remove existing tooltip
         RemoveTooltip(mapPoint);
@@ -270,16 +321,19 @@ public static class MapPointHoverPatch
             vbox.AddChild(monstersLabel);
         }
 
-        // Hint
-        var hintLabel = new Label
+        // Hint (hidden for current combat position — can't replace a running encounter)
+        if (!isCurrentRoom)
         {
-            Text = I18N.T("map.rightClickHint", "Right-click to replace"),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            MouseFilter = Control.MouseFilterEnum.Ignore
-        };
-        hintLabel.AddThemeColorOverride("font_color", new Color(0.45f, 0.45f, 0.55f));
-        hintLabel.AddThemeFontSizeOverride("font_size", 10);
-        vbox.AddChild(hintLabel);
+            var hintLabel = new Label
+            {
+                Text = I18N.T("map.rightClickHint", "Right-click to replace"),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                MouseFilter = Control.MouseFilterEnum.Ignore
+            };
+            hintLabel.AddThemeColorOverride("font_color", new Color(0.45f, 0.45f, 0.55f));
+            hintLabel.AddThemeFontSizeOverride("font_size", 10);
+            vbox.AddChild(hintLabel);
+        }
 
         panel.AddChild(vbox);
 
@@ -330,6 +384,11 @@ public static class MapPointRightClickPatch
 
             var pointType = point.PointType;
             if (pointType is not (MapPointType.Monster or MapPointType.Elite or MapPointType.Boss))
+                return true;
+
+            // Block right-click on the current combat position — the encounter is already running
+            var state = RunManager.Instance?.DebugOnlyGetState();
+            if (state?.CurrentMapCoord.HasValue == true && point.coord.Equals(state.CurrentMapCoord.Value))
                 return true;
 
             int floor = point.coord.row + 1;

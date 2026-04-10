@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **SpireScratch** — visual block scripting with a bundled Blockly editor: rules save as JSON in the mod `scripts` folder, reload on file changes, and run on the same hook triggers/conditions/actions as the Hooks system. The **Scripts** panel lists loaded scripts with per-script enable/disable, shortcuts to open the scripts folder or editor, and optional migration of existing Hook rules into script files.
+- SpireScratch scripts now support **live reload via WebSocket bridge**: the editor pushes saves directly to the running game, and the Scripts panel auto-refreshes to reflect changes without restarting.
 - **Exhaust pile** target — the card browser's Add target picker and nav tabs now include the Exhaust pile alongside Hand, Draw, Discard, and Deck. The `dmcard add` console command also accepts `exhaust` as a target argument.
 - Card browser Add target defaults to **Hand** instead of Deck.
 - **Character / pool filter chips** in the card browser (All Cards tab): Character group (Ironclad, Silent, Defect, Regent, Necrobinder, Colorless) and Special group (Ancients, Status, Curse, Event, Quest, Token) — combine freely with Type, Rarity, and Cost filters. Mod-added characters are detected automatically and appended to the Character group.
@@ -17,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Draw/Discard (and now Exhaust) pile count labels no longer stay stale after DevMode adds a card: `CardAddFinished` is now fired manually for the silent add path that bypasses normal VFX animations. Also fixes the same stale count when a preset with a combat snapshot restores cards to those piles.
+- **Map encounter preview** now shows the correct monster for every node: the current combat floor reads the actual running encounter from the combat room (instead of re-deriving it from the queue counter), and future floors use a DAG-BFS path walk to compute the exact queue offset along the player's reachable route. Unreachable nodes on bypassed branches show the encounter that would be entered next if teleported there.
+- Right-clicking a map node to replace its encounter is now blocked for the **current combat position** — the encounter is already running and cannot be swapped mid-fight.
 
 ## [0.4.0] - 2026-04-08
 
