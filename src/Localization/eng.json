@@ -398,6 +398,16 @@
   "cardBrowser.filterCommon": "Common",
   "cardBrowser.filterUncommon": "Uncommon",
   "cardBrowser.filterRare": "Rare",
+  "cardBrowser.chipCharacter": "Character",
+  "cardBrowser.chipSpecial": "Special",
+  "cardBrowser.poolIronclad": "Ironclad",
+  "cardBrowser.poolSilent": "Silent",
+  "cardBrowser.poolDefect": "Defect",
+  "cardBrowser.poolRegent": "Regent",
+  "cardBrowser.poolNecrobinder": "Necrobinder",
+  "cardBrowser.poolColorless": "Colorless",
+  "cardBrowser.poolAncients": "Ancients",
+  "cardBrowser.poolMisc": "Status/Curse",
 
   "panel.restartWithSeed": "Restart with Seed",
 

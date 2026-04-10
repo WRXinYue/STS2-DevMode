@@ -430,6 +430,16 @@
   "cardBrowser.filterCommon": "普通",
   "cardBrowser.filterUncommon": "罕见",
   "cardBrowser.filterRare": "稀有",
+  "cardBrowser.chipCharacter": "角色",
+  "cardBrowser.chipSpecial": "特殊",
+  "cardBrowser.poolIronclad": "铁甲战士",
+  "cardBrowser.poolSilent": "沉默猎手",
+  "cardBrowser.poolDefect": "故障机甲",
+  "cardBrowser.poolRegent": "执政官",
+  "cardBrowser.poolNecrobinder": "亡灵束缚者",
+  "cardBrowser.poolColorless": "无色",
+  "cardBrowser.poolAncients": "先古之民",
+  "cardBrowser.poolMisc": "状态/诅咒",
 
   "panel.restartWithSeed": "指定种子重开",
 

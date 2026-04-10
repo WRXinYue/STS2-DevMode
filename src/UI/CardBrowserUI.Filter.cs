@@ -4,6 +4,7 @@ using Godot;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Models.CardPools;
 
 namespace DevMode.UI;
 
@@ -125,6 +126,29 @@ internal static partial class CardBrowserUI
             int c = ec.Canonical;
             if (c >= 3) return active.Contains(3);
             return active.Contains(c);
+        }
+        catch { return true; }
+    }
+
+    private static bool MatchesPoolSet(CardModel card, HashSet<string> active)
+    {
+        if (active.Count == 0) return true;
+        try
+        {
+            var pool = card.Pool;
+            if (active.Contains("ironclad")    && pool is IroncladCardPool)    return true;
+            if (active.Contains("silent")      && pool is SilentCardPool)      return true;
+            if (active.Contains("defect")      && pool is DefectCardPool)      return true;
+            if (active.Contains("regent")      && pool is RegentCardPool)      return true;
+            if (active.Contains("necrobinder") && pool is NecrobinderCardPool) return true;
+            if (active.Contains("colorless")   && pool is ColorlessCardPool)   return true;
+            if (active.Contains("ancients")    && card.Rarity == CardRarity.Ancient) return true;
+            if (active.Contains("misc"))
+            {
+                var r = (int)card.Rarity;
+                if ((uint)(r - 6) <= 4u) return true;
+            }
+            return false;
         }
         catch { return true; }
     }

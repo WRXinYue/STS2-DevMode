@@ -69,6 +69,10 @@ internal static partial class CardBrowserUI
         public readonly HashSet<CardType> ActiveTypeFilters = new();
         public readonly HashSet<CardRarity> ActiveRarityFilters = new();
         public readonly HashSet<int> ActiveCostFilters = new();
+        public readonly HashSet<string> ActivePoolFilters = new();
+
+        // UI refs for conditional visibility
+        public HBoxContainer PoolChipRow = null!;
 
         // Card data
         public List<CardModel> CachedAllCards = new();
@@ -292,6 +296,54 @@ internal static partial class CardBrowserUI
         });
         content.AddChild(chipRow);
 
+        // ── Pool / character filter chips (AllCards tab only) ──
+        s.PoolChipRow = new HBoxContainer();
+        s.PoolChipRow.AddThemeConstantOverride("separation", 4);
+        s.PoolChipRow.Visible = IsLibrarySource;
+
+        void AddPoolChipGroup(string groupLabel, (string key, string text)[] chips)
+        {
+            if (s.PoolChipRow.GetChildCount() > 0)
+            {
+                var sep = new VSeparator { CustomMinimumSize = new Vector2(1, 0) };
+                sep.AddThemeColorOverride("separator", DevModeTheme.Separator);
+                s.PoolChipRow.AddChild(sep);
+            }
+            var groupLbl = new Label { Text = groupLabel };
+            groupLbl.AddThemeFontSizeOverride("font_size", 11);
+            groupLbl.AddThemeColorOverride("font_color", ColSubtle);
+            groupLbl.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+            s.PoolChipRow.AddChild(groupLbl);
+
+            foreach (var (key, text) in chips)
+            {
+                var chip = CreateFilterChip(text);
+                var capturedKey = key;
+                chip.Toggled += on =>
+                {
+                    ToggleSet(s.ActivePoolFilters, capturedKey, on);
+                    RebuildGrid(s, s.SearchInput.Text ?? "");
+                };
+                s.PoolChipRow.AddChild(chip);
+            }
+        }
+
+        AddPoolChipGroup(I18N.T("cardBrowser.chipCharacter", "Character"), new (string, string)[]
+        {
+            ("ironclad",    I18N.T("cardBrowser.poolIronclad",    "Ironclad")),
+            ("silent",      I18N.T("cardBrowser.poolSilent",      "Silent")),
+            ("defect",      I18N.T("cardBrowser.poolDefect",      "Defect")),
+            ("regent",      I18N.T("cardBrowser.poolRegent",      "Regent")),
+            ("necrobinder", I18N.T("cardBrowser.poolNecrobinder", "Necrobinder")),
+            ("colorless",   I18N.T("cardBrowser.poolColorless",   "Colorless")),
+        });
+        AddPoolChipGroup(I18N.T("cardBrowser.chipSpecial", "Special"), new (string, string)[]
+        {
+            ("ancients", I18N.T("cardBrowser.poolAncients", "Ancients")),
+            ("misc",     I18N.T("cardBrowser.poolMisc",     "Status/Curse")),
+        });
+        content.AddChild(s.PoolChipRow);
+
         // ── Body: card grid (left) + right panel ──
         var body = new HSplitContainer
         {
@@ -450,6 +502,7 @@ internal static partial class CardBrowserUI
         }
 
         MoveIndicator(s, tabIdx, true);
+        s.PoolChipRow.Visible = IsLibrarySource;
         ClearRightPanel(s);
         InvalidateCardCache(s);
         RebuildGrid(s, s.SearchInput.Text ?? "");

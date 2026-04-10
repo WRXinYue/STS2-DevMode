@@ -188,6 +188,7 @@ internal static partial class CardBrowserUI
             if (!MatchesTypeSet(c, s.ActiveTypeFilters)) return false;
             if (!MatchesRaritySet(c, s.ActiveRarityFilters)) return false;
             if (!MatchesCostSet(c, s.ActiveCostFilters)) return false;
+            if (IsLibrarySource && !MatchesPoolSet(c, s.ActivePoolFilters)) return false;
             if (!string.IsNullOrWhiteSpace(searchText))
             {
                 var name = CardEditActions.GetCardDisplayName(c);
