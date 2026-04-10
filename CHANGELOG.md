@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `RegisterPanelWhenReady` callbacks are flushed after all mod initializers via a `LocManager.Initialize` Harmony prefix (`LocManagerExternalPanelRegistrationPatch`).
-- Map encounter override (right-click on a map node, global / per-type / per-floor): `PullNextEncounter` overrides must stay **canonical** because `RunManager.CreateRoom` already calls `ToMutable()` on the result. The patch previously returned a mutable clone, which caused `MutableModelException` when entering the room.
+- Mod UIs that register with DevMode after startup now show up reliably once every mod has finished loading (deferred registration was running too early).
+- Crash when entering combat after replacing an encounter from the map (right-click on a node, including per-floor overrides).
 
 ## [0.4.1] - 2026-04-10
 
