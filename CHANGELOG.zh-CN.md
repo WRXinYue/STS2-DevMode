@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **破坏性变更（外部 mod）：** 公开类型由 `DevPanelChrome` 更名为 `DevPanelModApi`，仅暴露与侧栏拼接相关的 API（`CreateBrowserPanel`、`CreateBrowserBackdrop`、`PinRail`、`UnpinRail`、`SpliceRail`）。居中主菜单模态面板不再对外提供。
+- 内部实现：原 `CreateStandardPanel` / `CreateStandardBackdrop` 重命名为 `CreateMainMenuModalPanel` / `CreateMainMenuModalBackdrop`，置于 `DevPanelUI.MainMenuModal.cs`。
+
+### Fixed
+
+- 通过 `LocManager.Initialize` 的 Harmony 前缀（`LocManagerExternalPanelRegistrationPatch`）在所有 mod 初始化完成后刷新 `RegisterPanelWhenReady` 队列。
+
+### Docs
+
+- README / README.zh-CN：扩展示例改为 `DevPanelModApi`，并说明主菜单模态为内部实现。
+
 ## [0.4.1] - 2026-04-10
 
 ### Added

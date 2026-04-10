@@ -439,7 +439,7 @@ internal static partial class DevPanelUI
         root.AddChild(clickaway);
         root.MoveChild(clickaway, 0);
 
-        var panel = CreateOverlayPanel();
+        var panel = CreateMainMenuModalPanel(OverlayW);
         panel.Name = OverlayName;
         root.AddChild(panel);
 

@@ -15,11 +15,15 @@
 
 ## 扩展 DevMode
 
-外部 mod 可通过 `DevPanelRegistry` 注册自定义标签页：
+外部 mod 可通过 `DevPanelRegistry` 注册自定义标签页。
+
+在 **游戏流程中**（侧栏已附着于 `NGlobalUi`）打开的自定义页，须通过 **`DevPanelModApi`** 使用与内置「控制台」等相同的 **浏览器式布局**：`CreateBrowserPanel` + `CreateBrowserBackdrop` + `PinRail` / `SpliceRail`。主菜单居中浮层由 DevMode 内部实现，**不对外暴露**。根节点名称须以 **`DevMode` 开头**，否则切换侧栏标签时 `CloseAllOverlays` 无法自动移除你的面板。
 
 ```csharp
 using DevMode.Icons;
 using DevMode.UI;
+using Godot;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
 DevPanelRegistry.Register(
     id:    "mymod.debug",
@@ -29,11 +33,37 @@ DevPanelRegistry.Register(
     group: DevPanelTabGroup.Primary,
     onActivate: globalUi =>
     {
-        var panel = DevPanelUI.CreateStandardPanel();
+        var rootName = "DevModeMyModDebug";
+        void Remove() => ((Node)globalUi).GetNodeOrNull<Control>(rootName)?.QueueFree();
+
+        Remove();
+        DevPanelModApi.PinRail();
+        DevPanelModApi.SpliceRail(globalUi, joined: true);
+
+        var root = new Control
+        {
+            Name = rootName,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            ZIndex = 1250,
+        };
+        root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        root.TreeExiting += () =>
+        {
+            DevPanelModApi.UnpinRail();
+            DevPanelModApi.SpliceRail(globalUi, joined: false);
+        };
+
+        root.AddChild(DevPanelModApi.CreateBrowserBackdrop(Remove));
+        var panel = DevPanelModApi.CreateBrowserPanel(520f);
+        root.AddChild(panel);
+
         var content = panel.GetNode<VBoxContainer>("Content");
         // ... 在此构建自定义 UI ...
-        ((Node)globalUi).AddChild(panel);
-    }
+
+        ((Node)globalUi).AddChild(root);
+    },
+    onDeactivate: globalUi =>
+        ((Node)globalUi).GetNodeOrNull<Control>("DevModeMyModDebug")?.QueueFree()
 );
 ```
 
@@ -54,6 +84,27 @@ public class MyTab : IDevPanelTab
 
 DevPanelRegistry.Register(new MyTab());
 ```
+
+### 推荐：`RegisterPanelWhenReady`
+
+若在外部 mod 的 `[ModInitializer]` 里直接调用 `DevPanelRegistry.Register`，可能早于 DevMode 自身初始化完成，或与 mod 加载顺序冲突。请改用 **`DevPanelRegistry.RegisterPanelWhenReady(Action)`**：DevMode 会在 **全部 mod 初始化结束之后**、本地化初始化之前统一执行回调（由 DevMode 内置的 `LocManager.Initialize` 补丁触发），无需各 mod 自行写 Harmony。
+
+```csharp
+using DevMode.UI;
+
+DevPanelRegistry.RegisterPanelWhenReady(() =>
+{
+    DevPanelRegistry.Register(
+        "mymod.debug",
+        MdiIcon.Bug,
+        "我的调试面板",
+        350,
+        DevPanelTabGroup.Primary,
+        onActivate: globalUi => { /* ... */ });
+});
+```
+
+若你的 mod **编译期引用** DevMode，请在 manifest 的 `dependencies` 中声明 **`DevMode`**，以便引擎先加载 DevMode，再加载你的 mod（否则在 `Initialize` 里调用上述 API 时仍可能无法解析 DevMode 程序集）。
 
 内置标签页使用 100、200、…、800 的排序值，选择中间值即可控制位置。
 

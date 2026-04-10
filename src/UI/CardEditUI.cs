@@ -85,9 +85,9 @@ internal static class CardEditUI
         var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1300 };
         root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
 
-        root.AddChild(DevPanelUI.CreateStandardBackdrop(() => Remove(globalUi)));
+        root.AddChild(DevPanelUI.CreateMainMenuModalBackdrop(() => Remove(globalUi)));
 
-        var panel = DevPanelUI.CreateStandardPanel(700f);
+        var panel = DevPanelUI.CreateMainMenuModalPanel(700f);
         panel.MouseFilter = Control.MouseFilterEnum.Stop;
         root.AddChild(panel);
 
