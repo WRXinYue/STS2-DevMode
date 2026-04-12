@@ -7,8 +7,7 @@ namespace DevMode.UI;
 /// Implement this interface to add a custom tab to the DevMode rail.
 /// Register via <see cref="DevPanelRegistry.Register(IDevPanelTab)"/>.
 /// </summary>
-public interface IDevPanelTab
-{
+public interface IDevPanelTab {
     /// <summary>Unique identifier, e.g. "mymod.debug".</summary>
     string Id { get; }
 
@@ -35,8 +34,7 @@ public interface IDevPanelTab
 }
 
 /// <summary>Determines where the tab icon is placed in the rail.</summary>
-public enum DevPanelTabGroup
-{
+public enum DevPanelTabGroup {
     /// <summary>Upper section — primary feature panels (Cards, Relics, …).</summary>
     Primary,
 

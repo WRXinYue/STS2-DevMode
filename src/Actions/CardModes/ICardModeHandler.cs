@@ -12,8 +12,7 @@ namespace DevMode.Actions.CardModes;
 /// Each handler encapsulates the mode-specific behavior that was previously
 /// spread across DevPanel's switch/if chains.
 /// </summary>
-internal interface ICardModeHandler
-{
+internal interface ICardModeHandler {
     string Id { get; }
 
     // ── TopBar configuration ──
@@ -41,15 +40,13 @@ internal interface ICardModeHandler
 /// Serialized configuration passed from handler to TopBar so the TopBar
 /// never needs to know about individual CardMode values.
 /// </summary>
-internal readonly struct CardTopBarConfig
-{
+internal readonly struct CardTopBarConfig {
     public readonly bool ShowTargets;
     public readonly bool ShowDuration;
     public readonly bool RefreshOnTargetChange;
     public readonly Func<CardTarget, bool>? TargetAvailable;
 
-    public CardTopBarConfig(ICardModeHandler handler, Player? player)
-    {
+    public CardTopBarConfig(ICardModeHandler handler, Player? player) {
         ShowTargets = handler.ShowTargets;
         ShowDuration = handler.ShowDuration;
         RefreshOnTargetChange = handler.RefreshOnTargetChange;

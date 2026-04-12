@@ -2,12 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using DevMode.Presets;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Models;
-using DevMode.Presets;
 
 namespace DevMode.Actions;
 
@@ -15,22 +15,19 @@ namespace DevMode.Actions;
 /// Deep card editing: modify cost, replay, damage, block, keywords, enchantments.
 /// Uses reflection for cross-version compatibility.
 /// </summary>
-internal static class CardEditActions
-{
+internal static class CardEditActions {
     private const BindingFlags ReflFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
     // ── Cost: STS2 uses EnergyCost.Canonical / SetCustomBaseCost ──
 
-    public static bool TrySetBaseCost(CardModel card, int cost)
-    {
+    public static bool TrySetBaseCost(CardModel card, int cost) {
         try { card.EnergyCost.SetCustomBaseCost(cost); return true; } catch { }
         return TrySetProperty(card, "BaseCost", cost)
             || TrySetProperty(card, "Cost", cost)
             || TrySetField(card, "_baseCost", cost);
     }
 
-    public static int? GetBaseCost(CardModel card)
-    {
+    public static int? GetBaseCost(CardModel card) {
         try { return card.EnergyCost.Canonical; } catch { }
         return TryGetInt(card, "CanonicalEnergyCost")
             ?? TryGetInt(card, "BaseCost")
@@ -39,28 +36,23 @@ internal static class CardEditActions
 
     // ── Replay: STS2 uses BaseReplayCount ──
 
-    public static bool TrySetReplayCount(CardModel card, int count)
-    {
+    public static bool TrySetReplayCount(CardModel card, int count) {
         try { card.BaseReplayCount = count; return true; } catch { }
         return TrySetProperty(card, "ReplayCount", count)
             || TrySetProperty(card, "Replay", count)
             || TrySetField(card, "_replayCount", count);
     }
 
-    public static int? GetReplayCount(CardModel card)
-    {
+    public static int? GetReplayCount(CardModel card) {
         try { return card.BaseReplayCount; } catch { }
         return TryGetInt(card, "ReplayCount") ?? TryGetInt(card, "Replay");
     }
 
     // ── Damage / Block: STS2 stores these as DynamicVars, not CardModel properties ──
 
-    public static bool TrySetDamage(CardModel card, int damage)
-    {
-        try
-        {
-            if (card.DynamicVars.TryGetValue("Damage", out var dv))
-            {
+    public static bool TrySetDamage(CardModel card, int damage) {
+        try {
+            if (card.DynamicVars.TryGetValue("Damage", out var dv)) {
                 dv.BaseValue = damage;
                 dv.PreviewValue = damage;
                 return true;
@@ -72,10 +64,8 @@ internal static class CardEditActions
             || TrySetField(card, "_baseDamage", damage);
     }
 
-    public static int? GetDamage(CardModel card)
-    {
-        try
-        {
+    public static int? GetDamage(CardModel card) {
+        try {
             if (card.DynamicVars.TryGetValue("Damage", out var dv))
                 return (int)Math.Round(dv.BaseValue);
         }
@@ -83,12 +73,9 @@ internal static class CardEditActions
         return TryGetInt(card, "BaseDamage") ?? TryGetInt(card, "Damage");
     }
 
-    public static bool TrySetBlock(CardModel card, int block)
-    {
-        try
-        {
-            if (card.DynamicVars.TryGetValue("Block", out var dv))
-            {
+    public static bool TrySetBlock(CardModel card, int block) {
+        try {
+            if (card.DynamicVars.TryGetValue("Block", out var dv)) {
                 dv.BaseValue = block;
                 dv.PreviewValue = block;
                 return true;
@@ -100,10 +87,8 @@ internal static class CardEditActions
             || TrySetField(card, "_baseBlock", block);
     }
 
-    public static int? GetBlock(CardModel card)
-    {
-        try
-        {
+    public static int? GetBlock(CardModel card) {
+        try {
             if (card.DynamicVars.TryGetValue("Block", out var dv))
                 return (int)Math.Round(dv.BaseValue);
         }
@@ -113,28 +98,23 @@ internal static class CardEditActions
 
     // ── Keywords: STS2 uses Keywords set + AddKeyword/RemoveKeyword ──
 
-    public static bool? GetExhaust(CardModel card)
-    {
+    public static bool? GetExhaust(CardModel card) {
         try { return card.Keywords.Contains(CardKeyword.Exhaust); } catch { }
         return TryGetBool(card, "Exhaust");
     }
 
-    public static bool? GetEthereal(CardModel card)
-    {
+    public static bool? GetEthereal(CardModel card) {
         try { return card.Keywords.Contains(CardKeyword.Ethereal); } catch { }
         return TryGetBool(card, "Ethereal");
     }
 
-    public static bool? GetUnplayable(CardModel card)
-    {
+    public static bool? GetUnplayable(CardModel card) {
         try { return card.Keywords.Contains(CardKeyword.Unplayable); } catch { }
         return TryGetBool(card, "Unplayable");
     }
 
-    public static bool TrySetExhaust(CardModel card, bool exhaust)
-    {
-        try
-        {
+    public static bool TrySetExhaust(CardModel card, bool exhaust) {
+        try {
             if (exhaust) card.AddKeyword(CardKeyword.Exhaust);
             else card.RemoveKeyword(CardKeyword.Exhaust);
             return true;
@@ -144,10 +124,8 @@ internal static class CardEditActions
             || TrySetField(card, "_exhaust", exhaust);
     }
 
-    public static bool TrySetEthereal(CardModel card, bool ethereal)
-    {
-        try
-        {
+    public static bool TrySetEthereal(CardModel card, bool ethereal) {
+        try {
             if (ethereal) card.AddKeyword(CardKeyword.Ethereal);
             else card.RemoveKeyword(CardKeyword.Ethereal);
             return true;
@@ -157,10 +135,8 @@ internal static class CardEditActions
             || TrySetField(card, "_ethereal", ethereal);
     }
 
-    public static bool TrySetUnplayable(CardModel card, bool unplayable)
-    {
-        try
-        {
+    public static bool TrySetUnplayable(CardModel card, bool unplayable) {
+        try {
             if (unplayable) card.AddKeyword(CardKeyword.Unplayable);
             else card.RemoveKeyword(CardKeyword.Unplayable);
             return true;
@@ -182,31 +158,25 @@ internal static class CardEditActions
 
     private static readonly HashSet<string> _builtInVarKeys = new(StringComparer.OrdinalIgnoreCase) { "Damage", "Block" };
 
-    public static IReadOnlyList<string> GetDynamicVarKeys(CardModel card)
-    {
-        try
-        {
+    public static IReadOnlyList<string> GetDynamicVarKeys(CardModel card) {
+        try {
             return card.DynamicVars?.Keys?
                 .Where(k => !_builtInVarKeys.Contains(k))
                 .OrderBy(k => k, StringComparer.OrdinalIgnoreCase)
                 .ToArray() ?? Array.Empty<string>();
         }
-        catch
-        {
+        catch {
             return Array.Empty<string>();
         }
     }
 
-    public static string GetDynamicVarDisplayName(string key)
-    {
+    public static string GetDynamicVarDisplayName(string key) {
         return I18N.T($"cardEdit.dynVar.{key}", key);
     }
 
-    public static int? GetDynamicVar(CardModel card, string key)
-    {
+    public static int? GetDynamicVar(CardModel card, string key) {
         if (string.IsNullOrWhiteSpace(key)) return null;
-        try
-        {
+        try {
             if (TryGetDynamicVar(card, key, out var dynamicVar) && dynamicVar != null)
                 return (int)Math.Round(dynamicVar.BaseValue);
         }
@@ -214,11 +184,9 @@ internal static class CardEditActions
         return null;
     }
 
-    public static bool TrySetDynamicVar(CardModel card, string key, int value)
-    {
+    public static bool TrySetDynamicVar(CardModel card, string key, int value) {
         if (string.IsNullOrWhiteSpace(key)) return false;
-        try
-        {
+        try {
             if (!TryGetDynamicVar(card, key, out var dynamicVar) || dynamicVar == null) return false;
             dynamicVar.BaseValue = value;
             dynamicVar.PreviewValue = value;
@@ -229,42 +197,35 @@ internal static class CardEditActions
         catch { return false; }
     }
 
-    public static string GetTitleText(CardModel card)
-    {
+    public static string GetTitleText(CardModel card) {
         object? value = TryGetObject(card, "TitleLocString", "_titleLocString");
         if (value is LocString loc) return GetLocText(loc);
         return card.Title ?? string.Empty;
     }
 
-    public static string GetDescriptionText(CardModel card)
-    {
+    public static string GetDescriptionText(CardModel card) {
         object? value = TryGetObject(card, "Description", "_descriptionLocString", "_description");
-        return value switch
-        {
+        return value switch {
             LocString loc => GetLocText(loc),
             string s => s,
             _ => string.Empty
         };
     }
 
-    public static bool TrySetTitleText(CardModel card, string text)
-    {
+    public static bool TrySetTitleText(CardModel card, string text) {
         if (string.IsNullOrWhiteSpace(text)) return false;
         var loc = new LocString(string.Empty, text.Trim());
         return TrySetObject(card, loc, "TitleLocString", "_titleLocString");
     }
 
-    public static bool TrySetDescriptionText(CardModel card, string text)
-    {
+    public static bool TrySetDescriptionText(CardModel card, string text) {
         if (string.IsNullOrWhiteSpace(text)) return false;
         var loc = new LocString(string.Empty, text.Trim());
         return TrySetObject(card, loc, "Description", "_descriptionLocString", "_description");
     }
 
-    public static CardEditTemplate CaptureTemplate(CardModel card)
-    {
-        var template = new CardEditTemplate
-        {
+    public static CardEditTemplate CaptureTemplate(CardModel card) {
+        var template = new CardEditTemplate {
             BaseCost = GetBaseCost(card),
             ReplayCount = GetReplayCount(card),
             Damage = GetDamage(card),
@@ -280,8 +241,7 @@ internal static class CardEditActions
         };
 
         var vars = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        foreach (var key in GetDynamicVarKeys(card))
-        {
+        foreach (var key in GetDynamicVarKeys(card)) {
             var v = GetDynamicVar(card, key);
             if (v.HasValue) vars[key] = v.Value;
         }
@@ -289,15 +249,13 @@ internal static class CardEditActions
         return template;
     }
 
-    public static void ApplyTemplate(CardModel card, CardEditTemplate template)
-    {
+    public static void ApplyTemplate(CardModel card, CardEditTemplate template) {
         if (template.BaseCost.HasValue) TrySetBaseCost(card, template.BaseCost.Value);
         if (template.ReplayCount.HasValue) TrySetReplayCount(card, template.ReplayCount.Value);
         if (template.Damage.HasValue) TrySetDamage(card, template.Damage.Value);
         if (template.Block.HasValue) TrySetBlock(card, template.Block.Value);
 
-        if (template.DynamicVars != null)
-        {
+        if (template.DynamicVars != null) {
             foreach (var kv in template.DynamicVars)
                 TrySetDynamicVar(card, kv.Key, kv.Value);
         }
@@ -314,10 +272,8 @@ internal static class CardEditActions
     }
 
     /// <summary>Get all enchantment types available in the game.</summary>
-    public static IReadOnlyList<Type> GetEnchantmentTypes()
-    {
-        try
-        {
+    public static IReadOnlyList<Type> GetEnchantmentTypes() {
+        try {
             var baseType = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(a => { try { return a.GetTypes(); } catch { return Array.Empty<Type>(); } })
                 .FirstOrDefault(t => t.Name == "AbstractEnchantment" && !t.IsInterface);
@@ -334,10 +290,8 @@ internal static class CardEditActions
     }
 
     /// <summary>Try to apply an enchantment to a card.</summary>
-    public static bool TryApplyEnchantment(CardModel card, Type enchantmentType, bool force = false)
-    {
-        try
-        {
+    public static bool TryApplyEnchantment(CardModel card, Type enchantmentType, bool force = false) {
+        try {
             var enchantment = Activator.CreateInstance(enchantmentType);
             if (enchantment == null) return false;
 
@@ -345,12 +299,10 @@ internal static class CardEditActions
             var enchantMethod = typeof(CardCmd).GetMethods(BindingFlags.Static | BindingFlags.Public)
                 .FirstOrDefault(m => m.Name.Contains("Enchant", StringComparison.OrdinalIgnoreCase));
 
-            if (enchantMethod != null)
-            {
+            if (enchantMethod != null) {
                 var parameters = enchantMethod.GetParameters();
                 var args = new object?[parameters.Length];
-                for (int i = 0; i < parameters.Length; i++)
-                {
+                for (int i = 0; i < parameters.Length; i++) {
                     var pt = parameters[i].ParameterType;
                     if (pt == typeof(CardModel) || typeof(CardModel).IsAssignableFrom(pt))
                         args[i] = card;
@@ -371,53 +323,45 @@ internal static class CardEditActions
             return TrySetProperty(card, "Enchantment", enchantment)
                 || TrySetProperty(card, "CurrentEnchantment", enchantment);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             MainFile.Logger.Warn($"Apply enchantment failed: {ex.Message}");
             return false;
         }
     }
 
-    public static bool TryClearEnchantment(CardModel card)
-    {
+    public static bool TryClearEnchantment(CardModel card) {
         return TrySetProperty(card, "Enchantment", null)
             || TrySetProperty(card, "CurrentEnchantment", null);
     }
 
     /// <summary>Get all cards in the player's deck for editing.</summary>
-    public static IReadOnlyList<CardModel> GetDeckCards(Player player)
-    {
+    public static IReadOnlyList<CardModel> GetDeckCards(Player player) {
         return player.Deck?.Cards?.ToArray() ?? Array.Empty<CardModel>();
     }
 
-    public static string GetCardDisplayName(CardModel card)
-    {
+    public static string GetCardDisplayName(CardModel card) {
         try { return card.Title ?? ((AbstractModel)card).Id.Entry ?? "?"; }
         catch { return ((AbstractModel)card).Id.Entry ?? "?"; }
     }
 
     // ── Reflection helpers ──
 
-    private static bool TrySetProperty(object target, string name, object? value)
-    {
+    private static bool TrySetProperty(object target, string name, object? value) {
         var prop = target.GetType().GetProperty(name, ReflFlags);
         if (prop is not { CanWrite: true }) return false;
         try { prop.SetValue(target, value); return true; }
         catch { return false; }
     }
 
-    private static bool TrySetField(object target, string name, object? value)
-    {
+    private static bool TrySetField(object target, string name, object? value) {
         var field = target.GetType().GetField(name, ReflFlags);
         if (field == null || field.IsInitOnly) return false;
         try { field.SetValue(target, value); return true; }
         catch { return false; }
     }
 
-    private static int? TryGetInt(object target, string name)
-    {
-        try
-        {
+    private static int? TryGetInt(object target, string name) {
+        try {
             var prop = target.GetType().GetProperty(name, ReflFlags);
             if (prop != null) return Convert.ToInt32(prop.GetValue(target));
             var field = target.GetType().GetField(name, ReflFlags);
@@ -427,10 +371,8 @@ internal static class CardEditActions
         return null;
     }
 
-    private static bool? TryGetBool(object target, string name)
-    {
-        try
-        {
+    private static bool? TryGetBool(object target, string name) {
+        try {
             var prop = target.GetType().GetProperty(name, ReflFlags);
             if (prop != null) return (bool?)prop.GetValue(target);
             var field = target.GetType().GetField(name, ReflFlags);
@@ -440,32 +382,25 @@ internal static class CardEditActions
         return null;
     }
 
-    private static bool? TryGetBool(object target, params string[] names)
-    {
-        foreach (var name in names)
-        {
+    private static bool? TryGetBool(object target, params string[] names) {
+        foreach (var name in names) {
             var v = TryGetBool(target, name);
             if (v.HasValue) return v;
         }
         return null;
     }
 
-    private static bool TrySetBool(object target, bool value, params string[] names)
-    {
-        foreach (var name in names)
-        {
+    private static bool TrySetBool(object target, bool value, params string[] names) {
+        foreach (var name in names) {
             if (TrySetProperty(target, name, value) || TrySetField(target, name, value))
                 return true;
         }
         return false;
     }
 
-    private static object? TryGetObject(object target, params string[] names)
-    {
-        foreach (var name in names)
-        {
-            try
-            {
+    private static object? TryGetObject(object target, params string[] names) {
+        foreach (var name in names) {
+            try {
                 var prop = target.GetType().GetProperty(name, ReflFlags);
                 if (prop != null && prop.GetIndexParameters().Length == 0) return prop.GetValue(target);
                 var field = target.GetType().GetField(name, ReflFlags);
@@ -476,21 +411,16 @@ internal static class CardEditActions
         return null;
     }
 
-    private static bool TrySetObject(object target, object value, params string[] names)
-    {
-        foreach (var name in names)
-        {
-            try
-            {
+    private static bool TrySetObject(object target, object value, params string[] names) {
+        foreach (var name in names) {
+            try {
                 var prop = target.GetType().GetProperty(name, ReflFlags);
-                if (prop != null && prop.CanWrite && prop.PropertyType.IsInstanceOfType(value))
-                {
+                if (prop != null && prop.CanWrite && prop.PropertyType.IsInstanceOfType(value)) {
                     prop.SetValue(target, value);
                     return true;
                 }
                 var field = target.GetType().GetField(name, ReflFlags);
-                if (field != null && !field.IsInitOnly && field.FieldType.IsInstanceOfType(value))
-                {
+                if (field != null && !field.IsInitOnly && field.FieldType.IsInstanceOfType(value)) {
                     field.SetValue(target, value);
                     return true;
                 }
@@ -500,17 +430,14 @@ internal static class CardEditActions
         return false;
     }
 
-    private static string GetLocText(LocString? value)
-    {
+    private static string GetLocText(LocString? value) {
         if (value == null || value.IsEmpty) return string.Empty;
-        try
-        {
+        try {
             var text = value.GetFormattedText();
             if (!string.IsNullOrWhiteSpace(text)) return text.Trim();
         }
         catch { }
-        try
-        {
+        try {
             var raw = value.GetRawText();
             if (!string.IsNullOrWhiteSpace(raw)) return raw.Trim();
         }
@@ -518,11 +445,9 @@ internal static class CardEditActions
         return value.LocEntryKey ?? string.Empty;
     }
 
-    private static bool TryGetDynamicVar(CardModel card, string key, out MegaCrit.Sts2.Core.Localization.DynamicVars.DynamicVar? dynamicVar)
-    {
+    private static bool TryGetDynamicVar(CardModel card, string key, out MegaCrit.Sts2.Core.Localization.DynamicVars.DynamicVar? dynamicVar) {
         dynamicVar = null;
-        try
-        {
+        try {
             if (card.DynamicVars == null) return false;
             if (card.DynamicVars.TryGetValue(key, out dynamicVar) && dynamicVar != null) return true;
             var actualKey = card.DynamicVars.Keys.FirstOrDefault(k => k.Equals(key, StringComparison.OrdinalIgnoreCase));

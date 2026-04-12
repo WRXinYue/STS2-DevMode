@@ -1,13 +1,12 @@
+using DevMode.UI;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Runs;
-using DevMode.UI;
 
 namespace DevMode.Actions.CardModes;
 
-internal sealed class AddModeHandler : ICardModeHandler
-{
+internal sealed class AddModeHandler : ICardModeHandler {
     public string Id => "add";
     public bool ShowTargets => true;
     public bool ShowDuration => true;
@@ -16,8 +15,7 @@ internal sealed class AddModeHandler : ICardModeHandler
     public bool HasRelevantCards(Player player, CardTarget target)
         => target == CardTarget.Deck || player.PlayerCombatState != null;
 
-    public void Execute(NGlobalUi globalUi, DevPanel.ActionSession session, RunState state, Player player)
-    {
+    public void Execute(NGlobalUi globalUi, DevPanel.ActionSession session, RunState state, Player player) {
         CardBrowserUI.Show(globalUi, state, player);
     }
 

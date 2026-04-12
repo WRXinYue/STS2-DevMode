@@ -1,21 +1,19 @@
 using System;
 using System.Collections.Generic;
-using MegaCrit.Sts2.Core.Entities.Players;
 using DevMode.Settings;
+using MegaCrit.Sts2.Core.Entities.Players;
 
 namespace DevMode.Hooks;
 
 /// <summary>
 /// Central dispatcher: receives trigger events, checks conditions, and executes actions.
 /// </summary>
-internal static class HookManager
-{
+internal static class HookManager {
     /// <summary>
     /// Fire a trigger. All enabled hooks matching the trigger are evaluated;
     /// those whose conditions pass will have their actions executed.
     /// </summary>
-    public static void Fire(TriggerType trigger, Player? player)
-    {
+    public static void Fire(TriggerType trigger, Player? player) {
         if (!DevModeState.InDevRun && !DevModeState.AlwaysEnabled) return;
 
         List<HookEntry> hooks;
@@ -25,19 +23,16 @@ internal static class HookManager
         if (hooks == null || hooks.Count == 0) return;
         if (player == null && !RunContext.TryGetRunAndPlayer(out _, out player)) return;
 
-        foreach (var hook in hooks)
-        {
+        foreach (var hook in hooks) {
             if (!hook.Enabled || hook.Trigger != trigger) continue;
 
-            try
-            {
+            try {
                 if (!HookConditionChecker.CheckAll(hook.Conditions, player)) continue;
 
                 foreach (var action in hook.Actions)
                     HookActionExecutor.Execute(action, player!);
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 MainFile.Logger.Warn($"[Hook] Error executing '{hook.Name}' ({trigger}): {ex.Message}");
             }
         }

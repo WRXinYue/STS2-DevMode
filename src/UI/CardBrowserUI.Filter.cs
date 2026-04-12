@@ -8,8 +8,7 @@ using MegaCrit.Sts2.Core.Models;
 
 namespace DevMode.UI;
 
-internal static partial class CardBrowserUI
-{
+internal static partial class CardBrowserUI {
     // ── Filter / browse / sort enums ──
 
     private enum SortField { Type, Rarity, Cost, Alphabet }
@@ -19,107 +18,92 @@ internal static partial class CardBrowserUI
     private enum BrowseSource { AllCards, Hand, DrawPile, DiscardPile, ExhaustPile, Deck }
     private static BrowseSource _browseSource = BrowseSource.AllCards;
 
-    private static CardTarget? BrowseSourceToTarget(BrowseSource src) => src switch
-    {
-        BrowseSource.Hand        => CardTarget.Hand,
-        BrowseSource.DrawPile    => CardTarget.DrawPile,
+    private static CardTarget? BrowseSourceToTarget(BrowseSource src) => src switch {
+        BrowseSource.Hand => CardTarget.Hand,
+        BrowseSource.DrawPile => CardTarget.DrawPile,
         BrowseSource.DiscardPile => CardTarget.DiscardPile,
         BrowseSource.ExhaustPile => CardTarget.ExhaustPile,
-        BrowseSource.Deck        => CardTarget.Deck,
-        _                        => null
+        BrowseSource.Deck => CardTarget.Deck,
+        _ => null
     };
 
     private static bool IsLibrarySource => _browseSource == BrowseSource.AllCards;
 
     // ── Rarity colors ──
 
-    private static Color ColCommon   => DevModeTheme.RarityCommon;
+    private static Color ColCommon => DevModeTheme.RarityCommon;
     private static Color ColUncommon => DevModeTheme.RarityUncommon;
-    private static Color ColRare     => DevModeTheme.RarityRare;
-    private static Color ColSpecial  => DevModeTheme.RaritySpecial;
-    private static Color ColCurse    => DevModeTheme.RarityCurse;
+    private static Color ColRare => DevModeTheme.RarityRare;
+    private static Color ColSpecial => DevModeTheme.RaritySpecial;
+    private static Color ColCurse => DevModeTheme.RarityCurse;
 
     // ── Card enum helpers ──
 
-    private static CardType GetCardType(CardModel card)
-    {
+    private static CardType GetCardType(CardModel card) {
         try { return card.Type; }
         catch { return CardType.None; }
     }
 
-    private static CardRarity GetCardRarity(CardModel card)
-    {
+    private static CardRarity GetCardRarity(CardModel card) {
         try { return card.Rarity; }
         catch { return CardRarity.None; }
     }
 
-    internal static string GetLocalizedTypeName(CardModel card)
-    {
-        try
-        {
+    internal static string GetLocalizedTypeName(CardModel card) {
+        try {
             var t = card.Type;
             return t == CardType.None ? "" : t.ToLocString().GetFormattedText();
         }
         catch { return ""; }
     }
 
-    internal static string GetLocalizedRarityName(CardModel card)
-    {
-        try
-        {
+    internal static string GetLocalizedRarityName(CardModel card) {
+        try {
             var r = card.Rarity;
             return r == CardRarity.None ? "" : r.ToLocString().GetFormattedText();
         }
         catch { return ""; }
     }
 
-    private static Color RarityToColor(CardRarity rarity)
-    {
-        return rarity switch
-        {
+    private static Color RarityToColor(CardRarity rarity) {
+        return rarity switch {
             CardRarity.Common or CardRarity.Basic or CardRarity.Token => ColCommon,
-            CardRarity.Uncommon          => ColUncommon,
-            CardRarity.Rare              => ColRare,
-            CardRarity.Event             => ColSpecial,
+            CardRarity.Uncommon => ColUncommon,
+            CardRarity.Rare => ColRare,
+            CardRarity.Event => ColSpecial,
             CardRarity.Curse or CardRarity.Status => ColCurse,
-            CardRarity.Ancient           => ColRare,
-            _                            => ColCommon
+            CardRarity.Ancient => ColRare,
+            _ => ColCommon
         };
     }
 
     // ── Filter matchers ──
 
-    private static bool MatchesTypeSet(CardModel card, HashSet<CardType> active)
-    {
+    private static bool MatchesTypeSet(CardModel card, HashSet<CardType> active) {
         if (active.Count == 0) return true;
         var t = GetCardType(card);
         if (active.Contains(t)) return true;
-        if (active.Contains(CardType.None))
-        {
+        if (active.Contains(CardType.None)) {
             bool isStandard = t == CardType.Attack || t == CardType.Skill || t == CardType.Power;
             return !isStandard;
         }
         return false;
     }
 
-    private static bool MatchesRaritySet(CardModel card, HashSet<CardRarity> active)
-    {
+    private static bool MatchesRaritySet(CardModel card, HashSet<CardRarity> active) {
         if (active.Count == 0) return true;
         var r = GetCardRarity(card);
         if (active.Contains(r)) return true;
-        if (active.Contains(CardRarity.None))
-        {
+        if (active.Contains(CardRarity.None)) {
             bool isStandard = r == CardRarity.Common || r == CardRarity.Uncommon || r == CardRarity.Rare;
             return !isStandard;
         }
         return false;
     }
 
-    private static bool MatchesCostSet(CardModel card, HashSet<int> active)
-    {
+    private static bool MatchesCostSet(CardModel card, HashSet<int> active) {
         if (active.Count == 0) return true;
-        try
-        {
+        try {
             var ec = card.EnergyCost;
             if (ec == null) return active.Contains(0);
             if (ec.CostsX || card.HasStarCostX) return active.Contains(CostFilterX);
@@ -133,13 +117,10 @@ internal static partial class CardBrowserUI
     private static bool MatchesPoolSet(
         CardModel card,
         HashSet<string> active,
-        Dictionary<string, Func<CardModel, bool>> predicates)
-    {
+        Dictionary<string, Func<CardModel, bool>> predicates) {
         if (active.Count == 0) return true;
-        try
-        {
-            foreach (var key in active)
-            {
+        try {
+            foreach (var key in active) {
                 if (predicates.TryGetValue(key, out var pred) && pred(card))
                     return true;
             }
@@ -150,11 +131,9 @@ internal static partial class CardBrowserUI
 
     // ── Sorting ──
 
-    private static int GetRarityOrder(CardRarity r)
-    {
+    private static int GetRarityOrder(CardRarity r) {
         if (r <= CardRarity.Ancient) return (int)r;
-        return r switch
-        {
+        return r switch {
             CardRarity.Status => 6,
             CardRarity.Curse => 7,
             CardRarity.Event => 8,
@@ -164,12 +143,9 @@ internal static partial class CardBrowserUI
         };
     }
 
-    private static int CompareCards(CardModel a, CardModel b, List<(SortField field, bool asc)> priority)
-    {
-        foreach (var (field, asc) in priority)
-        {
-            int cmp = field switch
-            {
+    private static int CompareCards(CardModel a, CardModel b, List<(SortField field, bool asc)> priority) {
+        foreach (var (field, asc) in priority) {
+            int cmp = field switch {
                 SortField.Type => a.Type.CompareTo(b.Type),
                 SortField.Rarity => GetRarityOrder(a.Rarity).CompareTo(GetRarityOrder(b.Rarity)),
                 SortField.Cost => (a.EnergyCost?.Canonical ?? 0).CompareTo(b.EnergyCost?.Canonical ?? 0),

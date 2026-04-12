@@ -1,32 +1,29 @@
 using System;
-using Godot;
-using MegaCrit.Sts2.Core.Nodes.CommonUi;
-using MegaCrit.Sts2.Core.Runs;
 using DevMode.Icons;
 using DevMode.Presets;
 using DevMode.Settings;
+using Godot;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using MegaCrit.Sts2.Core.Runs;
 
 namespace DevMode.UI;
 
-internal static partial class DevPanelUI
-{
-    private const string SettingsRootName   = "DevModeSettings";
-    private const string SaveLoadRootName   = "DevModeSaveLoad";
+internal static partial class DevPanelUI {
+    private const string SettingsRootName = "DevModeSettings";
+    private const string SaveLoadRootName = "DevModeSaveLoad";
     private const string RestartSeedRootName = "DevModeRestartSeed";
-    private const string AIRootName         = "DevModeAI";
+    private const string AIRootName = "DevModeAI";
 
     // ── Helper: build the standard browser-panel root ──────────────────────
 
     private static (Control root, VBoxContainer vbox) CreateOverlayRoot(
-        NGlobalUi globalUi, string rootName, float panelWidth = 0f)
-    {
+        NGlobalUi globalUi, string rootName, float panelWidth = 0f) {
         PinRail();
         SpliceRail(globalUi, joined: true);
 
         var root = new Control { Name = rootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1250 };
         root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        root.TreeExiting += () =>
-        {
+        root.TreeExiting += () => {
             UnpinRail();
             SpliceRail(globalUi, joined: false);
         };
@@ -46,11 +43,9 @@ internal static partial class DevPanelUI
 
     // ── Settings (Cheats) ──────────────────────────────────────────────────
 
-    internal static void ShowCheatsOverlay(NGlobalUi globalUi, DevPanelActions actions)
-    {
+    internal static void ShowCheatsOverlay(NGlobalUi globalUi, DevPanelActions actions) {
         var existing = ((Node)globalUi).GetNodeOrNull<Control>(SettingsRootName);
-        if (existing != null)
-        {
+        if (existing != null) {
             ((Node)globalUi).RemoveChild(existing);
             existing.QueueFree();
         }
@@ -61,10 +56,9 @@ internal static partial class DevPanelUI
         AddBrowserNavTab(vbox, I18N.T("panel.settings", "Settings"));
 
         // Scrollable content
-        var scroll = new ScrollContainer
-        {
-            SizeFlagsVertical    = Control.SizeFlags.ExpandFill,
-            SizeFlagsHorizontal  = Control.SizeFlags.ExpandFill,
+        var scroll = new ScrollContainer {
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
         };
         var inner = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
@@ -77,11 +71,9 @@ internal static partial class DevPanelUI
         // ── Section: Player ──
         inner.AddChild(CreateSectionHeader(I18N.T("panel.section.player", "Player")));
         inner.AddChild(CreateCheatToggle(I18N.T("cheat.infiniteHp", "Infinite HP"), I18N.T("cheat.infiniteHp.desc", "Player cannot lose HP"), () => DevModeState.InfiniteHp, v => DevModeState.InfiniteHp = v));
-        inner.AddChild(CreateCheatToggle(I18N.T("cheat.infiniteBlock", "Infinite Shield"), I18N.T("cheat.infiniteBlock.desc", "Block refills to 999 after loss"), () => DevModeState.InfiniteBlock, v =>
-        {
+        inner.AddChild(CreateCheatToggle(I18N.T("cheat.infiniteBlock", "Infinite Shield"), I18N.T("cheat.infiniteBlock.desc", "Block refills to 999 after loss"), () => DevModeState.InfiniteBlock, v => {
             DevModeState.InfiniteBlock = v;
-            if (v && RunContext.TryGetRunAndPlayer(out _, out var bp))
-            {
+            if (v && RunContext.TryGetRunAndPlayer(out _, out var bp)) {
                 var c = bp.Creature;
                 if (c.Block < 999) c.GainBlockInternal(999 - c.Block);
             }
@@ -108,16 +100,13 @@ internal static partial class DevPanelUI
             v => { if (!RunContext.TryGetRunAndPlayer(out _, out var p)) return; p.MaxEnergy = (int)v; }));
         inner.AddChild(CreateCheatNumberEdit(I18N.T("cheat.editPotionSlots", "Edit Potion Slots"), 0, 20,
             () => { if (!RunContext.TryGetRunAndPlayer(out _, out var p)) return 0; return p.MaxPotionCount; },
-            v =>
-            {
+            v => {
                 if (!RunContext.TryGetRunAndPlayer(out _, out var p)) return;
                 int current = p.MaxPotionCount;
                 int diff = (int)v - current;
                 if (diff > 0) { p.AddToMaxPotionCount(diff); }
-                else if (diff < 0)
-                {
-                    for (int i = current - 1; i >= current + diff; i--)
-                    {
+                else if (diff < 0) {
+                    for (int i = current - 1; i >= current + diff; i--) {
                         var potion = p.GetPotionAtSlotIndex(i);
                         if (potion != null) p.DiscardPotionInternal(potion);
                     }
@@ -139,15 +128,13 @@ internal static partial class DevPanelUI
         inner.AddChild(CreateCheatToggle(I18N.T("mapRewrite.enabled", "Enable Map Rewrite"), "", () => DevModeState.MapRewriteEnabled, v => DevModeState.MapRewriteEnabled = v));
 
         var mapModeBtn = CreatePlainButton(I18N.T("mapRewrite.mode", "Mode") + ": " + GetMapRewriteLabel(), MdiIcon.Map);
-        mapModeBtn.Pressed += () =>
-        {
-            DevModeState.MapRewriteMode = DevModeState.MapRewriteMode switch
-            {
-                MapRewriteMode.None     => MapRewriteMode.AllChest,
+        mapModeBtn.Pressed += () => {
+            DevModeState.MapRewriteMode = DevModeState.MapRewriteMode switch {
+                MapRewriteMode.None => MapRewriteMode.AllChest,
                 MapRewriteMode.AllChest => MapRewriteMode.AllElite,
                 MapRewriteMode.AllElite => MapRewriteMode.AllBoss,
-                MapRewriteMode.AllBoss  => MapRewriteMode.None,
-                _                       => MapRewriteMode.None
+                MapRewriteMode.AllBoss => MapRewriteMode.None,
+                _ => MapRewriteMode.None
             };
             mapModeBtn.Text = I18N.T("mapRewrite.mode", "Mode") + ": " + GetMapRewriteLabel();
         };
@@ -155,16 +142,14 @@ internal static partial class DevPanelUI
         inner.AddChild(CreateCheatToggle(I18N.T("mapRewrite.keepFinalBoss", "Keep Final Boss"), "", () => DevModeState.MapKeepFinalBoss, v => DevModeState.MapKeepFinalBoss = v));
 
         var gameSpeedBtn = CreatePlainButton(I18N.T("panel.speed", "Speed: {0}", actions.GetGameSpeedLabel()), MdiIcon.SpeedometerMedium);
-        gameSpeedBtn.Pressed += () =>
-        {
+        gameSpeedBtn.Pressed += () => {
             actions.OnCycleGameSpeed();
             gameSpeedBtn.Text = I18N.T("panel.speed", "Speed: {0}", actions.GetGameSpeedLabel());
         };
         inner.AddChild(gameSpeedBtn);
 
         var skipAnimBtn = CreatePlainButton(I18N.T("panel.skipAnim", "Skip Anim: {0}", actions.GetSkipAnimLabel()), MdiIcon.AnimationPlay);
-        skipAnimBtn.Pressed += () =>
-        {
+        skipAnimBtn.Pressed += () => {
             actions.OnToggleSkipAnim();
             skipAnimBtn.Text = I18N.T("panel.skipAnim", "Skip Anim: {0}", actions.GetSkipAnimLabel());
         };
@@ -200,8 +185,7 @@ internal static partial class DevPanelUI
 
     // ── Appearance (theme) controls ───────────────────────────────────────
 
-    private static Control CreateAppearanceSection(Action rebuild)
-    {
+    private static Control CreateAppearanceSection(Action rebuild) {
         var col = new VBoxContainer();
         col.AddThemeConstantOverride("separation", 6);
 
@@ -209,10 +193,9 @@ internal static partial class DevPanelUI
         var modeRow = new HBoxContainer();
         modeRow.AddThemeConstantOverride("separation", 8);
 
-        var modeLbl = new Label
-        {
+        var modeLbl = new Label {
             Text = ThemeManager.IsDarkMode
-                ? I18N.T("appearance.mode.dark",  "Dark Mode")
+                ? I18N.T("appearance.mode.dark", "Dark Mode")
                 : I18N.T("appearance.mode.light", "Light Mode"),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
         };
@@ -223,37 +206,41 @@ internal static partial class DevPanelUI
         // Icon button: shows sun (→ switch to dark) when in light mode,
         //              shows moon (→ switch to light) when in dark mode
         var modeIcon = ThemeManager.IsDarkMode ? MdiIcon.WeatherNight : MdiIcon.WeatherSunny;
-        var modeBtn = new Button
-        {
+        var modeBtn = new Button {
             CustomMinimumSize = new Vector2(36, 36),
-            FocusMode         = Control.FocusModeEnum.None,
-            Icon              = modeIcon.Texture(20, DevModeTheme.Accent),
-            TooltipText       = ThemeManager.IsDarkMode
+            FocusMode = Control.FocusModeEnum.None,
+            Icon = modeIcon.Texture(20, DevModeTheme.Accent),
+            TooltipText = ThemeManager.IsDarkMode
                 ? I18N.T("appearance.mode.light", "Light Mode")
-                : I18N.T("appearance.mode.dark",  "Dark Mode")
+                : I18N.T("appearance.mode.dark", "Dark Mode")
         };
-        var modeBtnStyle = new StyleBoxFlat
-        {
+        var modeBtnStyle = new StyleBoxFlat {
             BgColor = DevModeTheme.ButtonBgNormal,
-            CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
-            CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
-            ContentMarginLeft = 6, ContentMarginRight = 6,
-            ContentMarginTop = 6, ContentMarginBottom = 6
+            CornerRadiusTopLeft = 8,
+            CornerRadiusTopRight = 8,
+            CornerRadiusBottomLeft = 8,
+            CornerRadiusBottomRight = 8,
+            ContentMarginLeft = 6,
+            ContentMarginRight = 6,
+            ContentMarginTop = 6,
+            ContentMarginBottom = 6
         };
-        var modeBtnHover = new StyleBoxFlat
-        {
+        var modeBtnHover = new StyleBoxFlat {
             BgColor = DevModeTheme.ButtonBgHover,
-            CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
-            CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
-            ContentMarginLeft = 6, ContentMarginRight = 6,
-            ContentMarginTop = 6, ContentMarginBottom = 6
+            CornerRadiusTopLeft = 8,
+            CornerRadiusTopRight = 8,
+            CornerRadiusBottomLeft = 8,
+            CornerRadiusBottomRight = 8,
+            ContentMarginLeft = 6,
+            ContentMarginRight = 6,
+            ContentMarginTop = 6,
+            ContentMarginBottom = 6
         };
-        modeBtn.AddThemeStyleboxOverride("normal",  modeBtnStyle);
-        modeBtn.AddThemeStyleboxOverride("hover",   modeBtnHover);
+        modeBtn.AddThemeStyleboxOverride("normal", modeBtnStyle);
+        modeBtn.AddThemeStyleboxOverride("hover", modeBtnHover);
         modeBtn.AddThemeStyleboxOverride("pressed", modeBtnHover);
-        modeBtn.AddThemeStyleboxOverride("focus",   modeBtnStyle);
-        modeBtn.Pressed += () =>
-        {
+        modeBtn.AddThemeStyleboxOverride("focus", modeBtnStyle);
+        modeBtn.Pressed += () => {
             ThemeManager.SetDarkMode(!ThemeManager.IsDarkMode);
             Callable.From(rebuild).CallDeferred();
         };
@@ -266,8 +253,7 @@ internal static partial class DevPanelUI
                 I18N.T("theme." + SettingsStore.Current.DarkThemeName.ToLowerInvariant(),
                     SettingsStore.Current.DarkThemeName)),
             MdiIcon.WeatherNight);
-        darkThemeBtn.Pressed += () =>
-        {
+        darkThemeBtn.Pressed += () => {
             ThemeManager.CycleDarkTheme();
             Callable.From(rebuild).CallDeferred();
         };
@@ -279,8 +265,7 @@ internal static partial class DevPanelUI
                 I18N.T("theme." + SettingsStore.Current.LightThemeName.ToLowerInvariant(),
                     SettingsStore.Current.LightThemeName)),
             MdiIcon.WeatherSunny);
-        lightThemeBtn.Pressed += () =>
-        {
+        lightThemeBtn.Pressed += () => {
             ThemeManager.CycleLightTheme();
             Callable.From(rebuild).CallDeferred();
         };
@@ -291,8 +276,7 @@ internal static partial class DevPanelUI
 
     // ── Save / Load ────────────────────────────────────────────────────────
 
-    internal static void ShowSaveLoadOverlay(NGlobalUi globalUi, DevPanelActions actions)
-    {
+    internal static void ShowSaveLoadOverlay(NGlobalUi globalUi, DevPanelActions actions) {
         ((Node)globalUi).GetNodeOrNull<Control>(SaveLoadRootName)?.QueueFree();
 
         var (root, vbox) = CreateOverlayRoot(globalUi, SaveLoadRootName, 520f);
@@ -334,8 +318,7 @@ internal static partial class DevPanelUI
 
     // ── Restart with Seed ──────────────────────────────────────────────────
 
-    internal static void ShowRestartSeedOverlay(NGlobalUi globalUi, DevPanelActions actions)
-    {
+    internal static void ShowRestartSeedOverlay(NGlobalUi globalUi, DevPanelActions actions) {
         ((Node)globalUi).GetNodeOrNull<Control>(RestartSeedRootName)?.QueueFree();
         ((Node)globalUi).GetNodeOrNull<Control>(SaveLoadRootName)?.QueueFree();
 
@@ -355,17 +338,15 @@ internal static partial class DevPanelUI
         seedLbl.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
         seedSection.AddChild(seedLbl);
 
-        var seedInput = new LineEdit
-        {
-            PlaceholderText     = I18N.T("restart.seed.placeholder", "e.g. DEADBEEF"),
+        var seedInput = new LineEdit {
+            PlaceholderText = I18N.T("restart.seed.placeholder", "e.g. DEADBEEF"),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         seedSection.AddChild(seedInput);
         inner.AddChild(seedSection);
 
         // ── Divider ──
-        inner.AddChild(new ColorRect
-        {
+        inner.AddChild(new ColorRect {
             Color = DevModeTheme.Separator,
             CustomMinimumSize = new Vector2(0, 1),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
@@ -379,41 +360,37 @@ internal static partial class DevPanelUI
 
         bool hasRun = RunContext.TryGetRunAndPlayer(out _, out _);
 
-        var cardsToggle = new CheckButton
-        {
-            Text          = I18N.T("preset.scope.cards", "Cards"),
+        var cardsToggle = new CheckButton {
+            Text = I18N.T("preset.scope.cards", "Cards"),
             ButtonPressed = false,
-            Disabled      = !hasRun,
-            FocusMode     = Control.FocusModeEnum.None,
+            Disabled = !hasRun,
+            FocusMode = Control.FocusModeEnum.None,
         };
         cardsToggle.AddThemeFontSizeOverride("font_size", 13);
         cardsToggle.AddThemeColorOverride("font_color", new Color(0.35f, 0.58f, 0.95f));
         inner.AddChild(cardsToggle);
 
-        var relicsToggle = new CheckButton
-        {
-            Text          = I18N.T("preset.scope.relics", "Relics"),
+        var relicsToggle = new CheckButton {
+            Text = I18N.T("preset.scope.relics", "Relics"),
             ButtonPressed = false,
-            Disabled      = !hasRun,
-            FocusMode     = Control.FocusModeEnum.None,
+            Disabled = !hasRun,
+            FocusMode = Control.FocusModeEnum.None,
         };
         relicsToggle.AddThemeFontSizeOverride("font_size", 13);
         relicsToggle.AddThemeColorOverride("font_color", new Color(0.88f, 0.72f, 0.22f));
         inner.AddChild(relicsToggle);
 
-        var goldToggle = new CheckButton
-        {
-            Text          = I18N.T("restart.carry.gold", "Gold"),
+        var goldToggle = new CheckButton {
+            Text = I18N.T("restart.carry.gold", "Gold"),
             ButtonPressed = false,
-            Disabled      = !hasRun,
-            FocusMode     = Control.FocusModeEnum.None,
+            Disabled = !hasRun,
+            FocusMode = Control.FocusModeEnum.None,
         };
         goldToggle.AddThemeFontSizeOverride("font_size", 13);
         goldToggle.AddThemeColorOverride("font_color", new Color(0.32f, 0.76f, 0.50f));
         inner.AddChild(goldToggle);
 
-        if (!hasRun)
-        {
+        if (!hasRun) {
             var noRunLbl = new Label { Text = I18N.T("restart.noRun", "(No active run — carry-over unavailable)") };
             noRunLbl.AddThemeFontSizeOverride("font_size", 11);
             noRunLbl.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
@@ -441,36 +418,31 @@ internal static partial class DevPanelUI
         restartBtn.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         restartBtn.Icon = MdiIcon.Refresh.Texture(16);
         restartBtn.Alignment = HorizontalAlignment.Center;
-        restartBtn.Pressed += () =>
-        {
+        restartBtn.Pressed += () => {
             var seed = seedInput.Text?.Trim();
 
             // Capture carry-over state from current run
             var scope = PresetContents.None;
-            if (cardsToggle.ButtonPressed)  scope |= PresetContents.Cards;
+            if (cardsToggle.ButtonPressed) scope |= PresetContents.Cards;
             if (relicsToggle.ButtonPressed) scope |= PresetContents.Relics;
 
-            if (scope != PresetContents.None && hasRun)
-            {
+            if (scope != PresetContents.None && hasRun) {
                 var preset = PresetManager.CaptureFromRun(scope);
-                if (preset != null)
-                {
+                if (preset != null) {
                     DevModeState.PendingRestartPreset = preset;
-                    DevModeState.PendingRestartScope  = scope;
+                    DevModeState.PendingRestartScope = scope;
                     MainFile.Logger.Info($"[DevMode] RestartWithSeed: captured preset scope={scope}.");
                 }
             }
 
-            if (goldToggle.ButtonPressed && hasRun && RunContext.TryGetRunAndPlayer(out _, out var player))
-            {
+            if (goldToggle.ButtonPressed && hasRun && RunContext.TryGetRunAndPlayer(out _, out var player)) {
                 DevModeState.PendingRestartGold = player.Gold;
                 MainFile.Logger.Info($"[DevMode] RestartWithSeed: captured gold={player.Gold}.");
             }
 
             // Store seed for SeedInjectPatch to inject into NGame.StartNewSingleplayerRun.
             // (NGame.DebugSeedOverride is unreliable — NCharacterSelectScreen clears it before the run.)
-            if (!string.IsNullOrEmpty(seed))
-            {
+            if (!string.IsNullOrEmpty(seed)) {
                 DevModeState.PendingRestartSeed = seed;
                 MainFile.Logger.Info($"[DevMode] RestartWithSeed: seed override set to '{seed}'.");
             }
@@ -492,8 +464,7 @@ internal static partial class DevPanelUI
 
     // ── AI Control ────────────────────────────────────────────────────────
 
-    internal static void ShowAIOverlay(NGlobalUi globalUi, DevPanelActions actions)
-    {
+    internal static void ShowAIOverlay(NGlobalUi globalUi, DevPanelActions actions) {
         ((Node)globalUi).GetNodeOrNull<Control>(AIRootName)?.QueueFree();
 
         var (root, vbox) = CreateOverlayRoot(globalUi, AIRootName, 520f);
@@ -507,8 +478,7 @@ internal static partial class DevPanelUI
         Button? stratBtn = null;
         Button? speedBtn = null;
 
-        aiBtn.Pressed += () =>
-        {
+        aiBtn.Pressed += () => {
             actions.OnToggleAI!();
             bool enabled = actions.IsAIEnabled?.Invoke() ?? false;
             aiBtn.Text = enabled ? I18N.T("panel.ai.running", "AI: Running") : I18N.T("panel.ai.off", "AI: Off");
@@ -518,16 +488,14 @@ internal static partial class DevPanelUI
         inner.AddChild(aiBtn);
 
         stratBtn = CreatePlainButton(I18N.T("panel.ai.strategy", "Strategy: {0}", actions.GetStrategyName?.Invoke() ?? I18N.T("ai.strategy.rule", "Rule")), MdiIcon.Cog);
-        stratBtn.Pressed += () =>
-        {
+        stratBtn.Pressed += () => {
             actions.OnCycleStrategy?.Invoke();
             stratBtn.Text = I18N.T("panel.ai.strategy", "Strategy: {0}", actions.GetStrategyName?.Invoke() ?? "?");
         };
         inner.AddChild(stratBtn);
 
         speedBtn = CreatePlainButton(I18N.T("panel.ai.speed", "Speed: {0}", actions.GetSpeedLabel?.Invoke() ?? I18N.T("ai.speed.normal", "Normal")), MdiIcon.FastForward);
-        speedBtn.Pressed += () =>
-        {
+        speedBtn.Pressed += () => {
             actions.OnCycleSpeed?.Invoke();
             speedBtn.Text = I18N.T("panel.ai.speed", "Speed: {0}", actions.GetSpeedLabel?.Invoke() ?? "?");
         };
@@ -541,16 +509,16 @@ internal static partial class DevPanelUI
 
     // ── Shared helpers ────────────────────────────────────────────────────
 
-    private static void AddBrowserNavTab(VBoxContainer vbox, string title)
-    {
+    private static void AddBrowserNavTab(VBoxContainer vbox, string title) {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 0);
         var tab = new Button { Text = title, FocusMode = Control.FocusModeEnum.None, CustomMinimumSize = new Vector2(0, 32) };
-        var flat = new StyleBoxFlat
-        {
+        var flat = new StyleBoxFlat {
             BgColor = Colors.Transparent,
-            ContentMarginLeft = 16, ContentMarginRight = 16,
-            ContentMarginTop = 4, ContentMarginBottom = 6
+            ContentMarginLeft = 16,
+            ContentMarginRight = 16,
+            ContentMarginTop = 4,
+            ContentMarginBottom = 6
         };
         foreach (var s in new[] { "normal", "hover", "pressed", "focus" })
             tab.AddThemeStyleboxOverride(s, flat);
@@ -559,20 +527,18 @@ internal static partial class DevPanelUI
         row.AddChild(tab);
         row.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         vbox.AddChild(row);
-        vbox.AddChild(new ColorRect
-        {
+        vbox.AddChild(new ColorRect {
             CustomMinimumSize = new Vector2(0, 1),
             Color = DevModeTheme.Separator,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
         });
     }
 
-    private static string GetMapRewriteLabel() => DevModeState.MapRewriteMode switch
-    {
-        MapRewriteMode.None     => I18N.T("mapRewrite.none",     "None"),
+    private static string GetMapRewriteLabel() => DevModeState.MapRewriteMode switch {
+        MapRewriteMode.None => I18N.T("mapRewrite.none", "None"),
         MapRewriteMode.AllChest => I18N.T("mapRewrite.allChest", "All Chest"),
         MapRewriteMode.AllElite => I18N.T("mapRewrite.allElite", "All Elite"),
-        MapRewriteMode.AllBoss  => I18N.T("mapRewrite.allBoss",  "All Boss"),
-        _                       => "?"
+        MapRewriteMode.AllBoss => I18N.T("mapRewrite.allBoss", "All Boss"),
+        _ => "?"
     };
 }

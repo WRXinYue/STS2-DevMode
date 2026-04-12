@@ -1,11 +1,11 @@
 using System;
 using System.Reflection;
+using DevMode.UI;
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 using MegaCrit.Sts2.Core.Nodes.Screens.CharacterSelect;
 using MegaCrit.Sts2.Core.Nodes.Screens.MainMenu;
-using DevMode.UI;
 
 namespace DevMode.Patches;
 
@@ -14,8 +14,7 @@ namespace DevMode.Patches;
 /// When pressed, sets DevModeState.IsActive and opens the character select screen.
 /// </summary>
 [HarmonyPatch(typeof(NMainMenu))]
-public static class MainMenuPatch
-{
+public static class MainMenuPatch {
     private static NMainMenuTextButton? _devModeButton;
     private static NMainMenu? _mainMenuRef;
 
@@ -27,13 +26,11 @@ public static class MainMenuPatch
 
     [HarmonyPostfix]
     [HarmonyPatch("_Ready")]
-    public static void AddDevModeButton(NMainMenu __instance)
-    {
+    public static void AddDevModeButton(NMainMenu __instance) {
         _mainMenuRef = __instance;
 
         var multiplayerBtn = (NMainMenuTextButton?)MultiplayerButtonField.GetValue(__instance);
-        if (multiplayerBtn == null)
-        {
+        if (multiplayerBtn == null) {
             MainFile.Logger.Warn("DevMode: Could not find multiplayer button.");
             return;
         }
@@ -53,8 +50,7 @@ public static class MainMenuPatch
         var locField = AccessTools.Field(typeof(NMainMenuTextButton), "_locString");
         locField?.SetValue(_devModeButton, null);
 
-        if (_devModeButton.label != null)
-        {
+        if (_devModeButton.label != null) {
             _devModeButton.label.Text = I18N.T("menu.developerMode", "Developer Mode");
             // Reset any disabled/animation state copied from the template
             _devModeButton.label.Modulate = Colors.White;
@@ -68,8 +64,7 @@ public static class MainMenuPatch
         MainFile.Logger.Info("DevMode: Button added to main menu.");
 
         // "Restart with Seed" sets this flag so we skip the Dev menu submenu and go straight to char select.
-        if (DevModeState.AutoProceedToCharSelect)
-        {
+        if (DevModeState.AutoProceedToCharSelect) {
             DevModeState.AutoProceedToCharSelect = false;
             MainFile.Logger.Info("DevMode: Auto-proceeding to character select (Restart with Seed).");
             var charSelect = __instance.SubmenuStack.GetSubmenuType<NCharacterSelectScreen>();
@@ -83,12 +78,10 @@ public static class MainMenuPatch
     /// </summary>
     [HarmonyPostfix]
     [HarmonyPatch(nameof(NMainMenu.RefreshButtons))]
-    public static void KeepDevButtonVisible(NMainMenu __instance)
-    {
+    public static void KeepDevButtonVisible(NMainMenu __instance) {
         if (__instance != _mainMenuRef) return;
 
-        if (_devModeButton != null && GodotObject.IsInstanceValid(_devModeButton))
-        {
+        if (_devModeButton != null && GodotObject.IsInstanceValid(_devModeButton)) {
             var singleplayerBtn = (NMainMenuTextButton?)SingleplayerButtonField.GetValue(__instance);
             if (singleplayerBtn != null)
                 _devModeButton.Visible = singleplayerBtn.Visible;
@@ -99,27 +92,22 @@ public static class MainMenuPatch
             DevMenuUI.ReapplyHide();
     }
 
-    private static void OnDevModeButtonPressed(NButton _)
-    {
+    private static void OnDevModeButtonPressed(NButton _) {
         if (_mainMenuRef == null) return;
 
         MainFile.Logger.Info("DevMode: Opening dev mode menu...");
 
-        DevMenuUI.Show(_mainMenuRef, new UI.DevMenuActions
-        {
-            OnNewTest = () =>
-            {
+        DevMenuUI.Show(_mainMenuRef, new UI.DevMenuActions {
+            OnNewTest = () => {
                 DevModeState.IsActive = true;
                 var charSelect = _mainMenuRef.SubmenuStack.GetSubmenuType<NCharacterSelectScreen>();
                 charSelect.InitializeSingleplayer();
                 _mainMenuRef.SubmenuStack.Push(charSelect);
             },
-            OnCardLibrary = () =>
-            {
+            OnCardLibrary = () => {
                 DevModeState.InMenuPreview = true;
                 var stack = _mainMenuRef.SubmenuStack;
-                DevModeState.OnMenuPreviewClosed = () =>
-                {
+                DevModeState.OnMenuPreviewClosed = () => {
                     stack.Pop();
                     OnDevModeButtonPressed(null!);
                 };
@@ -129,12 +117,10 @@ public static class MainMenuPatch
                 AccessTools.Method(compendium.GetType(), "OpenCardLibrary")
                     ?.Invoke(compendium, new object?[] { null });
             },
-            OnRelicCollection = () =>
-            {
+            OnRelicCollection = () => {
                 DevModeState.InMenuPreview = true;
                 var stack = _mainMenuRef.SubmenuStack;
-                DevModeState.OnMenuPreviewClosed = () =>
-                {
+                DevModeState.OnMenuPreviewClosed = () => {
                     stack.Pop();
                     OnDevModeButtonPressed(null!);
                 };

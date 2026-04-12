@@ -12,8 +12,7 @@ namespace DevMode;
 /// Loads flat key-value JSON files from the mod's localization/ folder,
 /// falling back to embedded resources, and reacts to game locale changes.
 /// </summary>
-internal static class I18N
-{
+internal static class I18N {
     private static readonly string ModDir =
         Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? "";
 
@@ -24,22 +23,19 @@ internal static class I18N
     private static string? _loadedLang;
 
     /// <summary>Initialize and subscribe to locale changes.</summary>
-    public static void Initialize()
-    {
+    public static void Initialize() {
         Reload();
         TrySubscribe();
     }
 
     /// <summary>Get a localized string, falling back to <paramref name="fallback"/>.</summary>
-    public static string T(string key, string fallback)
-    {
+    public static string T(string key, string fallback) {
         EnsureLoaded();
         return _translations.GetValueOrDefault(key) ?? fallback;
     }
 
     /// <summary>Get a localized format string and apply <see cref="string.Format(string,object[])"/>.</summary>
-    public static string T(string key, string fallback, params object[] args)
-    {
+    public static string T(string key, string fallback, params object[] args) {
         var fmt = T(key, fallback);
         try { return string.Format(fmt, args); }
         catch { return fmt; }
@@ -47,34 +43,28 @@ internal static class I18N
 
     // ── Internals ──
 
-    private static void EnsureLoaded()
-    {
+    private static void EnsureLoaded() {
         var lang = ResolveLanguage();
         if (string.Equals(_loadedLang, lang, StringComparison.OrdinalIgnoreCase)) return;
         Reload(lang);
     }
 
-    private static void Reload(string? lang = null)
-    {
+    private static void Reload(string? lang = null) {
         lang ??= ResolveLanguage();
         _translations = Load(lang);
         _loadedLang = lang;
-            MainFile.Logger.Info($"[DevMode.I18N] Loaded {_translations.Count} strings for '{lang}'.");
+        MainFile.Logger.Info($"[DevMode.I18N] Loaded {_translations.Count} strings for '{lang}'.");
     }
 
-    private static Dictionary<string, string> Load(string lang)
-    {
+    private static Dictionary<string, string> Load(string lang) {
         // 1. Try external file (allows user overrides)
         var fsPath = Path.Combine(LocDir, $"{lang}.json");
-        if (File.Exists(fsPath))
-        {
-            try
-            {
+        if (File.Exists(fsPath)) {
+            try {
                 var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(fsPath));
                 if (dict != null) return dict;
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 MainFile.Logger.Warn($"[DevMode.I18N] Failed to load '{fsPath}': {ex.Message}");
             }
         }
@@ -82,23 +72,19 @@ internal static class I18N
         // 2. Fall back to embedded resource
         var resourceName = $"DevMode.Localization.{lang}.json";
         var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
-        if (stream != null)
-        {
-            try
-            {
+        if (stream != null) {
+            try {
                 using var reader = new StreamReader(stream);
                 var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(reader.ReadToEnd());
                 if (dict != null) return dict;
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 MainFile.Logger.Warn($"[DevMode.I18N] Failed to load embedded '{resourceName}': {ex.Message}");
             }
         }
 
         // 3. If non-English locale not found, fall back to eng
-        if (!string.Equals(lang, "eng", StringComparison.OrdinalIgnoreCase))
-        {
+        if (!string.Equals(lang, "eng", StringComparison.OrdinalIgnoreCase)) {
             MainFile.Logger.Info($"[DevMode.I18N] No translations for '{lang}', falling back to 'eng'.");
             return Load("eng");
         }
@@ -106,8 +92,7 @@ internal static class I18N
         return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     }
 
-    private static string ResolveLanguage()
-    {
+    private static string ResolveLanguage() {
         string? lang = null;
         try { lang = LocManager.Instance?.Language; } catch { }
         if (!string.IsNullOrWhiteSpace(lang)) return Normalize(lang);
@@ -115,32 +100,26 @@ internal static class I18N
         return Normalize(lang);
     }
 
-    private static string Normalize(string? lang)
-    {
+    private static string Normalize(string? lang) {
         if (string.IsNullOrWhiteSpace(lang)) return "eng";
         var s = lang.Trim().Replace('-', '_').ToLowerInvariant();
-        return s switch
-        {
+        return s switch {
             "zh_cn" or "zh_hans" or "zh_sg" or "zh" => "zhs",
-            "en_us" or "en_gb" or "en" or "eng"     => "eng",
+            "en_us" or "en_gb" or "en" or "eng" => "eng",
             _ => s,
         };
     }
 
-    private static void TrySubscribe()
-    {
-        try
-        {
+    private static void TrySubscribe() {
+        try {
             LocManager.Instance?.SubscribeToLocaleChange(OnLocaleChanged);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             MainFile.Logger.Info($"[DevMode.I18N] Could not subscribe to locale changes: {ex.Message}");
         }
     }
 
-    private static void OnLocaleChanged()
-    {
+    private static void OnLocaleChanged() {
         _loadedLang = null;
         Reload();
     }

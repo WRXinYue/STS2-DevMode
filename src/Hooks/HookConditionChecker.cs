@@ -6,36 +6,30 @@ using MegaCrit.Sts2.Core.Runs;
 
 namespace DevMode.Hooks;
 
-internal static class HookConditionChecker
-{
+internal static class HookConditionChecker {
     /// <summary>Returns true when ALL conditions are met (AND logic).</summary>
-    public static bool CheckAll(List<HookCondition> conditions, Player? player)
-    {
+    public static bool CheckAll(List<HookCondition> conditions, Player? player) {
         if (conditions.Count == 0) return true;
-        foreach (var c in conditions)
-        {
+        foreach (var c in conditions) {
             if (!Check(c, player)) return false;
         }
         return true;
     }
 
-    private static bool Check(HookCondition condition, Player? player)
-    {
-        return condition.Type switch
-        {
-            ConditionType.None        => true,
-            ConditionType.HpBelow     => CheckHpBelow(condition, player),
-            ConditionType.HpAbove     => CheckHpAbove(condition, player),
-            ConditionType.FloorAbove  => CheckFloorAbove(condition),
-            ConditionType.FloorBelow  => CheckFloorBelow(condition),
-            ConditionType.HasPower    => CheckHasPower(condition, player),
+    private static bool Check(HookCondition condition, Player? player) {
+        return condition.Type switch {
+            ConditionType.None => true,
+            ConditionType.HpBelow => CheckHpBelow(condition, player),
+            ConditionType.HpAbove => CheckHpAbove(condition, player),
+            ConditionType.FloorAbove => CheckFloorAbove(condition),
+            ConditionType.FloorBelow => CheckFloorBelow(condition),
+            ConditionType.HasPower => CheckHasPower(condition, player),
             ConditionType.NotHasPower => !CheckHasPower(condition, player),
             _ => true
         };
     }
 
-    private static bool CheckHpBelow(HookCondition c, Player? player)
-    {
+    private static bool CheckHpBelow(HookCondition c, Player? player) {
         if (player?.Creature == null) return false;
         if (!int.TryParse(c.Value, out int threshold)) return false;
         int maxHp = Math.Max(1, player.Creature.MaxHp);
@@ -43,8 +37,7 @@ internal static class HookConditionChecker
         return pct < threshold;
     }
 
-    private static bool CheckHpAbove(HookCondition c, Player? player)
-    {
+    private static bool CheckHpAbove(HookCondition c, Player? player) {
         if (player?.Creature == null) return false;
         if (!int.TryParse(c.Value, out int threshold)) return false;
         int maxHp = Math.Max(1, player.Creature.MaxHp);
@@ -52,31 +45,26 @@ internal static class HookConditionChecker
         return pct > threshold;
     }
 
-    private static bool CheckFloorAbove(HookCondition c)
-    {
+    private static bool CheckFloorAbove(HookCondition c) {
         if (!int.TryParse(c.Value, out int threshold)) return false;
         var floor = GetCurrentFloor();
         return floor > threshold;
     }
 
-    private static bool CheckFloorBelow(HookCondition c)
-    {
+    private static bool CheckFloorBelow(HookCondition c) {
         if (!int.TryParse(c.Value, out int threshold)) return false;
         var floor = GetCurrentFloor();
         return floor < threshold;
     }
 
-    private static bool CheckHasPower(HookCondition c, Player? player)
-    {
+    private static bool CheckHasPower(HookCondition c, Player? player) {
         if (player?.Creature == null || string.IsNullOrEmpty(c.Value)) return false;
         return player.Creature.Powers.Any(p =>
             p != null && string.Equals(p.Id.Entry, c.Value, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static int GetCurrentFloor()
-    {
-        try
-        {
+    private static int GetCurrentFloor() {
+        try {
             var rm = RunManager.Instance;
             if (rm == null || !rm.IsInProgress) return 0;
             var state = rm.DebugOnlyGetState();

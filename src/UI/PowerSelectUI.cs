@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DevMode.Actions;
+using DevMode.Hooks;
+using DevMode.Settings;
 using Godot;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -8,74 +11,68 @@ using MegaCrit.Sts2.Core.Entities.Powers;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
-using DevMode.Actions;
-using DevMode.Hooks;
-using DevMode.Settings;
 
 namespace DevMode.UI;
 
 /// <summary>Power browser — two-pane layout with icon grid on the left and detail / apply on the right.</summary>
-internal static class PowerSelectUI
-{
-    private const string RootName     = "DevModePowerSelect";
-    private const float  PanelW       = 920f;
-    private const float  TileMinWidth = 72f;
-    private const float  IconSize     = 44f;
-    private const int    FrameRadius  = 6;
-    private const float  GridHSep     = 8f;
-    private const float  GridVSep     = 8f;
+internal static class PowerSelectUI {
+    private const string RootName = "DevModePowerSelect";
+    private const float PanelW = 920f;
+    private const float TileMinWidth = 72f;
+    private const float IconSize = 44f;
+    private const int FrameRadius = 6;
+    private const float GridHSep = 8f;
+    private const float GridVSep = 8f;
 
-    private static Color ColFrameBg       => DevModeTheme.ButtonBgNormal;
-    private static Color ColFrameHover    => DevModeTheme.ButtonBgHover;
+    private static Color ColFrameBg => DevModeTheme.ButtonBgNormal;
+    private static Color ColFrameHover => DevModeTheme.ButtonBgHover;
     private static Color ColFrameSelected => DevModeTheme.AccentAlpha;
-    private static Color ColDetailBg      => DevModeTheme.ButtonBgNormal;
-    private static readonly Color ColBuff          = new(0.30f, 0.75f, 0.45f);
-    private static readonly Color ColDebuff        = new(0.85f, 0.35f, 0.30f);
-    private static readonly Color ColNone          = new(0.55f, 0.55f, 0.65f);
+    private static Color ColDetailBg => DevModeTheme.ButtonBgNormal;
+    private static readonly Color ColBuff = new(0.30f, 0.75f, 0.45f);
+    private static readonly Color ColDebuff = new(0.85f, 0.35f, 0.30f);
+    private static readonly Color ColNone = new(0.55f, 0.55f, 0.65f);
     private static Color ColLight => DevModeTheme.TextPrimary;
 
     // ─────────────────────────────── State ───────────────────────────────
 
-    private sealed class State
-    {
-        public required Player           Player;
-        public List<PowerModel>          AllPowers      = [];
-        public List<PowerModel>          Filtered       = [];
-        public PowerModel?               Selected;
-        public Panel?                    SelectedFrame;
-        public PowerType?                TypeFilter;
-        public string                    SearchText     = "";
-        public PowerTarget               Target         = PowerTarget.Self;
-        public int                       Amount         = 1;
+    private sealed class State {
+        public required Player Player;
+        public List<PowerModel> AllPowers = [];
+        public List<PowerModel> Filtered = [];
+        public PowerModel? Selected;
+        public Panel? SelectedFrame;
+        public PowerType? TypeFilter;
+        public string SearchText = "";
+        public PowerTarget Target = PowerTarget.Self;
+        public int Amount = 1;
 
         // Left pane
-        public GridContainer             Grid           = null!;
-        public ScrollContainer           GridScroll     = null!;
-        public Label                     CountLabel     = null!;
+        public GridContainer Grid = null!;
+        public ScrollContainer GridScroll = null!;
+        public Label CountLabel = null!;
 
         // Right detail pane
-        public TextureRect               DetailIcon         = null!;
-        public ColorRect                 DetailIconFallback = null!;
-        public Label                     DetailName         = null!;
-        public Label                     DetailTypeBadge    = null!;
-        public Label                     DetailStackBadge   = null!;
-        public RichTextLabel             DetailDesc         = null!;
-        public VBoxContainer             DetailIdContainer  = null!;
-        public Button                    BtnSelf            = null!;
-        public Button                    BtnAllEnemies      = null!;
-        public Button                    BtnAllies          = null!;
-        public SpinBox                   AmountSpin         = null!;
-        public Button                    ApplyBtn           = null!;
-        public Button                    AutoApplyBtn       = null!;
-        public VBoxContainer             CurrentPowersList  = null!;
-        public VBoxContainer             AutoApplyList      = null!;
-        public Label                     CombatWarningLabel = null!;
+        public TextureRect DetailIcon = null!;
+        public ColorRect DetailIconFallback = null!;
+        public Label DetailName = null!;
+        public Label DetailTypeBadge = null!;
+        public Label DetailStackBadge = null!;
+        public RichTextLabel DetailDesc = null!;
+        public VBoxContainer DetailIdContainer = null!;
+        public Button BtnSelf = null!;
+        public Button BtnAllEnemies = null!;
+        public Button BtnAllies = null!;
+        public SpinBox AmountSpin = null!;
+        public Button ApplyBtn = null!;
+        public Button AutoApplyBtn = null!;
+        public VBoxContainer CurrentPowersList = null!;
+        public VBoxContainer AutoApplyList = null!;
+        public Label CombatWarningLabel = null!;
     }
 
     // ─────────────────────────────── Public API ───────────────────────────────
 
-    public static void Show(NGlobalUi globalUi, Player player)
-    {
+    public static void Show(NGlobalUi globalUi, Player player) {
         Remove(globalUi);
 
         DevPanelUI.PinRail();
@@ -83,8 +80,7 @@ internal static class PowerSelectUI
 
         var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1250 };
         root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        root.TreeExiting += () =>
-        {
+        root.TreeExiting += () => {
             DevPanelUI.UnpinRail();
             DevPanelUI.SpliceRail(globalUi, joined: false);
         };
@@ -119,8 +115,7 @@ internal static class PowerSelectUI
         WireFilterChips(filterChips, s);
 
         // ── Wire search ──
-        search.TextChanged += filter =>
-        {
+        search.TextChanged += filter => {
             s.SearchText = filter;
             Rebuild(s);
         };
@@ -141,14 +136,12 @@ internal static class PowerSelectUI
 
     // ─────────────────────────────── Nav bar ───────────────────────────────
 
-    private static (LineEdit search, List<(Button chip, PowerType? type)> chips) BuildNavBar(VBoxContainer vbox, State s)
-    {
+    private static (LineEdit search, List<(Button chip, PowerType? type)> chips) BuildNavBar(VBoxContainer vbox, State s) {
         // Row 1: title + type chips
         var row1 = new HBoxContainer();
         row1.AddThemeConstantOverride("separation", 10);
 
-        var title = new Label
-        {
+        var title = new Label {
             Text = I18N.T("power.nav.title", "Powers"),
             VerticalAlignment = VerticalAlignment.Center,
         };
@@ -167,8 +160,7 @@ internal static class PowerSelectUI
         };
 
         var chips = new List<(Button chip, PowerType? type)>();
-        foreach (var (label, type) in chipDefs)
-        {
+        foreach (var (label, type) in chipDefs) {
             var chip = DevPanelUI.CreateFilterChip(label);
             chip.ButtonPressed = type == null; // "All" active by default
             chip.ToggleMode = true;
@@ -186,13 +178,10 @@ internal static class PowerSelectUI
         return (search, chips);
     }
 
-    private static void WireFilterChips(List<(Button chip, PowerType? type)> chips, State s)
-    {
-        foreach (var (chip, type) in chips)
-        {
+    private static void WireFilterChips(List<(Button chip, PowerType? type)> chips, State s) {
+        foreach (var (chip, type) in chips) {
             var capturedType = type;
-            chip.Pressed += () =>
-            {
+            chip.Pressed += () => {
                 s.TypeFilter = capturedType;
                 foreach (var (c, t) in chips)
                     c.ButtonPressed = t == capturedType;
@@ -203,27 +192,23 @@ internal static class PowerSelectUI
 
     // ─────────────────────────────── Left pane ───────────────────────────────
 
-    private static void BuildLeftPane(HBoxContainer body, State s)
-    {
-        var pane = new VBoxContainer
-        {
+    private static void BuildLeftPane(HBoxContainer body, State s) {
+        var pane = new VBoxContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            SizeFlagsVertical   = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
         };
         pane.AddThemeConstantOverride("separation", 6);
 
-        s.GridScroll = new ScrollContainer
-        {
-            SizeFlagsVertical        = Control.SizeFlags.ExpandFill,
-            HorizontalScrollMode     = ScrollContainer.ScrollMode.Disabled,
+        s.GridScroll = new ScrollContainer {
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
         };
 
         var gridWrapper = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         gridWrapper.AddThemeConstantOverride("separation", 0);
 
-        s.Grid = new GridContainer
-        {
-            Columns             = 6,
+        s.Grid = new GridContainer {
+            Columns = 6,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         s.Grid.AddThemeConstantOverride("h_separation", (int)GridHSep);
@@ -243,27 +228,29 @@ internal static class PowerSelectUI
 
     // ─────────────────────────────── Right detail pane ───────────────────────────────
 
-    private static void BuildRightPane(HBoxContainer body, State s, Player player)
-    {
-        var pane = new PanelContainer
-        {
-            CustomMinimumSize   = new Vector2(280f, 0),
-            SizeFlagsVertical   = Control.SizeFlags.ExpandFill,
+    private static void BuildRightPane(HBoxContainer body, State s, Player player) {
+        var pane = new PanelContainer {
+            CustomMinimumSize = new Vector2(280f, 0),
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
         };
-        var bgStyle = new StyleBoxFlat
-        {
-            BgColor                  = ColDetailBg,
-            CornerRadiusTopLeft      = 8, CornerRadiusTopRight      = 8,
-            CornerRadiusBottomLeft   = 8, CornerRadiusBottomRight   = 8,
-            BorderWidthTop = 1, BorderWidthBottom = 1, BorderWidthLeft = 1, BorderWidthRight = 1,
+        var bgStyle = new StyleBoxFlat {
+            BgColor = ColDetailBg,
+            CornerRadiusTopLeft = 8,
+            CornerRadiusTopRight = 8,
+            CornerRadiusBottomLeft = 8,
+            CornerRadiusBottomRight = 8,
+            BorderWidthTop = 1,
+            BorderWidthBottom = 1,
+            BorderWidthLeft = 1,
+            BorderWidthRight = 1,
             BorderColor = DevModeTheme.PanelBorder,
         };
         pane.AddThemeStyleboxOverride("panel", bgStyle);
 
         var margin = new MarginContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill };
-        margin.AddThemeConstantOverride("margin_left",   16);
-        margin.AddThemeConstantOverride("margin_right",  16);
-        margin.AddThemeConstantOverride("margin_top",    16);
+        margin.AddThemeConstantOverride("margin_left", 16);
+        margin.AddThemeConstantOverride("margin_right", 16);
+        margin.AddThemeConstantOverride("margin_top", 16);
         margin.AddThemeConstantOverride("margin_bottom", 16);
 
         var inner = new VBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill };
@@ -274,30 +261,29 @@ internal static class PowerSelectUI
         iconRow.AddThemeConstantOverride("separation", 12);
 
         var iconHost = new Control { CustomMinimumSize = new Vector2(60, 60) };
-        var iconBg   = new Panel();
-        iconBg.AddThemeStyleboxOverride("panel", new StyleBoxFlat
-        {
-            BgColor                = ColFrameBg,
-            CornerRadiusTopLeft    = 8, CornerRadiusTopRight    = 8,
-            CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
+        var iconBg = new Panel();
+        iconBg.AddThemeStyleboxOverride("panel", new StyleBoxFlat {
+            BgColor = ColFrameBg,
+            CornerRadiusTopLeft = 8,
+            CornerRadiusTopRight = 8,
+            CornerRadiusBottomLeft = 8,
+            CornerRadiusBottomRight = 8,
         });
         iconBg.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         iconHost.AddChild(iconBg);
 
-        s.DetailIcon = new TextureRect
-        {
-            ExpandMode   = TextureRect.ExpandModeEnum.IgnoreSize,
-            StretchMode  = TextureRect.StretchModeEnum.KeepAspectCentered,
+        s.DetailIcon = new TextureRect {
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             CustomMinimumSize = new Vector2(60, 60),
-            Visible      = false,
+            Visible = false,
         };
         iconHost.AddChild(s.DetailIcon);
 
-        s.DetailIconFallback = new ColorRect
-        {
-            Color             = ColNone.Darkened(0.5f),
+        s.DetailIconFallback = new ColorRect {
+            Color = ColNone.Darkened(0.5f),
             CustomMinimumSize = new Vector2(60, 60),
-            Visible           = true,
+            Visible = true,
         };
         iconHost.AddChild(s.DetailIconFallback);
 
@@ -306,10 +292,9 @@ internal static class PowerSelectUI
         var nameCol = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         nameCol.AddThemeConstantOverride("separation", 5);
 
-        s.DetailName = new Label
-        {
-            Text                = I18N.T("power.detail.placeholder", "Select a power"),
-            AutowrapMode        = TextServer.AutowrapMode.WordSmart,
+        s.DetailName = new Label {
+            Text = I18N.T("power.detail.placeholder", "Select a power"),
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         s.DetailName.AddThemeFontSizeOverride("font_size", 14);
@@ -318,7 +303,7 @@ internal static class PowerSelectUI
 
         var badgeRow = new HBoxContainer();
         badgeRow.AddThemeConstantOverride("separation", 6);
-        s.DetailTypeBadge  = MakeBadgeLabel("", ColNone);
+        s.DetailTypeBadge = MakeBadgeLabel("", ColNone);
         s.DetailStackBadge = MakeBadgeLabel("", DevModeTheme.Subtle);
         badgeRow.AddChild(s.DetailTypeBadge);
         badgeRow.AddChild(s.DetailStackBadge);
@@ -340,11 +325,10 @@ internal static class PowerSelectUI
         inner.AddChild(MakeDivider());
 
         // ── Combat warning (shown when not in combat) ──
-        s.CombatWarningLabel = new Label
-        {
-            Text         = I18N.T("power.combat_only", "⚠  Powers only work during combat"),
+        s.CombatWarningLabel = new Label {
+            Text = I18N.T("power.combat_only", "⚠  Powers only work during combat"),
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            Visible      = false,
+            Visible = false,
         };
         s.CombatWarningLabel.AddThemeFontSizeOverride("font_size", 11);
         s.CombatWarningLabel.AddThemeColorOverride("font_color", new Color(1f, 0.78f, 0.28f));
@@ -358,12 +342,12 @@ internal static class PowerSelectUI
 
         var targetRow = new HBoxContainer();
         targetRow.AddThemeConstantOverride("separation", 6);
-        s.BtnSelf       = MakeTargetButton(I18N.T("power.target.self",       "Self"));
+        s.BtnSelf = MakeTargetButton(I18N.T("power.target.self", "Self"));
         s.BtnAllEnemies = MakeTargetButton(I18N.T("power.target.allEnemies", "All Enemies"));
-        s.BtnAllies     = MakeTargetButton(I18N.T("power.target.allies",     "Allies"));
-        s.BtnSelf      .Pressed += () => { s.Target = PowerTarget.Self;       SyncTargetButtons(s); };
+        s.BtnAllies = MakeTargetButton(I18N.T("power.target.allies", "Allies"));
+        s.BtnSelf.Pressed += () => { s.Target = PowerTarget.Self; SyncTargetButtons(s); };
         s.BtnAllEnemies.Pressed += () => { s.Target = PowerTarget.AllEnemies; SyncTargetButtons(s); };
-        s.BtnAllies    .Pressed += () => { s.Target = PowerTarget.Allies;     SyncTargetButtons(s); };
+        s.BtnAllies.Pressed += () => { s.Target = PowerTarget.Allies; SyncTargetButtons(s); };
         targetRow.AddChild(s.BtnSelf);
         targetRow.AddChild(s.BtnAllEnemies);
         targetRow.AddChild(s.BtnAllies);
@@ -373,11 +357,10 @@ internal static class PowerSelectUI
         // ── Amount row ──
         var amountRow = new HBoxContainer();
         amountRow.AddThemeConstantOverride("separation", 8);
-        var amountLbl = new Label
-        {
-            Text                = I18N.T("power.amount", "Amount"),
+        var amountLbl = new Label {
+            Text = I18N.T("power.amount", "Amount"),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            VerticalAlignment   = VerticalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
         };
         amountLbl.AddThemeFontSizeOverride("font_size", 12);
         amountLbl.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
@@ -388,16 +371,14 @@ internal static class PowerSelectUI
         inner.AddChild(amountRow);
 
         // ── Apply button ──
-        s.ApplyBtn = new Button
-        {
-            Text                = I18N.T("power.apply", "Apply Power"),
-            Disabled            = true,
+        s.ApplyBtn = new Button {
+            Text = I18N.T("power.apply", "Apply Power"),
+            Disabled = true,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            CustomMinimumSize   = new Vector2(0, 34),
+            CustomMinimumSize = new Vector2(0, 34),
         };
         ApplyBtnStyle(s.ApplyBtn);
-        s.ApplyBtn.Pressed += () =>
-        {
+        s.ApplyBtn.Pressed += () => {
             if (s.Selected == null) return;
             TaskHelper.RunSafely(PowerActions.AddPower(player, s.Selected, s.Amount, s.Target));
             RefreshCurrentPowers(s, player);
@@ -405,27 +386,23 @@ internal static class PowerSelectUI
         inner.AddChild(s.ApplyBtn);
 
         // ── Add to Auto-Apply button ──
-        s.AutoApplyBtn = new Button
-        {
-            Text                = I18N.T("power.autoApply.add", "Add to Auto-Apply"),
-            Disabled            = true,
+        s.AutoApplyBtn = new Button {
+            Text = I18N.T("power.autoApply.add", "Add to Auto-Apply"),
+            Disabled = true,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            CustomMinimumSize   = new Vector2(0, 30),
+            CustomMinimumSize = new Vector2(0, 30),
         };
         AutoApplyBtnStyle(s.AutoApplyBtn);
-        s.AutoApplyBtn.Pressed += () =>
-        {
+        s.AutoApplyBtn.Pressed += () => {
             if (s.Selected == null) return;
             var powerId = ((AbstractModel)s.Selected).Id.Entry;
-            var target = s.Target switch
-            {
+            var target = s.Target switch {
                 PowerTarget.AllEnemies => HookTargetType.AllEnemies,
-                PowerTarget.Allies    => HookTargetType.Allies,
-                _                     => HookTargetType.Player
+                PowerTarget.Allies => HookTargetType.Allies,
+                _ => HookTargetType.Player
             };
-            var entry = new HookEntry
-            {
-                Name    = PowerActions.GetPowerDisplayName(s.Selected),
+            var entry = new HookEntry {
+                Name = PowerActions.GetPowerDisplayName(s.Selected),
                 Trigger = TriggerType.CombatStart,
                 Actions = [new HookAction
                 {
@@ -446,9 +423,8 @@ internal static class PowerSelectUI
         // ── Active powers on player ──
         var curHdr = new HBoxContainer();
         curHdr.AddThemeConstantOverride("separation", 8);
-        var curLbl = new Label
-        {
-            Text                = I18N.T("power.current", "Active Powers"),
+        var curLbl = new Label {
+            Text = I18N.T("power.current", "Active Powers"),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         curLbl.AddThemeFontSizeOverride("font_size", 11);
@@ -457,8 +433,7 @@ internal static class PowerSelectUI
 
         var clearBtn = new Button { Text = I18N.T("power.clear_all", "Clear All"), FocusMode = Control.FocusModeEnum.None };
         clearBtn.AddThemeFontSizeOverride("font_size", 10);
-        clearBtn.Pressed += () =>
-        {
+        clearBtn.Pressed += () => {
             if (player.Creature != null)
                 PowerActions.RemoveAllPowers(player.Creature);
             RefreshCurrentPowers(s, player);
@@ -466,11 +441,10 @@ internal static class PowerSelectUI
         curHdr.AddChild(clearBtn);
         inner.AddChild(curHdr);
 
-        var curScroll = new ScrollContainer
-        {
-            SizeFlagsVertical        = Control.SizeFlags.ExpandFill,
-            HorizontalScrollMode     = ScrollContainer.ScrollMode.Disabled,
-            CustomMinimumSize        = new Vector2(0, 60),
+        var curScroll = new ScrollContainer {
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            CustomMinimumSize = new Vector2(0, 60),
         };
         s.CurrentPowersList = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         s.CurrentPowersList.AddThemeConstantOverride("separation", 4);
@@ -482,9 +456,8 @@ internal static class PowerSelectUI
         // ── Auto-Apply list ──
         var autoHdr = new HBoxContainer();
         autoHdr.AddThemeConstantOverride("separation", 8);
-        var autoLbl = new Label
-        {
-            Text                = I18N.T("power.autoApply.title", "Auto-Apply (Combat Start)"),
+        var autoLbl = new Label {
+            Text = I18N.T("power.autoApply.title", "Auto-Apply (Combat Start)"),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         autoLbl.AddThemeFontSizeOverride("font_size", 11);
@@ -493,8 +466,7 @@ internal static class PowerSelectUI
 
         var autoClearBtn = new Button { Text = I18N.T("power.autoApply.clearAll", "Clear All"), FocusMode = Control.FocusModeEnum.None };
         autoClearBtn.AddThemeFontSizeOverride("font_size", 10);
-        autoClearBtn.Pressed += () =>
-        {
+        autoClearBtn.Pressed += () => {
             SettingsStore.Current.Hooks.RemoveAll(h =>
                 h.Trigger == TriggerType.CombatStart &&
                 h.Actions.Count == 1 &&
@@ -505,11 +477,10 @@ internal static class PowerSelectUI
         autoHdr.AddChild(autoClearBtn);
         inner.AddChild(autoHdr);
 
-        var autoScroll = new ScrollContainer
-        {
-            SizeFlagsVertical    = Control.SizeFlags.ExpandFill,
+        var autoScroll = new ScrollContainer {
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
-            CustomMinimumSize    = new Vector2(0, 50),
+            CustomMinimumSize = new Vector2(0, 50),
         };
         s.AutoApplyList = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         s.AutoApplyList.AddThemeConstantOverride("separation", 4);
@@ -526,8 +497,7 @@ internal static class PowerSelectUI
 
     // ─────────────────────────────── Grid rebuild ───────────────────────────────
 
-    private static void Rebuild(State s)
-    {
+    private static void Rebuild(State s) {
         foreach (var child in s.Grid.GetChildren())
             ((Node)child).QueueFree();
 
@@ -551,8 +521,7 @@ internal static class PowerSelectUI
         s.CountLabel.Text = I18N.T("power.count", "{0} powers", s.Filtered.Count);
     }
 
-    private static void UpdateGridColumns(State s)
-    {
+    private static void UpdateGridColumns(State s) {
         var available = s.GridScroll.Size.X;
         if (available <= 0) return;
         var cols = Math.Max(1, (int)((available + GridHSep) / (TileMinWidth + GridHSep)));
@@ -562,32 +531,28 @@ internal static class PowerSelectUI
 
     // ─────────────────────────────── Power tile ───────────────────────────────
 
-    private static Control CreatePowerTile(PowerModel power, State s)
-    {
+    private static Control CreatePowerTile(PowerModel power, State s) {
         var typeCol = TypeColor(power.Type);
-        var name    = PowerActions.GetPowerDisplayName(power);
+        var name = PowerActions.GetPowerDisplayName(power);
 
-        var outer = new VBoxContainer
-        {
-            CustomMinimumSize   = new Vector2(TileMinWidth, 0),
+        var outer = new VBoxContainer {
+            CustomMinimumSize = new Vector2(TileMinWidth, 0),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            TooltipText         = name,
-            MouseFilter         = Control.MouseFilterEnum.Stop,
+            TooltipText = name,
+            MouseFilter = Control.MouseFilterEnum.Stop,
         };
         outer.AddThemeConstantOverride("separation", 4);
 
         // ── Icon frame ──
-        var frameCenter = new CenterContainer
-        {
+        var frameCenter = new CenterContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            CustomMinimumSize   = new Vector2(0, TileMinWidth),
-            MouseFilter         = Control.MouseFilterEnum.Ignore,
+            CustomMinimumSize = new Vector2(0, TileMinWidth),
+            MouseFilter = Control.MouseFilterEnum.Ignore,
         };
         var frameSize = TileMinWidth - 4f;
-        var frameHost = new Control
-        {
+        var frameHost = new Control {
             CustomMinimumSize = new Vector2(frameSize, frameSize),
-            MouseFilter       = Control.MouseFilterEnum.Ignore,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
         };
 
         var frame = new Panel { MouseFilter = Control.MouseFilterEnum.Ignore };
@@ -599,26 +564,22 @@ internal static class PowerSelectUI
         Texture2D? iconTex = null;
         try { iconTex = power.Icon; } catch { /* missing atlas entry */ }
 
-        if (iconTex != null)
-        {
-            frameHost.AddChild(new TextureRect
-            {
-                Texture           = iconTex,
-                ExpandMode        = TextureRect.ExpandModeEnum.IgnoreSize,
-                StretchMode       = TextureRect.StretchModeEnum.KeepAspectCentered,
+        if (iconTex != null) {
+            frameHost.AddChild(new TextureRect {
+                Texture = iconTex,
+                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
                 CustomMinimumSize = new Vector2(IconSize, IconSize),
-                Position          = new Vector2((frameSize - IconSize) / 2f, (frameSize - IconSize) / 2f),
-                MouseFilter       = Control.MouseFilterEnum.Ignore,
+                Position = new Vector2((frameSize - IconSize) / 2f, (frameSize - IconSize) / 2f),
+                MouseFilter = Control.MouseFilterEnum.Ignore,
             });
         }
-        else
-        {
-            frameHost.AddChild(new ColorRect
-            {
-                Color             = typeCol.Darkened(0.5f),
+        else {
+            frameHost.AddChild(new ColorRect {
+                Color = typeCol.Darkened(0.5f),
                 CustomMinimumSize = new Vector2(IconSize, IconSize),
-                Position          = new Vector2((frameSize - IconSize) / 2f, (frameSize - IconSize) / 2f),
-                MouseFilter       = Control.MouseFilterEnum.Ignore,
+                Position = new Vector2((frameSize - IconSize) / 2f, (frameSize - IconSize) / 2f),
+                MouseFilter = Control.MouseFilterEnum.Ignore,
             });
         }
 
@@ -627,32 +588,28 @@ internal static class PowerSelectUI
 
         // ── Name ──
         var nameColor = typeCol.Lerp(ColLight, 0.45f);
-        var label = new Label
-        {
-            Text                = name,
+        var label = new Label {
+            Text = name,
             HorizontalAlignment = HorizontalAlignment.Center,
-            AutowrapMode        = TextServer.AutowrapMode.WordSmart,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            CustomMinimumSize   = new Vector2(0, 26),
-            MouseFilter         = Control.MouseFilterEnum.Ignore,
+            CustomMinimumSize = new Vector2(0, 26),
+            MouseFilter = Control.MouseFilterEnum.Ignore,
         };
         label.AddThemeFontSizeOverride("font_size", 10);
         label.AddThemeColorOverride("font_color", nameColor);
         outer.AddChild(label);
 
         // ── Mouse interaction ──
-        outer.MouseEntered += () =>
-        {
+        outer.MouseEntered += () => {
             if (s.SelectedFrame != frame)
                 frame.AddThemeStyleboxOverride("panel", MakeFrameStyle(ColFrameHover, typeCol, 0.70f));
         };
-        outer.MouseExited += () =>
-        {
+        outer.MouseExited += () => {
             if (s.SelectedFrame != frame)
                 frame.AddThemeStyleboxOverride("panel", MakeFrameStyle(ColFrameBg, typeCol, 0.40f));
         };
-        outer.GuiInput += evt =>
-        {
+        outer.GuiInput += evt => {
             if (evt is InputEventMouseButton mb && mb.ButtonIndex == MouseButton.Left && mb.Pressed)
                 SelectTile(s, frame, power, typeCol);
         };
@@ -660,15 +617,13 @@ internal static class PowerSelectUI
         return outer;
     }
 
-    private static void SelectTile(State s, Panel newFrame, PowerModel power, Color typeCol)
-    {
-        if (s.SelectedFrame != null && s.Selected != null)
-        {
+    private static void SelectTile(State s, Panel newFrame, PowerModel power, Color typeCol) {
+        if (s.SelectedFrame != null && s.Selected != null) {
             var oldCol = TypeColor(s.Selected.Type);
             s.SelectedFrame.AddThemeStyleboxOverride("panel", MakeFrameStyle(ColFrameBg, oldCol, 0.40f));
         }
 
-        s.Selected      = power;
+        s.Selected = power;
         s.SelectedFrame = newFrame;
         newFrame.AddThemeStyleboxOverride("panel", MakeFrameStyle(ColFrameSelected, typeCol, 0.95f));
 
@@ -677,26 +632,24 @@ internal static class PowerSelectUI
 
     // ─────────────────────────────── Detail update ───────────────────────────────
 
-    private static void ShowEmptyDetail(State s)
-    {
-        s.DetailName.Text           = I18N.T("power.detail.placeholder", "Select a power");
-        s.DetailTypeBadge.Text      = "";
-        s.DetailStackBadge.Text     = "";
-        s.DetailDesc.Text           = "";
-        s.DetailIcon.Visible        = false;
-        s.DetailIconFallback.Visible= true;
+    private static void ShowEmptyDetail(State s) {
+        s.DetailName.Text = I18N.T("power.detail.placeholder", "Select a power");
+        s.DetailTypeBadge.Text = "";
+        s.DetailStackBadge.Text = "";
+        s.DetailDesc.Text = "";
+        s.DetailIcon.Visible = false;
+        s.DetailIconFallback.Visible = true;
         foreach (var c in s.DetailIdContainer.GetChildren()) ((Node)c).QueueFree();
-        s.ApplyBtn.Disabled         = true;
-        s.AutoApplyBtn.Disabled     = true;
-        s.CombatWarningLabel.Visible= false;
+        s.ApplyBtn.Disabled = true;
+        s.AutoApplyBtn.Disabled = true;
+        s.CombatWarningLabel.Visible = false;
     }
 
-    private static void ShowPowerDetail(State s, PowerModel power)
-    {
+    private static void ShowPowerDetail(State s, PowerModel power) {
         s.DetailName.Text = PowerActions.GetPowerDisplayName(power);
 
         var typeCol = TypeColor(power.Type);
-        s.DetailTypeBadge.Text  = power.Type.ToString();
+        s.DetailTypeBadge.Text = power.Type.ToString();
         s.DetailTypeBadge.AddThemeColorOverride("font_color", typeCol);
 
         s.DetailStackBadge.Text = power.StackType.ToString();
@@ -713,22 +666,19 @@ internal static class PowerSelectUI
         try { icon = power.BigIcon; } catch { }
         if (icon == null) { try { icon = power.Icon; } catch { } }
 
-        if (icon != null)
-        {
-            s.DetailIcon.Texture         = icon;
-            s.DetailIcon.Visible         = true;
+        if (icon != null) {
+            s.DetailIcon.Texture = icon;
+            s.DetailIcon.Visible = true;
             s.DetailIconFallback.Visible = false;
         }
-        else
-        {
-            s.DetailIcon.Visible         = false;
+        else {
+            s.DetailIcon.Visible = false;
             s.DetailIconFallback.Visible = true;
-            s.DetailIconFallback.Color   = typeCol.Darkened(0.5f);
+            s.DetailIconFallback.Color = typeCol.Darkened(0.5f);
         }
 
         // Description
-        try
-        {
+        try {
             var raw = power.Description?.GetFormattedText();
             s.DetailDesc.Text = string.IsNullOrEmpty(raw)
                 ? I18N.T("power.no_desc", "(No description)")
@@ -746,15 +696,13 @@ internal static class PowerSelectUI
         RefreshCurrentPowers(s, s.Player);
     }
 
-    private static void RefreshCurrentPowers(State s, Player player)
-    {
+    private static void RefreshCurrentPowers(State s, Player player) {
         foreach (var child in s.CurrentPowersList.GetChildren())
             ((Node)child).QueueFree();
 
         var powers = player.Creature?.Powers?.Where(p => p != null).ToArray() ?? [];
 
-        if (powers.Length == 0)
-        {
+        if (powers.Length == 0) {
             var none = new Label { Text = I18N.T("power.none_active", "No active powers") };
             none.AddThemeFontSizeOverride("font_size", 11);
             none.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
@@ -762,46 +710,40 @@ internal static class PowerSelectUI
             return;
         }
 
-        foreach (var p in powers)
-        {
+        foreach (var p in powers) {
             var row = new HBoxContainer();
             row.AddThemeConstantOverride("separation", 6);
 
             // Small icon
             Texture2D? tex = null;
             try { tex = p.Icon; } catch { }
-            if (tex != null)
-            {
-                row.AddChild(new TextureRect
-                {
-                    Texture           = tex,
-                    ExpandMode        = TextureRect.ExpandModeEnum.IgnoreSize,
-                    StretchMode       = TextureRect.StretchModeEnum.KeepAspectCentered,
+            if (tex != null) {
+                row.AddChild(new TextureRect {
+                    Texture = tex,
+                    ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                    StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
                     CustomMinimumSize = new Vector2(18, 18),
                 });
             }
 
             var col = TypeColor(p.Type);
-            var nameLabel = new Label
-            {
-                Text                = $"{PowerActions.GetPowerDisplayName(p)}  ×{p.Amount}",
+            var nameLabel = new Label {
+                Text = $"{PowerActions.GetPowerDisplayName(p)}  ×{p.Amount}",
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-                VerticalAlignment   = VerticalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
             };
             nameLabel.AddThemeFontSizeOverride("font_size", 11);
             nameLabel.AddThemeColorOverride("font_color", col.Lerp(ColLight, 0.4f));
             row.AddChild(nameLabel);
 
-            var removeBtn = new Button
-            {
-                Text              = "×",
+            var removeBtn = new Button {
+                Text = "×",
                 CustomMinimumSize = new Vector2(24, 22),
-                FocusMode         = Control.FocusModeEnum.None,
+                FocusMode = Control.FocusModeEnum.None,
             };
             removeBtn.AddThemeFontSizeOverride("font_size", 13);
             var captured = p;
-            removeBtn.Pressed += () =>
-            {
+            removeBtn.Pressed += () => {
                 PowerActions.RemovePower(player.Creature!, captured);
                 RefreshCurrentPowers(s, player);
             };
@@ -813,96 +755,101 @@ internal static class PowerSelectUI
 
     // ─────────────────────────────── Target buttons ───────────────────────────────
 
-    private static void SyncTargetButtons(State s)
-    {
-        SetTargetActive(s.BtnSelf,       s.Target == PowerTarget.Self);
+    private static void SyncTargetButtons(State s) {
+        SetTargetActive(s.BtnSelf, s.Target == PowerTarget.Self);
         SetTargetActive(s.BtnAllEnemies, s.Target == PowerTarget.AllEnemies);
-        SetTargetActive(s.BtnAllies,     s.Target == PowerTarget.Allies);
+        SetTargetActive(s.BtnAllies, s.Target == PowerTarget.Allies);
     }
 
-    private static void SetTargetActive(Button btn, bool active)
-    {
+    private static void SetTargetActive(Button btn, bool active) {
         btn.AddThemeColorOverride("font_color", active ? DevModeTheme.Accent : DevModeTheme.Subtle);
         btn.AddThemeStyleboxOverride("normal", MakeTargetStyle(active ? DevModeTheme.AccentAlpha : DevModeTheme.PanelBorder));
-        btn.AddThemeStyleboxOverride("hover",  MakeTargetStyle(active ? DevModeTheme.Accent      : new Color(0.4f, 0.4f, 0.55f)));
+        btn.AddThemeStyleboxOverride("hover", MakeTargetStyle(active ? DevModeTheme.Accent : new Color(0.4f, 0.4f, 0.55f)));
     }
 
-    private static StyleBoxFlat MakeTargetStyle(Color borderCol) => new()
-    {
-        BgColor                = new Color(0.16f, 0.16f, 0.22f),
-        CornerRadiusTopLeft    = 5, CornerRadiusTopRight    = 5,
-        CornerRadiusBottomLeft = 5, CornerRadiusBottomRight = 5,
-        BorderWidthTop = 1, BorderWidthBottom = 1, BorderWidthLeft = 1, BorderWidthRight = 1,
-        BorderColor            = borderCol,
-        ContentMarginLeft = 6, ContentMarginRight = 6, ContentMarginTop = 4, ContentMarginBottom = 4,
+    private static StyleBoxFlat MakeTargetStyle(Color borderCol) => new() {
+        BgColor = new Color(0.16f, 0.16f, 0.22f),
+        CornerRadiusTopLeft = 5,
+        CornerRadiusTopRight = 5,
+        CornerRadiusBottomLeft = 5,
+        CornerRadiusBottomRight = 5,
+        BorderWidthTop = 1,
+        BorderWidthBottom = 1,
+        BorderWidthLeft = 1,
+        BorderWidthRight = 1,
+        BorderColor = borderCol,
+        ContentMarginLeft = 6,
+        ContentMarginRight = 6,
+        ContentMarginTop = 4,
+        ContentMarginBottom = 4,
     };
 
-    private static Button MakeTargetButton(string label) => new()
-    {
-        Text                = label,
-        FocusMode           = Control.FocusModeEnum.None,
+    private static Button MakeTargetButton(string label) => new() {
+        Text = label,
+        FocusMode = Control.FocusModeEnum.None,
         SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-        CustomMinimumSize   = new Vector2(0, 28),
+        CustomMinimumSize = new Vector2(0, 28),
     };
 
     // ─────────────────────────────── Helpers ───────────────────────────────
 
-    private static StyleBoxFlat MakeFrameStyle(Color bg, Color border, float borderAlpha) => new()
-    {
-        BgColor                = bg,
-        CornerRadiusTopLeft    = FrameRadius, CornerRadiusTopRight    = FrameRadius,
-        CornerRadiusBottomLeft = FrameRadius, CornerRadiusBottomRight = FrameRadius,
-        BorderWidthTop = 2, BorderWidthBottom = 2, BorderWidthLeft = 2, BorderWidthRight = 2,
-        BorderColor            = border with { A = borderAlpha },
+    private static StyleBoxFlat MakeFrameStyle(Color bg, Color border, float borderAlpha) => new() {
+        BgColor = bg,
+        CornerRadiusTopLeft = FrameRadius,
+        CornerRadiusTopRight = FrameRadius,
+        CornerRadiusBottomLeft = FrameRadius,
+        CornerRadiusBottomRight = FrameRadius,
+        BorderWidthTop = 2,
+        BorderWidthBottom = 2,
+        BorderWidthLeft = 2,
+        BorderWidthRight = 2,
+        BorderColor = border with { A = borderAlpha },
     };
 
-    private static Label MakeBadgeLabel(string text, Color col)
-    {
+    private static Label MakeBadgeLabel(string text, Color col) {
         var lbl = new Label { Text = text };
         lbl.AddThemeFontSizeOverride("font_size", 10);
         lbl.AddThemeColorOverride("font_color", col);
         return lbl;
     }
 
-    private static void ApplyBtnStyle(Button btn)
-    {
-        var style = new StyleBoxFlat
-        {
-            BgColor                = new Color(0.28f, 0.48f, 0.72f, 0.90f),
-            CornerRadiusTopLeft    = 6, CornerRadiusTopRight    = 6,
-            CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
+    private static void ApplyBtnStyle(Button btn) {
+        var style = new StyleBoxFlat {
+            BgColor = new Color(0.28f, 0.48f, 0.72f, 0.90f),
+            CornerRadiusTopLeft = 6,
+            CornerRadiusTopRight = 6,
+            CornerRadiusBottomLeft = 6,
+            CornerRadiusBottomRight = 6,
         };
-        var hoverStyle = new StyleBoxFlat
-        {
-            BgColor                = new Color(0.35f, 0.58f, 0.85f, 0.95f),
-            CornerRadiusTopLeft    = 6, CornerRadiusTopRight    = 6,
-            CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
+        var hoverStyle = new StyleBoxFlat {
+            BgColor = new Color(0.35f, 0.58f, 0.85f, 0.95f),
+            CornerRadiusTopLeft = 6,
+            CornerRadiusTopRight = 6,
+            CornerRadiusBottomLeft = 6,
+            CornerRadiusBottomRight = 6,
         };
-        btn.AddThemeStyleboxOverride("normal",  style);
+        btn.AddThemeStyleboxOverride("normal", style);
         btn.AddThemeStyleboxOverride("pressed", style);
-        btn.AddThemeStyleboxOverride("hover",   hoverStyle);
+        btn.AddThemeStyleboxOverride("hover", hoverStyle);
         btn.AddThemeFontSizeOverride("font_size", 13);
         btn.AddThemeColorOverride("font_color", ColLight);
     }
 
-    private static Color TypeColor(PowerType type) => type switch
-    {
-        PowerType.Buff   => ColBuff,
+    private static Color TypeColor(PowerType type) => type switch {
+        PowerType.Buff => ColBuff,
         PowerType.Debuff => ColDebuff,
-        _                => ColNone,
+        _ => ColNone,
     };
 
-    private static ColorRect MakeDivider() => new()
-    {
-        Color             = DevModeTheme.Separator,
+    private static ColorRect MakeDivider() => new() {
+        Color = DevModeTheme.Separator,
         CustomMinimumSize = new Vector2(0, 1),
         SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
     };
 
     // ─────────────────────────────── Auto-Apply list ───────────────────────────────
 
-    private static void RefreshAutoApplyList(State s)
-    {
+    private static void RefreshAutoApplyList(State s) {
         foreach (var child in s.AutoApplyList.GetChildren())
             ((Node)child).QueueFree();
 
@@ -911,8 +858,7 @@ internal static class PowerSelectUI
             .Where(h => h.Actions.Any(a => a.Type == ActionType.ApplyPower))
             .ToList();
 
-        if (autoBuffs.Count == 0)
-        {
+        if (autoBuffs.Count == 0) {
             var none = new Label { Text = I18N.T("power.autoApply.empty", "No auto-apply rules") };
             none.AddThemeFontSizeOverride("font_size", 11);
             none.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
@@ -920,15 +866,12 @@ internal static class PowerSelectUI
             return;
         }
 
-        foreach (var hook in autoBuffs)
-        {
-            foreach (var action in hook.Actions.Where(a => a.Type == ActionType.ApplyPower))
-            {
+        foreach (var hook in autoBuffs) {
+            foreach (var action in hook.Actions.Where(a => a.Type == ActionType.ApplyPower)) {
                 var row = new HBoxContainer();
                 row.AddThemeConstantOverride("separation", 6);
 
-                var triggerLabel = new Label
-                {
+                var triggerLabel = new Label {
                     Text = GetTriggerShortLabel(hook.Trigger),
                     CustomMinimumSize = new Vector2(18, 0),
                     VerticalAlignment = VerticalAlignment.Center,
@@ -937,55 +880,48 @@ internal static class PowerSelectUI
                 triggerLabel.AddThemeColorOverride("font_color", DevModeTheme.Accent);
                 row.AddChild(triggerLabel);
 
-                var targetCol = action.Target switch
-                {
+                var targetCol = action.Target switch {
                     HookTargetType.AllEnemies => ColDebuff,
-                    HookTargetType.Allies    => new Color(0.45f, 0.65f, 0.85f),
-                    _                        => ColBuff
+                    HookTargetType.Allies => new Color(0.45f, 0.65f, 0.85f),
+                    _ => ColBuff
                 };
 
-                var nameLabel = new Label
-                {
-                    Text                = $"{action.TargetId}  x{action.Amount}",
+                var nameLabel = new Label {
+                    Text = $"{action.TargetId}  x{action.Amount}",
                     SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-                    VerticalAlignment   = VerticalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
                 };
                 nameLabel.AddThemeFontSizeOverride("font_size", 11);
                 nameLabel.AddThemeColorOverride("font_color", targetCol.Lerp(ColLight, 0.4f));
                 row.AddChild(nameLabel);
 
-                var targetTag = new Label
-                {
-                    Text              = GetTargetShortLabel(action.Target),
+                var targetTag = new Label {
+                    Text = GetTargetShortLabel(action.Target),
                     VerticalAlignment = VerticalAlignment.Center,
                 };
                 targetTag.AddThemeFontSizeOverride("font_size", 9);
                 targetTag.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
                 row.AddChild(targetTag);
 
-                var toggleBtn = new CheckButton
-                {
+                var toggleBtn = new CheckButton {
                     ButtonPressed = hook.Enabled,
-                    FocusMode     = Control.FocusModeEnum.None,
+                    FocusMode = Control.FocusModeEnum.None,
                     CustomMinimumSize = new Vector2(40, 22),
                 };
                 var capturedHook = hook;
-                toggleBtn.Toggled += on =>
-                {
+                toggleBtn.Toggled += on => {
                     capturedHook.Enabled = on;
                     SettingsStore.Save();
                 };
                 row.AddChild(toggleBtn);
 
-                var removeBtn = new Button
-                {
-                    Text              = "×",
+                var removeBtn = new Button {
+                    Text = "×",
                     CustomMinimumSize = new Vector2(24, 22),
-                    FocusMode         = Control.FocusModeEnum.None,
+                    FocusMode = Control.FocusModeEnum.None,
                 };
                 removeBtn.AddThemeFontSizeOverride("font_size", 13);
-                removeBtn.Pressed += () =>
-                {
+                removeBtn.Pressed += () => {
                     SettingsStore.Current.Hooks.Remove(capturedHook);
                     SettingsStore.Save();
                     RefreshAutoApplyList(s);
@@ -997,44 +933,43 @@ internal static class PowerSelectUI
         }
     }
 
-    private static string GetTriggerShortLabel(TriggerType t) => t switch
-    {
-        TriggerType.CombatStart  => I18N.T("hook.trigger.combatStart.short",  "⚔"),
-        TriggerType.CombatEnd    => I18N.T("hook.trigger.combatEnd.short",    "🏁"),
-        TriggerType.TurnStart    => I18N.T("hook.trigger.turnStart.short",    "▶"),
-        TriggerType.TurnEnd      => I18N.T("hook.trigger.turnEnd.short",      "⏸"),
-        TriggerType.OnDraw       => I18N.T("hook.trigger.onDraw.short",       "🂠"),
-        TriggerType.OnDamageDealt=> I18N.T("hook.trigger.onDamageDealt.short","💥"),
-        TriggerType.OnDamageTaken=> I18N.T("hook.trigger.onDamageTaken.short","🩸"),
+    private static string GetTriggerShortLabel(TriggerType t) => t switch {
+        TriggerType.CombatStart => I18N.T("hook.trigger.combatStart.short", "⚔"),
+        TriggerType.CombatEnd => I18N.T("hook.trigger.combatEnd.short", "🏁"),
+        TriggerType.TurnStart => I18N.T("hook.trigger.turnStart.short", "▶"),
+        TriggerType.TurnEnd => I18N.T("hook.trigger.turnEnd.short", "⏸"),
+        TriggerType.OnDraw => I18N.T("hook.trigger.onDraw.short", "🂠"),
+        TriggerType.OnDamageDealt => I18N.T("hook.trigger.onDamageDealt.short", "💥"),
+        TriggerType.OnDamageTaken => I18N.T("hook.trigger.onDamageTaken.short", "🩸"),
         TriggerType.OnPotionUsed => I18N.T("hook.trigger.onPotionUsed.short", "🧪"),
         _ => "?"
     };
 
-    private static string GetTargetShortLabel(HookTargetType t) => t switch
-    {
-        HookTargetType.Player     => I18N.T("hook.target.player.short",  "P"),
+    private static string GetTargetShortLabel(HookTargetType t) => t switch {
+        HookTargetType.Player => I18N.T("hook.target.player.short", "P"),
         HookTargetType.AllEnemies => I18N.T("hook.target.enemies.short", "E"),
-        HookTargetType.Allies    => I18N.T("hook.target.allies.short",  "A"),
+        HookTargetType.Allies => I18N.T("hook.target.allies.short", "A"),
         _ => "?"
     };
 
-    private static void AutoApplyBtnStyle(Button btn)
-    {
-        var style = new StyleBoxFlat
-        {
-            BgColor                = new Color(0.25f, 0.55f, 0.38f, 0.85f),
-            CornerRadiusTopLeft    = 6, CornerRadiusTopRight    = 6,
-            CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
+    private static void AutoApplyBtnStyle(Button btn) {
+        var style = new StyleBoxFlat {
+            BgColor = new Color(0.25f, 0.55f, 0.38f, 0.85f),
+            CornerRadiusTopLeft = 6,
+            CornerRadiusTopRight = 6,
+            CornerRadiusBottomLeft = 6,
+            CornerRadiusBottomRight = 6,
         };
-        var hoverStyle = new StyleBoxFlat
-        {
-            BgColor                = new Color(0.32f, 0.65f, 0.45f, 0.95f),
-            CornerRadiusTopLeft    = 6, CornerRadiusTopRight    = 6,
-            CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
+        var hoverStyle = new StyleBoxFlat {
+            BgColor = new Color(0.32f, 0.65f, 0.45f, 0.95f),
+            CornerRadiusTopLeft = 6,
+            CornerRadiusTopRight = 6,
+            CornerRadiusBottomLeft = 6,
+            CornerRadiusBottomRight = 6,
         };
-        btn.AddThemeStyleboxOverride("normal",  style);
+        btn.AddThemeStyleboxOverride("normal", style);
         btn.AddThemeStyleboxOverride("pressed", style);
-        btn.AddThemeStyleboxOverride("hover",   hoverStyle);
+        btn.AddThemeStyleboxOverride("hover", hoverStyle);
         btn.AddThemeFontSizeOverride("font_size", 12);
         btn.AddThemeColorOverride("font_color", ColLight);
     }

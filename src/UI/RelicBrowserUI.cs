@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DevMode.Actions;
+using DevMode.Icons;
 using Godot;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -9,8 +11,6 @@ using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Runs;
-using DevMode.Actions;
-using DevMode.Icons;
 
 namespace DevMode.UI;
 
@@ -18,21 +18,19 @@ namespace DevMode.UI;
 /// Self-drawn relic browser — parallel architecture to CardBrowserUI.
 /// Center: scrollable grid of compact relic tiles. Right: context-sensitive detail / actions.
 /// </summary>
-internal static partial class RelicBrowserUI
-{
+internal static partial class RelicBrowserUI {
     private const string RootName = "DevModeRelicBrowser";
     private const float RightPanelWidth = 260f;
 
-    private const float RailW      = 52f;
-    private const float RailLeft   = 24f;
-    private const float PanelLeft  = RailLeft + RailW;
+    private const float RailW = 52f;
+    private const float RailLeft = 24f;
+    private const float PanelLeft = RailLeft + RailW;
     private const float PanelRight = 24f;
-    private const int   RailRadius = 14;
+    private const int RailRadius = 14;
 
     // ──────── Session state ────────
 
-    private sealed class State
-    {
+    private sealed class State {
         public readonly NGlobalUi GlobalUi;
         public readonly RunState RunState;
         public readonly Player Player;
@@ -67,8 +65,7 @@ internal static partial class RelicBrowserUI
         public Panel? SelectedBg;
         public Color SelectedRarityCol;
 
-        public State(NGlobalUi globalUi, RunState runState, Player player)
-        {
+        public State(NGlobalUi globalUi, RunState runState, Player player) {
             GlobalUi = globalUi;
             RunState = runState;
             Player = player;
@@ -77,16 +74,14 @@ internal static partial class RelicBrowserUI
 
     // ──────── Rail splice ────────
 
-    private static void SpliceRail(NGlobalUi globalUi, bool joined)
-    {
+    private static void SpliceRail(NGlobalUi globalUi, bool joined) {
         var railRoot = ((Node)globalUi).GetNodeOrNull<Control>("DevModeRailRoot");
         var rail = railRoot?.GetNodeOrNull<PanelContainer>("Rail");
         if (rail == null) return;
 
-        if (rail.GetThemeStylebox("panel") is StyleBoxFlat sb)
-        {
+        if (rail.GetThemeStylebox("panel") is StyleBoxFlat sb) {
             int r = joined ? 0 : RailRadius;
-            sb.CornerRadiusTopRight    = r;
+            sb.CornerRadiusTopRight = r;
             sb.CornerRadiusBottomRight = r;
             sb.BorderWidthRight = joined ? 0 : 1;
         }
@@ -94,8 +89,7 @@ internal static partial class RelicBrowserUI
 
     // ──────── Public API ────────
 
-    public static void Show(NGlobalUi globalUi, RunState runState, Player player)
-    {
+    public static void Show(NGlobalUi globalUi, RunState runState, Player player) {
         Remove(globalUi);
 
         DevPanelUI.PinRail();
@@ -105,8 +99,7 @@ internal static partial class RelicBrowserUI
 
         var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1250 };
         root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        root.TreeExiting += () =>
-        {
+        root.TreeExiting += () => {
             DevPanelUI.UnpinRail();
             SpliceRail(globalUi, joined: false);
         };
@@ -127,8 +120,7 @@ internal static partial class RelicBrowserUI
         s.ActiveTabIdx = Array.IndexOf(sources, _browseSource);
         if (s.ActiveTabIdx < 0) s.ActiveTabIdx = 0;
 
-        var navSection = new Control
-        {
+        var navSection = new Control {
             CustomMinimumSize = new Vector2(0, 34),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
         };
@@ -136,16 +128,17 @@ internal static partial class RelicBrowserUI
         tabRow.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         tabRow.AddThemeConstantOverride("separation", 0);
 
-        s.Indicator = new ColorRect
-        {
+        s.Indicator = new ColorRect {
             Color = ColNavAccent,
-            AnchorLeft = 0, AnchorRight = 0,
-            AnchorTop = 1, AnchorBottom = 1,
-            OffsetTop = -2, OffsetBottom = 0
+            AnchorLeft = 0,
+            AnchorRight = 0,
+            AnchorTop = 1,
+            AnchorBottom = 1,
+            OffsetTop = -2,
+            OffsetBottom = 0
         };
 
-        for (int i = 0; i < sourceLabels.Length; i++)
-        {
+        for (int i = 0; i < sourceLabels.Length; i++) {
             int idx = i;
             var tab = CreateNavTab(sourceLabels[idx], idx == s.ActiveTabIdx);
             tab.Pressed += () => SwitchTab(s, sources, idx);
@@ -162,8 +155,7 @@ internal static partial class RelicBrowserUI
         var navOuter = new VBoxContainer();
         navOuter.AddThemeConstantOverride("separation", 0);
         navOuter.AddChild(navSection);
-        navOuter.AddChild(new ColorRect
-        {
+        navOuter.AddChild(new ColorRect {
             CustomMinimumSize = new Vector2(0, 1),
             Color = DevModeTheme.Separator,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
@@ -174,16 +166,14 @@ internal static partial class RelicBrowserUI
         var searchRow = new HBoxContainer();
         searchRow.AddThemeConstantOverride("separation", 6);
 
-        searchRow.AddChild(new TextureRect
-        {
+        searchRow.AddChild(new TextureRect {
             Texture = MdiIcon.Magnify.Texture(18, DevModeTheme.Subtle),
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             CustomMinimumSize = new Vector2(22, 22),
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter
         });
 
-        s.SearchInput = new LineEdit
-        {
+        s.SearchInput = new LineEdit {
             PlaceholderText = I18N.T("relicBrowser.search", "Search..."),
             ClearButtonEnabled = true,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
@@ -193,12 +183,10 @@ internal static partial class RelicBrowserUI
         searchRow.AddChild(new Control { CustomMinimumSize = new Vector2(8, 0) });
 
         s.SortBtn = CreateSortButton(I18N.T("relicBrowser.sortRarity", "Rarity") + " ▲");
-        s.SortBtn.Pressed += () =>
-        {
+        s.SortBtn.Pressed += () => {
             if (s.CurrentSort == SortField.Rarity)
                 s.SortAsc = !s.SortAsc;
-            else
-            {
+            else {
                 s.CurrentSort = s.CurrentSort == SortField.Alphabet ? SortField.Rarity : SortField.Alphabet;
                 s.SortAsc = true;
             }
@@ -213,13 +201,11 @@ internal static partial class RelicBrowserUI
         InvalidateRelicCache(s);
         s.AvailableRarities = DiscoverRarities(s.CachedAllRelics);
 
-        if (s.AvailableRarities.Count > 0)
-        {
+        if (s.AvailableRarities.Count > 0) {
             var chipRow = new HBoxContainer();
             chipRow.AddThemeConstantOverride("separation", 4);
 
-            var filterIcon = new TextureRect
-            {
+            var filterIcon = new TextureRect {
                 Texture = MdiIcon.FilterVariant.Texture(16, DevModeTheme.Subtle),
                 StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
                 CustomMinimumSize = new Vector2(18, 18),
@@ -227,12 +213,10 @@ internal static partial class RelicBrowserUI
             };
             chipRow.AddChild(filterIcon);
 
-            foreach (var rarity in s.AvailableRarities)
-            {
+            foreach (var rarity in s.AvailableRarities) {
                 var chip = CreateSegmentChip(RarityDisplayName(rarity));
                 var captured = rarity;
-                chip.Toggled += on =>
-                {
+                chip.Toggled += on => {
                     ToggleSet(s.ActiveRarityFilters, captured, on);
                     RebuildGrid(s, s.SearchInput.Text ?? "");
                 };
@@ -245,30 +229,26 @@ internal static partial class RelicBrowserUI
         content.AddChild(new Control { CustomMinimumSize = new Vector2(0, 2) });
 
         // ── Body: grid (left) + detail panel (right) ──
-        var body = new HSplitContainer
-        {
+        var body = new HSplitContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill
         };
         body.DraggerVisibility = SplitContainer.DraggerVisibilityEnum.Hidden;
         content.AddChild(body);
 
-        s.GridScroll = new ScrollContainer
-        {
+        s.GridScroll = new ScrollContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
         };
-        s.RelicGrid = new GridContainer
-        {
+        s.RelicGrid = new GridContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             Columns = 1
         };
         s.RelicGrid.AddThemeConstantOverride("h_separation", GridHSep);
         s.RelicGrid.AddThemeConstantOverride("v_separation", GridVSep);
 
-        var gridPad = new MarginContainer
-        {
+        var gridPad = new MarginContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill
         };
@@ -284,24 +264,26 @@ internal static partial class RelicBrowserUI
         s.GridScroll.ItemRectChanged += () => UpdateGridColumns(s);
 
         // Right detail panel
-        var rightPanel = new PanelContainer
-        {
+        var rightPanel = new PanelContainer {
             CustomMinimumSize = new Vector2(RightPanelWidth, 0),
             SizeFlagsVertical = Control.SizeFlags.ExpandFill
         };
-        var rightStyle = new StyleBoxFlat
-        {
+        var rightStyle = new StyleBoxFlat {
             BgColor = DevModeTheme.PanelBg,
-            CornerRadiusTopLeft = 10, CornerRadiusTopRight = 10,
-            CornerRadiusBottomLeft = 10, CornerRadiusBottomRight = 10,
-            ContentMarginLeft = 14, ContentMarginRight = 14,
-            ContentMarginTop = 14, ContentMarginBottom = 14,
-            BorderWidthLeft = 1, BorderColor = DevModeTheme.PanelBorder
+            CornerRadiusTopLeft = 10,
+            CornerRadiusTopRight = 10,
+            CornerRadiusBottomLeft = 10,
+            CornerRadiusBottomRight = 10,
+            ContentMarginLeft = 14,
+            ContentMarginRight = 14,
+            ContentMarginTop = 14,
+            ContentMarginBottom = 14,
+            BorderWidthLeft = 1,
+            BorderColor = DevModeTheme.PanelBorder
         };
         rightPanel.AddThemeStyleboxOverride("panel", rightStyle);
 
-        var rightScroll = new ScrollContainer
-        {
+        var rightScroll = new ScrollContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
@@ -329,12 +311,10 @@ internal static partial class RelicBrowserUI
         Callable.From(() => UpdateGridColumns(s)).CallDeferred();
     }
 
-    public static void Remove(NGlobalUi globalUi)
-    {
+    public static void Remove(NGlobalUi globalUi) {
         var parent = (Node)globalUi;
         var node = parent.GetNodeOrNull<Control>(RootName);
-        if (node != null)
-        {
+        if (node != null) {
             parent.RemoveChild(node);
             node.QueueFree();
         }
@@ -344,23 +324,20 @@ internal static partial class RelicBrowserUI
 
     // ──────── Right panel: detail & actions ────────
 
-    private static void ShowRightPanel(State s, RelicModel relic)
-    {
+    private static void ShowRightPanel(State s, RelicModel relic) {
         s.SelectedRelic = relic;
         foreach (var child in s.RightContent.GetChildren()) ((Node)child).QueueFree();
         BuildRelicDetail(s, relic);
     }
 
-    private static void ClearRightPanel(State s)
-    {
+    private static void ClearRightPanel(State s) {
         foreach (var child in s.RightContent.GetChildren()) ((Node)child).QueueFree();
         AddPlaceholder(s.RightContent);
         s.SelectedRelic = null;
         s.SelectedBg = null;
     }
 
-    private static void BuildRelicDetail(State s, RelicModel relic)
-    {
+    private static void BuildRelicDetail(State s, RelicModel relic) {
         var container = s.RightContent;
         var name = GetRelicDisplayName(relic);
         var rarity = GetRelicRarity(relic);
@@ -373,10 +350,8 @@ internal static partial class RelicBrowserUI
         // Big icon
         Texture2D? bigIcon = null;
         try { bigIcon = relic.BigIcon ?? relic.Icon; } catch { }
-        if (bigIcon != null)
-        {
-            var iconRect = new TextureRect
-            {
+        if (bigIcon != null) {
+            var iconRect = new TextureRect {
                 Texture = bigIcon,
                 CustomMinimumSize = new Vector2(64, 64),
                 SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
@@ -387,8 +362,7 @@ internal static partial class RelicBrowserUI
         }
 
         // Name
-        var nameLabel = new Label
-        {
+        var nameLabel = new Label {
             Text = name,
             HorizontalAlignment = HorizontalAlignment.Center,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
@@ -401,16 +375,14 @@ internal static partial class RelicBrowserUI
         var metaRow = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter };
         metaRow.AddThemeConstantOverride("separation", 6);
 
-        if (rarity != RelicRarity.None)
-        {
+        if (rarity != RelicRarity.None) {
             var rarityLabel = new Label { Text = RarityDisplayName(rarity) };
             rarityLabel.AddThemeFontSizeOverride("font_size", 11);
             rarityLabel.AddThemeColorOverride("font_color", rarityCol);
             metaRow.AddChild(rarityLabel);
         }
 
-        if (owned)
-        {
+        if (owned) {
             var ownedLabel = new Label { Text = I18N.T("relicBrowser.owned", "Owned") };
             ownedLabel.AddThemeFontSizeOverride("font_size", 11);
             ownedLabel.AddThemeColorOverride("font_color", new Color(0.3f, 0.75f, 0.45f));
@@ -424,8 +396,7 @@ internal static partial class RelicBrowserUI
                 msg => s.StatusLabel.Text = msg));
 
         // Description
-        if (!string.IsNullOrWhiteSpace(desc))
-        {
+        if (!string.IsNullOrWhiteSpace(desc)) {
             container.AddChild(new HSeparator());
             var descLabel = DevModeTheme.CreateGameBbcodeLabel();
             descLabel.Text = DevModeTheme.ConvertGameBbcode(desc);
@@ -435,8 +406,7 @@ internal static partial class RelicBrowserUI
         }
 
         // Flavor text
-        if (!string.IsNullOrWhiteSpace(flavor) && flavor != desc)
-        {
+        if (!string.IsNullOrWhiteSpace(flavor) && flavor != desc) {
             var flavorLabel = DevModeTheme.CreateGameBbcodeLabel();
             flavorLabel.Text = DevModeTheme.ConvertGameBbcode(flavor);
             flavorLabel.AddThemeFontSizeOverride("normal_font_size", 11);
@@ -447,29 +417,24 @@ internal static partial class RelicBrowserUI
         container.AddChild(new HSeparator());
 
         // Actions
-        if (IsAllSource)
-        {
+        if (IsAllSource) {
             var addBtn = CreateActionButton(
                 I18N.T("relicBrowser.addRelic", "Add to Inventory"),
                 new Color(0.25f, 0.55f, 0.35f, 0.9f));
-            addBtn.Pressed += () =>
-            {
+            addBtn.Pressed += () => {
                 TaskHelper.RunSafely(RelicActions.AddRelic(relic, s.Player));
                 s.StatusLabel.Text = string.Format(I18N.T("relicBrowser.added", "Added: {0}"), name);
             };
             container.AddChild(addBtn);
         }
-        else
-        {
+        else {
             var removeBtn = CreateActionButton(
                 I18N.T("relicBrowser.removeRelic", "Remove Relic"),
                 new Color(0.65f, 0.25f, 0.25f, 0.9f));
-            removeBtn.Pressed += () =>
-            {
+            removeBtn.Pressed += () => {
                 var ownedRelic = s.Player.Relics.FirstOrDefault(r => r == relic)
                     ?? s.Player.GetRelicById(((AbstractModel)relic).Id);
-                if (ownedRelic != null)
-                {
+                if (ownedRelic != null) {
                     TaskHelper.RunSafely(RelicCmd.Remove(ownedRelic));
                     s.StatusLabel.Text = string.Format(I18N.T("relicBrowser.removed", "Removed: {0}"), name);
                     ClearRightPanel(s);
@@ -483,15 +448,13 @@ internal static partial class RelicBrowserUI
 
     // ──────── Navigation ────────
 
-    private static void MoveIndicator(State s, int tabIdx, bool animate)
-    {
+    private static void MoveIndicator(State s, int tabIdx, bool animate) {
         if (tabIdx < 0 || tabIdx >= s.TabButtons.Length) return;
         var btn = s.TabButtons[tabIdx];
         float left = btn.Position.X;
         float right = left + btn.Size.X;
 
-        if (animate && s.Indicator.IsInsideTree())
-        {
+        if (animate && s.Indicator.IsInsideTree()) {
             var tween = s.Indicator.CreateTween();
             tween.SetParallel(true);
             tween.TweenProperty(s.Indicator, "offset_left", left, 0.25f)
@@ -499,24 +462,21 @@ internal static partial class RelicBrowserUI
             tween.TweenProperty(s.Indicator, "offset_right", right, 0.25f)
                  .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
         }
-        else
-        {
+        else {
             s.Indicator.OffsetLeft = left;
             s.Indicator.OffsetRight = right;
         }
     }
 
-    private static void SwitchTab(State s, BrowseSource[] sources, int tabIdx)
-    {
+    private static void SwitchTab(State s, BrowseSource[] sources, int tabIdx) {
         if (tabIdx == s.ActiveTabIdx) return;
         s.ActiveTabIdx = tabIdx;
         _browseSource = sources[tabIdx];
 
-        for (int i = 0; i < s.TabButtons.Length; i++)
-        {
+        for (int i = 0; i < s.TabButtons.Length; i++) {
             bool a = i == tabIdx;
-            s.TabButtons[i].AddThemeColorOverride("font_color",         a ? ColNavActive : ColNavInactive);
-            s.TabButtons[i].AddThemeColorOverride("font_hover_color",   a ? ColNavActive : ColNavHover);
+            s.TabButtons[i].AddThemeColorOverride("font_color", a ? ColNavActive : ColNavInactive);
+            s.TabButtons[i].AddThemeColorOverride("font_hover_color", a ? ColNavActive : ColNavHover);
             s.TabButtons[i].AddThemeColorOverride("font_pressed_color", ColNavActive);
         }
 
@@ -526,11 +486,9 @@ internal static partial class RelicBrowserUI
         RebuildGrid(s, s.SearchInput.Text ?? "");
     }
 
-    private static void RefreshSortButton(State s)
-    {
+    private static void RefreshSortButton(State s) {
         if (s.SortBtn == null) return;
-        string label = s.CurrentSort switch
-        {
+        string label = s.CurrentSort switch {
             SortField.Rarity => I18N.T("relicBrowser.sortRarity", "Rarity"),
             SortField.Alphabet => I18N.T("relicBrowser.sortAZ", "A-Z"),
             _ => "?"
@@ -539,10 +497,8 @@ internal static partial class RelicBrowserUI
         s.SortBtn.AddThemeColorOverride("font_color", ColNavActive);
     }
 
-    private static void AddPlaceholder(VBoxContainer container)
-    {
-        var lbl = new Label
-        {
+    private static void AddPlaceholder(VBoxContainer container) {
+        var lbl = new Label {
             Text = I18N.T("relicBrowser.selectRelic", "Select a relic"),
             HorizontalAlignment = HorizontalAlignment.Center,
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter

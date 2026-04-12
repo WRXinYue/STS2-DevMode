@@ -8,17 +8,14 @@ namespace DevMode.UI;
 /// Public API for external mods: rail-spliced browser panels and helpers.
 /// Main-menu modal UI is internal to DevMode (<see cref="DevPanelUI"/>).
 /// </summary>
-public static class DevPanelModApi
-{
+public static class DevPanelModApi {
     /// <inheritdoc cref="DevPanelUI.CreateBrowserPanel(float)" />
-    public static PanelContainer CreateBrowserPanel(float fixedWidth = 560f)
-    {
+    public static PanelContainer CreateBrowserPanel(float fixedWidth = 560f) {
         return DevPanelUI.CreateBrowserPanel(fixedWidth);
     }
 
     /// <inheritdoc cref="DevPanelUI.CreateBrowserBackdrop(Action)" />
-    public static ColorRect CreateBrowserBackdrop(Action onClose)
-    {
+    public static ColorRect CreateBrowserBackdrop(Action onClose) {
         return DevPanelUI.CreateBrowserBackdrop(onClose);
     }
 

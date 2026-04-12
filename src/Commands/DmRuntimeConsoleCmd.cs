@@ -6,8 +6,7 @@ using MegaCrit.Sts2.Core.Entities.Players;
 
 namespace DevMode.Commands;
 
-public class DmRuntimeConsoleCmd : AbstractConsoleCmd
-{
+public class DmRuntimeConsoleCmd : AbstractConsoleCmd {
     public override string CmdName => "dmruntime";
     public override string Args => "<toggle> [on|off|value]";
     public override string Description => "[DevMode] Runtime stat modifiers and stat locks";
@@ -28,14 +27,12 @@ public class DmRuntimeConsoleCmd : AbstractConsoleCmd
 
     private static readonly string[] AllSubs = Toggles.Concat(Locks).Append("status").ToArray();
 
-    private static RuntimeStatModifiers EnsureMods()
-    {
+    private static RuntimeStatModifiers EnsureMods() {
         DevModeState.StatModifiers ??= new RuntimeStatModifiers();
         return DevModeState.StatModifiers;
     }
 
-    public override CmdResult Process(Player? issuingPlayer, string[] args)
-    {
+    public override CmdResult Process(Player? issuingPlayer, string[] args) {
         if (args.Length < 1)
             return new CmdResult(false, $"Usage: dmruntime <toggle> [on|off|value]\nToggles: {string.Join(", ", Toggles)}\nLocks: {string.Join(", ", Locks)}");
 
@@ -43,54 +40,44 @@ public class DmRuntimeConsoleCmd : AbstractConsoleCmd
         bool? flag = args.Length >= 2 ? ParseBool(args[1]) : null;
         var m = EnsureMods();
 
-        switch (sub)
-        {
-            case "godmode":
-            {
-                m.GodMode = flag ?? !m.GodMode;
-                return new CmdResult(true, $"God Mode: {OnOff(m.GodMode)}");
-            }
-            case "killall":
-            {
-                m.KillAllEnemies = flag ?? !m.KillAllEnemies;
-                return new CmdResult(true, $"Kill All Enemies: {OnOff(m.KillAllEnemies)}");
-            }
-            case "energy":
-            {
-                m.InfiniteEnergy = flag ?? !m.InfiniteEnergy;
-                return new CmdResult(true, $"Infinite Energy (Runtime): {OnOff(m.InfiniteEnergy)}");
-            }
-            case "playerturn":
-            {
-                m.AlwaysPlayerTurn = flag ?? !m.AlwaysPlayerTurn;
-                return new CmdResult(true, $"Always Player Turn: {OnOff(m.AlwaysPlayerTurn)}");
-            }
-            case "drawtolimit":
-            {
-                m.DrawToHandLimit = flag ?? !m.DrawToHandLimit;
-                return new CmdResult(true, $"Draw to Hand Limit: {OnOff(m.DrawToHandLimit)}");
-            }
-            case "extradraw":
-            {
-                if (args.Length >= 2 && int.TryParse(args[1], out var amount))
-                {
-                    m.ExtraDrawEachTurn = true;
-                    m.ExtraDrawEachTurnAmount = Math.Clamp(amount, 1, 20);
-                    return new CmdResult(true, $"Extra Draw Each Turn: ON ({m.ExtraDrawEachTurnAmount} cards)");
+        switch (sub) {
+            case "godmode": {
+                    m.GodMode = flag ?? !m.GodMode;
+                    return new CmdResult(true, $"God Mode: {OnOff(m.GodMode)}");
                 }
-                m.ExtraDrawEachTurn = flag ?? !m.ExtraDrawEachTurn;
-                return new CmdResult(true, $"Extra Draw Each Turn: {OnOff(m.ExtraDrawEachTurn)} ({m.ExtraDrawEachTurnAmount} cards)");
-            }
-            case "autoally":
-            {
-                m.AutoActFriendlyMonsters = flag ?? !m.AutoActFriendlyMonsters;
-                return new CmdResult(true, $"Auto-Act Friendly Monsters: {OnOff(m.AutoActFriendlyMonsters)}");
-            }
-            case "negatedebuffs":
-            {
-                m.NegateDebuffs = flag ?? !m.NegateDebuffs;
-                return new CmdResult(true, $"Negate Debuffs: {OnOff(m.NegateDebuffs)}");
-            }
+            case "killall": {
+                    m.KillAllEnemies = flag ?? !m.KillAllEnemies;
+                    return new CmdResult(true, $"Kill All Enemies: {OnOff(m.KillAllEnemies)}");
+                }
+            case "energy": {
+                    m.InfiniteEnergy = flag ?? !m.InfiniteEnergy;
+                    return new CmdResult(true, $"Infinite Energy (Runtime): {OnOff(m.InfiniteEnergy)}");
+                }
+            case "playerturn": {
+                    m.AlwaysPlayerTurn = flag ?? !m.AlwaysPlayerTurn;
+                    return new CmdResult(true, $"Always Player Turn: {OnOff(m.AlwaysPlayerTurn)}");
+                }
+            case "drawtolimit": {
+                    m.DrawToHandLimit = flag ?? !m.DrawToHandLimit;
+                    return new CmdResult(true, $"Draw to Hand Limit: {OnOff(m.DrawToHandLimit)}");
+                }
+            case "extradraw": {
+                    if (args.Length >= 2 && int.TryParse(args[1], out var amount)) {
+                        m.ExtraDrawEachTurn = true;
+                        m.ExtraDrawEachTurnAmount = Math.Clamp(amount, 1, 20);
+                        return new CmdResult(true, $"Extra Draw Each Turn: ON ({m.ExtraDrawEachTurnAmount} cards)");
+                    }
+                    m.ExtraDrawEachTurn = flag ?? !m.ExtraDrawEachTurn;
+                    return new CmdResult(true, $"Extra Draw Each Turn: {OnOff(m.ExtraDrawEachTurn)} ({m.ExtraDrawEachTurnAmount} cards)");
+                }
+            case "autoally": {
+                    m.AutoActFriendlyMonsters = flag ?? !m.AutoActFriendlyMonsters;
+                    return new CmdResult(true, $"Auto-Act Friendly Monsters: {OnOff(m.AutoActFriendlyMonsters)}");
+                }
+            case "negatedebuffs": {
+                    m.NegateDebuffs = flag ?? !m.NegateDebuffs;
+                    return new CmdResult(true, $"Negate Debuffs: {OnOff(m.NegateDebuffs)}");
+                }
 
             // Stat locks
             case "lockgold":
@@ -116,8 +103,7 @@ public class DmRuntimeConsoleCmd : AbstractConsoleCmd
         }
     }
 
-    public override CompletionResult GetArgumentCompletions(Player? player, string[] args)
-    {
+    public override CompletionResult GetArgumentCompletions(Player? player, string[] args) {
         if (args.Length <= 1)
             return CompleteArgument(AllSubs, Array.Empty<string>(), args.FirstOrDefault() ?? "");
 
@@ -128,10 +114,8 @@ public class DmRuntimeConsoleCmd : AbstractConsoleCmd
         return base.GetArgumentCompletions(player, args);
     }
 
-    private static CmdResult HandleLock(string[] args, string label, Func<bool> getEnabled, Action<bool> setEnabled, Func<int> getValue, Action<int> setValue)
-    {
-        if (args.Length >= 2 && int.TryParse(args[1], out var val))
-        {
+    private static CmdResult HandleLock(string[] args, string label, Func<bool> getEnabled, Action<bool> setEnabled, Func<int> getValue, Action<int> setValue) {
+        if (args.Length >= 2 && int.TryParse(args[1], out var val)) {
             setValue(val);
             setEnabled(true);
             return new CmdResult(true, $"{label}: ON (locked at {val})");
@@ -143,8 +127,7 @@ public class DmRuntimeConsoleCmd : AbstractConsoleCmd
         return new CmdResult(true, $"{label}: {OnOff(newVal)}" + (newVal ? $" (value: {getValue()})" : ""));
     }
 
-    private static CmdResult ShowStatus(RuntimeStatModifiers m)
-    {
+    private static CmdResult ShowStatus(RuntimeStatModifiers m) {
         var lines = new[]
         {
             $"God Mode: {OnOff(m.GodMode)}",
@@ -168,8 +151,7 @@ public class DmRuntimeConsoleCmd : AbstractConsoleCmd
 
     private static string OnOff(bool v) => v ? "ON" : "OFF";
 
-    private static bool? ParseBool(string s) => s.ToLowerInvariant() switch
-    {
+    private static bool? ParseBool(string s) => s.ToLowerInvariant() switch {
         "on" or "true" or "1" or "yes" => true,
         "off" or "false" or "0" or "no" => false,
         _ => null

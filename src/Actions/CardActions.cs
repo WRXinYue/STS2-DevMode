@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using DevMode.Navigation;
 using MegaCrit.Sts2.Core.CardSelection;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Cards;
@@ -14,28 +15,23 @@ using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 using MegaCrit.Sts2.Core.Nodes.Screens.Overlays;
 using MegaCrit.Sts2.Core.Nodes.Vfx;
 using MegaCrit.Sts2.Core.Runs;
-using DevMode.Navigation;
 
 namespace DevMode.Actions;
 
-internal static class CardActions
-{
-    public static async Task RemoveCards(RunState state, Player player)
-    {
+internal static class CardActions {
+    public static async Task RemoveCards(RunState state, Player player) {
         await Task.Yield();
 
         var target = DevModeState.CardTarget;
         var duration = DevModeState.EffectDuration;
 
         var cards = CollectCardsForTarget(player, target);
-        if (cards.Count == 0)
-        {
+        if (cards.Count == 0) {
             MainFile.Logger.Info("CardActions: No cards to remove.");
             return;
         }
 
-        var prefs = new CardSelectorPrefs(CardSelectorPrefs.RemoveSelectionPrompt, 1, cards.Count)
-        {
+        var prefs = new CardSelectorPrefs(CardSelectorPrefs.RemoveSelectionPrompt, 1, cards.Count) {
             Cancelable = true,
             RequireManualConfirmation = true
         };
@@ -50,34 +46,27 @@ internal static class CardActions
 
         if (selected.Count == 0) return;
 
-        if (target == CardTarget.Deck)
-        {
+        if (target == CardTarget.Deck) {
             // RemoveFromDeck handles preview animation + permanent state removal.
-            try
-            {
+            try {
                 await CardPileCmd.RemoveFromDeck((IReadOnlyList<CardModel>)selected, true);
             }
-            catch
-            {
-                foreach (var card in selected)
-                {
+            catch {
+                foreach (var card in selected) {
                     card.RemoveFromState();
                     if (state.ContainsCard(card))
                         state.RemoveCard(card);
                 }
             }
         }
-        else
-        {
+        else {
             // Combat piles (Hand / DrawPile / DiscardPile):
             // RemoveFromCombat handles the hand-UI visual update and animation.
             await CardPileCmd.RemoveFromCombat(selected);
 
-            if (duration == EffectDuration.Permanent)
-            {
+            if (duration == EffectDuration.Permanent) {
                 // Also purge from the permanent deck.
-                foreach (var card in selected)
-                {
+                foreach (var card in selected) {
                     if (state.ContainsCard(card))
                         state.RemoveCard(card);
                 }
@@ -87,8 +76,7 @@ internal static class CardActions
         MainFile.Logger.Info($"CardActions: Removed {selected.Count} card(s) ({duration})");
     }
 
-    public static async Task UpgradeCards(Player player)
-    {
+    public static async Task UpgradeCards(Player player) {
         await Task.Yield();
 
         var target = DevModeState.CardTarget;
@@ -97,14 +85,12 @@ internal static class CardActions
             .Where(c => c.CurrentUpgradeLevel < c.MaxUpgradeLevel)
             .ToList();
 
-        if (upgradable.Count == 0)
-        {
+        if (upgradable.Count == 0) {
             MainFile.Logger.Info("CardActions: No upgradable cards found.");
             return;
         }
 
-        var prefs = new CardSelectorPrefs(CardSelectorPrefs.UpgradeSelectionPrompt, 1, upgradable.Count)
-        {
+        var prefs = new CardSelectorPrefs(CardSelectorPrefs.UpgradeSelectionPrompt, 1, upgradable.Count) {
             Cancelable = true,
             RequireManualConfirmation = true
         };
@@ -128,10 +114,8 @@ internal static class CardActions
         // CardCmd.Upgrade only creates NCardUpgradeVfx for PileType.Deck cards.
         // For combat piles (DrawPile, Hand, DiscardPile), manually add the VFX.
         var previewContainer = NRun.Instance?.GlobalUi?.CardPreviewContainer;
-        if (previewContainer != null)
-        {
-            foreach (var card in selected)
-            {
+        if (previewContainer != null) {
+            foreach (var card in selected) {
                 if (card.Pile?.Type != PileType.Deck)
                     previewContainer.AddChildSafely(NCardUpgradeVfx.Create(card));
             }
@@ -140,33 +124,28 @@ internal static class CardActions
         MainFile.Logger.Info($"CardActions: Upgraded {selected.Count} card(s)");
     }
 
-    public static async Task AddCard(RunState state, Player player, CardModel canonicalCard)
-    {
-        var target   = DevModeState.CardTarget;
+    public static async Task AddCard(RunState state, Player player, CardModel canonicalCard) {
+        var target = DevModeState.CardTarget;
         var duration = DevModeState.EffectDuration;
 
-        if (target == CardTarget.Deck)
-        {
+        if (target == CardTarget.Deck) {
             var card = state.CreateCard(canonicalCard.CanonicalInstance, player);
             var result = await CardPileCmd.Add(card, PileType.Deck);
             CardCmd.PreviewCardPileAdd(result);
         }
-        else
-        {
+        else {
             var combatState = player.Creature.CombatState;
-            if (combatState == null)
-            {
+            if (combatState == null) {
                 MainFile.Logger.Info("CardActions: Cannot add to combat pile — not in combat.");
                 return;
             }
 
-            var pileType = target switch
-            {
-                CardTarget.Hand        => PileType.Hand,
-                CardTarget.DrawPile    => PileType.Draw,
+            var pileType = target switch {
+                CardTarget.Hand => PileType.Hand,
+                CardTarget.DrawPile => PileType.Draw,
                 CardTarget.DiscardPile => PileType.Discard,
                 CardTarget.ExhaustPile => PileType.Exhaust,
-                _                      => PileType.Draw
+                _ => PileType.Draw
             };
 
             var combatCard = combatState.CreateCard(canonicalCard.CanonicalInstance, player);
@@ -179,8 +158,7 @@ internal static class CardActions
             if (pileType is PileType.Draw or PileType.Discard or PileType.Exhaust)
                 combatCard.Pile?.InvokeCardAddFinished();
 
-            if (duration == EffectDuration.Permanent)
-            {
+            if (duration == EffectDuration.Permanent) {
                 var deckCard = state.CreateCard(canonicalCard.CanonicalInstance, player);
                 await CardPileCmd.Add(deckCard, PileType.Deck, skipVisuals: true);
             }
@@ -189,8 +167,7 @@ internal static class CardActions
         MainFile.Logger.Info($"CardActions: Added {canonicalCard.Id.Entry} to {target} ({duration})");
     }
 
-    public static bool HasRelevantCards(Player player, CardTarget target, CardMode mode)
-    {
+    public static bool HasRelevantCards(Player player, CardTarget target, CardMode mode) {
         if (mode == CardMode.Add)
             return target == CardTarget.Deck || player.PlayerCombatState != null;
         var cards = CollectCardsForTarget(player, target);
@@ -199,23 +176,20 @@ internal static class CardActions
         return cards.Count > 0;
     }
 
-    public static List<CardModel> GetCardsForTarget(Player player, CardTarget target)
-    {
+    public static List<CardModel> GetCardsForTarget(Player player, CardTarget target) {
         return CollectCardsForTarget(player, target);
     }
 
-    private static List<CardModel> CollectCardsForTarget(Player player, CardTarget target)
-    {
+    private static List<CardModel> CollectCardsForTarget(Player player, CardTarget target) {
         if (target == CardTarget.Deck)
             return player.Deck.Cards.ToList();
 
         var combatState = player.PlayerCombatState;
         if (combatState == null) return new List<CardModel>();
 
-        return target switch
-        {
-            CardTarget.DrawPile    => combatState.DrawPile?.Cards.ToList()    ?? new List<CardModel>(),
-            CardTarget.Hand        => combatState.Hand?.Cards.ToList()         ?? new List<CardModel>(),
+        return target switch {
+            CardTarget.DrawPile => combatState.DrawPile?.Cards.ToList() ?? new List<CardModel>(),
+            CardTarget.Hand => combatState.Hand?.Cards.ToList() ?? new List<CardModel>(),
             CardTarget.DiscardPile => combatState.DiscardPile?.Cards.ToList() ?? new List<CardModel>(),
             CardTarget.ExhaustPile => combatState.ExhaustPile?.Cards.ToList() ?? new List<CardModel>(),
             _ => new List<CardModel>()

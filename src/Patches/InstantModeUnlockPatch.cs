@@ -16,14 +16,11 @@ namespace DevMode.Patches;
 /// We find that via reflection to avoid hard-coding the generated class name.
 /// </summary>
 [HarmonyPatch]
-public static class InstantModeUnlockPatch
-{
+public static class InstantModeUnlockPatch {
     [HarmonyTargetMethod]
-    public static MethodBase FindTarget()
-    {
+    public static MethodBase FindTarget() {
         // async method body is in the nested state-machine type (name contains "GameStartup")
-        foreach (var nested in typeof(NGame).GetNestedTypes(BindingFlags.NonPublic | BindingFlags.Public))
-        {
+        foreach (var nested in typeof(NGame).GetNestedTypes(BindingFlags.NonPublic | BindingFlags.Public)) {
             if (!nested.Name.Contains("GameStartup")) continue;
             var moveNext = nested.GetMethod("MoveNext",
                 BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
@@ -39,46 +36,38 @@ public static class InstantModeUnlockPatch
         return null;
     }
 
-    public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-    {
+    public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {
         var codes = new List<CodeInstruction>(instructions);
         var fastModeSetter = AccessTools.PropertySetter(typeof(PrefsSave), nameof(PrefsSave.FastMode));
 
         // Find the pattern: ldc.i4 FastModeType.Fast → call set_FastMode
         // Then walk backwards to find the branch start and NOP the whole block.
-        for (int i = 0; i < codes.Count; i++)
-        {
+        for (int i = 0; i < codes.Count; i++) {
             if (codes[i].opcode == OpCodes.Call
                 && codes[i].operand is MethodInfo mi
                 && mi == fastModeSetter
                 && i >= 1
-                && codes[i - 1].LoadsConstant((int)FastModeType.Fast))
-            {
+                && codes[i - 1].LoadsConstant((int)FastModeType.Fast)) {
                 // Walk backwards to find the conditional branch that guards this block.
                 // The pattern is: ... brtrue/brfalse LABEL ... ldc.i4 Fast ... call set_FastMode
                 int blockStart = -1;
-                for (int j = i - 2; j >= 0; j--)
-                {
+                for (int j = i - 2; j >= 0; j--) {
                     if (codes[j].opcode == OpCodes.Brtrue || codes[j].opcode == OpCodes.Brtrue_S
-                        || codes[j].opcode == OpCodes.Brfalse || codes[j].opcode == OpCodes.Brfalse_S)
-                    {
+                        || codes[j].opcode == OpCodes.Brfalse || codes[j].opcode == OpCodes.Brfalse_S) {
                         blockStart = j;
                         break;
                     }
                 }
 
-                if (blockStart < 0)
-                {
+                if (blockStart < 0) {
                     // Fallback: just NOP the setter and its arg
                     MainFile.Logger.Warn("InstantModeUnlockPatch: Could not find branch, NOP-ing setter only.");
                     codes[i - 1] = new CodeInstruction(OpCodes.Nop);
                     codes[i] = new CodeInstruction(OpCodes.Nop);
                 }
-                else
-                {
+                else {
                     // NOP from the branch instruction through the setter call
-                    for (int j = blockStart; j <= i; j++)
-                    {
+                    for (int j = blockStart; j <= i; j++) {
                         // Preserve labels so other jumps still land correctly
                         var nop = new CodeInstruction(OpCodes.Nop);
                         nop.labels.AddRange(codes[j].labels);

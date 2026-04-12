@@ -1,21 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DevMode.Actions;
 using Godot;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
-using DevMode.Actions;
 
 namespace DevMode.UI;
 
 /// <summary>Event picker — spliced to the DevMode rail, matching card / relic browser layout.</summary>
-internal static class EventSelectUI
-{
+internal static class EventSelectUI {
     private const string RootName = "DevModeEventSelect";
-    private const float  PanelW   = 520f;
+    private const float PanelW = 520f;
 
-    public static void Show(NGlobalUi globalUi, Action<EventModel> onSelected)
-    {
+    public static void Show(NGlobalUi globalUi, Action<EventModel> onSelected) {
         Remove(globalUi);
 
         DevPanelUI.PinRail();
@@ -23,8 +21,7 @@ internal static class EventSelectUI
 
         var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1250 };
         root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        root.TreeExiting += () =>
-        {
+        root.TreeExiting += () => {
             DevPanelUI.UnpinRail();
             DevPanelUI.SpliceRail(globalUi, joined: false);
         };
@@ -52,18 +49,15 @@ internal static class EventSelectUI
 
         var allEvents = EventActions.GetAllEvents().OrderBy(e => EventActions.GetEventDisplayName(e)).ToList();
 
-        void Rebuild(string filter)
-        {
+        void Rebuild(string filter) {
             foreach (var child in list.GetChildren()) ((Node)child).QueueFree();
             var filtered = string.IsNullOrWhiteSpace(filter)
                 ? allEvents
                 : allEvents.Where(e => EventActions.GetEventDisplayName(e).Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
 
-            foreach (var evt in filtered)
-            {
+            foreach (var evt in filtered) {
                 var btn = DevPanelUI.CreateListItemButton(EventActions.GetEventDisplayName(evt));
-                btn.Pressed += () =>
-                {
+                btn.Pressed += () => {
                     onSelected(evt);
                     statusLabel.Text = I18N.T("event.triggered", "Triggered: {0}", EventActions.GetEventDisplayName(evt));
                 };
@@ -79,13 +73,11 @@ internal static class EventSelectUI
         search.GrabFocus();
     }
 
-    public static void Remove(NGlobalUi globalUi)
-    {
+    public static void Remove(NGlobalUi globalUi) {
         ((Node)globalUi).GetNodeOrNull<Control>(RootName)?.QueueFree();
     }
 
-    private static void BuildNavTab(VBoxContainer vbox, string title)
-    {
+    private static void BuildNavTab(VBoxContainer vbox, string title) {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 0);
         var tab = new Button { Text = title, FocusMode = Control.FocusModeEnum.None, CustomMinimumSize = new Vector2(0, 32) };
@@ -99,8 +91,7 @@ internal static class EventSelectUI
         vbox.AddChild(new ColorRect { CustomMinimumSize = new Vector2(0, 1), Color = DevModeTheme.Separator, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
     }
 
-    private static Label BuildStatusLabel()
-    {
+    private static Label BuildStatusLabel() {
         var lbl = new Label { Text = "", HorizontalAlignment = HorizontalAlignment.Center };
         lbl.AddThemeFontSizeOverride("font_size", 11);
         lbl.AddThemeColorOverride("font_color", DevModeTheme.Subtle);

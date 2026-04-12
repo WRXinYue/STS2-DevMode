@@ -10,8 +10,7 @@ namespace DevMode.UI;
 /// Central registry for DevMode rail tabs.
 /// Both built-in panels and external mods register here.
 /// </summary>
-public static class DevPanelRegistry
-{
+public static class DevPanelRegistry {
     private static readonly List<IDevPanelTab> _tabs = new();
     private static bool _dirty = true;
 
@@ -28,14 +27,11 @@ public static class DevPanelRegistry
     /// Prefer this over <see cref="Register"/> from another mod's <c>[ModInitializer]</c> when load order is uncertain.
     /// For compile-time references to DevMode, list <c>DevMode</c> in your mod manifest <c>dependencies</c> so DevMode loads first.
     /// </remarks>
-    public static void RegisterPanelWhenReady(Action registration)
-    {
+    public static void RegisterPanelWhenReady(Action registration) {
         ArgumentNullException.ThrowIfNull(registration);
 
-        lock (_postModLoadSync)
-        {
-            if (_postModLoadPhaseDone)
-            {
+        lock (_postModLoadSync) {
+            if (_postModLoadPhaseDone) {
                 RunDeferredRegistration(registration);
                 return;
             }
@@ -44,10 +40,8 @@ public static class DevPanelRegistry
         }
     }
 
-    internal static void FlushPostModLoadRegistrations()
-    {
-        lock (_postModLoadSync)
-        {
+    internal static void FlushPostModLoadRegistrations() {
+        lock (_postModLoadSync) {
             if (_postModLoadPhaseDone)
                 return;
 
@@ -60,21 +54,17 @@ public static class DevPanelRegistry
         }
     }
 
-    private static void RunDeferredRegistration(Action registration)
-    {
-        try
-        {
+    private static void RunDeferredRegistration(Action registration) {
+        try {
             registration();
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             MainFile.Logger.Warn($"DevPanelRegistry.RegisterPanelWhenReady: {ex.Message}");
         }
     }
 
     /// <summary>Register a tab. If a tab with the same <see cref="IDevPanelTab.Id"/> already exists, it is replaced.</summary>
-    public static void Register(IDevPanelTab tab)
-    {
+    public static void Register(IDevPanelTab tab) {
         if (tab == null) throw new ArgumentNullException(nameof(tab));
         _tabs.RemoveAll(t => t.Id == tab.Id);
         _tabs.Add(tab);
@@ -84,24 +74,20 @@ public static class DevPanelRegistry
     /// <summary>Convenience overload — register with lambdas, no need to implement <see cref="IDevPanelTab"/>.</summary>
     public static void Register(string id, MdiIcon icon, string displayName,
         int order, DevPanelTabGroup group, Action<NGlobalUi> onActivate,
-        Action<NGlobalUi>? onDeactivate = null)
-    {
+        Action<NGlobalUi>? onDeactivate = null) {
         Register(new LambdaTab(id, icon, displayName, order, group, onActivate, onDeactivate));
     }
 
     /// <summary>Remove a previously registered tab by id. Returns true if found.</summary>
-    public static bool Unregister(string id)
-    {
+    public static bool Unregister(string id) {
         int removed = _tabs.RemoveAll(t => t.Id == id);
         if (removed > 0) _dirty = true;
         return removed > 0;
     }
 
     /// <summary>Get all tabs for a given group, sorted by <see cref="IDevPanelTab.Order"/> (stable).</summary>
-    public static IReadOnlyList<IDevPanelTab> GetTabs(DevPanelTabGroup group)
-    {
-        if (_dirty)
-        {
+    public static IReadOnlyList<IDevPanelTab> GetTabs(DevPanelTabGroup group) {
+        if (_dirty) {
             _tabs.Sort((a, b) => a.Order.CompareTo(b.Order));
             _dirty = false;
         }
@@ -109,10 +95,8 @@ public static class DevPanelRegistry
     }
 
     /// <summary>Get all registered tabs across all groups, sorted by order.</summary>
-    public static IReadOnlyList<IDevPanelTab> GetAllTabs()
-    {
-        if (_dirty)
-        {
+    public static IReadOnlyList<IDevPanelTab> GetAllTabs() {
+        if (_dirty) {
             _tabs.Sort((a, b) => a.Order.CompareTo(b.Order));
             _dirty = false;
         }
@@ -120,10 +104,8 @@ public static class DevPanelRegistry
     }
 
     /// <summary>Deactivate all tabs and clear the registry.</summary>
-    internal static void DeactivateAll(NGlobalUi globalUi)
-    {
-        foreach (var tab in _tabs)
-        {
+    internal static void DeactivateAll(NGlobalUi globalUi) {
+        foreach (var tab in _tabs) {
             try { tab.OnDeactivate(globalUi); }
             catch (Exception ex) { MainFile.Logger.Warn($"DevPanelRegistry: OnDeactivate({tab.Id}) failed: {ex.Message}"); }
         }
@@ -131,8 +113,7 @@ public static class DevPanelRegistry
 
     // ── Private lambda wrapper ──
 
-    private sealed class LambdaTab : IDevPanelTab
-    {
+    private sealed class LambdaTab : IDevPanelTab {
         public string Id { get; }
         public MdiIcon Icon { get; }
         public string DisplayName { get; }
@@ -144,8 +125,7 @@ public static class DevPanelRegistry
 
         public LambdaTab(string id, MdiIcon icon, string displayName,
             int order, DevPanelTabGroup group,
-            Action<NGlobalUi> onActivate, Action<NGlobalUi>? onDeactivate)
-        {
+            Action<NGlobalUi> onActivate, Action<NGlobalUi>? onDeactivate) {
             Id = id;
             Icon = icon;
             DisplayName = displayName;

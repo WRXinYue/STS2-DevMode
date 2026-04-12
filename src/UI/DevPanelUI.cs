@@ -1,27 +1,26 @@
 using System;
 using System.Collections.Generic;
+using DevMode.Icons;
 using Godot;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
-using DevMode.Icons;
 
 namespace DevMode.UI;
 
-internal static partial class DevPanelUI
-{
-    private const string RootName        = "DevModeRailRoot";
-    private const string TopBarName      = "DevModeTopBar";
-    private const string OverlayName     = "DevModeOverlay";
-    private const float  RailW           = 52f;
-    private const float  IconBtnSize     = 36f;
-    private const float  OverlayW        = 560f;
-    private const int    Radius          = 14;
+internal static partial class DevPanelUI {
+    private const string RootName = "DevModeRailRoot";
+    private const string TopBarName = "DevModeTopBar";
+    private const string OverlayName = "DevModeOverlay";
+    private const float RailW = 52f;
+    private const float IconBtnSize = 36f;
+    private const float OverlayW = 560f;
+    private const int Radius = 14;
 
     // ── Panel geometry (shared by browser panels) ──
-    public const float BrowserRailLeft   = 24f;
-    public const float BrowserRailW      = RailW;
-    public const float BrowserPanelLeft  = BrowserRailLeft + BrowserRailW;   // 76f
+    public const float BrowserRailLeft = 24f;
+    public const float BrowserRailW = RailW;
+    public const float BrowserPanelLeft = BrowserRailLeft + BrowserRailW;   // 76f
     public const float BrowserPanelRight = 24f;
-    public const int   BrowserRailRadius = Radius;
+    public const int BrowserRailRadius = Radius;
 
     private static Action? _onRefreshPanel;
     private static string? _activeOverlayId;
@@ -37,47 +36,43 @@ internal static partial class DevPanelUI
     private static readonly List<(Button btn, MdiIcon icon)> _railIconButtons = new();
 
     /// <summary>Pin the rail visible (e.g. while an external overlay is open). Call Unpin when done.</summary>
-    public static void PinRail()   => _pinRailCount++;
+    public static void PinRail() => _pinRailCount++;
     public static void UnpinRail() => _pinRailCount = Math.Max(0, _pinRailCount - 1);
 
     /// <summary>
     /// Remove (joined=true) or restore (joined=false) the rail's right border/radius so browser
     /// panels appear seamlessly connected.
     /// </summary>
-    public static void SpliceRail(NGlobalUi globalUi, bool joined)
-    {
+    public static void SpliceRail(NGlobalUi globalUi, bool joined) {
         var railRoot = ((Node)globalUi).GetNodeOrNull<Control>(RootName);
         var rail = railRoot?.GetNodeOrNull<PanelContainer>("Rail");
         if (rail == null) return;
 
-        if (rail.GetThemeStylebox("panel") is StyleBoxFlat sb)
-        {
+        if (rail.GetThemeStylebox("panel") is StyleBoxFlat sb) {
             int r = joined ? 0 : BrowserRailRadius;
-            sb.CornerRadiusTopRight    = r;
+            sb.CornerRadiusTopRight = r;
             sb.CornerRadiusBottomRight = r;
             sb.BorderWidthRight = joined ? 0 : 1;
         }
     }
 
     // ── Colour palette — delegates to active theme ──
-    private static Color ColRailBg       => ThemeManager.Current.RailBg;
-    private static Color ColRailBorder   => ThemeManager.Current.RailBorder;
-    private static Color ColIconNormal   => ThemeManager.Current.IconNormal;
-    private static Color ColIconHover    => ThemeManager.Current.IconHover;
-    private static Color ColIconActive   => DevModeTheme.Accent;
+    private static Color ColRailBg => ThemeManager.Current.RailBg;
+    private static Color ColRailBorder => ThemeManager.Current.RailBorder;
+    private static Color ColIconNormal => ThemeManager.Current.IconNormal;
+    private static Color ColIconHover => ThemeManager.Current.IconHover;
+    private static Color ColIconActive => DevModeTheme.Accent;
     private static Color ColIconActiveBg => ThemeManager.Current.IconActiveBg;
-    private static Color ColOverlayBg     => DevModeTheme.PanelBg;
+    private static Color ColOverlayBg => DevModeTheme.PanelBg;
     private static Color ColOverlayBorder => DevModeTheme.PanelBorder;
     private static readonly Color ColBackdrop = new(0f, 0f, 0f, 0.50f);
-    private static Color ColSectionText   => DevModeTheme.Subtle;
-    private static Color ColSeparator     => DevModeTheme.Separator;
+    private static Color ColSectionText => DevModeTheme.Subtle;
+    private static Color ColSeparator => DevModeTheme.Separator;
 
     /// <summary>Applies the current theme colors to the persistent rail widgets in-place.</summary>
-    private static void ApplyRailTheme()
-    {
-        if (_railStyle != null)
-        {
-            _railStyle.BgColor     = ColRailBg;
+    private static void ApplyRailTheme() {
+        if (_railStyle != null) {
+            _railStyle.BgColor = ColRailBg;
             _railStyle.BorderColor = ColRailBorder;
         }
         if (_railIndicatorStyle != null)
@@ -92,10 +87,8 @@ internal static partial class DevPanelUI
         RefreshRailIconTints();
     }
 
-    private static void RefreshRailIconTints()
-    {
-        for (int i = 0; i < _railIconButtons.Count; i++)
-        {
+    private static void RefreshRailIconTints() {
+        for (int i = 0; i < _railIconButtons.Count; i++) {
             var (btn, icon) = _railIconButtons[i];
             bool active = i == _activeRailBtnIdx;
             btn.Icon = icon.Texture(20, active ? ColIconActive : ColIconNormal);
@@ -103,8 +96,7 @@ internal static partial class DevPanelUI
     }
 
     // ──────── Attach ────────
-    public static void Attach(NGlobalUi globalUi, DevPanelActions actions)
-    {
+    public static void Attach(NGlobalUi globalUi, DevPanelActions actions) {
         if (((Node)globalUi).GetNodeOrNull<Control>(RootName) != null)
             return;
 
@@ -121,66 +113,75 @@ internal static partial class DevPanelUI
         ThemeManager.OnThemeChanged -= ApplyRailTheme;
         ThemeManager.OnThemeChanged += ApplyRailTheme;
 
-        var root = new Control
-        {
-            Name        = RootName,
+        var root = new Control {
+            Name = RootName,
             MouseFilter = Control.MouseFilterEnum.Ignore,
-            ZIndex      = 1200
+            ZIndex = 1200
         };
         root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
 
         // ── Icon Rail (left edge, full height, rounded right corners) ──
-        var rail = new PanelContainer
-        {
-            Name        = "Rail",
+        var rail = new PanelContainer {
+            Name = "Rail",
             MouseFilter = Control.MouseFilterEnum.Stop,
-            AnchorLeft  = 0, AnchorRight  = 0,
-            AnchorTop   = 0.15f, AnchorBottom = 0.85f,
-            OffsetLeft  = 24, OffsetRight  = 24 + RailW,
-            OffsetTop   = 0, OffsetBottom = 0
+            AnchorLeft = 0,
+            AnchorRight = 0,
+            AnchorTop = 0.15f,
+            AnchorBottom = 0.85f,
+            OffsetLeft = 24,
+            OffsetRight = 24 + RailW,
+            OffsetTop = 0,
+            OffsetBottom = 0
         };
-        _railStyle = new StyleBoxFlat
-        {
-            BgColor                 = ColRailBg,
-            CornerRadiusTopLeft     = Radius, CornerRadiusBottomLeft  = Radius,
-            CornerRadiusTopRight    = Radius, CornerRadiusBottomRight = Radius,
-            ContentMarginLeft       = 6, ContentMarginRight  = 6,
-            ContentMarginTop        = 12, ContentMarginBottom = 12,
-            BorderWidthRight        = 1, BorderWidthTop = 1, BorderWidthBottom = 1,
-            BorderColor             = ColRailBorder,
-            ShadowColor             = new Color(0, 0, 0, 0.25f),
-            ShadowSize              = 8
+        _railStyle = new StyleBoxFlat {
+            BgColor = ColRailBg,
+            CornerRadiusTopLeft = Radius,
+            CornerRadiusBottomLeft = Radius,
+            CornerRadiusTopRight = Radius,
+            CornerRadiusBottomRight = Radius,
+            ContentMarginLeft = 6,
+            ContentMarginRight = 6,
+            ContentMarginTop = 12,
+            ContentMarginBottom = 12,
+            BorderWidthRight = 1,
+            BorderWidthTop = 1,
+            BorderWidthBottom = 1,
+            BorderColor = ColRailBorder,
+            ShadowColor = new Color(0, 0, 0, 0.25f),
+            ShadowSize = 8
         };
         rail.AddThemeStyleboxOverride("panel", _railStyle);
 
         // Wrapper allows absolute positioning for the sliding indicator
-        var railWrapper = new Control
-        {
+        var railWrapper = new Control {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill
         };
 
         // Sliding indicator (drawn behind buttons, rounded corners)
-        var railIndicator = new Panel
-        {
-            AnchorLeft = 0, AnchorRight = 1,
-            AnchorTop = 0, AnchorBottom = 0,
-            OffsetLeft = 2, OffsetRight = -2,
-            OffsetTop = 0, OffsetBottom = IconBtnSize,
+        var railIndicator = new Panel {
+            AnchorLeft = 0,
+            AnchorRight = 1,
+            AnchorTop = 0,
+            AnchorBottom = 0,
+            OffsetLeft = 2,
+            OffsetRight = -2,
+            OffsetTop = 0,
+            OffsetBottom = IconBtnSize,
             Visible = false,
             MouseFilter = Control.MouseFilterEnum.Ignore
         };
-        _railIndicatorStyle = new StyleBoxFlat
-        {
+        _railIndicatorStyle = new StyleBoxFlat {
             BgColor = ColIconActiveBg,
-            CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
-            CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8
+            CornerRadiusTopLeft = 8,
+            CornerRadiusTopRight = 8,
+            CornerRadiusBottomLeft = 8,
+            CornerRadiusBottomRight = 8
         };
         railIndicator.AddThemeStyleboxOverride("panel", _railIndicatorStyle);
         railWrapper.AddChild(railIndicator);
 
-        var railVBox = new VBoxContainer
-        {
+        var railVBox = new VBoxContainer {
             SizeFlagsVertical = Control.SizeFlags.ExpandFill
         };
         railVBox.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
@@ -189,13 +190,11 @@ internal static partial class DevPanelUI
         var railButtons = new List<Button>();
 
         // ── Primary group: from registry ──
-        foreach (var tab in DevPanelRegistry.GetTabs(DevPanelTabGroup.Primary))
-        {
+        foreach (var tab in DevPanelRegistry.GetTabs(DevPanelTabGroup.Primary)) {
             var t = tab;
             var btn = CreateRailIcon(t.Icon, t.DisplayName);
             int btnIdx = railButtons.Count;
-            btn.Pressed += () =>
-            {
+            btn.Pressed += () => {
                 MoveRailIndicator(btnIdx, true);
                 CloseAllOverlays(globalUi);
                 t.OnActivate(globalUi);
@@ -210,24 +209,23 @@ internal static partial class DevPanelUI
 
         // ── Separator line ──
         var sep = new HSeparator();
-        _railSepStyle = new StyleBoxFlat
-        {
+        _railSepStyle = new StyleBoxFlat {
             BgColor = ColSeparator,
-            ContentMarginTop = 0, ContentMarginBottom = 0,
-            ContentMarginLeft = 4, ContentMarginRight = 4
+            ContentMarginTop = 0,
+            ContentMarginBottom = 0,
+            ContentMarginLeft = 4,
+            ContentMarginRight = 4
         };
         sep.AddThemeStyleboxOverride("separator", _railSepStyle);
         sep.AddThemeConstantOverride("separation", 8);
         railVBox.AddChild(sep);
 
         // ── Utility group: from registry ──
-        foreach (var tab in DevPanelRegistry.GetTabs(DevPanelTabGroup.Utility))
-        {
+        foreach (var tab in DevPanelRegistry.GetTabs(DevPanelTabGroup.Utility)) {
             var t = tab;
             var btn = CreateRailIcon(t.Icon, t.DisplayName);
             int btnIdx = railButtons.Count;
-            btn.Pressed += () =>
-            {
+            btn.Pressed += () => {
                 MoveRailIndicator(btnIdx, true);
                 CloseAllOverlays(globalUi);
                 t.OnActivate(globalUi);
@@ -240,8 +238,7 @@ internal static partial class DevPanelUI
         railWrapper.AddChild(railVBox);
         rail.AddChild(railWrapper);
 
-        void MoveRailIndicator(int btnIdx, bool animate)
-        {
+        void MoveRailIndicator(int btnIdx, bool animate) {
             if (btnIdx < 0 || btnIdx >= railButtons.Count) return;
             _activeRailBtnIdx = btnIdx;
             var btn = railButtons[btnIdx];
@@ -250,8 +247,7 @@ internal static partial class DevPanelUI
 
             railIndicator.Visible = true;
 
-            if (animate && railIndicator.IsInsideTree())
-            {
+            if (animate && railIndicator.IsInsideTree()) {
                 var tw = railIndicator.CreateTween();
                 tw.SetParallel(true);
                 tw.TweenProperty(railIndicator, "offset_top", top, 0.25f)
@@ -259,8 +255,7 @@ internal static partial class DevPanelUI
                 tw.TweenProperty(railIndicator, "offset_bottom", bottom, 0.25f)
                   .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
             }
-            else
-            {
+            else {
                 railIndicator.OffsetTop = top;
                 railIndicator.OffsetBottom = bottom;
             }
@@ -270,80 +265,82 @@ internal static partial class DevPanelUI
         root.AddChild(rail);
 
         // ── Peek tab (small arrow visible when rail is hidden) ──
-        var peekTab = new Button
-        {
-            Name              = "RailPeekTab",
+        var peekTab = new Button {
+            Name = "RailPeekTab",
             CustomMinimumSize = new Vector2(14, 48),
-            AnchorLeft        = 0, AnchorRight  = 0,
-            AnchorTop         = 0.5f, AnchorBottom = 0.5f,
-            OffsetLeft        = 0, OffsetRight  = 14,
-            OffsetTop         = -24, OffsetBottom = 24,
-            FocusMode         = Control.FocusModeEnum.None,
-            MouseFilter       = Control.MouseFilterEnum.Stop,
-            IconAlignment     = HorizontalAlignment.Center,
-            Icon              = MdiIcon.ChevronRight.Texture(12, ColIconNormal)
+            AnchorLeft = 0,
+            AnchorRight = 0,
+            AnchorTop = 0.5f,
+            AnchorBottom = 0.5f,
+            OffsetLeft = 0,
+            OffsetRight = 14,
+            OffsetTop = -24,
+            OffsetBottom = 24,
+            FocusMode = Control.FocusModeEnum.None,
+            MouseFilter = Control.MouseFilterEnum.Stop,
+            IconAlignment = HorizontalAlignment.Center,
+            Icon = MdiIcon.ChevronRight.Texture(12, ColIconNormal)
         };
-        _peekTabStyle = new StyleBoxFlat
-        {
+        _peekTabStyle = new StyleBoxFlat {
             BgColor = new Color(ColRailBg.R, ColRailBg.G, ColRailBg.B, 0.6f),
-            CornerRadiusTopLeft = 0, CornerRadiusBottomLeft = 0,
-            CornerRadiusTopRight = 8, CornerRadiusBottomRight = 8,
-            ContentMarginLeft = 0, ContentMarginRight = 0,
-            ContentMarginTop = 0, ContentMarginBottom = 0
+            CornerRadiusTopLeft = 0,
+            CornerRadiusBottomLeft = 0,
+            CornerRadiusTopRight = 8,
+            CornerRadiusBottomRight = 8,
+            ContentMarginLeft = 0,
+            ContentMarginRight = 0,
+            ContentMarginTop = 0,
+            ContentMarginBottom = 0
         };
-        peekTab.AddThemeStyleboxOverride("normal",  _peekTabStyle);
-        peekTab.AddThemeStyleboxOverride("hover",   _peekTabStyle);
+        peekTab.AddThemeStyleboxOverride("normal", _peekTabStyle);
+        peekTab.AddThemeStyleboxOverride("hover", _peekTabStyle);
         peekTab.AddThemeStyleboxOverride("pressed", _peekTabStyle);
-        peekTab.AddThemeStyleboxOverride("focus",   _peekTabStyle);
+        peekTab.AddThemeStyleboxOverride("focus", _peekTabStyle);
         _peekTabBtn = peekTab;
         root.AddChild(peekTab);
 
         // ── Auto-hide: timer-based mouse position polling ──
-        float hiddenX  = -(24 + RailW);
+        float hiddenX = -(24 + RailW);
         float visibleX = 24f;
-        bool  railShown = false;
+        bool railShown = false;
         Tween? railTween = null;
 
-        rail.OffsetLeft  = hiddenX;
+        rail.OffsetLeft = hiddenX;
         rail.OffsetRight = hiddenX + RailW;
-        rail.Modulate    = new Color(1, 1, 1, 0);
+        rail.Modulate = new Color(1, 1, 1, 0);
 
-        void SlideRail(bool show)
-        {
+        void SlideRail(bool show) {
             if (railShown == show) return;
             railShown = show;
 
             railTween?.Kill();
             railTween = rail.CreateTween();
 
-            float targetLeft  = show ? visibleX : hiddenX;
+            float targetLeft = show ? visibleX : hiddenX;
             float targetRight = targetLeft + RailW;
             float targetAlpha = show ? 1f : 0f;
 
-            railTween.TweenProperty(rail, "offset_left",  targetLeft,  0.2f)
+            railTween.TweenProperty(rail, "offset_left", targetLeft, 0.2f)
                      .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
             railTween.Parallel()
                      .TweenProperty(rail, "offset_right", targetRight, 0.2f)
                      .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
             railTween.Parallel()
-                     .TweenProperty(rail, "modulate:a",   targetAlpha, 0.15f)
+                     .TweenProperty(rail, "modulate:a", targetAlpha, 0.15f)
                      .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
 
             peekTab.Visible = !show;
         }
 
-        var pollTimer = new Timer
-        {
-            Name      = "RailPollTimer",
-            WaitTime  = 0.1f,
+        var pollTimer = new Timer {
+            Name = "RailPollTimer",
+            WaitTime = 0.1f,
             Autostart = true
         };
         float hitZoneRight = visibleX + RailW + 16f;
 
-        pollTimer.Timeout += () =>
-        {
-            if (_activeOverlayId != null || _pinRailCount > 0)
-            {
+        pollTimer.Timeout += () => {
+            if (_activeOverlayId != null || _pinRailCount > 0) {
                 if (!railShown) SlideRail(true);
                 return;
             }
@@ -368,8 +365,7 @@ internal static partial class DevPanelUI
     }
 
     // ──────── Detach ────────
-    public static void Detach(NGlobalUi globalUi)
-    {
+    public static void Detach(NGlobalUi globalUi) {
         _activeOverlayId = null;
         _pinRailCount = 0;
         ThemeManager.OnThemeChanged -= ApplyRailTheme;
@@ -390,17 +386,14 @@ internal static partial class DevPanelUI
     /// panels from globalUi.  Uses the "DevMode" naming convention so new panels are
     /// picked up automatically — no list to maintain.
     /// </summary>
-    public static void CloseAllOverlays(NGlobalUi globalUi)
-    {
+    public static void CloseAllOverlays(NGlobalUi globalUi) {
         CloseOverlay(globalUi);
 
         var parent = (Node)globalUi;
-        foreach (var child in parent.GetChildren())
-        {
+        foreach (var child in parent.GetChildren()) {
             if (child is Control ctrl
                 && ctrl.Name.ToString().StartsWith("DevMode", StringComparison.Ordinal)
-                && !_keepNodes.Contains(ctrl.Name))
-            {
+                && !_keepNodes.Contains(ctrl.Name)) {
                 parent.RemoveChild(ctrl);
                 ctrl.QueueFree();
             }
@@ -408,10 +401,8 @@ internal static partial class DevPanelUI
     }
 
     // ──────── Overlay: toggle / close ────────
-    private static void ToggleOverlay(NGlobalUi globalUi, string id, Action<Control> buildContent)
-    {
-        if (_activeOverlayId == id)
-        {
+    private static void ToggleOverlay(NGlobalUi globalUi, string id, Action<Control> buildContent) {
+        if (_activeOverlayId == id) {
             CloseOverlay(globalUi);
             return;
         }
@@ -422,17 +413,19 @@ internal static partial class DevPanelUI
         var root = ((Node)globalUi).GetNodeOrNull<Control>(RootName);
         if (root == null) return;
 
-        var clickaway = new Control
-        {
-            Name        = "OverlayClickaway",
+        var clickaway = new Control {
+            Name = "OverlayClickaway",
             MouseFilter = Control.MouseFilterEnum.Stop,
-            AnchorLeft  = 0, AnchorRight  = 1,
-            AnchorTop   = 0, AnchorBottom = 1,
-            OffsetLeft  = RailW + 32, OffsetRight = 0,
-            OffsetTop   = 0, OffsetBottom = 0
+            AnchorLeft = 0,
+            AnchorRight = 1,
+            AnchorTop = 0,
+            AnchorBottom = 1,
+            OffsetLeft = RailW + 32,
+            OffsetRight = 0,
+            OffsetTop = 0,
+            OffsetBottom = 0
         };
-        clickaway.GuiInput += e =>
-        {
+        clickaway.GuiInput += e => {
             if (e is InputEventMouseButton { Pressed: true })
                 CloseOverlay(globalUi);
         };
@@ -447,21 +440,18 @@ internal static partial class DevPanelUI
         buildContent(content);
     }
 
-    private static void CloseOverlay(NGlobalUi globalUi)
-    {
+    private static void CloseOverlay(NGlobalUi globalUi) {
         var root = ((Node)globalUi).GetNodeOrNull<Control>(RootName);
         if (root == null) { _activeOverlayId = null; return; }
 
         var clickaway = root.GetNodeOrNull<Control>("OverlayClickaway");
-        if (clickaway != null)
-        {
+        if (clickaway != null) {
             root.RemoveChild(clickaway);
             clickaway.QueueFree();
         }
 
         var panel = root.GetNodeOrNull<PanelContainer>(OverlayName);
-        if (panel != null)
-        {
+        if (panel != null) {
             root.RemoveChild(panel);
             panel.QueueFree();
         }

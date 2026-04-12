@@ -4,8 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace DevMode.Presets;
 
-public sealed class CardEditTemplate
-{
+public sealed class CardEditTemplate {
     [JsonPropertyName("baseCost")]
     public int? BaseCost { get; set; }
 
@@ -46,8 +45,7 @@ public sealed class CardEditTemplate
     public string? DescriptionOverride { get; set; }
 }
 
-public sealed class CardEditNamedPreset
-{
+public sealed class CardEditNamedPreset {
     [JsonPropertyName("cardId")]
     public string CardId { get; set; } = "";
 
@@ -55,14 +53,12 @@ public sealed class CardEditNamedPreset
     public CardEditTemplate Template { get; set; } = new();
 }
 
-internal static class CardEditPresetManager
-{
+internal static class CardEditPresetManager {
     private static string PresetsDir => Path.Combine(
         Path.GetDirectoryName(typeof(PresetManager).Assembly.Location) ?? ".",
         "presets");
 
-    private static readonly System.Lazy<PresetStore<CardEditNamedPreset>> _store = new(() =>
-    {
+    private static readonly System.Lazy<PresetStore<CardEditNamedPreset>> _store = new(() => {
         var store = new PresetStore<CardEditNamedPreset>(Path.Combine(PresetsDir, "card-edit-presets.json"));
         store.Load();
         return store;

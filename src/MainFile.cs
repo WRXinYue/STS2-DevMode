@@ -1,21 +1,19 @@
-using HarmonyLib;
-using MegaCrit.Sts2.Core.Modding;
 using DevMode.Patches;
 using DevMode.Scripts;
 using DevMode.Settings;
+using HarmonyLib;
+using MegaCrit.Sts2.Core.Modding;
 
 namespace DevMode;
 
 [ModInitializer(nameof(Initialize))]
-public class MainFile
-{
+public class MainFile {
     public const string ModID = "DevMode";
 
     public static MegaCrit.Sts2.Core.Logging.Logger Logger { get; } =
         new(ModID, MegaCrit.Sts2.Core.Logging.LogType.Generic);
 
-    public static void Initialize()
-    {
+    public static void Initialize() {
         Logger.Info("DevMode initializing...");
 
         // Load persisted settings (theme, etc.) before anything else
@@ -23,6 +21,9 @@ public class MainFile
 
         // Initialize localization before anything else
         I18N.Initialize();
+
+        // Start capturing log entries for the in-game log viewer
+        LogCollector.Initialize();
 
         ScriptManager.Initialize();
         ScriptBridge.Start();

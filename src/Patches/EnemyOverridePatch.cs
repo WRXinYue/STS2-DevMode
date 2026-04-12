@@ -11,16 +11,13 @@ namespace DevMode.Patches;
 /// user-selected one. Supports global, per-room-type, and per-floor overrides.
 /// </summary>
 [HarmonyPatch(typeof(ActModel), nameof(ActModel.PullNextEncounter))]
-public static class EnemyOverridePatch
-{
-    public static void Postfix(RoomType roomType, ref EncounterModel __result)
-    {
+public static class EnemyOverridePatch {
+    public static void Postfix(RoomType roomType, ref EncounterModel __result) {
         if (!DevModeState.InDevRun) return;
 
         // Resolve current floor from RunManager state
         int floor = 0;
-        try
-        {
+        try {
             var state = RunManager.Instance?.DebugOnlyGetState();
             if (state != null)
                 floor = state.ActFloor;

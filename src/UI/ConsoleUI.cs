@@ -7,14 +7,12 @@ using MegaCrit.Sts2.Core.Nodes.CommonUi;
 namespace DevMode.UI;
 
 /// <summary>Command reference — spliced to the DevMode rail, matching card / relic browser layout.</summary>
-internal static class ConsoleUI
-{
+internal static class ConsoleUI {
     private const string RootName = "DevModeConsole";
-    private const float  PanelW   = 580f;
+    private const float PanelW = 580f;
     private static readonly ConsoleBridge _bridge = new();
 
-    public static void Show(NGlobalUi globalUi)
-    {
+    public static void Show(NGlobalUi globalUi) {
         Remove(globalUi);
 
         DevPanelUI.PinRail();
@@ -22,8 +20,7 @@ internal static class ConsoleUI
 
         var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1250 };
         root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        root.TreeExiting += () =>
-        {
+        root.TreeExiting += () => {
             DevPanelUI.UnpinRail();
             DevPanelUI.SpliceRail(globalUi, joined: false);
         };
@@ -43,8 +40,7 @@ internal static class ConsoleUI
         vbox.AddChild(searchRow);
 
         // ── Scrollable command list ──
-        var scroll = new ScrollContainer
-        {
+        var scroll = new ScrollContainer {
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
         };
@@ -54,8 +50,7 @@ internal static class ConsoleUI
         vbox.AddChild(scroll);
 
         // ── Copy hint ──
-        var hint = new Label
-        {
+        var hint = new Label {
             Text = I18N.T("console.copyHint", "Click a command to copy to clipboard"),
             HorizontalAlignment = HorizontalAlignment.Center
         };
@@ -70,26 +65,24 @@ internal static class ConsoleUI
         searchInput.GrabFocus();
     }
 
-    public static void Remove(NGlobalUi globalUi)
-    {
+    public static void Remove(NGlobalUi globalUi) {
         ((Node)globalUi).GetNodeOrNull<Control>(RootName)?.QueueFree();
     }
 
-    private static void BuildNavTab(VBoxContainer vbox)
-    {
+    private static void BuildNavTab(VBoxContainer vbox) {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 0);
-        var tab = new Button
-        {
+        var tab = new Button {
             Text = I18N.T("console.title", "Command Reference"),
             FocusMode = Control.FocusModeEnum.None,
             CustomMinimumSize = new Vector2(0, 32)
         };
-        var flat = new StyleBoxFlat
-        {
+        var flat = new StyleBoxFlat {
             BgColor = Colors.Transparent,
-            ContentMarginLeft = 16, ContentMarginRight = 16,
-            ContentMarginTop = 4, ContentMarginBottom = 6
+            ContentMarginLeft = 16,
+            ContentMarginRight = 16,
+            ContentMarginTop = 4,
+            ContentMarginBottom = 6
         };
         foreach (var s in new[] { "normal", "hover", "pressed", "focus" }) tab.AddThemeStyleboxOverride(s, flat);
         tab.AddThemeColorOverride("font_color", DevModeTheme.Accent);
@@ -97,16 +90,14 @@ internal static class ConsoleUI
         row.AddChild(tab);
         row.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         vbox.AddChild(row);
-        vbox.AddChild(new ColorRect
-        {
+        vbox.AddChild(new ColorRect {
             CustomMinimumSize = new Vector2(0, 1),
             Color = DevModeTheme.ButtonBgNormal,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
         });
     }
 
-    private static void PopulateCommands(VBoxContainer listBox, string filter)
-    {
+    private static void PopulateCommands(VBoxContainer listBox, string filter) {
         foreach (var child in listBox.GetChildren())
             if (child is Node n) n.QueueFree();
 
@@ -119,29 +110,25 @@ internal static class ConsoleUI
                 c.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                 c.Description.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
 
-        var native  = filtered.Where(c =>  c.IsOfficial).ToList();
+        var native = filtered.Where(c => c.IsOfficial).ToList();
         var devmode = filtered.Where(c => !c.IsOfficial).ToList();
 
-        if (native.Count > 0)
-        {
+        if (native.Count > 0) {
             listBox.AddChild(DevPanelUI.CreateSectionHeader(
                 $"{I18N.T("console.section.native", "Native Commands")}  ({native.Count})"));
             foreach (var cmd in native)
                 listBox.AddChild(CreateCommandEntry(cmd));
         }
 
-        if (devmode.Count > 0)
-        {
+        if (devmode.Count > 0) {
             listBox.AddChild(DevPanelUI.CreateSectionHeader(
                 $"{I18N.T("console.section.devmode", "DevMode Commands")}  ({devmode.Count})"));
             foreach (var cmd in devmode)
                 listBox.AddChild(CreateCommandEntry(cmd));
         }
 
-        if (native.Count == 0 && devmode.Count == 0)
-        {
-            var noResult = new Label
-            {
+        if (native.Count == 0 && devmode.Count == 0) {
+            var noResult = new Label {
                 Text = I18N.T("console.noResults", "No commands found."),
                 HorizontalAlignment = HorizontalAlignment.Center
             };
@@ -150,13 +137,11 @@ internal static class ConsoleUI
         }
     }
 
-    private static Control CreateCommandEntry(ConsoleBridge.CommandInfo cmd)
-    {
+    private static Control CreateCommandEntry(ConsoleBridge.CommandInfo cmd) {
         var container = new VBoxContainer();
         container.AddThemeConstantOverride("separation", 1);
 
-        var nameBtn = new Button
-        {
+        var nameBtn = new Button {
             Text = string.IsNullOrWhiteSpace(cmd.Args) ? cmd.Name : $"{cmd.Name}  {cmd.Args}",
             Alignment = HorizontalAlignment.Left,
             Flat = true,
@@ -164,16 +149,14 @@ internal static class ConsoleUI
             ClipText = false,
             FocusMode = Control.FocusModeEnum.None
         };
-        nameBtn.AddThemeColorOverride("font_color",       new Color(0.45f, 0.85f, 0.55f));
+        nameBtn.AddThemeColorOverride("font_color", new Color(0.45f, 0.85f, 0.55f));
         nameBtn.AddThemeColorOverride("font_hover_color", new Color(0.60f, 1.00f, 0.70f));
         nameBtn.AddThemeFontSizeOverride("font_size", 13);
         nameBtn.Pressed += () => DisplayServer.ClipboardSet(cmd.Name);
         container.AddChild(nameBtn);
 
-        if (!string.IsNullOrWhiteSpace(cmd.Description))
-        {
-            var descLabel = new Label
-            {
+        if (!string.IsNullOrWhiteSpace(cmd.Description)) {
+            var descLabel = new Label {
                 Text = $"  {cmd.Description}",
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill

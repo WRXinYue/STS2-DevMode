@@ -31,8 +31,7 @@ public record BasicActionNode(ActionType Type, string TargetId, int Amount, Hook
 
 // ─────────────────────────── Top-level script ───────────────────────────
 
-public sealed class ScriptEntry
-{
+public sealed class ScriptEntry {
     public string Name { get; set; } = "";
     public TriggerType Trigger { get; set; }
     public ConditionNode? RootCondition { get; set; }
@@ -46,23 +45,19 @@ public sealed class ScriptEntry
 
 // ─────────────────────────── JSON converters ───────────────────────────
 
-public sealed class ConditionNodeConverter : JsonConverter<ConditionNode>
-{
-    public override ConditionNode? Read(ref Utf8JsonReader reader, System.Type typeToConvert, JsonSerializerOptions options)
-    {
+public sealed class ConditionNodeConverter : JsonConverter<ConditionNode> {
+    public override ConditionNode? Read(ref Utf8JsonReader reader, System.Type typeToConvert, JsonSerializerOptions options) {
         using var doc = JsonDocument.ParseValue(ref reader);
         return ParseCondition(doc.RootElement);
     }
 
-    internal static ConditionNode? ParseCondition(JsonElement el)
-    {
+    internal static ConditionNode? ParseCondition(JsonElement el) {
         if (el.ValueKind == JsonValueKind.Null) return null;
 
         var type = el.GetProperty("type").GetString() ?? "";
-        return type.ToUpperInvariant() switch
-        {
+        return type.ToUpperInvariant() switch {
             "AND" => new AndNode(ParseConditionList(el, "children")),
-            "OR"  => new OrNode(ParseConditionList(el, "children")),
+            "OR" => new OrNode(ParseConditionList(el, "children")),
             "NOT" => new NotNode(ParseCondition(el.GetProperty("child"))!),
             "VARCOMPARE" or "VARABOVE" or "VARBELOW" =>
                 new VarCompareCondition(
@@ -75,12 +70,10 @@ public sealed class ConditionNodeConverter : JsonConverter<ConditionNode>
         };
     }
 
-    private static List<ConditionNode> ParseConditionList(JsonElement el, string prop)
-    {
+    private static List<ConditionNode> ParseConditionList(JsonElement el, string prop) {
         var list = new List<ConditionNode>();
         if (!el.TryGetProperty(prop, out var arr)) return list;
-        foreach (var child in arr.EnumerateArray())
-        {
+        foreach (var child in arr.EnumerateArray()) {
             var node = ParseCondition(child);
             if (node != null) list.Add(node);
         }
@@ -90,11 +83,9 @@ public sealed class ConditionNodeConverter : JsonConverter<ConditionNode>
     private static int ParseInt(JsonElement el) =>
         el.ValueKind == JsonValueKind.Number ? el.GetInt32() : int.TryParse(el.GetString(), out var n) ? n : 0;
 
-    public override void Write(Utf8JsonWriter writer, ConditionNode value, JsonSerializerOptions options)
-    {
+    public override void Write(Utf8JsonWriter writer, ConditionNode value, JsonSerializerOptions options) {
         writer.WriteStartObject();
-        switch (value)
-        {
+        switch (value) {
             case AndNode and:
                 writer.WriteString("type", "AND");
                 writer.WritePropertyName("children");
@@ -124,8 +115,7 @@ public sealed class ConditionNodeConverter : JsonConverter<ConditionNode>
         writer.WriteEndObject();
     }
 
-    private static void WriteConditionList(Utf8JsonWriter writer, List<ConditionNode> nodes, JsonSerializerOptions options)
-    {
+    private static void WriteConditionList(Utf8JsonWriter writer, List<ConditionNode> nodes, JsonSerializerOptions options) {
         var converter = new ConditionNodeConverter();
         writer.WriteStartArray();
         foreach (var n in nodes)
@@ -134,21 +124,17 @@ public sealed class ConditionNodeConverter : JsonConverter<ConditionNode>
     }
 }
 
-public sealed class ActionNodeConverter : JsonConverter<ActionNode>
-{
-    public override ActionNode? Read(ref Utf8JsonReader reader, System.Type typeToConvert, JsonSerializerOptions options)
-    {
+public sealed class ActionNodeConverter : JsonConverter<ActionNode> {
+    public override ActionNode? Read(ref Utf8JsonReader reader, System.Type typeToConvert, JsonSerializerOptions options) {
         using var doc = JsonDocument.ParseValue(ref reader);
         return ParseAction(doc.RootElement);
     }
 
-    internal static ActionNode? ParseAction(JsonElement el)
-    {
+    internal static ActionNode? ParseAction(JsonElement el) {
         if (el.ValueKind == JsonValueKind.Null) return null;
 
         var type = el.GetProperty("type").GetString() ?? "";
-        return type.ToUpperInvariant() switch
-        {
+        return type.ToUpperInvariant() switch {
             "SEQUENCE" => new SequenceNode(ParseActionList(el, "steps")),
             "IF" => new IfNode(
                 ConditionNodeConverter.ParseCondition(el.GetProperty("condition"))!,
@@ -173,12 +159,10 @@ public sealed class ActionNodeConverter : JsonConverter<ActionNode>
         };
     }
 
-    private static List<ActionNode> ParseActionList(JsonElement el, string prop)
-    {
+    private static List<ActionNode> ParseActionList(JsonElement el, string prop) {
         var list = new List<ActionNode>();
         if (!el.TryGetProperty(prop, out var arr)) return list;
-        foreach (var child in arr.EnumerateArray())
-        {
+        foreach (var child in arr.EnumerateArray()) {
             var node = ParseAction(child);
             if (node != null) list.Add(node);
         }
@@ -188,11 +172,9 @@ public sealed class ActionNodeConverter : JsonConverter<ActionNode>
     private static int ParseInt(JsonElement el) =>
         el.ValueKind == JsonValueKind.Number ? el.GetInt32() : int.TryParse(el.GetString(), out var n) ? n : 0;
 
-    public override void Write(Utf8JsonWriter writer, ActionNode value, JsonSerializerOptions options)
-    {
+    public override void Write(Utf8JsonWriter writer, ActionNode value, JsonSerializerOptions options) {
         writer.WriteStartObject();
-        switch (value)
-        {
+        switch (value) {
             case SequenceNode seq:
                 writer.WriteString("type", "Sequence");
                 writer.WritePropertyName("steps");
@@ -204,8 +186,7 @@ public sealed class ActionNodeConverter : JsonConverter<ActionNode>
                 JsonSerializer.Serialize(writer, ifn.Condition, options);
                 writer.WritePropertyName("then");
                 Write(writer, ifn.Then, options);
-                if (ifn.Else != null)
-                {
+                if (ifn.Else != null) {
                     writer.WritePropertyName("else");
                     Write(writer, ifn.Else, options);
                 }
@@ -241,8 +222,7 @@ public sealed class ActionNodeConverter : JsonConverter<ActionNode>
         writer.WriteEndObject();
     }
 
-    private static void WriteActionList(Utf8JsonWriter writer, List<ActionNode> nodes, JsonSerializerOptions options)
-    {
+    private static void WriteActionList(Utf8JsonWriter writer, List<ActionNode> nodes, JsonSerializerOptions options) {
         var converter = new ActionNodeConverter();
         writer.WriteStartArray();
         foreach (var n in nodes)

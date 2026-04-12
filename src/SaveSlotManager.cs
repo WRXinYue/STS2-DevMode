@@ -14,8 +14,7 @@ using MegaCrit.Sts2.Core.Saves;
 
 namespace DevMode;
 
-internal static class SaveSlotManager
-{
+internal static class SaveSlotManager {
     private static readonly string SnapshotDir = Path.Combine(
         Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!,
         "snapshots");
@@ -25,8 +24,7 @@ internal static class SaveSlotManager
     // ──────── Slot discovery ────────
 
     /// <summary>Returns sorted list of all slot IDs that have save data on disk.</summary>
-    public static List<int> GetAllSlotIds()
-    {
+    public static List<int> GetAllSlotIds() {
         if (!Directory.Exists(SnapshotDir)) return new List<int>();
 
         return Directory.GetFiles(SnapshotDir, "slot*_meta.json")
@@ -38,8 +36,7 @@ internal static class SaveSlotManager
     }
 
     /// <summary>Returns the next unused slot ID (always >= 1).</summary>
-    public static int NextSlotId()
-    {
+    public static int NextSlotId() {
         var ids = GetAllSlotIds();
         return ids.Count == 0 ? 1 : ids.Max() + 1;
     }
@@ -54,14 +51,12 @@ internal static class SaveSlotManager
 
     // ──────── Slot save / load / delete ────────
 
-    public static bool SaveToSlot(int slot, string name = "")
-    {
+    public static bool SaveToSlot(int slot, string name = "") {
         var rm = RunManager.Instance;
         var state = rm?.DebugOnlyGetState();
         if (state == null) return false;
 
-        try
-        {
+        try {
             Directory.CreateDirectory(SnapshotDir);
 
             var save = rm!.ToSave(state.CurrentRoom);
@@ -74,45 +69,37 @@ internal static class SaveSlotManager
             MainFile.Logger.Info($"SaveSlotManager: Saved to slot {slot}.");
             return true;
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             MainFile.Logger.Warn($"SaveSlotManager: Save slot {slot} failed: {ex.Message}");
             return false;
         }
     }
 
-    public static bool LoadFromSlot(int slot)
-    {
-        try
-        {
+    public static bool LoadFromSlot(int slot) {
+        try {
             var path = SlotPath(slot);
-            if (!File.Exists(path))
-            {
+            if (!File.Exists(path)) {
                 MainFile.Logger.Warn($"SaveSlotManager: Slot {slot} is empty.");
                 return false;
             }
 
             var json = File.ReadAllText(path);
             var result = SaveManager.FromJson<SerializableRun>(json);
-            if (result.SaveData == null)
-            {
+            if (result.SaveData == null) {
                 MainFile.Logger.Warn($"SaveSlotManager: Failed to deserialize slot {slot}.");
                 return false;
             }
 
             return LoadFromSave(result.SaveData);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             MainFile.Logger.Warn($"SaveSlotManager: Load slot {slot} failed: {ex.Message}");
             return false;
         }
     }
 
-    public static bool DeleteSlot(int slot)
-    {
-        try
-        {
+    public static bool DeleteSlot(int slot) {
+        try {
             var deleted = false;
             var savePath = SlotPath(slot);
             var metaPath = MetaPath(slot);
@@ -124,8 +111,7 @@ internal static class SaveSlotManager
                 MainFile.Logger.Info($"SaveSlotManager: Deleted slot {slot}.");
             return deleted;
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             MainFile.Logger.Warn($"SaveSlotManager: Delete slot {slot} failed: {ex.Message}");
             return false;
         }
@@ -133,22 +119,18 @@ internal static class SaveSlotManager
 
     public static bool HasSlot(int slot) => File.Exists(SlotPath(slot));
 
-    public static SaveSlotMeta? LoadMeta(int slot)
-    {
+    public static SaveSlotMeta? LoadMeta(int slot) {
         var path = MetaPath(slot);
         if (!File.Exists(path)) return null;
-        try
-        {
+        try {
             return JsonSerializer.Deserialize<SaveSlotMeta>(File.ReadAllText(path));
         }
-        catch
-        {
+        catch {
             return null;
         }
     }
 
-    public static void RenameSlot(int slot, string name)
-    {
+    public static void RenameSlot(int slot, string name) {
         var meta = LoadMeta(slot) ?? new SaveSlotMeta();
         meta.Name = name;
         try { File.WriteAllText(MetaPath(slot), JsonSerializer.Serialize(meta)); }
@@ -160,11 +142,9 @@ internal static class SaveSlotManager
     private static string SlotPath(int slot) => Path.Combine(SnapshotDir, $"slot{slot}.json");
     private static string MetaPath(int slot) => Path.Combine(SnapshotDir, $"slot{slot}_meta.json");
 
-    private static SaveSlotMeta CaptureMetaFromState(RunState state, string name)
-    {
+    private static SaveSlotMeta CaptureMetaFromState(RunState state, string name) {
         var player = state.Players.FirstOrDefault();
-        var meta = new SaveSlotMeta
-        {
+        var meta = new SaveSlotMeta {
             Name = name,
             SaveTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             TotalFloor = state.TotalFloor,
@@ -174,8 +154,7 @@ internal static class SaveSlotManager
             CharacterId = player?.Character.Id.Entry ?? "",
         };
 
-        if (player != null)
-        {
+        if (player != null) {
             meta.CardTitles = player.Deck.Cards
                 .Select(c => c.Title)
                 .ToList();
@@ -197,12 +176,9 @@ internal static class SaveSlotManager
 
     // ──────── Internal load ────────
 
-    private static bool LoadFromSave(SerializableRun save)
-    {
-        try
-        {
-            if (RunManager.Instance == null)
-            {
+    private static bool LoadFromSave(SerializableRun save) {
+        try {
+            if (RunManager.Instance == null) {
                 MainFile.Logger.Warn("SaveSlotManager: No RunManager instance.");
                 return false;
             }
@@ -210,15 +186,13 @@ internal static class SaveSlotManager
             TaskHelper.RunSafely(LoadFromSaveAsync(save));
             return true;
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             MainFile.Logger.Warn($"SaveSlotManager: Load save failed: {ex.Message}");
             return false;
         }
     }
 
-    private static async Task LoadFromSaveAsync(SerializableRun save)
-    {
+    private static async Task LoadFromSaveAsync(SerializableRun save) {
         var game = NGame.Instance!;
         var rm = RunManager.Instance;
 

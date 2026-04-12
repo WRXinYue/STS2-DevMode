@@ -4,8 +4,8 @@ using System.IO;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using MegaCrit.Sts2.Core.Entities.Players;
 using DevMode.Hooks;
+using MegaCrit.Sts2.Core.Entities.Players;
 
 namespace DevMode.Scripts;
 
@@ -13,10 +13,8 @@ namespace DevMode.Scripts;
 /// Central dispatcher for SpireScratch scripts.
 /// Scans <c>scripts/</c> directory, watches for file changes, and fires triggers.
 /// </summary>
-internal static class ScriptManager
-{
-    private static readonly JsonSerializerOptions JsonOpts = new()
-    {
+internal static class ScriptManager {
+    private static readonly JsonSerializerOptions JsonOpts = new() {
         PropertyNameCaseInsensitive = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         WriteIndented = true,
@@ -38,8 +36,7 @@ internal static class ScriptManager
     /// <summary>Monotonically increasing counter, bumped on every Reload().</summary>
     public static int ReloadVersion { get; private set; }
 
-    public sealed class LoadedScript
-    {
+    public sealed class LoadedScript {
         public string FilePath { get; init; } = "";
         public string FileName { get; init; } = "";
         public ScriptEntry Entry { get; init; } = new();
@@ -48,21 +45,18 @@ internal static class ScriptManager
 
     // ──────── Lifecycle ────────
 
-    public static void Initialize()
-    {
+    public static void Initialize() {
         if (_initialized) return;
         _initialized = true;
 
         var asmDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? "";
         ScriptsDir = Path.Combine(asmDir, "scripts");
 
-        try
-        {
+        try {
             if (!Directory.Exists(ScriptsDir))
                 Directory.CreateDirectory(ScriptsDir);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             MainFile.Logger.Warn($"[ScriptManager] Cannot create scripts dir: {ex.Message}");
         }
 
@@ -72,8 +66,7 @@ internal static class ScriptManager
         MainFile.Logger.Info($"[ScriptManager] Initialized — {_scripts.Count} script(s) from {ScriptsDir}");
     }
 
-    public static void Shutdown()
-    {
+    public static void Shutdown() {
         StopWatcher();
         _scripts = new List<LoadedScript>();
         _initialized = false;
@@ -83,8 +76,7 @@ internal static class ScriptManager
     public static void RequestReload() => _dirty = true;
 
     /// <summary>Call from game thread (e.g. process tick) to apply pending hot-reload.</summary>
-    public static void ProcessPendingReload()
-    {
+    public static void ProcessPendingReload() {
         if (!_dirty) return;
         _dirty = false;
         Reload();
@@ -93,8 +85,7 @@ internal static class ScriptManager
 
     // ──────── Fire ────────
 
-    public static void Fire(TriggerType trigger, Player? player)
-    {
+    public static void Fire(TriggerType trigger, Player? player) {
         if (!DevModeState.InDevRun && !DevModeState.AlwaysEnabled) return;
         if (_scripts.Count == 0) return;
         if (player == null && !RunContext.TryGetRunAndPlayer(out _, out player)) return;
@@ -102,21 +93,18 @@ internal static class ScriptManager
         if (trigger == TriggerType.CombatStart)
             ScriptVariableStore.Reset();
 
-        foreach (var loaded in _scripts)
-        {
+        foreach (var loaded in _scripts) {
             if (loaded.ParseError != null) continue;
             var entry = loaded.Entry;
             if (!entry.Enabled || entry.Trigger != trigger) continue;
 
-            try
-            {
+            try {
                 if (!ScriptConditionEvaluator.Evaluate(entry.RootCondition, player))
                     continue;
 
                 ScriptActionExecutor.Execute(entry.RootAction, player!);
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 MainFile.Logger.Warn($"[Script] Error executing '{entry.Name}' ({trigger}): {ex.Message}");
             }
         }
@@ -124,37 +112,29 @@ internal static class ScriptManager
 
     // ──────── Load / Reload ────────
 
-    public static void Reload()
-    {
-        lock (_reloadLock)
-        {
+    public static void Reload() {
+        lock (_reloadLock) {
             var next = new List<LoadedScript>();
             LastError = null;
             LastReloadTime = DateTime.Now;
 
             if (!Directory.Exists(ScriptsDir)) { _scripts = next; return; }
 
-            try
-            {
-                foreach (var file in Directory.GetFiles(ScriptsDir, "*.json"))
-                {
-                    try
-                    {
+            try {
+                foreach (var file in Directory.GetFiles(ScriptsDir, "*.json")) {
+                    try {
                         var json = File.ReadAllText(file);
                         var entry = JsonSerializer.Deserialize<ScriptEntry>(json, JsonOpts);
                         if (entry == null) continue;
 
-                        next.Add(new LoadedScript
-                        {
+                        next.Add(new LoadedScript {
                             FilePath = file,
                             FileName = Path.GetFileName(file),
                             Entry = entry,
                         });
                     }
-                    catch (Exception ex)
-                    {
-                        next.Add(new LoadedScript
-                        {
+                    catch (Exception ex) {
+                        next.Add(new LoadedScript {
                             FilePath = file,
                             FileName = Path.GetFileName(file),
                             ParseError = ex.Message,
@@ -164,8 +144,7 @@ internal static class ScriptManager
                     }
                 }
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 LastError = ex.Message;
                 MainFile.Logger.Warn($"[ScriptManager] Reload failed: {ex.Message}");
             }
@@ -175,17 +154,14 @@ internal static class ScriptManager
         }
     }
 
-    public static void SaveScript(ScriptEntry entry, string fileName)
-    {
+    public static void SaveScript(ScriptEntry entry, string fileName) {
         var json = JsonSerializer.Serialize(entry, JsonOpts);
         SaveRaw(fileName, json);
     }
 
     /// <summary>Write raw JSON content directly to scripts/ (used by WebSocket bridge).</summary>
-    public static void SaveRaw(string fileName, string rawJson)
-    {
-        try
-        {
+    public static void SaveRaw(string fileName, string rawJson) {
+        try {
             if (!Directory.Exists(ScriptsDir))
                 Directory.CreateDirectory(ScriptsDir);
 
@@ -195,46 +171,37 @@ internal static class ScriptManager
 
             File.WriteAllText(Path.Combine(ScriptsDir, safe), rawJson);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             MainFile.Logger.Warn($"[ScriptManager] Save failed: {ex.Message}");
         }
     }
 
-    public static string? ReadRaw(string fileName)
-    {
-        try
-        {
+    public static string? ReadRaw(string fileName) {
+        try {
             var path = Path.Combine(ScriptsDir, Path.GetFileName(fileName));
             return File.Exists(path) ? File.ReadAllText(path) : null;
         }
         catch { return null; }
     }
 
-    public static void DeleteScript(string fileName)
-    {
-        try
-        {
+    public static void DeleteScript(string fileName) {
+        try {
             var path = Path.Combine(ScriptsDir, fileName);
             if (File.Exists(path))
                 File.Delete(path);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             MainFile.Logger.Warn($"[ScriptManager] Delete failed: {ex.Message}");
         }
     }
 
     // ──────── FileSystemWatcher ────────
 
-    private static void StartWatcher()
-    {
-        try
-        {
+    private static void StartWatcher() {
+        try {
             if (!Directory.Exists(ScriptsDir)) return;
 
-            _watcher = new FileSystemWatcher(ScriptsDir, "*.json")
-            {
+            _watcher = new FileSystemWatcher(ScriptsDir, "*.json") {
                 NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size,
                 EnableRaisingEvents = true,
             };
@@ -244,22 +211,19 @@ internal static class ScriptManager
             _watcher.Deleted += OnFileEvent;
             _watcher.Renamed += (_, _) => _dirty = true;
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             MainFile.Logger.Warn($"[ScriptManager] Watcher setup failed: {ex.Message}");
         }
     }
 
-    private static void StopWatcher()
-    {
+    private static void StopWatcher() {
         if (_watcher == null) return;
         _watcher.EnableRaisingEvents = false;
         _watcher.Dispose();
         _watcher = null;
     }
 
-    private static void OnFileEvent(object sender, FileSystemEventArgs e)
-    {
+    private static void OnFileEvent(object sender, FileSystemEventArgs e) {
         _dirty = true;
     }
 }

@@ -1,36 +1,36 @@
 using System;
 using System.Linq;
+using DevMode.Actions;
+using DevMode.Presets;
 using Godot;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
-using DevMode.Actions;
-using DevMode.Presets;
 
 namespace DevMode.UI;
 
 /// <summary>Full-screen overlay for deep card editing.</summary>
-internal static class CardEditUI
-{
+internal static class CardEditUI {
     private const string RootName = "DevModeCardEdit";
 
-    public static void ShowForCard(NGlobalUi globalUi, CardModel card)
-    {
+    public static void ShowForCard(NGlobalUi globalUi, CardModel card) {
         Remove(globalUi);
 
         var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1400 };
         root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
 
-        var panel = new PanelContainer
-        {
+        var panel = new PanelContainer {
             MouseFilter = Control.MouseFilterEnum.Stop,
-            AnchorLeft = 1, AnchorRight = 1,
-            AnchorTop = 0.10f, AnchorBottom = 0.90f,
-            OffsetLeft = -520, OffsetRight = -16,
-            OffsetTop = 0, OffsetBottom = 0
+            AnchorLeft = 1,
+            AnchorRight = 1,
+            AnchorTop = 0.10f,
+            AnchorBottom = 0.90f,
+            OffsetLeft = -520,
+            OffsetRight = -16,
+            OffsetTop = 0,
+            OffsetBottom = 0
         };
-        var style = new StyleBoxFlat
-        {
+        var style = new StyleBoxFlat {
             BgColor = new Color(0.10f, 0.10f, 0.13f, 0.96f),
             CornerRadiusTopLeft = 10,
             CornerRadiusTopRight = 10,
@@ -78,8 +78,7 @@ internal static class CardEditUI
         ((Node)globalUi).AddChild(root);
     }
 
-    public static void Show(NGlobalUi globalUi, Player player, System.Collections.Generic.IReadOnlyList<CardModel>? sourceCards = null, CardModel? initialCard = null)
-    {
+    public static void Show(NGlobalUi globalUi, Player player, System.Collections.Generic.IReadOnlyList<CardModel>? sourceCards = null, CardModel? initialCard = null) {
         Remove(globalUi);
 
         var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1300 };
@@ -95,7 +94,7 @@ internal static class CardEditUI
         var hbox = new HBoxContainer();
         hbox.AddThemeConstantOverride("separation", 8);
         hbox.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        hbox.SizeFlagsVertical   = Control.SizeFlags.ExpandFill;
+        hbox.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
         panel.GetNode<VBoxContainer>("Content").AddChild(hbox);
 
         // Left: card list
@@ -143,8 +142,7 @@ internal static class CardEditUI
 
         CardModel? selectedCard = null;
 
-        void RebuildPresetList()
-        {
+        void RebuildPresetList() {
             presetPicker.Clear();
             var names = CardEditPresetManager.Store.All.Keys.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToArray();
             foreach (var name in names) presetPicker.AddItem(name);
@@ -152,8 +150,7 @@ internal static class CardEditUI
             delPresetBtn.Disabled = names.Length == 0;
         }
 
-        void ShowEditor(CardModel card)
-        {
+        void ShowEditor(CardModel card) {
             selectedCard = card;
             foreach (var child in editorContent.GetChildren()) ((Node)child).QueueFree();
 
@@ -190,12 +187,10 @@ internal static class CardEditUI
                 v => { CardEditActions.TrySetSingleTurnSly(card, v); statusLabel.Text = "Single-turn sly toggled."; });
 
             var dynamicKeys = CardEditActions.GetDynamicVarKeys(card);
-            if (dynamicKeys.Count > 0)
-            {
+            if (dynamicKeys.Count > 0) {
                 editorContent.AddChild(new HSeparator());
                 editorContent.AddChild(new Label { Text = I18N.T("cardEdit.dynamicVars", "Dynamic Vars") });
-                foreach (var key in dynamicKeys)
-                {
+                foreach (var key in dynamicKeys) {
                     var displayKey = CardEditActions.GetDynamicVarDisplayName(key);
                     AddIntEditor(editorContent, displayKey, CardEditActions.GetDynamicVar(card, key) ?? 0,
                         v => { CardEditActions.TrySetDynamicVar(card, key, v); statusLabel.Text = $"{displayKey} set."; });
@@ -210,8 +205,7 @@ internal static class CardEditUI
 
             // Enchantment
             var enchantTypes = CardEditActions.GetEnchantmentTypes();
-            if (enchantTypes.Count > 0)
-            {
+            if (enchantTypes.Count > 0) {
                 editorContent.AddChild(new HSeparator());
                 editorContent.AddChild(new Label { Text = I18N.T("cardEdit.enchantment", "Enchantment") });
 
@@ -224,11 +218,9 @@ internal static class CardEditUI
                 enchantRow.AddChild(enchantDropdown);
 
                 var applyBtn = new Button { Text = I18N.T("cardEdit.applyEnchant", "Apply"), CustomMinimumSize = new Vector2(60, 26) };
-                applyBtn.Pressed += () =>
-                {
+                applyBtn.Pressed += () => {
                     int idx = enchantDropdown.Selected;
-                    if (idx >= 0 && idx < enchantTypes.Count)
-                    {
+                    if (idx >= 0 && idx < enchantTypes.Count) {
                         bool ok = CardEditActions.TryApplyEnchantment(card, enchantTypes[idx]);
                         statusLabel.Text = ok ? "Enchantment applied." : "Failed to apply.";
                     }
@@ -236,11 +228,9 @@ internal static class CardEditUI
                 enchantRow.AddChild(applyBtn);
 
                 var forceBtn = new Button { Text = I18N.T("cardEdit.forceEnchant", "Force"), CustomMinimumSize = new Vector2(60, 26) };
-                forceBtn.Pressed += () =>
-                {
+                forceBtn.Pressed += () => {
                     int idx = enchantDropdown.Selected;
-                    if (idx >= 0 && idx < enchantTypes.Count)
-                    {
+                    if (idx >= 0 && idx < enchantTypes.Count) {
                         bool ok = CardEditActions.TryApplyEnchantment(card, enchantTypes[idx], force: true);
                         statusLabel.Text = ok ? "Enchantment force-applied." : "Failed.";
                     }
@@ -250,8 +240,7 @@ internal static class CardEditUI
                 editorContent.AddChild(enchantRow);
 
                 var clearEnchantBtn = new Button { Text = I18N.T("cardEdit.clearEnchant", "Clear Enchantment"), CustomMinimumSize = new Vector2(0, 26) };
-                clearEnchantBtn.Pressed += () =>
-                {
+                clearEnchantBtn.Pressed += () => {
                     CardEditActions.TryClearEnchantment(card);
                     statusLabel.Text = "Enchantment cleared.";
                 };
@@ -261,16 +250,14 @@ internal static class CardEditUI
             RebuildPresetList();
         }
 
-        void RebuildCardList(string filter)
-        {
+        void RebuildCardList(string filter) {
             foreach (var child in cardList.GetChildren()) ((Node)child).QueueFree();
             var cards = sourceCards?.ToArray() ?? CardEditActions.GetDeckCards(player);
             var filtered = string.IsNullOrWhiteSpace(filter)
                 ? cards
                 : cards.Where(c => CardEditActions.GetCardDisplayName(c).Contains(filter, StringComparison.OrdinalIgnoreCase)).ToArray();
 
-            foreach (var card in filtered)
-            {
+            foreach (var card in filtered) {
                 var btn = new Button { Text = CardEditActions.GetCardDisplayName(card), CustomMinimumSize = new Vector2(0, 28) };
                 btn.Pressed += () => ShowEditor(card);
                 cardList.AddChild(btn);
@@ -282,8 +269,7 @@ internal static class CardEditUI
         if (initialCard != null)
             ShowEditor(initialCard);
 
-        savePresetBtn.Pressed += () =>
-        {
+        savePresetBtn.Pressed += () => {
             if (selectedCard == null) { statusLabel.Text = "Select a card first."; return; }
             var name = presetNameInput.Text?.Trim();
             if (string.IsNullOrWhiteSpace(name)) { statusLabel.Text = "Enter preset name."; return; }
@@ -294,8 +280,7 @@ internal static class CardEditUI
             RebuildPresetList();
         };
 
-        applyPresetBtn.Pressed += () =>
-        {
+        applyPresetBtn.Pressed += () => {
             if (selectedCard == null) { statusLabel.Text = "Select a card first."; return; }
             if (presetPicker.ItemCount == 0) { statusLabel.Text = "No preset."; return; }
             var name = presetPicker.GetItemText(presetPicker.Selected);
@@ -305,12 +290,10 @@ internal static class CardEditUI
             ShowEditor(selectedCard);
         };
 
-        delPresetBtn.Pressed += () =>
-        {
+        delPresetBtn.Pressed += () => {
             if (presetPicker.ItemCount == 0) { statusLabel.Text = "No preset."; return; }
             var name = presetPicker.GetItemText(presetPicker.Selected);
-            if (CardEditPresetManager.Store.Delete(name))
-            {
+            if (CardEditPresetManager.Store.Delete(name)) {
                 statusLabel.Text = $"Preset deleted: {name}";
                 RebuildPresetList();
             }
@@ -321,13 +304,11 @@ internal static class CardEditUI
         ((Node)globalUi).AddChild(root);
     }
 
-    public static void Remove(NGlobalUi globalUi)
-    {
+    public static void Remove(NGlobalUi globalUi) {
         ((Node)globalUi).GetNodeOrNull<Control>(RootName)?.QueueFree();
     }
 
-    private static void BuildSingleCardEditor(VBoxContainer editorContent, Label statusLabel, CardModel card)
-    {
+    private static void BuildSingleCardEditor(VBoxContainer editorContent, Label statusLabel, CardModel card) {
         AddIntEditor(editorContent, I18N.T("cardEdit.cost", "Base Cost"), CardEditActions.GetBaseCost(card) ?? 0,
             v => { CardEditActions.TrySetBaseCost(card, v); statusLabel.Text = "Cost set."; });
         AddIntEditor(editorContent, I18N.T("cardEdit.replay", "Replay Count"), CardEditActions.GetReplayCount(card) ?? 0,
@@ -351,8 +332,7 @@ internal static class CardEditUI
             v => { CardEditActions.TrySetSingleTurnSly(card, v); statusLabel.Text = "Single-turn sly toggled."; });
 
         var dynamicKeys = CardEditActions.GetDynamicVarKeys(card);
-        foreach (var key in dynamicKeys)
-        {
+        foreach (var key in dynamicKeys) {
             var displayKey = CardEditActions.GetDynamicVarDisplayName(key);
             AddIntEditor(editorContent, displayKey, CardEditActions.GetDynamicVar(card, key) ?? 0,
                 v => { CardEditActions.TrySetDynamicVar(card, key, v); statusLabel.Text = $"{displayKey} set."; });
@@ -364,8 +344,7 @@ internal static class CardEditUI
             v => { CardEditActions.TrySetDescriptionText(card, v); statusLabel.Text = "Description override set."; });
     }
 
-    private static void AddIntEditor(VBoxContainer parent, string label, int currentValue, Action<int> onApply)
-    {
+    private static void AddIntEditor(VBoxContainer parent, string label, int currentValue, Action<int> onApply) {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 4);
         row.AddChild(new Label { Text = label, CustomMinimumSize = new Vector2(100, 0) });
@@ -377,8 +356,7 @@ internal static class CardEditUI
         parent.AddChild(row);
     }
 
-    private static void AddBoolToggle(VBoxContainer parent, string label, bool currentValue, Action<bool> onToggle)
-    {
+    private static void AddBoolToggle(VBoxContainer parent, string label, bool currentValue, Action<bool> onToggle) {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 4);
         var check = new CheckBox { Text = label, ButtonPressed = currentValue };
@@ -387,8 +365,7 @@ internal static class CardEditUI
         parent.AddChild(row);
     }
 
-    private static void AddTextEditor(VBoxContainer parent, string label, string currentValue, Action<string> onApply)
-    {
+    private static void AddTextEditor(VBoxContainer parent, string label, string currentValue, Action<string> onApply) {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 4);
         row.AddChild(new Label { Text = label, CustomMinimumSize = new Vector2(140, 0) });

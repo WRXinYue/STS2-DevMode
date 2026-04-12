@@ -1,13 +1,12 @@
+using DevMode.UI;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Runs;
-using DevMode.UI;
 
 namespace DevMode.Actions.CardModes;
 
-internal sealed class ViewModeHandler : ICardModeHandler
-{
+internal sealed class ViewModeHandler : ICardModeHandler {
     public string Id => "view";
     public bool ShowTargets => false;
     public bool ShowDuration => false;
@@ -15,8 +14,7 @@ internal sealed class ViewModeHandler : ICardModeHandler
 
     public bool HasRelevantCards(Player player, CardTarget target) => true;
 
-    public void Execute(NGlobalUi globalUi, DevPanel.ActionSession session, RunState state, Player player)
-    {
+    public void Execute(NGlobalUi globalUi, DevPanel.ActionSession session, RunState state, Player player) {
         CardBrowserUI.Show(globalUi, state, player);
     }
 

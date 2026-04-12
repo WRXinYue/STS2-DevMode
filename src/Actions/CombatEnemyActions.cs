@@ -16,34 +16,28 @@ namespace DevMode.Actions;
 /// Mid-combat enemy manipulation: add monsters, kill enemies, remove enemies.
 /// Uses the game's <see cref="CreatureCmd"/> API (same as boss summon mechanics).
 /// </summary>
-internal static class CombatEnemyActions
-{
+internal static class CombatEnemyActions {
     /// <summary>Get the current combat state, or null if not in combat.</summary>
-    public static CombatState? GetCombatState()
-    {
+    public static CombatState? GetCombatState() {
         if (!RunContext.TryGetRunAndPlayer(out _, out var player)) return null;
         return player.Creature?.CombatState;
     }
 
     /// <summary>Get current enemies in combat.</summary>
-    public static IReadOnlyList<Creature> GetCurrentEnemies()
-    {
+    public static IReadOnlyList<Creature> GetCurrentEnemies() {
         var cs = GetCombatState();
         return cs?.Enemies ?? (IReadOnlyList<Creature>)[];
     }
 
     /// <summary>Add a monster to the current combat.</summary>
-    public static async Task<Creature?> AddMonster(MonsterModel canonicalMonster)
-    {
+    public static async Task<Creature?> AddMonster(MonsterModel canonicalMonster) {
         var cs = GetCombatState();
-        if (cs == null)
-        {
+        if (cs == null) {
             MainFile.Logger.Info("CombatEnemyActions: Not in combat.");
             return null;
         }
 
-        if (!CombatManager.Instance.IsInProgress)
-        {
+        if (!CombatManager.Instance.IsInProgress) {
             MainFile.Logger.Info("CombatEnemyActions: Combat not in progress.");
             return null;
         }
@@ -52,8 +46,7 @@ internal static class CombatEnemyActions
 
         // Try to get a slot from the encounter if available
         string? slot = null;
-        try
-        {
+        try {
             slot = cs.Encounter?.GetNextSlot(cs);
             if (string.IsNullOrEmpty(slot)) slot = null;
         }
@@ -70,8 +63,7 @@ internal static class CombatEnemyActions
     }
 
     /// <summary>Add all monsters from an encounter to the current combat.</summary>
-    public static async Task AddEncounterMonsters(EncounterModel encounter)
-    {
+    public static async Task AddEncounterMonsters(EncounterModel encounter) {
         var monsters = encounter.AllPossibleMonsters?.ToList();
         if (monsters == null || monsters.Count == 0) return;
 
@@ -83,8 +75,7 @@ internal static class CombatEnemyActions
     /// Reposition all enemy NCreature nodes using the same algorithm as
     /// NCombatRoom.PositionEnemies (auto-layout for encounters without scene slots).
     /// </summary>
-    private static void RepositionEnemies(CombatState cs)
-    {
+    private static void RepositionEnemies(CombatState cs) {
         var combatRoom = NCombatRoom.Instance;
         if (combatRoom == null) return;
 
@@ -109,8 +100,7 @@ internal static class CombatEnemyActions
         startX = Math.Max(startX, 150f);
 
         float altY = 0f;
-        if (startX + totalWidth > halfScreen)
-        {
+        if (startX + totalWidth > halfScreen) {
             padding = Math.Max((halfScreen - 150f - totalCreatureWidth) / (enemies.Count - 1), 5f);
             totalWidth = totalCreatureWidth + (enemies.Count - 1) * padding;
             startX = (halfScreen - totalWidth) * 0.5f;
@@ -119,8 +109,7 @@ internal static class CombatEnemyActions
         }
 
         float x = startX;
-        for (int i = 0; i < enemies.Count; i++)
-        {
+        for (int i = 0; i < enemies.Count; i++) {
             var n = enemies[i];
             n.Position = new Vector2(
                 x + n.Visuals.Bounds.Size.X * 0.5f,
@@ -130,16 +119,14 @@ internal static class CombatEnemyActions
     }
 
     /// <summary>Kill a specific enemy creature.</summary>
-    public static async Task KillEnemy(Creature creature)
-    {
+    public static async Task KillEnemy(Creature creature) {
         if (creature.IsDead) return;
         await CreatureCmd.Kill(creature, force: true);
         MainFile.Logger.Info($"CombatEnemyActions: Killed {creature.Monster?.Title?.GetFormattedText() ?? "enemy"}");
     }
 
     /// <summary>Kill all current enemies.</summary>
-    public static async Task KillAllEnemies()
-    {
+    public static async Task KillAllEnemies() {
         var enemies = GetCurrentEnemies().Where(e => !e.IsDead).ToList();
         if (enemies.Count == 0) return;
         await CreatureCmd.Kill((IReadOnlyCollection<Creature>)enemies, force: true);
@@ -149,38 +136,32 @@ internal static class CombatEnemyActions
     // ── Monster editing enhancements ──
 
     /// <summary>Set a monster's current HP.</summary>
-    public static async Task SetMonsterHp(Creature creature, int hp)
-    {
+    public static async Task SetMonsterHp(Creature creature, int hp) {
         await Sts2ApiCompat.SetCurrentHpAsync(creature, hp);
     }
 
     /// <summary>Set a monster's max HP.</summary>
-    public static async Task SetMonsterMaxHp(Creature creature, int maxHp)
-    {
+    public static async Task SetMonsterMaxHp(Creature creature, int maxHp) {
         await Sts2ApiCompat.SetMaxHpAsync(creature, maxHp);
     }
 
     /// <summary>Clear all powers from a monster.</summary>
-    public static void ClearMonsterPowers(Creature creature)
-    {
-        foreach (var power in creature.Powers.ToArray())
-        {
+    public static void ClearMonsterPowers(Creature creature) {
+        foreach (var power in creature.Powers.ToArray()) {
             if (power != null)
                 PowerCmd.Remove(power);
         }
     }
 
     /// <summary>Duplicate a monster in combat (add another copy).</summary>
-    public static async Task<Creature?> DuplicateMonster(Creature creature)
-    {
+    public static async Task<Creature?> DuplicateMonster(Creature creature) {
         var monsterModel = creature.Monster;
         if (monsterModel == null) return null;
         return await AddMonster(monsterModel);
     }
 
     /// <summary>Get display info for a creature.</summary>
-    public static string GetCreatureInfo(Creature creature)
-    {
+    public static string GetCreatureInfo(Creature creature) {
         var name = creature.Monster?.Title?.GetFormattedText() ?? "?";
         return $"{name} (HP: {creature.CurrentHp}/{creature.MaxHp}, Block: {creature.Block}, Powers: {creature.Powers.Count})";
     }

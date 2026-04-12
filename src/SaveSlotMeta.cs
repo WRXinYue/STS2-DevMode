@@ -7,8 +7,7 @@ namespace DevMode;
 /// Lightweight sidecar metadata stored alongside each save slot.
 /// Used to populate the slot selection UI without deserializing the full run save.
 /// </summary>
-internal sealed class SaveSlotMeta
-{
+internal sealed class SaveSlotMeta {
     public string Name { get; set; } = "";
     public long SaveTime { get; set; }
     public int TotalFloor { get; set; }

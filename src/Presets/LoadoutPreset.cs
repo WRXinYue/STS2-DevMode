@@ -6,18 +6,16 @@ namespace DevMode.Presets;
 
 /// <summary>Flags controlling which parts of a loadout are captured or applied.</summary>
 [Flags]
-public enum PresetContents
-{
-    None   = 0,
-    Cards  = 1,
+public enum PresetContents {
+    None = 0,
+    Cards = 1,
     Relics = 2,
-    Stats  = 4,
-    All    = Cards | Relics | Stats,
+    Stats = 4,
+    All = Cards | Relics | Stats,
 }
 
 /// <summary>A single card entry in a loadout preset.</summary>
-public sealed class LoadoutCardEntry
-{
+public sealed class LoadoutCardEntry {
     [JsonPropertyName("id")]
     public string CardId { get; set; } = "";
 
@@ -31,8 +29,7 @@ public sealed class LoadoutCardEntry
 /// <summary>
 /// Complete loadout preset: deck, relics, gold, HP, energy, stars, orb slots.
 /// </summary>
-public sealed class LoadoutPreset
-{
+public sealed class LoadoutPreset {
     [JsonPropertyName("gold")]
     public int Gold { get; set; }
 
@@ -80,8 +77,7 @@ public sealed class LoadoutPreset
 }
 
 /// <summary>Named preset wrapper for serialization.</summary>
-public sealed class NamedPreset<T> where T : class, new()
-{
+public sealed class NamedPreset<T> where T : class, new() {
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
 

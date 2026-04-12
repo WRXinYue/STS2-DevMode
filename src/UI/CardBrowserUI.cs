@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DevMode.Actions;
+using DevMode.Icons;
 using Godot;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -9,8 +11,6 @@ using MegaCrit.Sts2.Core.Models.CardPools;
 using MegaCrit.Sts2.Core.Nodes.Cards;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Runs;
-using DevMode.Actions;
-using DevMode.Icons;
 
 namespace DevMode.UI;
 
@@ -18,24 +18,22 @@ namespace DevMode.UI;
 /// Self-drawn card browser replacing official NCardLibrary / NDeckCardSelectScreen.
 /// Center: scrollable grid of native NCard thumbnails (padded). Right: context-sensitive operation panel.
 /// </summary>
-internal static partial class CardBrowserUI
-{
+internal static partial class CardBrowserUI {
     private const string RootName = "DevModeCardBrowser";
     private const float RightPanelWidth = 300f;
 
     private static Color ColSubtle => DevModeTheme.Subtle;
 
     // Rail geometry — must match DevPanelUI constants
-    private const float RailW      = 52f;
-    private const float RailLeft   = 24f;
-    private const float PanelLeft  = RailLeft + RailW;
+    private const float RailW = 52f;
+    private const float RailLeft = 24f;
+    private const float PanelLeft = RailLeft + RailW;
     private const float PanelRight = 24f;
-    private const int   RailRadius = 14;
+    private const int RailRadius = 14;
 
     // ──────── Shared session state ────────
 
-    private sealed class State
-    {
+    private sealed class State {
         public readonly NGlobalUi GlobalUi;
         public readonly RunState RunState;
         public readonly Player Player;
@@ -85,8 +83,7 @@ internal static partial class CardBrowserUI
         public CardModel? SelectedCard;
         public Control? SelectedPickHost;
 
-        public State(NGlobalUi globalUi, RunState runState, Player player)
-        {
+        public State(NGlobalUi globalUi, RunState runState, Player player) {
             GlobalUi = globalUi;
             RunState = runState;
             Player = player;
@@ -95,16 +92,14 @@ internal static partial class CardBrowserUI
 
     // ──────── Rail splice helpers ────────
 
-    private static void SpliceRail(NGlobalUi globalUi, bool joined)
-    {
+    private static void SpliceRail(NGlobalUi globalUi, bool joined) {
         var railRoot = ((Node)globalUi).GetNodeOrNull<Control>("DevModeRailRoot");
         var rail = railRoot?.GetNodeOrNull<PanelContainer>("Rail");
         if (rail == null) return;
 
-        if (rail.GetThemeStylebox("panel") is StyleBoxFlat sb)
-        {
+        if (rail.GetThemeStylebox("panel") is StyleBoxFlat sb) {
             int r = joined ? 0 : RailRadius;
-            sb.CornerRadiusTopRight    = r;
+            sb.CornerRadiusTopRight = r;
             sb.CornerRadiusBottomRight = r;
             sb.BorderWidthRight = joined ? 0 : 1;
         }
@@ -112,8 +107,7 @@ internal static partial class CardBrowserUI
 
     // ──────── Public API ────────
 
-    public static void Show(NGlobalUi globalUi, RunState runState, Player player)
-    {
+    public static void Show(NGlobalUi globalUi, RunState runState, Player player) {
         Remove(globalUi);
 
         DevPanelUI.PinRail();
@@ -123,8 +117,7 @@ internal static partial class CardBrowserUI
 
         var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1250 };
         root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        root.TreeExiting += () =>
-        {
+        root.TreeExiting += () => {
             DevPanelUI.UnpinRail();
             SpliceRail(globalUi, joined: false);
         };
@@ -148,8 +141,7 @@ internal static partial class CardBrowserUI
         s.ActiveTabIdx = Array.IndexOf(s.Sources, _browseSource);
         if (s.ActiveTabIdx < 0) s.ActiveTabIdx = 0;
 
-        var navSection = new Control
-        {
+        var navSection = new Control {
             CustomMinimumSize = new Vector2(0, 34),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
         };
@@ -157,16 +149,17 @@ internal static partial class CardBrowserUI
         tabRow.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         tabRow.AddThemeConstantOverride("separation", 0);
 
-        s.Indicator = new ColorRect
-        {
+        s.Indicator = new ColorRect {
             Color = ColNavAccent,
-            AnchorLeft = 0, AnchorRight = 0,
-            AnchorTop = 1, AnchorBottom = 1,
-            OffsetTop = -2, OffsetBottom = 0
+            AnchorLeft = 0,
+            AnchorRight = 0,
+            AnchorTop = 1,
+            AnchorBottom = 1,
+            OffsetTop = -2,
+            OffsetBottom = 0
         };
 
-        for (int i = 0; i < sourceLabels.Length; i++)
-        {
+        for (int i = 0; i < sourceLabels.Length; i++) {
             int idx = i;
             var tab = CreateNavTab(sourceLabels[idx], idx == s.ActiveTabIdx);
             tab.Pressed += () => SwitchTab(s, idx);
@@ -183,8 +176,7 @@ internal static partial class CardBrowserUI
         var navOuter = new VBoxContainer();
         navOuter.AddThemeConstantOverride("separation", 0);
         navOuter.AddChild(navSection);
-        navOuter.AddChild(new ColorRect
-        {
+        navOuter.AddChild(new ColorRect {
             CustomMinimumSize = new Vector2(0, 1),
             Color = DevModeTheme.Separator,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
@@ -195,8 +187,7 @@ internal static partial class CardBrowserUI
         var sortRow = new HBoxContainer();
         sortRow.AddThemeConstantOverride("separation", 6);
 
-        sortRow.AddChild(new TextureRect
-        {
+        sortRow.AddChild(new TextureRect {
             Texture = MdiIcon.FilterVariant.Texture(18, DevModeTheme.Subtle),
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             CustomMinimumSize = new Vector2(22, 22),
@@ -211,17 +202,14 @@ internal static partial class CardBrowserUI
             (SortField.Alphabet, I18N.T("cardBrowser.sortAlphabet", "A-Z"))
         };
 
-        foreach (var (sf, label) in s.SortFieldDefs)
-        {
+        foreach (var (sf, label) in s.SortFieldDefs) {
             var sortBtn = CreateSortToggleButton(label);
             var capturedField = sf;
-            sortBtn.Pressed += () =>
-            {
+            sortBtn.Pressed += () => {
                 int idx = s.SortPriority.FindIndex(x => x.field == capturedField);
                 if (idx == 0)
                     s.SortPriority[0] = (capturedField, !s.SortPriority[0].asc);
-                else
-                {
+                else {
                     if (idx > 0) s.SortPriority.RemoveAt(idx);
                     s.SortPriority.Insert(0, (capturedField, true));
                 }
@@ -235,8 +223,7 @@ internal static partial class CardBrowserUI
 
         sortRow.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
 
-        s.SearchInput = new LineEdit
-        {
+        s.SearchInput = new LineEdit {
             PlaceholderText = I18N.T("cardBrowser.search", "Search..."),
             ClearButtonEnabled = true,
             CustomMinimumSize = new Vector2(180, 0)
@@ -248,10 +235,8 @@ internal static partial class CardBrowserUI
         var chipRow = new HBoxContainer();
         chipRow.AddThemeConstantOverride("separation", 4);
 
-        void AddChipGroup(string groupLabel, (string text, Action<bool> onToggle)[] chips)
-        {
-            if (chipRow.GetChildCount() > 0)
-            {
+        void AddChipGroup(string groupLabel, (string text, Action<bool> onToggle)[] chips) {
+            if (chipRow.GetChildCount() > 0) {
                 var sep = new VSeparator { CustomMinimumSize = new Vector2(1, 0) };
                 sep.AddThemeColorOverride("separator", DevModeTheme.Separator);
                 chipRow.AddChild(sep);
@@ -262,11 +247,9 @@ internal static partial class CardBrowserUI
             groupLbl.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
             chipRow.AddChild(groupLbl);
 
-            foreach (var (text, onToggle) in chips)
-            {
+            foreach (var (text, onToggle) in chips) {
                 var chip = CreateFilterChip(text);
-                chip.Toggled += on =>
-                {
+                chip.Toggled += on => {
                     onToggle(on);
                     RebuildGrid(s, s.SearchInput.Text ?? "");
                 };
@@ -304,40 +287,36 @@ internal static partial class CardBrowserUI
         s.PoolChipRow.Visible = IsLibrarySource;
 
         // Register predicates for built-in pools
-        s.PoolFilterPredicates["ironclad"]    = c => c.Pool is IroncladCardPool;
-        s.PoolFilterPredicates["silent"]      = c => c.Pool is SilentCardPool;
-        s.PoolFilterPredicates["defect"]      = c => c.Pool is DefectCardPool;
-        s.PoolFilterPredicates["regent"]      = c => c.Pool is RegentCardPool;
+        s.PoolFilterPredicates["ironclad"] = c => c.Pool is IroncladCardPool;
+        s.PoolFilterPredicates["silent"] = c => c.Pool is SilentCardPool;
+        s.PoolFilterPredicates["defect"] = c => c.Pool is DefectCardPool;
+        s.PoolFilterPredicates["regent"] = c => c.Pool is RegentCardPool;
         s.PoolFilterPredicates["necrobinder"] = c => c.Pool is NecrobinderCardPool;
-        s.PoolFilterPredicates["colorless"]   = c => c.Pool is ColorlessCardPool;
-        s.PoolFilterPredicates["ancients"]    = c => c.Rarity == CardRarity.Ancient;
-        s.PoolFilterPredicates["status"]      = c => c.Rarity == CardRarity.Status;
-        s.PoolFilterPredicates["curse"]       = c => c.Rarity == CardRarity.Curse;
-        s.PoolFilterPredicates["event"]       = c => c.Rarity == CardRarity.Event;
-        s.PoolFilterPredicates["quest"]       = c => c.Rarity == CardRarity.Quest;
-        s.PoolFilterPredicates["token"]       = c => c.Rarity == CardRarity.Token;
+        s.PoolFilterPredicates["colorless"] = c => c.Pool is ColorlessCardPool;
+        s.PoolFilterPredicates["ancients"] = c => c.Rarity == CardRarity.Ancient;
+        s.PoolFilterPredicates["status"] = c => c.Rarity == CardRarity.Status;
+        s.PoolFilterPredicates["curse"] = c => c.Rarity == CardRarity.Curse;
+        s.PoolFilterPredicates["event"] = c => c.Rarity == CardRarity.Event;
+        s.PoolFilterPredicates["quest"] = c => c.Rarity == CardRarity.Quest;
+        s.PoolFilterPredicates["token"] = c => c.Rarity == CardRarity.Token;
 
-        void AddPoolChip(string key, string text)
-        {
+        void AddPoolChip(string key, string text) {
             var chip = CreateFilterChip(text);
             var capturedKey = key;
-            chip.Toggled += on =>
-            {
+            chip.Toggled += on => {
                 ToggleSet(s.ActivePoolFilters, capturedKey, on);
                 RebuildGrid(s, s.SearchInput.Text ?? "");
             };
             s.PoolChipRow.AddChild(chip);
         }
 
-        void AddPoolChipGroupSep()
-        {
+        void AddPoolChipGroupSep() {
             var sep = new VSeparator { CustomMinimumSize = new Vector2(1, 0) };
             sep.AddThemeColorOverride("separator", DevModeTheme.Separator);
             s.PoolChipRow.AddChild(sep);
         }
 
-        void AddPoolChipGroupLabel(string label)
-        {
+        void AddPoolChipGroupLabel(string label) {
             var lbl = new Label { Text = label };
             lbl.AddThemeFontSizeOverride("font_size", 11);
             lbl.AddThemeColorOverride("font_color", ColSubtle);
@@ -347,10 +326,10 @@ internal static partial class CardBrowserUI
 
         // Character group (built-ins, Colorless last)
         AddPoolChipGroupLabel(I18N.T("cardBrowser.chipCharacter", "Character"));
-        AddPoolChip("ironclad",    I18N.T("cardBrowser.poolIronclad",    "Ironclad"));
-        AddPoolChip("silent",      I18N.T("cardBrowser.poolSilent",      "Silent"));
-        AddPoolChip("defect",      I18N.T("cardBrowser.poolDefect",      "Defect"));
-        AddPoolChip("regent",      I18N.T("cardBrowser.poolRegent",      "Regent"));
+        AddPoolChip("ironclad", I18N.T("cardBrowser.poolIronclad", "Ironclad"));
+        AddPoolChip("silent", I18N.T("cardBrowser.poolSilent", "Silent"));
+        AddPoolChip("defect", I18N.T("cardBrowser.poolDefect", "Defect"));
+        AddPoolChip("regent", I18N.T("cardBrowser.poolRegent", "Regent"));
         AddPoolChip("necrobinder", I18N.T("cardBrowser.poolNecrobinder", "Necrobinder"));
 
         // Mod characters: any character whose pool type isn't one of the 5 built-ins
@@ -359,8 +338,7 @@ internal static partial class CardBrowserUI
             typeof(IroncladCardPool), typeof(SilentCardPool), typeof(DefectCardPool),
             typeof(RegentCardPool),   typeof(NecrobinderCardPool)
         };
-        foreach (var character in ModelDb.AllCharacters)
-        {
+        foreach (var character in ModelDb.AllCharacters) {
             var pool = character.CardPool;
             if (builtInPoolTypes.Contains(pool.GetType())) continue;
             var key = "mod_" + pool.Title;
@@ -377,39 +355,35 @@ internal static partial class CardBrowserUI
         AddPoolChipGroupSep();
         AddPoolChipGroupLabel(I18N.T("cardBrowser.chipSpecial", "Special"));
         AddPoolChip("ancients", I18N.T("cardBrowser.poolAncients", "Ancients"));
-        AddPoolChip("status",   I18N.T("cardBrowser.poolStatus",   "Status"));
-        AddPoolChip("curse",    I18N.T("cardBrowser.poolCurse",    "Curse"));
-        AddPoolChip("event",    I18N.T("cardBrowser.poolEvent",    "Event"));
-        AddPoolChip("quest",    I18N.T("cardBrowser.poolQuest",    "Quest"));
-        AddPoolChip("token",    I18N.T("cardBrowser.poolToken",    "Token"));
+        AddPoolChip("status", I18N.T("cardBrowser.poolStatus", "Status"));
+        AddPoolChip("curse", I18N.T("cardBrowser.poolCurse", "Curse"));
+        AddPoolChip("event", I18N.T("cardBrowser.poolEvent", "Event"));
+        AddPoolChip("quest", I18N.T("cardBrowser.poolQuest", "Quest"));
+        AddPoolChip("token", I18N.T("cardBrowser.poolToken", "Token"));
 
         content.AddChild(s.PoolChipRow);
 
         // ── Body: card grid (left) + right panel ──
-        var body = new HSplitContainer
-        {
+        var body = new HSplitContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill
         };
         body.DraggerVisibility = SplitContainer.DraggerVisibilityEnum.Hidden;
         content.AddChild(body);
 
-        s.GridScroll = new ScrollContainer
-        {
+        s.GridScroll = new ScrollContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
         };
-        s.CardGrid = new GridContainer
-        {
+        s.CardGrid = new GridContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             Columns = 1
         };
         s.CardGrid.AddThemeConstantOverride("h_separation", CardGridSeparation);
         s.CardGrid.AddThemeConstantOverride("v_separation", CardGridSeparation);
 
-        var gridOuterPad = new MarginContainer
-        {
+        var gridOuterPad = new MarginContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill
         };
@@ -425,30 +399,31 @@ internal static partial class CardBrowserUI
         s.GridScroll.ItemRectChanged += () => UpdateCardGridColumns(s);
         s.GridScroll.GetVScrollBar().ValueChanged += _ => PopulateVisibleHosts(s);
 
-        var rightPanel = new PanelContainer
-        {
+        var rightPanel = new PanelContainer {
             CustomMinimumSize = new Vector2(RightPanelWidth, 0),
             SizeFlagsVertical = Control.SizeFlags.ExpandFill
         };
-        var rightStyle = new StyleBoxFlat
-        {
+        var rightStyle = new StyleBoxFlat {
             BgColor = DevModeTheme.PanelBg,
-            CornerRadiusTopLeft = 10, CornerRadiusTopRight = 10,
-            CornerRadiusBottomLeft = 10, CornerRadiusBottomRight = 10,
-            ContentMarginLeft = 12, ContentMarginRight = 12,
-            ContentMarginTop = 12, ContentMarginBottom = 12,
-            BorderWidthLeft = 1, BorderColor = DevModeTheme.PanelBorder
+            CornerRadiusTopLeft = 10,
+            CornerRadiusTopRight = 10,
+            CornerRadiusBottomLeft = 10,
+            CornerRadiusBottomRight = 10,
+            ContentMarginLeft = 12,
+            ContentMarginRight = 12,
+            ContentMarginTop = 12,
+            ContentMarginBottom = 12,
+            BorderWidthLeft = 1,
+            BorderColor = DevModeTheme.PanelBorder
         };
         rightPanel.AddThemeStyleboxOverride("panel", rightStyle);
 
-        var rightScroll = new ScrollContainer
-        {
+        var rightScroll = new ScrollContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
         };
-        s.RightContent = new VBoxContainer
-        {
+        s.RightContent = new VBoxContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
         };
         s.RightContent.AddThemeConstantOverride("separation", 6);
@@ -474,12 +449,10 @@ internal static partial class CardBrowserUI
         Callable.From(() => UpdateCardGridColumns(s)).CallDeferred();
     }
 
-    public static void Remove(NGlobalUi globalUi)
-    {
+    public static void Remove(NGlobalUi globalUi) {
         var parent = (Node)globalUi;
         var node = parent.GetNodeOrNull<Control>(RootName);
-        if (node != null)
-        {
+        if (node != null) {
             parent.RemoveChild(node);
             node.QueueFree();
         }
@@ -489,31 +462,27 @@ internal static partial class CardBrowserUI
 
     // ──────── Navigation / selection helpers ────────
 
-    private static void ShowRightPanel(State s, CardModel card)
-    {
+    private static void ShowRightPanel(State s, CardModel card) {
         s.SelectedCard = card;
         foreach (var child in s.RightContent.GetChildren()) ((Node)child).QueueFree();
         CardBrowserRightPanel.Build(s.RightContent, s.StatusLabel, card, s.RunState, s.Player, s.GlobalUi,
             () => RebuildGrid(s, s.SearchInput.Text ?? ""), IsLibrarySource, BrowseSourceToTarget(_browseSource));
     }
 
-    private static void ClearRightPanel(State s)
-    {
+    private static void ClearRightPanel(State s) {
         foreach (var child in s.RightContent.GetChildren()) ((Node)child).QueueFree();
         AddPlaceholder(s.RightContent);
         s.SelectedCard = null;
         s.SelectedPickHost = null;
     }
 
-    private static void MoveIndicator(State s, int tabIdx, bool animate)
-    {
+    private static void MoveIndicator(State s, int tabIdx, bool animate) {
         if (tabIdx < 0 || tabIdx >= s.TabButtons.Length) return;
         var btn = s.TabButtons[tabIdx];
         float left = btn.Position.X;
         float right = left + btn.Size.X;
 
-        if (animate && s.Indicator.IsInsideTree())
-        {
+        if (animate && s.Indicator.IsInsideTree()) {
             var tween = s.Indicator.CreateTween();
             tween.SetParallel(true);
             tween.TweenProperty(s.Indicator, "offset_left", left, 0.25f)
@@ -521,24 +490,21 @@ internal static partial class CardBrowserUI
             tween.TweenProperty(s.Indicator, "offset_right", right, 0.25f)
                  .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
         }
-        else
-        {
+        else {
             s.Indicator.OffsetLeft = left;
             s.Indicator.OffsetRight = right;
         }
     }
 
-    private static void SwitchTab(State s, int tabIdx)
-    {
+    private static void SwitchTab(State s, int tabIdx) {
         if (tabIdx == s.ActiveTabIdx) return;
         s.ActiveTabIdx = tabIdx;
         _browseSource = s.Sources[tabIdx];
 
-        for (int i = 0; i < s.TabButtons.Length; i++)
-        {
+        for (int i = 0; i < s.TabButtons.Length; i++) {
             bool a = i == tabIdx;
-            s.TabButtons[i].AddThemeColorOverride("font_color",         a ? ColNavActive : ColNavInactive);
-            s.TabButtons[i].AddThemeColorOverride("font_hover_color",   a ? ColNavActive : ColNavHover);
+            s.TabButtons[i].AddThemeColorOverride("font_color", a ? ColNavActive : ColNavInactive);
+            s.TabButtons[i].AddThemeColorOverride("font_hover_color", a ? ColNavActive : ColNavHover);
             s.TabButtons[i].AddThemeColorOverride("font_pressed_color", ColNavActive);
         }
 
@@ -549,11 +515,9 @@ internal static partial class CardBrowserUI
         RebuildGrid(s, s.SearchInput.Text ?? "");
     }
 
-    private static void RefreshSortButtons(State s)
-    {
+    private static void RefreshSortButtons(State s) {
         var primary = s.SortPriority.Count > 0 ? s.SortPriority[0] : ((SortField?)null, true);
-        foreach (var (sf, btn) in s.SortBtnMap)
-        {
+        foreach (var (sf, btn) in s.SortBtnMap) {
             bool isPrimary = primary.Item1.HasValue && primary.Item1.Value == sf;
             string arrow = isPrimary ? (s.SortPriority[0].asc ? " ▲" : " ▼") : "";
             string baseText = s.SortFieldDefs.First(x => x.field == sf).label;
@@ -565,10 +529,8 @@ internal static partial class CardBrowserUI
         }
     }
 
-    private static void AddPlaceholder(VBoxContainer container)
-    {
-        var lbl = new Label
-        {
+    private static void AddPlaceholder(VBoxContainer container) {
+        var lbl = new Label {
             Text = I18N.T("cardBrowser.selectCard", "Select a card"),
             HorizontalAlignment = HorizontalAlignment.Center,
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter

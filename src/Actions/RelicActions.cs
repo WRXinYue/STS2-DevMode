@@ -9,20 +9,16 @@ using MegaCrit.Sts2.Core.Nodes.Screens.RelicCollection;
 
 namespace DevMode.Actions;
 
-internal static class RelicActions
-{
-    public static async Task AddRelic(RelicModel relic, Player player)
-    {
+internal static class RelicActions {
+    public static async Task AddRelic(RelicModel relic, Player player) {
         await RelicCmd.Obtain(relic.ToMutable(), player, -1);
         MainFile.Logger.Info($"RelicActions: Added relic {((AbstractModel)relic).Id.Entry}");
     }
 
-    public static async Task RemoveRelics(Player player)
-    {
+    public static async Task RemoveRelics(Player player) {
         await Task.Yield();
         var relics = player.Relics.ToList();
-        if (relics.Count == 0)
-        {
+        if (relics.Count == 0) {
             MainFile.Logger.Info("RelicActions: No relics to remove.");
             return;
         }
@@ -35,8 +31,7 @@ internal static class RelicActions
 
         if (selected.Count == 0) return;
 
-        foreach (var relic in selected)
-        {
+        foreach (var relic in selected) {
             var owned = player.Relics.FirstOrDefault(r => r == relic)
                 ?? player.GetRelicById(((AbstractModel)relic).Id);
             if (owned == null) continue;

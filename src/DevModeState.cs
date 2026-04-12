@@ -6,8 +6,7 @@ using MegaCrit.Sts2.Core.Rooms;
 
 namespace DevMode;
 
-public enum CardTarget
-{
+public enum CardTarget {
     DrawPile,
     Hand,
     DiscardPile,
@@ -15,14 +14,12 @@ public enum CardTarget
     ExhaustPile
 }
 
-public enum EffectDuration
-{
+public enum EffectDuration {
     Temporary,
     Permanent
 }
 
-public enum ActivePanel
-{
+public enum ActivePanel {
     None,
     Cards,
     Relics,
@@ -35,27 +32,25 @@ public enum ActivePanel
     Presets,
     CardEdit,
     Hooks,
-    Scripts
+    Scripts,
+    Logs
 }
 
-public enum PowerTarget
-{
+public enum PowerTarget {
     Self,
     AllEnemies,
     SpecificTarget,
     Allies
 }
 
-public enum MapRewriteMode
-{
+public enum MapRewriteMode {
     None,
     AllChest,
     AllElite,
     AllBoss
 }
 
-public enum CardMode
-{
+public enum CardMode {
     View,
     Add,
     Upgrade,
@@ -63,15 +58,13 @@ public enum CardMode
     Delete
 }
 
-public enum RelicMode
-{
+public enum RelicMode {
     View,
     Add,
     Delete
 }
 
-public enum EnemyMode
-{
+public enum EnemyMode {
     /// <summary>Set a global override — all combat rooms use this encounter.</summary>
     Global,
     /// <summary>Set per-room-type overrides (Monster / Elite / Boss separately).</summary>
@@ -80,8 +73,7 @@ public enum EnemyMode
     Off
 }
 
-public static class DevModeState
-{
+public static class DevModeState {
     /// <summary>Whether the user clicked "Developer Mode" on the main menu.</summary>
     public static bool IsActive { get; set; }
 
@@ -179,43 +171,38 @@ public static class DevModeState
     public static EncounterModel? GlobalEncounterOverride { get; set; }
 
     /// <summary>Per-room-type encounter overrides (used when <see cref="EnemyMode"/> == PerType).</summary>
-    public static Dictionary<RoomType, EncounterModel?> RoomTypeOverrides { get; } = new()
-    {
+    public static Dictionary<RoomType, EncounterModel?> RoomTypeOverrides { get; } = new() {
         [RoomType.Monster] = null,
-        [RoomType.Elite]   = null,
-        [RoomType.Boss]    = null,
+        [RoomType.Elite] = null,
+        [RoomType.Boss] = null,
     };
 
     /// <summary>Per-floor encounter overrides. Key = floor index (0-based). Takes highest priority.</summary>
     public static Dictionary<int, EncounterModel?> FloorOverrides { get; } = new();
 
     /// <summary>Try to resolve an encounter override for the given room type and floor.</summary>
-    public static EncounterModel? ResolveOverride(RoomType roomType, int floor)
-    {
+    public static EncounterModel? ResolveOverride(RoomType roomType, int floor) {
         // Floor-specific override has highest priority
         if (FloorOverrides.TryGetValue(floor, out var floorEnc) && floorEnc != null)
             return floorEnc;
 
-        return EnemyMode switch
-        {
-            EnemyMode.Global  => GlobalEncounterOverride,
+        return EnemyMode switch {
+            EnemyMode.Global => GlobalEncounterOverride,
             EnemyMode.PerType => RoomTypeOverrides.TryGetValue(roomType, out var enc) ? enc : null,
-            _                 => null
+            _ => null
         };
     }
 
-    public static void ClearEnemyOverrides()
-    {
+    public static void ClearEnemyOverrides() {
         EnemyMode = EnemyMode.Off;
         GlobalEncounterOverride = null;
         RoomTypeOverrides[RoomType.Monster] = null;
-        RoomTypeOverrides[RoomType.Elite]   = null;
-        RoomTypeOverrides[RoomType.Boss]    = null;
+        RoomTypeOverrides[RoomType.Elite] = null;
+        RoomTypeOverrides[RoomType.Boss] = null;
         FloorOverrides.Clear();
     }
 
-    public static void OnRunStarted()
-    {
+    public static void OnRunStarted() {
         InDevRun = IsActive || AlwaysEnabled;
         IsActive = false;
     }
@@ -228,17 +215,15 @@ public static class DevModeState
     public static bool AutoProceedToCharSelect { get; set; }
 
     /// <summary>Clear pending restart state after it has been consumed (or the run was abandoned).</summary>
-    public static void ClearPendingRestart()
-    {
-        PendingRestartPreset     = null;
-        PendingRestartScope      = PresetContents.None;
-        PendingRestartGold       = null;
-        PendingRestartSeed       = null;
-        AutoProceedToCharSelect  = false;
+    public static void ClearPendingRestart() {
+        PendingRestartPreset = null;
+        PendingRestartScope = PresetContents.None;
+        PendingRestartGold = null;
+        PendingRestartSeed = null;
+        AutoProceedToCharSelect = false;
     }
 
-    public static void OnRunEnded()
-    {
+    public static void OnRunEnded() {
         InDevRun = false;
         GameSpeed = 1.0f;
         ClearEnemyOverrides();
@@ -249,8 +234,7 @@ public static class DevModeState
         // ApplyPendingRestart() after being consumed, or on the next run end if unused.
     }
 
-    private static void ResetCheats()
-    {
+    private static void ResetCheats() {
         InfiniteHp = false;
         InfiniteBlock = false;
         InfiniteEnergy = false;

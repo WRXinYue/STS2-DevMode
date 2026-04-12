@@ -1,66 +1,63 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using DevMode.Presets;
 using Godot;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
-using DevMode.Presets;
 
 namespace DevMode.UI;
 
 /// <summary>Preset manager — two-pane browser with selective save/load scope.</summary>
-internal static class PresetUI
-{
+internal static class PresetUI {
     private const string RootName = "DevModePresets";
-    private const float  PanelW   = 800f;
+    private const float PanelW = 800f;
 
-    private static readonly Color ColCards  = new(0.35f, 0.58f, 0.95f);
+    private static readonly Color ColCards = new(0.35f, 0.58f, 0.95f);
     private static readonly Color ColRelics = new(0.88f, 0.72f, 0.22f);
-    private static readonly Color ColStats  = new(0.32f, 0.76f, 0.50f);
+    private static readonly Color ColStats = new(0.32f, 0.76f, 0.50f);
     private static Color ColLight => DevModeTheme.TextPrimary;
     private static Color ColDetailBg => DevModeTheme.ButtonBgNormal;
 
     // ─────────────────────────────── State ───────────────────────────────
 
-    private sealed class State
-    {
-        public string?        SelectedName;
+    private sealed class State {
+        public string? SelectedName;
         public LoadoutPreset? SelectedPreset;
 
         // Left pane UI
-        public LineEdit       NameInput       = null!;
-        public CheckButton    SaveCards       = null!;
-        public CheckButton    SaveRelics      = null!;
-        public CheckButton    SaveStats       = null!;
-        public CheckButton    SaveSnapshot    = null!;
-        public Button         SaveBtn         = null!;
-        public Label          CountLabel      = null!;
-        public VBoxContainer  PresetList      = null!;
+        public LineEdit NameInput = null!;
+        public CheckButton SaveCards = null!;
+        public CheckButton SaveRelics = null!;
+        public CheckButton SaveStats = null!;
+        public CheckButton SaveSnapshot = null!;
+        public Button SaveBtn = null!;
+        public Label CountLabel = null!;
+        public VBoxContainer PresetList = null!;
 
         // Right pane UI
-        public Label          DetailName      = null!;
-        public HBoxContainer  DetailBadges    = null!;
-        public Label          DetailSummary   = null!;
-        public VBoxContainer  ApplyScopeBox   = null!;
-        public CheckButton    ApplyCards      = null!;
-        public CheckButton    ApplyRelics     = null!;
-        public CheckButton    ApplyStats      = null!;
-        public Button         ApplyBtn        = null!;
-        public Button         ExportBtn       = null!;
-        public Button         DeleteBtn       = null!;
-        public Label          StatusLabel     = null!;
-        public Label          HintLabel       = null!;
-        public Control        DetailContent   = null!;
+        public Label DetailName = null!;
+        public HBoxContainer DetailBadges = null!;
+        public Label DetailSummary = null!;
+        public VBoxContainer ApplyScopeBox = null!;
+        public CheckButton ApplyCards = null!;
+        public CheckButton ApplyRelics = null!;
+        public CheckButton ApplyStats = null!;
+        public Button ApplyBtn = null!;
+        public Button ExportBtn = null!;
+        public Button DeleteBtn = null!;
+        public Label StatusLabel = null!;
+        public Label HintLabel = null!;
+        public Control DetailContent = null!;
 
         // Per-session handlers stored in State (not statics) so they bind to the correct button instances
-        public Action?        ApplyHandler;
-        public Action?        ExportHandler;
-        public Action?        DeleteHandler;
+        public Action? ApplyHandler;
+        public Action? ExportHandler;
+        public Action? DeleteHandler;
     }
 
     // ─────────────────────────────── Public API ───────────────────────────────
 
-    public static void Show(NGlobalUi globalUi)
-    {
+    public static void Show(NGlobalUi globalUi) {
         Remove(globalUi);
 
         DevPanelUI.PinRail();
@@ -68,8 +65,7 @@ internal static class PresetUI
 
         var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1250 };
         root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        root.TreeExiting += () =>
-        {
+        root.TreeExiting += () => {
             DevPanelUI.UnpinRail();
             DevPanelUI.SpliceRail(globalUi, joined: false);
         };
@@ -78,7 +74,7 @@ internal static class PresetUI
         var panel = DevPanelUI.CreateBrowserPanel(PanelW);
         root.AddChild(panel);
 
-        var s   = new State();
+        var s = new State();
         var vbox = panel.GetNode<VBoxContainer>("Content");
         vbox.AddThemeConstantOverride("separation", 8);
 
@@ -105,8 +101,7 @@ internal static class PresetUI
 
     // ─────────────────────────────── Title bar ───────────────────────────────
 
-    private static void BuildTitleBar(VBoxContainer vbox)
-    {
+    private static void BuildTitleBar(VBoxContainer vbox) {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 10);
 
@@ -121,12 +116,10 @@ internal static class PresetUI
 
     // ─────────────────────────────── Left pane ───────────────────────────────
 
-    private static void BuildLeftPane(HBoxContainer body, State s, Action rebuildList)
-    {
-        var pane = new VBoxContainer
-        {
-            CustomMinimumSize   = new Vector2(290f, 0),
-            SizeFlagsVertical   = Control.SizeFlags.ExpandFill,
+    private static void BuildLeftPane(HBoxContainer body, State s, Action rebuildList) {
+        var pane = new VBoxContainer {
+            CustomMinimumSize = new Vector2(290f, 0),
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
         };
         pane.AddThemeConstantOverride("separation", 8);
 
@@ -142,9 +135,8 @@ internal static class PresetUI
         newHdr.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
         newInner.AddChild(newHdr);
 
-        s.NameInput = new LineEdit
-        {
-            PlaceholderText     = I18N.T("preset.name", "Preset name..."),
+        s.NameInput = new LineEdit {
+            PlaceholderText = I18N.T("preset.name", "Preset name..."),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         newInner.AddChild(s.NameInput);
@@ -157,9 +149,9 @@ internal static class PresetUI
 
         var toggleRow = new HBoxContainer();
         toggleRow.AddThemeConstantOverride("separation", 12);
-        s.SaveCards  = MakeScopeToggle(I18N.T("preset.scope.cards",  "Cards"),  ColCards,  true);
+        s.SaveCards = MakeScopeToggle(I18N.T("preset.scope.cards", "Cards"), ColCards, true);
         s.SaveRelics = MakeScopeToggle(I18N.T("preset.scope.relics", "Relics"), ColRelics, true);
-        s.SaveStats  = MakeScopeToggle(I18N.T("preset.scope.stats",  "Stats"),  ColStats,  true);
+        s.SaveStats = MakeScopeToggle(I18N.T("preset.scope.stats", "Stats"), ColStats, true);
         toggleRow.AddChild(s.SaveCards);
         toggleRow.AddChild(s.SaveRelics);
         toggleRow.AddChild(s.SaveStats);
@@ -168,34 +160,32 @@ internal static class PresetUI
         bool showSnapshot = MegaCrit.Sts2.Core.Combat.CombatManager.Instance?.IsInProgress == true;
         s.SaveSnapshot = MakeScopeToggle(
             I18N.T("preset.scope.snapshot", "Combat Snapshot"), new Color(0.85f, 0.55f, 0.25f), false);
-        s.SaveSnapshot.Visible  = showSnapshot;
+        s.SaveSnapshot.Visible = showSnapshot;
         s.SaveSnapshot.Disabled = !showSnapshot;
         s.SaveCards.Toggled += on => { s.SaveSnapshot.Visible = on && showSnapshot; };
         newInner.AddChild(s.SaveSnapshot);
 
-        s.SaveBtn = new Button
-        {
-            Text                = I18N.T("preset.save", "Save Current"),
+        s.SaveBtn = new Button {
+            Text = I18N.T("preset.save", "Save Current"),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            CustomMinimumSize   = new Vector2(0, 32),
+            CustomMinimumSize = new Vector2(0, 32),
         };
         ApplyAccentBtnStyle(s.SaveBtn);
         s.SaveBtn.Pressed += () => DoSave(s, rebuildList);
         newInner.AddChild(s.SaveBtn);
 
         var margin = new MarginContainer();
-        margin.AddThemeConstantOverride("margin_left",   10);
-        margin.AddThemeConstantOverride("margin_right",  10);
-        margin.AddThemeConstantOverride("margin_top",    10);
+        margin.AddThemeConstantOverride("margin_left", 10);
+        margin.AddThemeConstantOverride("margin_right", 10);
+        margin.AddThemeConstantOverride("margin_top", 10);
         margin.AddThemeConstantOverride("margin_bottom", 10);
         margin.AddChild(newInner);
         newCard.AddChild(margin);
         pane.AddChild(newCard);
 
         // ── Import ──
-        var importBtn = new Button
-        {
-            Text                = I18N.T("preset.import", "Import (Clipboard)"),
+        var importBtn = new Button {
+            Text = I18N.T("preset.import", "Import (Clipboard)"),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         importBtn.AddThemeFontSizeOverride("font_size", 12);
@@ -211,9 +201,8 @@ internal static class PresetUI
         pane.AddChild(s.CountLabel);
 
         // ── Scrollable list ──
-        var scroll = new ScrollContainer
-        {
-            SizeFlagsVertical    = Control.SizeFlags.ExpandFill,
+        var scroll = new ScrollContainer {
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
         };
         s.PresetList = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
@@ -226,39 +215,40 @@ internal static class PresetUI
 
     // ─────────────────────────────── Right detail pane ───────────────────────────────
 
-    private static void BuildRightPane(HBoxContainer body, State s)
-    {
-        var pane = new PanelContainer
-        {
+    private static void BuildRightPane(HBoxContainer body, State s) {
+        var pane = new PanelContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            SizeFlagsVertical   = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
         };
-        var bgStyle = new StyleBoxFlat
-        {
-            BgColor                = ColDetailBg,
-            CornerRadiusTopLeft    = 8, CornerRadiusTopRight    = 8,
-            CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
-            BorderWidthTop = 1, BorderWidthBottom = 1, BorderWidthLeft = 1, BorderWidthRight = 1,
-            BorderColor            = DevModeTheme.PanelBorder,
+        var bgStyle = new StyleBoxFlat {
+            BgColor = ColDetailBg,
+            CornerRadiusTopLeft = 8,
+            CornerRadiusTopRight = 8,
+            CornerRadiusBottomLeft = 8,
+            CornerRadiusBottomRight = 8,
+            BorderWidthTop = 1,
+            BorderWidthBottom = 1,
+            BorderWidthLeft = 1,
+            BorderWidthRight = 1,
+            BorderColor = DevModeTheme.PanelBorder,
         };
         pane.AddThemeStyleboxOverride("panel", bgStyle);
 
         var margin = new MarginContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill };
-        margin.AddThemeConstantOverride("margin_left",   16);
-        margin.AddThemeConstantOverride("margin_right",  16);
-        margin.AddThemeConstantOverride("margin_top",    16);
+        margin.AddThemeConstantOverride("margin_left", 16);
+        margin.AddThemeConstantOverride("margin_right", 16);
+        margin.AddThemeConstantOverride("margin_top", 16);
         margin.AddThemeConstantOverride("margin_bottom", 16);
 
         var inner = new VBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill };
         inner.AddThemeConstantOverride("separation", 10);
 
         // Hint (shown when nothing selected)
-        s.HintLabel = new Label
-        {
-            Text                = I18N.T("preset.selectHint", "← Select a preset"),
+        s.HintLabel = new Label {
+            Text = I18N.T("preset.selectHint", "← Select a preset"),
             HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment   = VerticalAlignment.Center,
-            SizeFlagsVertical   = Control.SizeFlags.ExpandFill,
+            VerticalAlignment = VerticalAlignment.Center,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
         };
         s.HintLabel.AddThemeFontSizeOverride("font_size", 13);
         s.HintLabel.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
@@ -298,9 +288,9 @@ internal static class PresetUI
 
         var applyToggleRow = new HBoxContainer();
         applyToggleRow.AddThemeConstantOverride("separation", 14);
-        s.ApplyCards  = MakeScopeToggle(I18N.T("preset.scope.cards",  "Cards"),  ColCards,  true);
+        s.ApplyCards = MakeScopeToggle(I18N.T("preset.scope.cards", "Cards"), ColCards, true);
         s.ApplyRelics = MakeScopeToggle(I18N.T("preset.scope.relics", "Relics"), ColRelics, true);
-        s.ApplyStats  = MakeScopeToggle(I18N.T("preset.scope.stats",  "Stats"),  ColStats,  true);
+        s.ApplyStats = MakeScopeToggle(I18N.T("preset.scope.stats", "Stats"), ColStats, true);
         applyToggleRow.AddChild(s.ApplyCards);
         applyToggleRow.AddChild(s.ApplyRelics);
         applyToggleRow.AddChild(s.ApplyStats);
@@ -313,11 +303,11 @@ internal static class PresetUI
         var actionRow = new HBoxContainer();
         actionRow.AddThemeConstantOverride("separation", 8);
 
-        s.ApplyBtn  = MakeActionBtn(I18N.T("preset.load",   "Apply"),  new Color(0.22f, 0.50f, 0.34f, 0.92f));
+        s.ApplyBtn = MakeActionBtn(I18N.T("preset.load", "Apply"), new Color(0.22f, 0.50f, 0.34f, 0.92f));
         s.ExportBtn = MakeActionBtn(I18N.T("preset.export", "Export"), new Color(0.22f, 0.30f, 0.48f, 0.92f));
         s.DeleteBtn = MakeActionBtn(I18N.T("preset.delete", "Delete"), new Color(0.48f, 0.18f, 0.18f, 0.92f));
 
-        s.ApplyBtn.SizeFlagsHorizontal  = Control.SizeFlags.ExpandFill;
+        s.ApplyBtn.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         s.ExportBtn.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         s.DeleteBtn.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
 
@@ -344,19 +334,16 @@ internal static class PresetUI
 
     // ─────────────────────────────── Preset list rebuild ───────────────────────────────
 
-    private static void RebuildPresetList(State s)
-    {
+    private static void RebuildPresetList(State s) {
         foreach (var child in s.PresetList.GetChildren())
             ((Node)child).QueueFree();
 
         var all = PresetManager.Loadouts.All.OrderBy(k => k.Key).ToList();
         s.CountLabel.Text = I18N.T("preset.count", "{0} preset(s)", all.Count);
 
-        if (all.Count == 0)
-        {
-            var empty = new Label
-            {
-                Text                = I18N.T("preset.empty", "No saved presets."),
+        if (all.Count == 0) {
+            var empty = new Label {
+                Text = I18N.T("preset.empty", "No saved presets."),
                 HorizontalAlignment = HorizontalAlignment.Center,
             };
             empty.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
@@ -364,9 +351,8 @@ internal static class PresetUI
             return;
         }
 
-        foreach (var kvp in all)
-        {
-            var name   = kvp.Key;
+        foreach (var kvp in all) {
+            var name = kvp.Key;
             var preset = kvp.Value;
             var isSelected = name == s.SelectedName;
 
@@ -374,8 +360,7 @@ internal static class PresetUI
             var rowStyle = MakeCardStyle(isSelected
                 ? new Color(0.24f, 0.34f, 0.50f, 0.90f)
                 : DevModeTheme.Separator);
-            if (isSelected)
-            {
+            if (isSelected) {
                 rowStyle.BorderWidthLeft = rowStyle.BorderWidthRight = rowStyle.BorderWidthTop = rowStyle.BorderWidthBottom = 1;
                 rowStyle.BorderColor = DevModeTheme.AccentAlpha;
             }
@@ -389,12 +374,11 @@ internal static class PresetUI
             var topRow = new HBoxContainer();
             topRow.AddThemeConstantOverride("separation", 6);
 
-            var nameLabel = new Label
-            {
-                Text                = name,
+            var nameLabel = new Label {
+                Text = name,
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-                VerticalAlignment   = VerticalAlignment.Center,
-                ClipText            = true,
+                VerticalAlignment = VerticalAlignment.Center,
+                ClipText = true,
             };
             nameLabel.AddThemeFontSizeOverride("font_size", 13);
             nameLabel.AddThemeColorOverride("font_color", ColLight);
@@ -418,19 +402,18 @@ internal static class PresetUI
             rowInner.AddChild(subLabel);
 
             var innerMargin = new MarginContainer();
-            innerMargin.AddThemeConstantOverride("margin_left",   10);
-            innerMargin.AddThemeConstantOverride("margin_right",  10);
-            innerMargin.AddThemeConstantOverride("margin_top",    8);
+            innerMargin.AddThemeConstantOverride("margin_left", 10);
+            innerMargin.AddThemeConstantOverride("margin_right", 10);
+            innerMargin.AddThemeConstantOverride("margin_top", 8);
             innerMargin.AddThemeConstantOverride("margin_bottom", 8);
             innerMargin.MouseFilter = Control.MouseFilterEnum.Ignore;
-            rowInner.MouseFilter    = Control.MouseFilterEnum.Ignore;
+            rowInner.MouseFilter = Control.MouseFilterEnum.Ignore;
             innerMargin.AddChild(rowInner);
             row.AddChild(innerMargin);
 
-            var capturedName   = name;
+            var capturedName = name;
             var capturedPreset = preset;
-            row.GuiInput += evt =>
-            {
+            row.GuiInput += evt => {
                 if (evt is InputEventMouseButton mb && mb.ButtonIndex == MouseButton.Left && mb.Pressed)
                     SelectPreset(s, capturedName, capturedPreset, () => RebuildPresetList(s));
             };
@@ -441,12 +424,11 @@ internal static class PresetUI
 
     // ─────────────────────────────── Detail update ───────────────────────────────
 
-    private static void SelectPreset(State s, string name, LoadoutPreset preset, Action rebuildList)
-    {
-        s.SelectedName   = name;
+    private static void SelectPreset(State s, string name, LoadoutPreset preset, Action rebuildList) {
+        s.SelectedName = name;
         s.SelectedPreset = preset;
 
-        s.HintLabel.Visible    = false;
+        s.HintLabel.Visible = false;
         s.DetailContent.Visible = true;
 
         s.DetailName.Text = name;
@@ -455,22 +437,22 @@ internal static class PresetUI
         foreach (var child in s.DetailBadges.GetChildren())
             ((Node)child).QueueFree();
         if (preset.Contents.HasFlag(PresetContents.Cards))
-            s.DetailBadges.AddChild(MakeFullBadge(I18N.T("preset.scope.cards",  "Cards"),  ColCards));
+            s.DetailBadges.AddChild(MakeFullBadge(I18N.T("preset.scope.cards", "Cards"), ColCards));
         if (preset.Contents.HasFlag(PresetContents.Relics))
             s.DetailBadges.AddChild(MakeFullBadge(I18N.T("preset.scope.relics", "Relics"), ColRelics));
         if (preset.Contents.HasFlag(PresetContents.Stats))
-            s.DetailBadges.AddChild(MakeFullBadge(I18N.T("preset.scope.stats",  "Stats"),  ColStats));
+            s.DetailBadges.AddChild(MakeFullBadge(I18N.T("preset.scope.stats", "Stats"), ColStats));
 
         // Summary
         s.DetailSummary.Text = BuildDetailSummary(preset);
 
         // Apply scope — pre-tick to what's in the preset, hide unavailable
-        s.ApplyCards.ButtonPressed  = preset.Contents.HasFlag(PresetContents.Cards);
+        s.ApplyCards.ButtonPressed = preset.Contents.HasFlag(PresetContents.Cards);
         s.ApplyRelics.ButtonPressed = preset.Contents.HasFlag(PresetContents.Relics);
-        s.ApplyStats.ButtonPressed  = preset.Contents.HasFlag(PresetContents.Stats);
-        s.ApplyCards.Disabled       = !preset.Contents.HasFlag(PresetContents.Cards);
-        s.ApplyRelics.Disabled      = !preset.Contents.HasFlag(PresetContents.Relics);
-        s.ApplyStats.Disabled       = !preset.Contents.HasFlag(PresetContents.Stats);
+        s.ApplyStats.ButtonPressed = preset.Contents.HasFlag(PresetContents.Stats);
+        s.ApplyCards.Disabled = !preset.Contents.HasFlag(PresetContents.Cards);
+        s.ApplyRelics.Disabled = !preset.Contents.HasFlag(PresetContents.Relics);
+        s.ApplyStats.Disabled = !preset.Contents.HasFlag(PresetContents.Stats);
 
         // Swap action button handlers for this selection
         ReconnectApply(s, preset, rebuildList);
@@ -482,17 +464,14 @@ internal static class PresetUI
         rebuildList();
     }
 
-    private static void ReconnectApply(State s, LoadoutPreset preset, Action rebuildList)
-    {
+    private static void ReconnectApply(State s, LoadoutPreset preset, Action rebuildList) {
         if (s.ApplyHandler != null) s.ApplyBtn.Pressed -= s.ApplyHandler;
-        s.ApplyHandler = () =>
-        {
+        s.ApplyHandler = () => {
             var scope = PresetContents.None;
-            if (s.ApplyCards.ButtonPressed)  scope |= PresetContents.Cards;
+            if (s.ApplyCards.ButtonPressed) scope |= PresetContents.Cards;
             if (s.ApplyRelics.ButtonPressed) scope |= PresetContents.Relics;
-            if (s.ApplyStats.ButtonPressed)  scope |= PresetContents.Stats;
-            if (scope == PresetContents.None)
-            {
+            if (s.ApplyStats.ButtonPressed) scope |= PresetContents.Stats;
+            if (scope == PresetContents.None) {
                 s.StatusLabel.Text = I18N.T("preset.noSelection", "Select at least one scope.");
                 return;
             }
@@ -502,26 +481,22 @@ internal static class PresetUI
         s.ApplyBtn.Pressed += s.ApplyHandler;
     }
 
-    private static void ReconnectExport(State s, string name, LoadoutPreset preset)
-    {
+    private static void ReconnectExport(State s, string name, LoadoutPreset preset) {
         if (s.ExportHandler != null) s.ExportBtn.Pressed -= s.ExportHandler;
-        s.ExportHandler = () =>
-        {
+        s.ExportHandler = () => {
             PresetManager.ExportToClipboard(name, preset);
             s.StatusLabel.Text = I18N.T("preset.exported", "Exported to clipboard: {0}", name);
         };
         s.ExportBtn.Pressed += s.ExportHandler;
     }
 
-    private static void ReconnectDelete(State s, string name, Action rebuildList)
-    {
+    private static void ReconnectDelete(State s, string name, Action rebuildList) {
         if (s.DeleteHandler != null) s.DeleteBtn.Pressed -= s.DeleteHandler;
-        s.DeleteHandler = () =>
-        {
+        s.DeleteHandler = () => {
             PresetManager.Loadouts.Delete(name);
-            s.SelectedName    = null;
-            s.SelectedPreset  = null;
-            s.HintLabel.Visible    = true;
+            s.SelectedName = null;
+            s.SelectedPreset = null;
+            s.HintLabel.Visible = true;
             s.DetailContent.Visible = false;
             s.StatusLabel.Text = I18N.T("preset.deleted", "Deleted: {0}", name);
             rebuildList();
@@ -531,30 +506,26 @@ internal static class PresetUI
 
     // ─────────────────────────────── Save / Import ───────────────────────────────
 
-    private static void DoSave(State s, Action rebuildList)
-    {
+    private static void DoSave(State s, Action rebuildList) {
         var n = s.NameInput.Text?.Trim();
-        if (string.IsNullOrEmpty(n))
-        {
+        if (string.IsNullOrEmpty(n)) {
             SetStatus(s, I18N.T("preset.error.noName", "Enter a name first."));
             return;
         }
 
         var scope = PresetContents.None;
-        if (s.SaveCards.ButtonPressed)  scope |= PresetContents.Cards;
+        if (s.SaveCards.ButtonPressed) scope |= PresetContents.Cards;
         if (s.SaveRelics.ButtonPressed) scope |= PresetContents.Relics;
-        if (s.SaveStats.ButtonPressed)  scope |= PresetContents.Stats;
+        if (s.SaveStats.ButtonPressed) scope |= PresetContents.Stats;
 
-        if (scope == PresetContents.None)
-        {
+        if (scope == PresetContents.None) {
             SetStatus(s, I18N.T("preset.noSelection", "Select at least one scope."));
             return;
         }
 
         bool snapshot = s.SaveSnapshot.ButtonPressed && s.SaveCards.ButtonPressed;
         var p = PresetManager.CaptureFromRun(scope, snapshot);
-        if (p == null)
-        {
+        if (p == null) {
             SetStatus(s, I18N.T("preset.error.noRun", "No active run."));
             return;
         }
@@ -565,11 +536,9 @@ internal static class PresetUI
         rebuildList();
     }
 
-    private static void DoImport(State s, Action rebuildList)
-    {
+    private static void DoImport(State s, Action rebuildList) {
         var (n, p) = PresetManager.ImportFromClipboard();
-        if (n == null || p == null)
-        {
+        if (n == null || p == null) {
             SetStatus(s, I18N.T("preset.error.import", "Invalid clipboard data."));
             return;
         }
@@ -578,8 +547,7 @@ internal static class PresetUI
         rebuildList();
     }
 
-    private static void SetStatus(State s, string msg)
-    {
+    private static void SetStatus(State s, string msg) {
         // StatusLabel lives in the right pane; if nothing is selected show it on CountLabel instead
         if (s.DetailContent.Visible)
             s.StatusLabel.Text = msg;
@@ -589,11 +557,9 @@ internal static class PresetUI
 
     // ─────────────────────────────── Summary helpers ───────────────────────────────
 
-    private static string BuildSummaryLine(LoadoutPreset preset)
-    {
+    private static string BuildSummaryLine(LoadoutPreset preset) {
         var parts = new System.Collections.Generic.List<string>();
-        if (preset.Contents.HasFlag(PresetContents.Cards) && preset.Cards.Count > 0)
-        {
+        if (preset.Contents.HasFlag(PresetContents.Cards) && preset.Cards.Count > 0) {
             var tag = preset.HasCombatSnapshot ? "c*" : "c";
             parts.Add($"{preset.Cards.Sum(c => c.Count)}{tag}");
         }
@@ -604,14 +570,11 @@ internal static class PresetUI
         return parts.Count > 0 ? string.Join("  ", parts) : "—";
     }
 
-    private static string BuildDetailSummary(LoadoutPreset preset)
-    {
+    private static string BuildDetailSummary(LoadoutPreset preset) {
         var lines = new System.Collections.Generic.List<string>();
-        if (preset.Contents.HasFlag(PresetContents.Cards))
-        {
+        if (preset.Contents.HasFlag(PresetContents.Cards)) {
             lines.Add(I18N.T("preset.detail.cards", "Cards: {0}", preset.Cards.Sum(c => c.Count)));
-            if (preset.HasCombatSnapshot)
-            {
+            if (preset.HasCombatSnapshot) {
                 int hand = preset.HandCards?.Sum(c => c.Count) ?? 0;
                 int draw = preset.DrawCards?.Sum(c => c.Count) ?? 0;
                 int disc = preset.DiscardCards?.Sum(c => c.Count) ?? 0;
@@ -623,10 +586,9 @@ internal static class PresetUI
         }
         if (preset.Contents.HasFlag(PresetContents.Relics))
             lines.Add(I18N.T("preset.detail.relics", "Relics: {0}", preset.Relics.Count));
-        if (preset.Contents.HasFlag(PresetContents.Stats))
-        {
-            lines.Add(I18N.T("preset.detail.gold",   "Gold: {0}", preset.Gold));
-            lines.Add(I18N.T("preset.detail.hp",     "HP: {0} / {1}", preset.CurrentHp, preset.MaxHp));
+        if (preset.Contents.HasFlag(PresetContents.Stats)) {
+            lines.Add(I18N.T("preset.detail.gold", "Gold: {0}", preset.Gold));
+            lines.Add(I18N.T("preset.detail.hp", "HP: {0} / {1}", preset.CurrentHp, preset.MaxHp));
             lines.Add(I18N.T("preset.detail.energy", "Max Energy: {0}", preset.MaxEnergy));
         }
         return string.Join("   ·   ", lines);
@@ -634,90 +596,90 @@ internal static class PresetUI
 
     // ─────────────────────────────── Widget helpers ───────────────────────────────
 
-    private static CheckButton MakeScopeToggle(string label, Color col, bool defaultOn)
-    {
-        var cb = new CheckButton
-        {
-            Text          = label,
+    private static CheckButton MakeScopeToggle(string label, Color col, bool defaultOn) {
+        var cb = new CheckButton {
+            Text = label,
             ButtonPressed = defaultOn,
-            FocusMode     = Control.FocusModeEnum.None,
+            FocusMode = Control.FocusModeEnum.None,
         };
         cb.AddThemeFontSizeOverride("font_size", 12);
         cb.AddThemeColorOverride("font_color", col);
         return cb;
     }
 
-    private static Label MakeSmallBadge(string text, Color col)
-    {
+    private static Label MakeSmallBadge(string text, Color col) {
         var lbl = new Label { Text = text };
         lbl.AddThemeFontSizeOverride("font_size", 10);
         lbl.AddThemeColorOverride("font_color", col);
         return lbl;
     }
 
-    private static Label MakeFullBadge(string text, Color col)
-    {
+    private static Label MakeFullBadge(string text, Color col) {
         var lbl = new Label { Text = text };
         lbl.AddThemeFontSizeOverride("font_size", 11);
         lbl.AddThemeColorOverride("font_color", col);
         return lbl;
     }
 
-    private static Button MakeActionBtn(string text, Color bg)
-    {
-        var btn = new Button
-        {
-            Text              = text,
-            FocusMode         = Control.FocusModeEnum.None,
+    private static Button MakeActionBtn(string text, Color bg) {
+        var btn = new Button {
+            Text = text,
+            FocusMode = Control.FocusModeEnum.None,
             CustomMinimumSize = new Vector2(0, 32),
         };
-        StyleBoxFlat MakeStyle(Color c) => new()
-        {
-            BgColor                = c,
-            CornerRadiusTopLeft    = 6, CornerRadiusTopRight    = 6,
-            CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
-            ContentMarginLeft = 10, ContentMarginRight = 10,
-            ContentMarginTop = 4, ContentMarginBottom = 4,
+        StyleBoxFlat MakeStyle(Color c) => new() {
+            BgColor = c,
+            CornerRadiusTopLeft = 6,
+            CornerRadiusTopRight = 6,
+            CornerRadiusBottomLeft = 6,
+            CornerRadiusBottomRight = 6,
+            ContentMarginLeft = 10,
+            ContentMarginRight = 10,
+            ContentMarginTop = 4,
+            ContentMarginBottom = 4,
         };
-        btn.AddThemeStyleboxOverride("normal",  MakeStyle(bg));
-        btn.AddThemeStyleboxOverride("hover",   MakeStyle(bg.Lightened(0.12f)));
+        btn.AddThemeStyleboxOverride("normal", MakeStyle(bg));
+        btn.AddThemeStyleboxOverride("hover", MakeStyle(bg.Lightened(0.12f)));
         btn.AddThemeStyleboxOverride("pressed", MakeStyle(bg.Lightened(0.18f)));
-        btn.AddThemeStyleboxOverride("focus",   MakeStyle(bg));
+        btn.AddThemeStyleboxOverride("focus", MakeStyle(bg));
         btn.AddThemeColorOverride("font_color", ColLight);
         btn.AddThemeFontSizeOverride("font_size", 12);
         return btn;
     }
 
-    private static void ApplyAccentBtnStyle(Button btn)
-    {
-        StyleBoxFlat MakeStyle(Color c) => new()
-        {
-            BgColor                = c,
-            CornerRadiusTopLeft    = 6, CornerRadiusTopRight    = 6,
-            CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
+    private static void ApplyAccentBtnStyle(Button btn) {
+        StyleBoxFlat MakeStyle(Color c) => new() {
+            BgColor = c,
+            CornerRadiusTopLeft = 6,
+            CornerRadiusTopRight = 6,
+            CornerRadiusBottomLeft = 6,
+            CornerRadiusBottomRight = 6,
         };
         var bg = new Color(0.28f, 0.48f, 0.72f, 0.90f);
-        btn.AddThemeStyleboxOverride("normal",  MakeStyle(bg));
-        btn.AddThemeStyleboxOverride("hover",   MakeStyle(bg.Lightened(0.10f)));
+        btn.AddThemeStyleboxOverride("normal", MakeStyle(bg));
+        btn.AddThemeStyleboxOverride("hover", MakeStyle(bg.Lightened(0.10f)));
         btn.AddThemeStyleboxOverride("pressed", MakeStyle(bg.Lightened(0.15f)));
-        btn.AddThemeStyleboxOverride("focus",   MakeStyle(bg));
+        btn.AddThemeStyleboxOverride("focus", MakeStyle(bg));
         btn.AddThemeColorOverride("font_color", ColLight);
         btn.AddThemeFontSizeOverride("font_size", 13);
     }
 
-    private static StyleBoxFlat MakeCardStyle(Color bg) => new()
-    {
-        BgColor                = bg,
-        CornerRadiusTopLeft    = 6, CornerRadiusTopRight    = 6,
-        CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
-        BorderWidthLeft = 1, BorderWidthRight = 1, BorderWidthTop = 1, BorderWidthBottom = 1,
-        BorderColor            = DevModeTheme.PanelBorder,
+    private static StyleBoxFlat MakeCardStyle(Color bg) => new() {
+        BgColor = bg,
+        CornerRadiusTopLeft = 6,
+        CornerRadiusTopRight = 6,
+        CornerRadiusBottomLeft = 6,
+        CornerRadiusBottomRight = 6,
+        BorderWidthLeft = 1,
+        BorderWidthRight = 1,
+        BorderWidthTop = 1,
+        BorderWidthBottom = 1,
+        BorderColor = DevModeTheme.PanelBorder,
     };
 
-    private static ColorRect MakeDivider() => new()
-    {
-        Color               = DevModeTheme.Separator,
-        CustomMinimumSize   = new Vector2(0, 1),
+    private static ColorRect MakeDivider() => new() {
+        Color = DevModeTheme.Separator,
+        CustomMinimumSize = new Vector2(0, 1),
         SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
     };
 }

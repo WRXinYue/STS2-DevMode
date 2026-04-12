@@ -1,26 +1,23 @@
 using System;
+using DevMode.Presets;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Runs;
 using MegaCrit.Sts2.Core.Saves;
-using DevMode.Presets;
 
 namespace DevMode.Patches;
 
 [HarmonyPatch(typeof(RunManager))]
-public static class RunStartPatch
-{
+public static class RunStartPatch {
     /// <summary>
     /// Disable save persistence for dev-mode runs.
     /// </summary>
     [HarmonyPrefix]
     [HarmonyPatch(nameof(RunManager.SetUpNewSinglePlayer))]
-    public static void DisableSaveForDevRun(ref bool shouldSave)
-    {
-        if (DevModeState.IsActive)
-        {
+    public static void DisableSaveForDevRun(ref bool shouldSave) {
+        if (DevModeState.IsActive) {
             shouldSave = false;
             MainFile.Logger.Info("DevMode: Save disabled for dev run.");
         }
@@ -28,14 +25,12 @@ public static class RunStartPatch
 
     [HarmonyPostfix]
     [HarmonyPatch(nameof(RunManager.Launch))]
-    public static void InjectDevContent(RunState __result)
-    {
+    public static void InjectDevContent(RunState __result) {
         if (!DevModeState.IsActive) return;
 
         MainFile.Logger.Info("DevMode: Injecting dev mode content into run...");
 
-        foreach (var player in __result.Players)
-        {
+        foreach (var player in __result.Players) {
             InjectForPlayer(player);
         }
 
@@ -45,11 +40,9 @@ public static class RunStartPatch
         MainFile.Logger.Info("DevMode: Dev mode content injected successfully.");
     }
 
-    private static void ApplyPendingRestart(RunState runState)
-    {
+    private static void ApplyPendingRestart(RunState runState) {
         // Apply carried-over gold (direct, synchronous)
-        if (DevModeState.PendingRestartGold.HasValue)
-        {
+        if (DevModeState.PendingRestartGold.HasValue) {
             var gold = DevModeState.PendingRestartGold.Value;
             foreach (var player in runState.Players)
                 player.Gold = gold;
@@ -57,10 +50,9 @@ public static class RunStartPatch
         }
 
         // Apply carried-over cards / relics (async via game command queue)
-        if (DevModeState.PendingRestartPreset != null)
-        {
+        if (DevModeState.PendingRestartPreset != null) {
             var preset = DevModeState.PendingRestartPreset;
-            var scope  = DevModeState.PendingRestartScope;
+            var scope = DevModeState.PendingRestartScope;
             MainFile.Logger.Info($"[DevMode] Restart: scheduling preset apply (scope: {scope}).");
             TaskHelper.RunSafely(PresetManager.ApplyToRunAsync(preset, scope));
         }
@@ -70,15 +62,12 @@ public static class RunStartPatch
 
     [HarmonyPostfix]
     [HarmonyPatch(nameof(RunManager.OnEnded))]
-    public static void OnRunEnded()
-    {
+    public static void OnRunEnded() {
         DevModeState.OnRunEnded();
     }
 
-    private static void InjectForPlayer(Player player)
-    {
-        if (DevModeState.MaxEnergy > 0)
-        {
+    private static void InjectForPlayer(Player player) {
+        if (DevModeState.MaxEnergy > 0) {
             player.MaxEnergy = DevModeState.MaxEnergy;
             MainFile.Logger.Info($"DevMode: Set max energy to {DevModeState.MaxEnergy}");
         }
@@ -86,12 +75,9 @@ public static class RunStartPatch
 }
 
 [HarmonyPatch(typeof(SaveManager), nameof(SaveManager.SaveProgressFile))]
-public static class SaveProgressPatch
-{
-    public static bool Prefix()
-    {
-        if (DevModeState.InDevRun)
-        {
+public static class SaveProgressPatch {
+    public static bool Prefix() {
+        if (DevModeState.InDevRun) {
             MainFile.Logger.Info("DevMode: Skipping progress save for dev run.");
             return false;
         }
@@ -105,10 +91,8 @@ public static class SaveProgressPatch
 /// overwrites it from its own settings (and clears it) before the run launches.
 /// </summary>
 [HarmonyPatch(typeof(NGame), nameof(NGame.StartNewSingleplayerRun))]
-public static class SeedInjectPatch
-{
-    public static void Prefix(ref string seed)
-    {
+public static class SeedInjectPatch {
+    public static void Prefix(ref string seed) {
         if (DevModeState.PendingRestartSeed == null) return;
 
         var canonicalized = SeedHelper.CanonicalizeSeed(DevModeState.PendingRestartSeed);

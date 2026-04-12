@@ -13,18 +13,15 @@ namespace DevMode.Patches;
 /// Can force all rooms to chests, elites, or bosses.
 /// </summary>
 [HarmonyPatch]
-public static class MapRoomRewritePatch
-{
+public static class MapRoomRewritePatch {
     [HarmonyTargetMethod]
-    private static MethodBase? TargetMethod()
-    {
+    private static MethodBase? TargetMethod() {
         return AccessTools.Method(typeof(RunManager), "CreateRoom",
             new[] { typeof(RoomType), typeof(MapPointType), typeof(AbstractModel) });
     }
 
     [HarmonyPrefix]
-    public static void Prefix(ref RoomType __0, ref MapPointType __1, ref AbstractModel? __2)
-    {
+    public static void Prefix(ref RoomType __0, ref MapPointType __1, ref AbstractModel? __2) {
         if (!DevModeState.InDevRun || !DevModeState.MapRewriteEnabled) return;
 
         // Optionally keep final boss
@@ -33,8 +30,7 @@ public static class MapRoomRewritePatch
         // Only rewrite combat-related rooms (Monster, Elite, Unknown)
         if (__0 != RoomType.Monster && __0 != RoomType.Elite && (int)__0 != 8) return;
 
-        switch (DevModeState.MapRewriteMode)
-        {
+        switch (DevModeState.MapRewriteMode) {
             case MapRewriteMode.AllChest:
                 __0 = RoomType.Treasure;
                 __1 = (MapPointType)3;

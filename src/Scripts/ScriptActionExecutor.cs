@@ -1,25 +1,22 @@
 using System;
 using System.Linq;
+using DevMode.Actions;
+using DevMode.Hooks;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Models;
-using DevMode.Actions;
-using DevMode.Hooks;
 
 namespace DevMode.Scripts;
 
 /// <summary>Recursively executes an <see cref="ActionNode"/> tree.</summary>
-internal static class ScriptActionExecutor
-{
+internal static class ScriptActionExecutor {
     private const int MaxDepth = 64;
 
-    public static void Execute(ActionNode? node, Player player, int depth = 0)
-    {
+    public static void Execute(ActionNode? node, Player player, int depth = 0) {
         if (node == null || depth > MaxDepth) return;
 
-        switch (node)
-        {
+        switch (node) {
             case SequenceNode seq:
                 foreach (var step in seq.Steps)
                     Execute(step, player, depth + 1);
@@ -56,12 +53,9 @@ internal static class ScriptActionExecutor
         }
     }
 
-    private static void ExecuteBasic(BasicActionNode action, Player player)
-    {
-        try
-        {
-            switch (action.Type)
-            {
+    private static void ExecuteBasic(BasicActionNode action, Player player) {
+        try {
+            switch (action.Type) {
                 case ActionType.ApplyPower:
                     ExecuteApplyPower(action, player);
                     break;
@@ -76,40 +70,35 @@ internal static class ScriptActionExecutor
                     break;
             }
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             MainFile.Logger.Warn($"[Script] Action {action.Type} failed: {ex.Message}");
         }
     }
 
-    private static void ExecuteApplyPower(BasicActionNode action, Player player)
-    {
+    private static void ExecuteApplyPower(BasicActionNode action, Player player) {
         if (!CombatManager.Instance.IsInProgress) return;
 
         var power = FindPower(action.TargetId);
         if (power == null) return;
 
-        var target = action.Target switch
-        {
-            HookTargetType.Player     => PowerTarget.Self,
+        var target = action.Target switch {
+            HookTargetType.Player => PowerTarget.Self,
             HookTargetType.AllEnemies => PowerTarget.AllEnemies,
-            HookTargetType.Allies     => PowerTarget.Allies,
+            HookTargetType.Allies => PowerTarget.Allies,
             _ => PowerTarget.Self
         };
 
         TaskHelper.RunSafely(PowerActions.AddPower(player, power, action.Amount, target));
     }
 
-    private static void ExecuteAddCard(BasicActionNode action, Player player)
-    {
+    private static void ExecuteAddCard(BasicActionNode action, Player player) {
         var card = FindCard(action.TargetId);
         if (card == null) return;
         if (!RunContext.TryGetRunAndPlayer(out var state, out _)) return;
         TaskHelper.RunSafely(CardActions.AddCard(state, player, card));
     }
 
-    private static void ExecuteUsePotion(BasicActionNode action, Player player)
-    {
+    private static void ExecuteUsePotion(BasicActionNode action, Player player) {
         if (string.IsNullOrEmpty(action.TargetId)) return;
         var potion = player.Potions?.FirstOrDefault(p =>
             p != null && string.Equals(p.Id.Entry, action.TargetId, StringComparison.OrdinalIgnoreCase));
@@ -117,15 +106,13 @@ internal static class ScriptActionExecutor
         potion.EnqueueManualUse(player.Creature);
     }
 
-    private static PowerModel? FindPower(string id)
-    {
+    private static PowerModel? FindPower(string id) {
         if (string.IsNullOrEmpty(id)) return null;
         return PowerActions.GetAllPowers()
             .FirstOrDefault(p => string.Equals(((AbstractModel)p).Id.Entry, id, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static CardModel? FindCard(string id)
-    {
+    private static CardModel? FindCard(string id) {
         if (string.IsNullOrEmpty(id)) return null;
         return ModelDb.AllCards
             .FirstOrDefault(c => string.Equals(((AbstractModel)c).Id.Entry, id, StringComparison.OrdinalIgnoreCase));

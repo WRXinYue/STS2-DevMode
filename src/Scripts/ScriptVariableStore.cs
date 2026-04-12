@@ -6,8 +6,7 @@ namespace DevMode.Scripts;
 /// Per-combat variable storage for SpireScratch scripts.
 /// Variables persist within a single combat; call <see cref="Reset"/> on combat start.
 /// </summary>
-internal static class ScriptVariableStore
-{
+internal static class ScriptVariableStore {
     private static readonly Dictionary<string, int> _vars = new();
 
     public static int Get(string name) =>
@@ -16,8 +15,7 @@ internal static class ScriptVariableStore
     public static void Set(string name, int value) =>
         _vars[name] = value;
 
-    public static void Increment(string name, int delta)
-    {
+    public static void Increment(string name, int delta) {
         _vars.TryGetValue(name, out var current);
         _vars[name] = current + delta;
     }

@@ -9,10 +9,8 @@ using MegaCrit.Sts2.Core.Runs;
 
 namespace DevMode.Actions;
 
-internal static class EventActions
-{
-    public static IEnumerable<EventModel> GetAllEvents()
-    {
+internal static class EventActions {
+    public static IEnumerable<EventModel> GetAllEvents() {
         try { return ModelDb.AllEvents; }
         catch { return Enumerable.Empty<EventModel>(); }
     }
@@ -21,18 +19,14 @@ internal static class EventActions
     /// Force-enter an event room, mirroring the game's own EventConsoleCmd.
     /// Requires an active run; silently fails (with a log warning) otherwise.
     /// </summary>
-    public static bool TryForceEnterEvent(EventModel eventModel)
-    {
-        try
-        {
-            if (!RunManager.Instance.IsInProgress)
-            {
+    public static bool TryForceEnterEvent(EventModel eventModel) {
+        try {
+            if (!RunManager.Instance.IsInProgress) {
                 MainFile.Logger.Warn("[DevMode] ForceEnterEvent: no run in progress.");
                 return false;
             }
 
-            if (!RunContext.TryGetRunAndPlayer(out _, out var player))
-            {
+            if (!RunContext.TryGetRunAndPlayer(out _, out var player)) {
                 MainFile.Logger.Warn("[DevMode] ForceEnterEvent: could not get active player.");
                 return false;
             }
@@ -45,15 +39,13 @@ internal static class EventActions
             TaskHelper.RunSafely(RunManager.Instance.EnterRoom(new EventRoom(eventModel)));
             return true;
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             MainFile.Logger.Warn($"[DevMode] ForceEnterEvent failed: {ex.Message}");
             return false;
         }
     }
 
-    public static string GetEventDisplayName(EventModel evt)
-    {
+    public static string GetEventDisplayName(EventModel evt) {
         try { return evt.Title?.GetFormattedText() ?? ((AbstractModel)evt).Id.Entry ?? "?"; }
         catch { return ((AbstractModel)evt).Id.Entry ?? "?"; }
     }

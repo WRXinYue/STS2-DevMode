@@ -8,8 +8,7 @@ namespace DevMode.AI;
 /// Uses reflection so STS2AI.dll is NOT a hard assembly dependency —
 /// DevMode loads normally even when STS2AI is absent.
 /// </summary>
-internal static class AIControl
-{
+internal static class AIControl {
     // Cached reflection handles; null = STS2AI not available
     private static bool _resolved;
     private static PropertyInfo? _isAIEnabled;
@@ -21,55 +20,44 @@ internal static class AIControl
     private static int _stratRuleBased;
     private static int _stratExternalBridge;
 
-    public static bool IsAvailable
-    {
-        get
-        {
+    public static bool IsAvailable {
+        get {
             EnsureResolved();
             return _isAIEnabled != null;
         }
     }
 
-    public static bool IsEnabled
-    {
-        get
-        {
+    public static bool IsEnabled {
+        get {
             try { return (bool?)_isAIEnabled?.GetValue(null) ?? false; }
             catch { return false; }
         }
     }
 
-    public static void Toggle()
-    {
-        try
-        {
+    public static void Toggle() {
+        try {
             bool current = (bool?)_isAIEnabled?.GetValue(null) ?? false;
             _isAIEnabled?.SetValue(null, !current);
             MainFile.Logger.Info($"AIControl: AI toggled to {!current}");
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             MainFile.Logger.Warn($"AIControl: Failed to toggle AI: {ex.Message}");
         }
     }
 
-    public static string GetStrategyName()
-    {
-        try
-        {
+    public static string GetStrategyName() {
+        try {
             object? raw = _strategy?.GetValue(null);
             int val = raw != null ? Convert.ToInt32(raw) : -1;
-            if (val == _stratRuleBased)      return I18N.T("ai.strategy.rule", "Rule");
+            if (val == _stratRuleBased) return I18N.T("ai.strategy.rule", "Rule");
             if (val == _stratExternalBridge) return I18N.T("ai.strategy.bridge", "Bridge");
             return "?";
         }
         catch { return "N/A"; }
     }
 
-    public static void CycleStrategy()
-    {
-        try
-        {
+    public static void CycleStrategy() {
+        try {
             object? raw = _strategy?.GetValue(null);
             int current = raw != null ? Convert.ToInt32(raw) : _stratRuleBased;
             int next = current == _stratRuleBased ? _stratExternalBridge : _stratRuleBased;
@@ -78,19 +66,15 @@ internal static class AIControl
             _strategy?.SetValue(null, enumValue);
             MainFile.Logger.Info($"AIControl: Strategy changed to {GetStrategyName()}");
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             MainFile.Logger.Warn($"AIControl: Failed to cycle strategy: {ex.Message}");
         }
     }
 
-    public static void CycleSpeed()
-    {
-        try
-        {
+    public static void CycleSpeed() {
+        try {
             int current = (int?)_actionDelayMs?.GetValue(null) ?? 500;
-            int next = current switch
-            {
+            int next = current switch {
                 <= 200 => 500,
                 <= 500 => 800,
                 <= 800 => 1500,
@@ -99,19 +83,15 @@ internal static class AIControl
             _actionDelayMs?.SetValue(null, next);
             MainFile.Logger.Info($"AIControl: Action delay changed to {next}ms");
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             MainFile.Logger.Warn($"AIControl: Failed to cycle speed: {ex.Message}");
         }
     }
 
-    public static string GetSpeedLabel()
-    {
-        try
-        {
+    public static string GetSpeedLabel() {
+        try {
             int ms = (int?)_actionDelayMs?.GetValue(null) ?? 500;
-            return ms switch
-            {
+            return ms switch {
                 <= 200 => I18N.T("ai.speed.extreme", "Extreme"),
                 <= 500 => I18N.T("ai.speed.fast", "Fast"),
                 <= 800 => I18N.T("ai.speed.normal", "Normal"),
@@ -121,34 +101,30 @@ internal static class AIControl
         catch { return "N/A"; }
     }
 
-    private static void EnsureResolved()
-    {
+    private static void EnsureResolved() {
         if (_resolved) return;
         _resolved = true;
 
-        try
-        {
+        try {
             var asm = Assembly.Load("STS2AI");
 
             var bridgeType = asm.GetType("STS2AI.API.GameBridge");
             if (bridgeType == null) return;
 
-            _isAIEnabled  = bridgeType.GetProperty("IsAIEnabled",  BindingFlags.Public | BindingFlags.Static);
-            _strategy     = bridgeType.GetProperty("Strategy",     BindingFlags.Public | BindingFlags.Static);
+            _isAIEnabled = bridgeType.GetProperty("IsAIEnabled", BindingFlags.Public | BindingFlags.Static);
+            _strategy = bridgeType.GetProperty("Strategy", BindingFlags.Public | BindingFlags.Static);
             _actionDelayMs = bridgeType.GetProperty("ActionDelayMs", BindingFlags.Public | BindingFlags.Static);
 
             var strategyType = asm.GetType("STS2AI.AIPlayer.AIStrategy");
-            if (strategyType != null)
-            {
-                _strategyEnumType    = strategyType;
-                _stratRuleBased      = (int)(Enum.Parse(strategyType, "RuleBased"));
+            if (strategyType != null) {
+                _strategyEnumType = strategyType;
+                _stratRuleBased = (int)(Enum.Parse(strategyType, "RuleBased"));
                 _stratExternalBridge = (int)(Enum.Parse(strategyType, "ExternalBridge"));
             }
 
             MainFile.Logger.Info("AIControl: STS2AI found — AI controls enabled.");
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             MainFile.Logger.Info($"AIControl: STS2AI not available ({ex.Message}), AI controls hidden.");
         }
     }
