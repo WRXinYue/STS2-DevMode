@@ -1,0 +1,47 @@
+{
+  "[csharp]": {
+    "editor.defaultFormatter": "ms-dotnettools.csharp",
+    "editor.formatOnSave": true
+  },
+  "dotnet.formatting.organizeImportsOnFormat": true,
+  "dotnet.backgroundAnalysis.analyzerDiagnosticsScope": "fullSolution",
+  "dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution",
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true
+  },
+  "python.linting.flake8Enabled": true,
+  "python.linting.pylintEnabled": false,
+  "deepscan.enable": true,
+  "cSpell.words": [
+    "BepInEx",
+    "DeployToGame",
+    "DevMode",
+    "Godot",
+    "Harmony",
+    "Hotreload",
+    "I18N",
+    "Iconify",
+    "MegaCrit",
+    "MegaDot",
+    "MdiIcon",
+    "ModAnalyzers",
+    "NCardHolder",
+    "NGlobalUi",
+    "Publicized",
+    "Publicizer",
+    "RepoRoot",
+    "SlayTheSpire",
+    "Sts2",
+    "STS2",
+    "Stylebox",
+    "Subresource",
+    "ThorVG",
+    "WRXinYue",
+    "Zhs"
+  ],
+  "[markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  }
+}

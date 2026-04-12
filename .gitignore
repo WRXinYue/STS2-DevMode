@@ -14,10 +14,15 @@ packages/
 local.props
 .env
 
+# Python
+**/__pycache__/
+*.py[cod]
+
 # IDE
 .vs/
 .idea/
-.vscode/
+.vscode/launch.json
+.vscode/tasks.json
 *.user
 
 # Icons source (large, from @iconify-json/mdi npm package)

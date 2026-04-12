@@ -7,18 +7,21 @@
 DOTNET ?= dotnet
 
 # Read version from DevMode.json
-VERSION := $(shell powershell -NoProfile -Command "(Get-Content DevMode.json | ConvertFrom-Json).version")
+PYTHON ?= python
+VERSION := $(shell $(PYTHON) -c "import json;print(json.load(open('DevMode.json',encoding='utf-8'))['version'])")
 
 MOD_MAIN := DevMode.csproj
 
 DEPLOY_TO_GAME := /p:DeployToGame=true
 
-.PHONY: help init build deploy sync compile pck publish zip clean
+.PHONY: help init icons format build deploy sync compile pck publish zip clean
 
 help:
 	@echo DevMode — targets
 	@echo.
-	@echo   init       detect STS2 + Godot, generate local.props + .vscode
+	@echo   init       detect STS2 + Godot, generate local.props + .vscode (Python 3; PYTHON=python3 to override)
+	@echo   icons      tree-shake MDI (mdi-used.json + MdiIcon.Generated.cs); downloads full icons.json on first run if missing
+	@echo   format     dotnet format DevMode.sln (C#; same rules as EditorConfig, for pre-commit / CI)
 	@echo   sync       build then deploy
 	@echo   build      write build/DevMode/ only (no game)
 	@echo   deploy     dotnet publish with DeployToGame=true
@@ -29,7 +32,13 @@ help:
 	@echo   clean      remove build/ + dotnet clean
 
 init:
-	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/init.ps1
+	$(PYTHON) scripts/init.py
+
+icons:
+	$(PYTHON) scripts/shake_icons.py
+
+format:
+	$(DOTNET) format DevMode.sln --verbosity quiet
 
 build:
 	$(DOTNET) publish $(MOD_MAIN)
@@ -50,7 +59,7 @@ clean:
 	$(DOTNET) clean DevMode.sln
 
 publish:
-	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/publish-release.ps1 $(if $(VERSION),-Version $(VERSION),)
+	$(PYTHON) scripts/publish_release.py $(if $(VERSION),--version $(VERSION),)
 
 # ── zip: build + package into build/DevMode-vX.X.X.zip ──
 ZIP_NAME := build\DevMode-v$(VERSION).zip
@@ -62,7 +71,6 @@ zip: build
 	@mkdir "$(DIST_DIR)\editor"
 	@mkdir "$(DIST_DIR)\scripts"
 	@copy /y build\DevMode\DevMode.dll "$(DIST_DIR)\" >nul
-	@copy /y build\DevMode\DevMode.deps.json "$(DIST_DIR)\" >nul
 	@copy /y DevMode.json "$(DIST_DIR)\" >nul
 	@xcopy /s /y /q editor\* "$(DIST_DIR)\editor\" >nul
 	@if exist "$(ZIP_NAME)" del "$(ZIP_NAME)"

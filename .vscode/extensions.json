@@ -1,0 +1,14 @@
+{
+  "recommendations": [
+    "ms-dotnettools.csdevkit",
+    "ms-dotnettools.vscode-dotnet-runtime",
+    "geequlim.godot-tools",
+    "ms-python.python",
+    "ms-python.black-formatter",
+    "ms-python.flake8",
+    "esbenp.prettier-vscode",
+    "DavidAnson.vscode-markdownlint",
+    "EditorConfig.EditorConfig",
+    "streetsidesoftware.code-spell-checker"
+  ]
+}
