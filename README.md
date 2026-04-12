@@ -116,6 +116,10 @@ MdiIcon.Get("account-check", size: 24);
 
 See [`src/Icons/MdiIcon.cs`](src/Icons/MdiIcon.cs) for the full list of pre-defined icons.
 
+## Contributing
+
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for collaboration norms, K&R brace style, formatting commands, and localization.
+
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.

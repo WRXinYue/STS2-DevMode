@@ -131,6 +131,10 @@ MdiIcon.Get("account-check", size: 24);
 
 完整预定义图标列表见 [`src/Icons/MdiIcon.cs`](src/Icons/MdiIcon.cs)。
 
+## 协作与贡献
+
+协作流程、K&R 代码风格、`dotnet format` / `make format`、Python 与本地化等说明见 **[CONTRIBUTING.md](CONTRIBUTING.md)**。
+
 ## 更新日志
 
 版本历史请参阅 [CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md)。
