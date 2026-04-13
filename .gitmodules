@@ -1,6 +1,6 @@
-[submodule "extern/STS2-RitsuLib"]
-	path = extern/STS2-RitsuLib
+[submodule "extern/RitsuLib"]
+	path = extern/RitsuLib
 	url = https://github.com/BAKAOLC/STS2-RitsuLib.git
-[submodule "extern/BaseLib-StS2"]
-	path = extern/BaseLib-StS2
+[submodule "extern/BaseLib"]
+	path = extern/BaseLib
 	url = https://github.com/Alchyr/BaseLib-StS2.git

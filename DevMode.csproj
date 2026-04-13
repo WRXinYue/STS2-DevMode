@@ -2,7 +2,7 @@
   <Import Project="local.props" Condition="Exists('local.props')" />
 
   <PropertyGroup>
-    <DefaultItemExcludes>$(DefaultItemExcludes);packages/**;**/.godot/**;icons/**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);packages/**;**/.godot/**;icons/**;extern/**</DefaultItemExcludes>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>true</ImplicitUsings>
     <LangVersion>12.0</LangVersion>
