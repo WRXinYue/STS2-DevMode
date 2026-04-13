@@ -2,9 +2,6 @@
 title:
   en: Settings
   zh-CN: 设置
-categories:
-  - guide
-  - panels
 top: 9080
 cover: https://wrxinyue.s3.bitiful.net/slay-the-spire-2-wallpaper.webp
 ---

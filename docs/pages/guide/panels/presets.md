@@ -2,9 +2,6 @@
 title:
   en: Presets
   zh-CN: 预设
-categories:
-  - guide
-  - panels
 top: 9130
 cover: https://wrxinyue.s3.bitiful.net/slay-the-spire-2-wallpaper.webp
 ---

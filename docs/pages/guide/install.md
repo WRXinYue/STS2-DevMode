@@ -6,34 +6,58 @@ top: 10000
 cover: https://wrxinyue.s3.bitiful.net/slay-the-spire-2-wallpaper.webp
 ---
 
-## Prerequisites{lang="en"}
+## Install from release{lang="en"}
 
-## 前置条件{lang="zh-CN"}
+## 下载安装{lang="zh-CN"}
 
 ::: en
-- **Slay the Spire 2** (Steam) with a writable `mods` folder.
-- **.NET 9 SDK** for building the mod DLL.
-- **Python 3** (optional) for `make init` / icon scripts.
+**Prerequisites:** Slay the Spire 2 on Steam.
+
+1. Go to the [GitHub releases page](https://github.com/WRXinYue/STS2-DevMode/releases) and download the latest `DevMode-*.zip`.
+
+2. Locate your STS2 `mods` folder. On Windows the default path is:
+
+   ```text
+   C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\mods
+   ```
+
+3. Extract the zip so that `DevMode\` is a direct subfolder of `mods\`:
+
+   ```text
+   mods\
+   └── DevMode\
+       ├── DevMode.dll
+       ├── DevMode.json
+       ├── editor\
+       └── scripts\
+   ```
+
+4. Launch the game — DevMode loads automatically with the mod loader.
 :::
 
 ::: zh-CN
-- **《杀戮尖塔 2》** (Steam) 且 `mods` 目录可写。
-- 构建 mod DLL 需要 **.NET 9 SDK**。
-- **Python 3** (可选)，用于 `make init` / 图标脚本等。
-:::
+**前置条件：** Steam 版《杀戮尖塔 2》。
 
-## As a player{lang="en"}
+1. 前往 [GitHub Releases 页面](https://github.com/WRXinYue/STS2-DevMode/releases)，下载最新的 `DevMode-*.zip`。
 
-## 作为玩家{lang="zh-CN"}
+2. 找到 STS2 的 `mods` 目录，Windows 默认路径为：
 
-::: en
-1. Download a release **zip** from the project releases (or build locally).
-2. Extract into `Slay the Spire 2\mods\DevMode\` so that `DevMode.dll` and `DevMode.json` sit next to `editor\` and `scripts\` folders as shipped.
-:::
+   ```text
+   C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\mods
+   ```
 
-::: zh-CN
-1. 从项目 Release 下载 **zip** (或在本地自行构建)。
-2. 解压到 `Slay the Spire 2\mods\DevMode\`，使 `DevMode.dll`、`DevMode.json` 与随包附带的 `editor\`、`scripts\` 等目录同级。
+3. 将压缩包解压，使 `DevMode\` 成为 `mods\` 的直接子目录：
+
+   ```text
+   mods\
+   └── DevMode\
+       ├── DevMode.dll
+       ├── DevMode.json
+       ├── editor\
+       └── scripts\
+   ```
+
+4. 启动游戏，DevMode 会随模组加载器自动载入。
 :::
 
 ## Build from source{lang="en"}
@@ -41,9 +65,31 @@ cover: https://wrxinyue.s3.bitiful.net/slay-the-spire-2-wallpaper.webp
 ## 从源码构建{lang="zh-CN"}
 
 ::: en
-Clone, `make init`, `make build` / `make deploy`, Makefile targets, the Valaxy **`docs/`** site, and PR norms are documented under **[Contributing](/dev/)**.
+**Additional prerequisites:** **.NET 9 SDK**; **Python 3** (optional, for `make init` and icon scripts).
+
+```bash
+git clone https://github.com/WRXinYue/STS2-DevMode.git
+cd DevMode
+make init    # detect STS2 path, write local.props
+make sync    # build + deploy to game mods folder
+```
+
+`make init` only needs to run once. After that, `make sync` (or `make build` + `make deploy` separately) covers the usual iteration loop.
+
+For the full list of Makefile targets and collaboration norms, see **[Contributing](/developer/dev/)**.
 :::
 
 ::: zh-CN
-克隆仓库、`make init`、`make build` / `make deploy`、Makefile 目标、基于 Valaxy 的 **`docs/`** 文档站以及 PR 约定，见 **[参与开发](/dev/)**。
+**额外前置条件：** **.NET 9 SDK**；**Python 3**（可选，用于 `make init` 和图标脚本）。
+
+```bash
+git clone https://github.com/WRXinYue/STS2-DevMode.git
+cd DevMode
+make init    # 检测 STS2 路径，生成 local.props
+make sync    # 构建 + 部署到游戏 mods 目录
+```
+
+`make init` 只需执行一次。此后日常迭代使用 `make sync`（或分步执行 `make build` + `make deploy`）即可。
+
+完整 Makefile 目标与协作约定见 **[参与贡献](/developer/dev/)**。
 :::

@@ -1,8 +1,60 @@
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
 import type { ThemeConfig } from 'valaxy-theme-nova'
 import { defineValaxyConfig } from 'valaxy'
+import modManifest from '../DevMode.json'
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
+
+/** Vite plugin: sync root CHANGELOG files into docs/pages/ with frontmatter. */
+function changelogSync() {
+  const rootDir = resolve(__dirname, '..')
+  const pagesDir = resolve(__dirname, 'pages')
+
+  const entries = [
+    { src: resolve(rootDir, 'CHANGELOG.md'), dest: resolve(pagesDir, 'changelog.md') },
+    { src: resolve(rootDir, 'CHANGELOG.zh-CN.md'), dest: resolve(pagesDir, 'changelog-zh-cn.md') },
+  ]
+
+  const frontmatter = [
+    '---',
+    'title:',
+    '  en: Changelog',
+    '  zh-CN: 更新日志',
+    'top: 9000',
+    'cover: https://wrxinyue.s3.bitiful.net/slay-the-spire-2-wallpaper.webp',
+    '---',
+    '',
+    '',
+  ].join('\n')
+
+  function sync() {
+    for (const { src, dest } of entries) {
+      if (!existsSync(src)) continue
+      writeFileSync(dest, frontmatter + readFileSync(src, 'utf-8'))
+    }
+  }
+
+  return {
+    name: 'changelog-sync',
+    buildStart() { sync() },
+    configureServer(server: any) {
+      const watched = entries.map(e => e.src).filter(existsSync)
+      server.watcher.add(watched)
+      server.watcher.on('change', (path: string) => {
+        if (watched.includes(path)) sync()
+      })
+    },
+  }
+}
 
 export default defineValaxyConfig<ThemeConfig>({
   theme: 'nova',
+
+  vite: {
+    plugins: [changelogSync()],
+  },
 
   siteConfig: {
     title: 'DevMode',
@@ -31,8 +83,9 @@ export default defineValaxyConfig<ThemeConfig>({
       { locale: 'nav.home', link: '/' },
       {
         locale: 'nav.guide',
-        link: '/guide/install',
+        link: '/guide/preface',
         subNav: [
+          { locale: 'nav.intro', link: '/guide/preface' },
           { locale: 'nav.install', link: '/guide/install' },
           { locale: 'nav.panels_overview', link: '/guide/panels' },
         ],
@@ -48,6 +101,18 @@ export default defineValaxyConfig<ThemeConfig>({
             link: '/developer/dev',
           },
         ],
+      },
+      {
+        locale: 'nav.changelog',
+        link: '/changelog',
+        subNav: [
+          { text: 'English', link: '/changelog' },
+          { text: '中文', link: '/changelog-zh-cn' },
+        ],
+      },
+      {
+        text: `v${modManifest.version}`,
+        link: 'https://github.com/WRXinYue/STS2-DevMode/releases',
       },
     ],
 

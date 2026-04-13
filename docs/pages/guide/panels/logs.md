@@ -2,9 +2,6 @@
 title:
   en: Logs
   zh-CN: 日志
-categories:
-  - guide
-  - panels
 top: 9100
 cover: https://wrxinyue.s3.bitiful.net/slay-the-spire-2-wallpaper.webp
 ---

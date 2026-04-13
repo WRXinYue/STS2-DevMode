@@ -2,9 +2,6 @@
 title:
   en: Powers
   zh-CN: 能力
-categories:
-  - guide
-  - panels
 top: 9170
 cover: https://wrxinyue.s3.bitiful.net/slay-the-spire-2-wallpaper.webp
 ---

@@ -2,9 +2,6 @@
 title:
   en: Rail panels
   zh-CN: 轨道面板
-categories:
-  - guide
-  - panels
 top: 9985
 cover: https://wrxinyue.s3.bitiful.net/slay-the-spire-2-wallpaper.webp
 ---

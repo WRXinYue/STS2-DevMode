@@ -10,6 +10,7 @@ nav:
   guide: User guide
   contributing: Contributing
   extending: Developer
+  intro: Introduction
   install: Install
   panels_overview: Rail panels
   panel_cards: Cards
@@ -26,7 +27,7 @@ nav:
   panel_logs: Logs
   panel_save_load: Save / Load
   panel_settings: Settings
-  panel_ai: AI Control
+  changelog: Changelog
   dev_panel: Dev panel
   mod_runtime: Mod runtime
 

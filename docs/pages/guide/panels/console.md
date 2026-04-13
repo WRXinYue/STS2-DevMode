@@ -2,9 +2,6 @@
 title:
   en: Console
   zh-CN: 控制台
-categories:
-  - guide
-  - panels
 top: 9140
 cover: https://wrxinyue.s3.bitiful.net/slay-the-spire-2-wallpaper.webp
 ---

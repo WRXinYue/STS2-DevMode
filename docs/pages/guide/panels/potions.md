@@ -2,9 +2,6 @@
 title:
   en: Potions
   zh-CN: 药水
-categories:
-  - guide
-  - panels
 top: 9160
 cover: https://wrxinyue.s3.bitiful.net/slay-the-spire-2-wallpaper.webp
 ---

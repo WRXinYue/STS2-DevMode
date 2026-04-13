@@ -2,9 +2,6 @@
 title:
   en: Hooks
   zh-CN: 钩子
-categories:
-  - guide
-  - panels
 top: 9120
 cover: https://wrxinyue.s3.bitiful.net/slay-the-spire-2-wallpaper.webp
 ---

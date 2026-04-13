@@ -2,9 +2,6 @@
 title:
   en: Save / Load
   zh-CN: 存档 / 读档
-categories:
-  - guide
-  - panels
 top: 9090
 cover: https://wrxinyue.s3.bitiful.net/slay-the-spire-2-wallpaper.webp
 ---

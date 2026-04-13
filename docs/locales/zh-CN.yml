@@ -3,13 +3,14 @@ nova:
     docs: 用户指南
     api: 扩展接口
     panels: 轨道面板
-    dev: 参与开发
+    dev: 参与贡献
 
 nav:
   home: 首页
   guide: 用户指南
-  contributing: 参与开发
+  contributing: 参与贡献
   extending: 开发者
+  intro: 前言
   install: 安装
   panels_overview: 轨道面板
   panel_cards: 卡牌
@@ -26,13 +27,13 @@ nav:
   panel_logs: 日志
   panel_save_load: 存档 / 读档
   panel_settings: 设置
-  panel_ai: AI 控制
+  changelog: 更新日志
   dev_panel: 开发者面板
   mod_runtime: Mod 运行时
 
 category:
   guide: 用户指南
-  dev: 参与开发
+  dev: 参与贡献
   extending: 开发者
 
 hero:

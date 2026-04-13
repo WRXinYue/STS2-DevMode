@@ -2,9 +2,6 @@
 title:
   en: Enemies
   zh-CN: 敌人
-categories:
-  - guide
-  - panels
 top: 9180
 cover: https://wrxinyue.s3.bitiful.net/slay-the-spire-2-wallpaper.webp
 ---
