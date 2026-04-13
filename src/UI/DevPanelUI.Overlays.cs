@@ -16,27 +16,13 @@ internal static partial class DevPanelUI {
     // ── Helper: build the standard browser-panel root ──────────────────────
 
     private static (Control root, VBoxContainer vbox) CreateOverlayRoot(
-        NGlobalUi globalUi, string rootName, float panelWidth = 0f) {
-        PinRail();
-        SpliceRail(globalUi, joined: true);
-
-        var root = new Control { Name = rootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1250 };
-        root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        root.TreeExiting += () => {
-            UnpinRail();
-            SpliceRail(globalUi, joined: false);
-        };
-
-        // Backdrop sits behind the panel; clicking outside the panel closes it
-        if (panelWidth > 0f)
-            root.AddChild(CreateBrowserBackdrop(() => ((Node)globalUi).GetNodeOrNull<Control>(rootName)?.QueueFree()));
-
-        var panel = CreateBrowserPanel(panelWidth);
-        root.AddChild(panel);
-
-        var vbox = panel.GetNode<VBoxContainer>("Content");
-        vbox.AddThemeConstantOverride("separation", 10);
-
+        NGlobalUi globalUi, string rootName, float panelWidth = 0f, int contentSeparation = 10) {
+        var (root, _, vbox) = CreateBrowserOverlayShell(
+            globalUi,
+            rootName,
+            panelWidth,
+            () => ((Node)globalUi).GetNodeOrNull<Control>(rootName)?.QueueFree(),
+            contentSeparation);
         return (root, vbox);
     }
 

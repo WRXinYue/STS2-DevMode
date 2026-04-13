@@ -115,22 +115,8 @@ internal static class EnemySelectUI {
         var encounters = EnemyActions.GetAllEncounters(filter);
         if (encounters.Count == 0) return;
 
-        DevPanelUI.PinRail();
-        DevPanelUI.SpliceRail(globalUi, joined: true);
-
-        var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1250 };
-        root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        root.TreeExiting += () => {
-            DevPanelUI.UnpinRail();
-            DevPanelUI.SpliceRail(globalUi, joined: false);
-        };
-
-        root.AddChild(DevPanelUI.CreateBrowserBackdrop(() => Hide(globalUi)));
-        var panel = DevPanelUI.CreateBrowserPanel();
-        root.AddChild(panel);
-
-        var vbox = panel.GetNode<VBoxContainer>("Content");
-        vbox.AddThemeConstantOverride("separation", 10);
+        var (root, _, vbox) = DevPanelUI.CreateBrowserOverlayShell(
+            globalUi, RootName, 0f, () => Hide(globalUi), contentSeparation: 10, backdropWhenFullWidth: true);
 
         // ── Title ──
         var titleText = filter switch {
@@ -415,22 +401,8 @@ internal static class EnemySelectUI {
     public static void ShowFloorPicker(NGlobalUi globalUi) {
         Hide(globalUi);
 
-        DevPanelUI.PinRail();
-        DevPanelUI.SpliceRail(globalUi, joined: true);
-
-        var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1250 };
-        root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        root.TreeExiting += () => {
-            DevPanelUI.UnpinRail();
-            DevPanelUI.SpliceRail(globalUi, joined: false);
-        };
-
-        root.AddChild(DevPanelUI.CreateBrowserBackdrop(() => Hide(globalUi)));
-        var panel = DevPanelUI.CreateBrowserPanel(600f);
-        root.AddChild(panel);
-
-        var vbox = panel.GetNode<VBoxContainer>("Content");
-        vbox.AddThemeConstantOverride("separation", 10);
+        var (root, _, vbox) = DevPanelUI.CreateBrowserOverlayShell(
+            globalUi, RootName, 600f, () => Hide(globalUi), contentSeparation: 10);
 
         vbox.AddChild(DevPanelUI.CreatePanelTitle(I18N.T("enemy.byFloorTitle", "Customize Enemies by Floor")));
         vbox.AddChild(DevPanelUI.CreateOverlaySeparator());
@@ -559,22 +531,8 @@ internal static class EnemySelectUI {
             return;
         }
 
-        DevPanelUI.PinRail();
-        DevPanelUI.SpliceRail(globalUi, joined: true);
-
-        var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1250 };
-        root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        root.TreeExiting += () => {
-            DevPanelUI.UnpinRail();
-            DevPanelUI.SpliceRail(globalUi, joined: false);
-        };
-
-        root.AddChild(DevPanelUI.CreateBrowserBackdrop(() => Hide(globalUi)));
-        var panel = DevPanelUI.CreateBrowserPanel(520f);
-        root.AddChild(panel);
-
-        var vbox = panel.GetNode<VBoxContainer>("Content");
-        vbox.AddThemeConstantOverride("separation", 10);
+        var (root, _, vbox) = DevPanelUI.CreateBrowserOverlayShell(
+            globalUi, RootName, 520f, () => Hide(globalUi), contentSeparation: 10);
 
         vbox.AddChild(DevPanelUI.CreatePanelTitle(I18N.T("enemy.killTitle", "Select Enemy to Kill")));
         vbox.AddChild(DevPanelUI.CreateOverlaySeparator());

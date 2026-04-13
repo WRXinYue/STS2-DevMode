@@ -72,42 +72,15 @@ internal static partial class RelicBrowserUI {
         }
     }
 
-    // ──────── Rail splice ────────
-
-    private static void SpliceRail(NGlobalUi globalUi, bool joined) {
-        var railRoot = ((Node)globalUi).GetNodeOrNull<Control>("DevModeRailRoot");
-        var rail = railRoot?.GetNodeOrNull<PanelContainer>("Rail");
-        if (rail == null) return;
-
-        if (rail.GetThemeStylebox("panel") is StyleBoxFlat sb) {
-            int r = joined ? 0 : RailRadius;
-            sb.CornerRadiusTopRight = r;
-            sb.CornerRadiusBottomRight = r;
-            sb.BorderWidthRight = joined ? 0 : 1;
-        }
-    }
-
     // ──────── Public API ────────
 
     public static void Show(NGlobalUi globalUi, RunState runState, Player player) {
         Remove(globalUi);
 
-        DevPanelUI.PinRail();
-        SpliceRail(globalUi, joined: true);
-
         var s = new State(globalUi, runState, player);
 
-        var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1250 };
-        root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        root.TreeExiting += () => {
-            DevPanelUI.UnpinRail();
-            SpliceRail(globalUi, joined: false);
-        };
-
-        root.AddChild(DevPanelUI.CreateBrowserBackdrop(() => Remove(globalUi)));
-        var panel = CreateBrowserPanel();
-        root.AddChild(panel);
-        var content = panel.GetNode<VBoxContainer>("Content");
+        var (root, _, content) = DevPanelUI.CreateBrowserOverlayShell(
+            globalUi, RootName, CreateBrowserPanel(), () => Remove(globalUi), contentSeparation: 8);
 
         // ── Nav bar (All / Owned) ──
         var sourceLabels = new[]

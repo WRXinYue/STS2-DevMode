@@ -28,4 +28,28 @@ public static class DevPanelModApi {
     /// <inheritdoc cref="DevPanelUI.SpliceRail(NGlobalUi, bool)" />
     public static void SpliceRail(NGlobalUi globalUi, bool joined) =>
         DevPanelUI.SpliceRail(globalUi, joined);
+
+    /// <inheritdoc cref="DevPanelUI.CreateBrowserOverlayShell(NGlobalUi, string, float, Action, int, int, bool)" />
+    public static (Control Root, PanelContainer Panel, VBoxContainer Content) CreateBrowserOverlayShell(
+        NGlobalUi globalUi,
+        string rootName,
+        float panelWidth,
+        Action onClose,
+        int contentSeparation = 10,
+        int zIndex = 1250,
+        bool backdropWhenFullWidth = false) =>
+        DevPanelUI.CreateBrowserOverlayShell(
+            globalUi, rootName, panelWidth, onClose, contentSeparation, zIndex, backdropWhenFullWidth);
+
+    /// <inheritdoc cref="DevPanelUI.CreateBrowserOverlayShell(NGlobalUi, string, PanelContainer, Action, int, bool, int)" />
+    public static (Control Root, PanelContainer Panel, VBoxContainer Content) CreateBrowserOverlayShell(
+        NGlobalUi globalUi,
+        string rootName,
+        PanelContainer panel,
+        Action onClose,
+        int contentSeparation,
+        bool addBackdrop = true,
+        int zIndex = 1250) =>
+        DevPanelUI.CreateBrowserOverlayShell(
+            globalUi, rootName, panel, onClose, contentSeparation, addBackdrop, zIndex);
 }

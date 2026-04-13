@@ -60,23 +60,10 @@ internal static class PresetUI {
     public static void Show(NGlobalUi globalUi) {
         Remove(globalUi);
 
-        DevPanelUI.PinRail();
-        DevPanelUI.SpliceRail(globalUi, joined: true);
-
-        var root = new Control { Name = RootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = 1250 };
-        root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        root.TreeExiting += () => {
-            DevPanelUI.UnpinRail();
-            DevPanelUI.SpliceRail(globalUi, joined: false);
-        };
-
-        root.AddChild(DevPanelUI.CreateBrowserBackdrop(() => Remove(globalUi)));
-        var panel = DevPanelUI.CreateBrowserPanel(PanelW);
-        root.AddChild(panel);
+        var (root, _, vbox) = DevPanelUI.CreateBrowserOverlayShell(
+            globalUi, RootName, PanelW, () => Remove(globalUi), contentSeparation: 8);
 
         var s = new State();
-        var vbox = panel.GetNode<VBoxContainer>("Content");
-        vbox.AddThemeConstantOverride("separation", 8);
 
         // ── Title bar ──
         BuildTitleBar(vbox);
