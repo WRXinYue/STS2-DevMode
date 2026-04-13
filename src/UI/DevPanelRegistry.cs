@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DevMode.Icons;
+using DevMode.Modding;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
 namespace DevMode.UI;
@@ -14,10 +15,6 @@ public static class DevPanelRegistry {
     private static readonly List<IDevPanelTab> _tabs = new();
     private static bool _dirty = true;
 
-    private static readonly object _postModLoadSync = new();
-    private static readonly List<Action> _postModLoadQueue = new();
-    private static bool _postModLoadPhaseDone;
-
     /// <summary>
     /// Queues a callback to run once, after all mods have finished <see cref="MegaCrit.Sts2.Core.Modding.ModManager"/> initialization
     /// and immediately before <see cref="MegaCrit.Sts2.Core.Localization.LocManager.Initialize"/> runs (same timing as safe external registration).
@@ -26,42 +23,10 @@ public static class DevPanelRegistry {
     /// <remarks>
     /// Prefer this over <see cref="Register"/> from another mod's <c>[ModInitializer]</c> when load order is uncertain.
     /// For compile-time references to DevMode, list <c>DevMode</c> in your mod manifest <c>dependencies</c> so DevMode loads first.
+    /// Equivalent to <see cref="ModRuntime.RegisterAfterAllModsLoaded"/>; use whichever reads clearer in your mod.
     /// </remarks>
-    public static void RegisterPanelWhenReady(Action registration) {
-        ArgumentNullException.ThrowIfNull(registration);
-
-        lock (_postModLoadSync) {
-            if (_postModLoadPhaseDone) {
-                RunDeferredRegistration(registration);
-                return;
-            }
-
-            _postModLoadQueue.Add(registration);
-        }
-    }
-
-    internal static void FlushPostModLoadRegistrations() {
-        lock (_postModLoadSync) {
-            if (_postModLoadPhaseDone)
-                return;
-
-            _postModLoadPhaseDone = true;
-
-            foreach (var action in _postModLoadQueue)
-                RunDeferredRegistration(action);
-
-            _postModLoadQueue.Clear();
-        }
-    }
-
-    private static void RunDeferredRegistration(Action registration) {
-        try {
-            registration();
-        }
-        catch (Exception ex) {
-            MainFile.Logger.Warn($"DevPanelRegistry.RegisterPanelWhenReady: {ex.Message}");
-        }
-    }
+    public static void RegisterPanelWhenReady(Action registration)
+        => ModLoadCoordinator.Register(registration);
 
     /// <summary>Register a tab. If a tab with the same <see cref="IDevPanelTab.Id"/> already exists, it is replaced.</summary>
     public static void Register(IDevPanelTab tab) {

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using DevMode.Actions;
 using DevMode.Actions.CardModes;
-using DevMode.AI;
 using DevMode.Icons;
 using DevMode.Navigation;
 using DevMode.UI;
@@ -94,12 +93,6 @@ internal static class DevPanel {
                                     slot => SaveSlotManager.LoadFromSlot(slot)),
                 OnNewTest = StartNewTest,
                 OnRefreshPanel = RefreshPanel,
-                OnToggleAI = AIControl.IsAvailable ? AIControl.Toggle : null,
-                OnCycleStrategy = AIControl.IsAvailable ? AIControl.CycleStrategy : null,
-                OnCycleSpeed = AIControl.IsAvailable ? AIControl.CycleSpeed : null,
-                IsAIEnabled = AIControl.IsAvailable ? () => AIControl.IsEnabled : null,
-                GetStrategyName = AIControl.IsAvailable ? AIControl.GetStrategyName : null,
-                GetSpeedLabel = AIControl.IsAvailable ? AIControl.GetSpeedLabel : null,
                 OnCycleGameSpeed = SpeedControl.CycleSpeed,
                 GetGameSpeedLabel = SpeedControl.GetLabel,
                 OnToggleSkipAnim = SkipAnimControl.Toggle,
@@ -153,9 +146,6 @@ internal static class DevPanel {
         DevPanelRegistry.Register("devmode.save", MdiIcon.ContentSave, I18N.T("panel.save", "Save / Load"), 100, DevPanelTabGroup.Utility, gui => DevPanelUI.ShowSaveLoadOverlay(gui, actions));
         DevPanelRegistry.Register("devmode.settings", MdiIcon.Cog, I18N.T("panel.settings", "Settings"), 200, DevPanelTabGroup.Utility, gui => DevPanelUI.ShowCheatsOverlay(gui, actions));
 
-        if (AIControl.IsAvailable) {
-            DevPanelRegistry.Register("devmode.ai", MdiIcon.Robot, I18N.T("panel.ai", "AI Control"), 300, DevPanelTabGroup.Utility, gui => DevPanelUI.ShowAIOverlay(gui, actions));
-        }
     }
 
     // ──────── Panel Openers ────────

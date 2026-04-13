@@ -3,7 +3,7 @@ using System;
 namespace DevMode.UI;
 
 /// <summary>
-/// Callbacks consumed by built-in overlay panels (Save/Load, Settings, AI).
+/// Callbacks consumed by built-in overlay panels (Save/Load, Settings).
 /// Panel-open actions have moved to <see cref="DevPanelRegistry"/>.
 /// </summary>
 internal sealed class DevPanelActions {
@@ -14,14 +14,6 @@ internal sealed class DevPanelActions {
 
     // UI coordination
     public required Action OnRefreshPanel { get; init; }
-
-    // AI overlay
-    public Action? OnToggleAI { get; init; }
-    public Action? OnCycleStrategy { get; init; }
-    public Action? OnCycleSpeed { get; init; }
-    public Func<bool>? IsAIEnabled { get; init; }
-    public Func<string>? GetStrategyName { get; init; }
-    public Func<string>? GetSpeedLabel { get; init; }
 
     // Settings overlay
     public required Action OnCycleGameSpeed { get; init; }

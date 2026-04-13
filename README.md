@@ -116,6 +116,18 @@ MdiIcon.Get("account-check", size: 24);
 
 See [`src/Icons/MdiIcon.cs`](src/Icons/MdiIcon.cs) for the full list of pre-defined icons.
 
+## Documentation site
+
+The **[docs/](docs/)** folder is a **Valaxy** site (same general layout as [valaxy-theme-sakura docs](https://github.com/WRXinYue/valaxy-theme-sakura)). Use **pnpm** (via Corepack):
+
+```bash
+cd docs
+corepack enable && corepack prepare pnpm@10.24.0 --activate
+pnpm install && pnpm dev
+```
+
+Or from the repo root: `make docs` (dev server) / `make docs-build` (SSG to `docs/dist/`) when those Makefile targets exist.
+
 ## Contributing
 
 See **[CONTRIBUTING.md](CONTRIBUTING.md)** for collaboration norms, K&R brace style, formatting commands, and localization.

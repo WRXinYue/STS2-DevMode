@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using DevMode.Icons;
+using DevMode.Modding;
 using Godot;
 using MegaCrit.Sts2.Core.Logging;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
@@ -328,10 +329,10 @@ internal static class LogViewerUI {
         var modVisible = new Dictionary<string, bool>(StringComparer.Ordinal);
         var modChips = new Dictionary<string, Button>(StringComparer.Ordinal);
 
-        void SyncModFilterChips(List<LogCollector.Entry> rawEntries) {
-            var discovered = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var e in rawEntries)
-                discovered.Add(ParseSource(e.Text));
+        void SyncModFilterChips(HashSet<string> loadedModIds) {
+            var discovered = new HashSet<string>(StringComparer.Ordinal) { "Game" };
+            foreach (var id in loadedModIds)
+                discovered.Add(id);
 
             foreach (var key in modChips.Keys.ToArray()) {
                 if (discovered.Contains(key)) continue;
@@ -391,8 +392,9 @@ internal static class LogViewerUI {
             LogCollector.MarkClean();
 
             LogSuppressor.ResetCounts();
-            SyncModFilterChips(entries);
-            var (filtered, suppressed, modStats) = FilterEntries(entries, minLevel, textFilter, modVisible);
+            var loadedModIds = ModRuntime.Catalog.GetIdSet();
+            SyncModFilterChips(loadedModIds);
+            var (filtered, suppressed, modStats) = FilterEntries(entries, minLevel, textFilter, modVisible, loadedModIds);
 
             richText.Text = BuildBbCode(filtered);
 
@@ -463,7 +465,8 @@ internal static class LogViewerUI {
             List<LogCollector.Entry> entries,
             LogLevel? minLevel,
             string textFilter,
-            Dictionary<string, bool> modSourceFilter) {
+            Dictionary<string, bool> modSourceFilter,
+            HashSet<string> loadedModIds) {
         var result = new List<LogCollector.Entry>(entries.Count);
         var modStats = new Dictionary<string, int>(StringComparer.Ordinal);
         int suppressed = 0;
@@ -473,7 +476,7 @@ internal static class LogViewerUI {
             if (!string.IsNullOrWhiteSpace(textFilter) &&
                 !e.Text.Contains(textFilter, StringComparison.OrdinalIgnoreCase)) continue;
 
-            string source = ParseSource(e.Text);
+            string source = ParseSource(e.Text, loadedModIds);
             if (modSourceFilter.TryGetValue(source, out var showMod) && !showMod)
                 continue;
 
@@ -488,15 +491,30 @@ internal static class LogViewerUI {
     }
 
     /// <summary>
-    /// Parses the leading "[modId]" tag from a log line.
-    /// Returns the mod ID if found, otherwise "Game".
+    /// Resolves log source by matching bracket tags against <see cref="ModRuntime.Catalog"/> ids only.
+    /// Walks <c>[...]</c> segments from the left and returns the first whose inner text is a loaded mod id; otherwise "Game".
     /// </summary>
-    private static string ParseSource(string text) {
-        if (text.Length > 1 && text[0] == '[') {
-            int close = text.IndexOf(']');
-            if (close > 1)
-                return text[1..close];
+    private static string ParseSource(string text, HashSet<string> loadedModIds) {
+        if (loadedModIds.Count == 0 || string.IsNullOrEmpty(text))
+            return "Game";
+
+        int i = 0;
+        while (i < text.Length) {
+            int open = text.IndexOf('[', i);
+            if (open < 0) break;
+            int close = text.IndexOf(']', open + 1);
+            if (close <= open + 1) {
+                i = open + 1;
+                continue;
+            }
+
+            string inner = text.Substring(open + 1, close - open - 1);
+            if (loadedModIds.Contains(inner))
+                return inner;
+
+            i = close + 1;
         }
+
         return "Game";
     }
 

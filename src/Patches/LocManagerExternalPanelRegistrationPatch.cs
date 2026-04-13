@@ -1,11 +1,12 @@
-using DevMode.UI;
+using DevMode.Modding;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Localization;
 
 namespace DevMode.Patches;
 
 /// <summary>
-/// Flushes <see cref="DevPanelRegistry.RegisterPanelWhenReady"/> once, after every mod initializer has run.
+/// Flushes <see cref="ModLoadCoordinator"/> once, after every mod initializer has run
+/// (covers <see cref="UI.DevPanelRegistry.RegisterPanelWhenReady"/> and <see cref="ModRuntime.RegisterAfterAllModsLoaded"/>).
 /// </summary>
 [HarmonyPatch(typeof(LocManager), nameof(LocManager.Initialize))]
 internal static class LocManagerExternalPanelRegistrationPatch {
@@ -15,6 +16,6 @@ internal static class LocManagerExternalPanelRegistrationPatch {
         if (_done)
             return;
         _done = true;
-        DevPanelRegistry.FlushPostModLoadRegistrations();
+        ModLoadCoordinator.Flush();
     }
 }

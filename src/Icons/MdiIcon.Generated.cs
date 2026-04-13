@@ -14,7 +14,6 @@ public readonly partial struct MdiIcon
     public static readonly MdiIcon ContentCopy = new("content-copy");
     public static readonly MdiIcon ContentSave = new("content-save");
     public static readonly MdiIcon Delete = new("delete");
-    public static readonly MdiIcon FastForward = new("fast-forward");
     public static readonly MdiIcon FilterVariant = new("filter-variant");
     public static readonly MdiIcon Flash = new("flash");
     public static readonly MdiIcon FolderOpen = new("folder-open");
@@ -27,7 +26,6 @@ public readonly partial struct MdiIcon
     public static readonly MdiIcon Plus = new("plus");
     public static readonly MdiIcon PuzzleOutline = new("puzzle-outline");
     public static readonly MdiIcon Refresh = new("refresh");
-    public static readonly MdiIcon Robot = new("robot");
     public static readonly MdiIcon Skull = new("skull");
     public static readonly MdiIcon SpeedometerMedium = new("speedometer-medium");
     public static readonly MdiIcon Star = new("star");

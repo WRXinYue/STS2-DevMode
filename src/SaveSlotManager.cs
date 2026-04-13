@@ -5,9 +5,9 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using DevMode.Modding;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Helpers;
-using MegaCrit.Sts2.Core.Modding;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Runs;
 using MegaCrit.Sts2.Core.Saves;
@@ -166,9 +166,8 @@ internal static class SaveSlotManager {
 
         meta.Seed = state.Rng?.StringSeed ?? "";
 
-        meta.ModList = ModManager.LoadedMods
-            .Where(m => m.manifest != null)
-            .Select(m => $"{m.manifest!.name} v{m.manifest!.version}")
+        meta.ModList = ModRuntime.Catalog.GetSnapshot()
+            .Select(m => $"{m.DisplayName} v{m.Version}")
             .ToList();
 
         return meta;

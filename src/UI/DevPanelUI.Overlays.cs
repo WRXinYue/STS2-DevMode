@@ -12,7 +12,6 @@ internal static partial class DevPanelUI {
     private const string SettingsRootName = "DevModeSettings";
     private const string SaveLoadRootName = "DevModeSaveLoad";
     private const string RestartSeedRootName = "DevModeRestartSeed";
-    private const string AIRootName = "DevModeAI";
 
     // ── Helper: build the standard browser-panel root ──────────────────────
 
@@ -460,51 +459,6 @@ internal static partial class DevPanelUI {
         vbox.AddChild(inner);
         ((Node)globalUi).AddChild(root);
         seedInput.GrabFocus();
-    }
-
-    // ── AI Control ────────────────────────────────────────────────────────
-
-    internal static void ShowAIOverlay(NGlobalUi globalUi, DevPanelActions actions) {
-        ((Node)globalUi).GetNodeOrNull<Control>(AIRootName)?.QueueFree();
-
-        var (root, vbox) = CreateOverlayRoot(globalUi, AIRootName, 520f);
-
-        AddBrowserNavTab(vbox, I18N.T("panel.section.ai", "AI Control"));
-
-        var inner = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        inner.AddThemeConstantOverride("separation", 6);
-
-        var aiBtn = CreatePlainButton(I18N.T("panel.ai.off", "AI: Off"), MdiIcon.Robot);
-        Button? stratBtn = null;
-        Button? speedBtn = null;
-
-        aiBtn.Pressed += () => {
-            actions.OnToggleAI!();
-            bool enabled = actions.IsAIEnabled?.Invoke() ?? false;
-            aiBtn.Text = enabled ? I18N.T("panel.ai.running", "AI: Running") : I18N.T("panel.ai.off", "AI: Off");
-            if (stratBtn != null) stratBtn.Visible = !enabled;
-            if (speedBtn != null) speedBtn.Visible = !enabled;
-        };
-        inner.AddChild(aiBtn);
-
-        stratBtn = CreatePlainButton(I18N.T("panel.ai.strategy", "Strategy: {0}", actions.GetStrategyName?.Invoke() ?? I18N.T("ai.strategy.rule", "Rule")), MdiIcon.Cog);
-        stratBtn.Pressed += () => {
-            actions.OnCycleStrategy?.Invoke();
-            stratBtn.Text = I18N.T("panel.ai.strategy", "Strategy: {0}", actions.GetStrategyName?.Invoke() ?? "?");
-        };
-        inner.AddChild(stratBtn);
-
-        speedBtn = CreatePlainButton(I18N.T("panel.ai.speed", "Speed: {0}", actions.GetSpeedLabel?.Invoke() ?? I18N.T("ai.speed.normal", "Normal")), MdiIcon.FastForward);
-        speedBtn.Pressed += () => {
-            actions.OnCycleSpeed?.Invoke();
-            speedBtn.Text = I18N.T("panel.ai.speed", "Speed: {0}", actions.GetSpeedLabel?.Invoke() ?? "?");
-        };
-        inner.AddChild(speedBtn);
-
-        vbox.AddChild(inner);
-        vbox.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill });
-
-        ((Node)globalUi).AddChild(root);
     }
 
     // ── Shared helpers ────────────────────────────────────────────────────

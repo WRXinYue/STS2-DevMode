@@ -131,6 +131,18 @@ MdiIcon.Get("account-check", size: 24);
 
 完整预定义图标列表见 [`src/Icons/MdiIcon.cs`](src/Icons/MdiIcon.cs)。
 
+## 文档站点
+
+**[docs/](docs/)** 为 **Valaxy** 文档站（目录组织可参考 [valaxy-theme-sakura](https://github.com/WRXinYue/valaxy-theme-sakura) 的 `docs`）。请使用 **pnpm**（推荐用 Corepack 固定版本）：
+
+```bash
+cd docs
+corepack enable && corepack prepare pnpm@10.24.0 --activate
+pnpm install && pnpm dev
+```
+
+或在仓库根目录执行：`make docs` (本地预览) / `make docs-build` (静态构建到 `docs/dist/`) (若当前 Makefile 中已定义对应目标)。
+
 ## 协作与贡献
 
 协作流程、K&R 代码风格、`dotnet format` / `make format`、Python 与本地化等说明见 **[CONTRIBUTING.md](CONTRIBUTING.md)**。

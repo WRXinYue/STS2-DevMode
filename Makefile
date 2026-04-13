@@ -14,7 +14,7 @@ MOD_MAIN := DevMode.csproj
 
 DEPLOY_TO_GAME := /p:DeployToGame=true
 
-.PHONY: help init icons format build deploy sync compile pck publish zip clean
+.PHONY: help init icons format build deploy sync compile pck publish zip clean docs docs-build
 
 help:
 	@echo DevMode — targets
