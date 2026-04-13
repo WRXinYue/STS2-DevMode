@@ -30,6 +30,7 @@ These pages are **community-style tutorials** for Slay the Spire 2 modding: engi
 
 | Page | Topics |
 | --- | --- |
+| [Harmony basics](/notes/sts2-harmony-basics/) | Patch targets, Prefix/Postfix, registration, injections |
 | [Card API](/notes/sts2-card-api/) | DynamicVar, Power, CardPileCmd, OrbCmd, CommonActions |
 | [Localization](/notes/sts2-localization/) | JSON keys, BBCode, `NL` vs `\n` |
 | [Image sizes](/notes/sts2-image-standards/) | Card, power, relic, portrait dimensions |
@@ -46,6 +47,7 @@ These pages are **community-style tutorials** for Slay the Spire 2 modding: engi
 
 | 页面 | 内容 |
 | --- | --- |
+| [Harmony 入门](/notes/sts2-harmony-basics/) | 补丁目标、补丁类型、注册、参数注入、维护 |
 | [卡牌 API](/notes/sts2-card-api/) | DynamicVar、Power、CardPileCmd、OrbCmd、CommonActions |
 | [本地化](/notes/sts2-localization/) | JSON key、BBCode、`NL` 与 `\n` |
 | [图片规格](/notes/sts2-image-standards/) | 卡牌、能力、遗物、立绘等尺寸 |

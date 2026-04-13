@@ -87,6 +87,8 @@ public sealed class MyPet : MonsterModel
 
 ## 3. 视觉加载（Harmony Patch）
 
+Harmony 的通用约定（补丁目标、Prefix/Postfix、`PatchAll`、参数注入）见 **[Harmony 补丁基础](/notes/sts2-harmony-basics/)**。
+
 ### 为什么需要 Patch
 
 `MonsterModel.CreateVisuals()` 调用 `PackedScene.Instantiate<NCreatureVisuals>()`，要求场景根节点类型是 `NCreatureVisuals`。但 Godot 4 不自动扫描 mod DLL 的 `ScriptPathAttribute`，场景根节点只能是 `Node2D`，导致转型失败。且 `CreateVisuals()` 不是 virtual，无法 override。

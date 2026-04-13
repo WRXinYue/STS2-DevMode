@@ -107,6 +107,7 @@ export default defineValaxyConfig<ThemeConfig>({
         link: '/notes',
         subNav: [
           { locale: 'nav.notes_hub', link: '/notes/' },
+          { locale: 'nav.notes_harmony', link: '/notes/sts2-harmony-basics' },
           { locale: 'nav.notes_card_api', link: '/notes/sts2-card-api' },
           { locale: 'nav.notes_localization', link: '/notes/sts2-localization' },
           { locale: 'nav.notes_images', link: '/notes/sts2-image-standards' },
