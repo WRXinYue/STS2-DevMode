@@ -1,0 +1,77 @@
+---
+title:
+  en: Multiplayer deterministic sync (case study)
+  zh-CN: 多人确定性数据同步（案例）
+top: 10009
+cover: https://wrxinyue.s3.bitiful.net/slay-the-spire-2-wallpaper.webp
+---
+
+::: en
+
+When local-only state affects combat math, lockstep multiplayer can diverge. Pattern: central cache + `INetMessage` + Harmony on sync start. **Body in Chinese**; example uses generic names.
+
+:::
+
+::: zh-CN
+
+## 问题背景
+
+STS2 多人采用**确定性锁步**：各端执行相同输入序列。若某数值仅从**本地文件**或**仅本机可见的状态**读取，而战斗结算又用到了它，则两端结果可能不一致 → **StateDivergence**。
+
+典型场景：持久化进度存在 `%LocalAppData%/...` 的 JSON，战斗公式里读取该文件计算加成，但联机时两台机器文件内容不同。
+
+## 解决思路（模式）
+
+1. **战斗阶段**使用**内存中的、双方已对齐的快照**，而不是直接读本地文件。
+2. 在**战斗同步开始**（如 `CombatStateSynchronizer.StartSync` 一类时机）通过 **`INetMessage`** 交换快照。
+3. 单人模式下仍可从文件初始化缓存；联机时在收到远端数据后写入缓存。
+
+### 架构示意
+
+```
+CombatStateSynchronizer.StartSync()
+  → 原版：同步玩家数据等
+  → Postfix：InitializeLocal(本地玩家) + 发送 SyncCustomStateMessage
+远端 OnReceived → 写入按 NetId 索引的缓存
+战斗中 → 公式只读缓存（必要时 fallback 到本地文件）
+```
+
+### 数据流（抽象）
+
+1. **同步阶段**：从权威数据源（本地存档）读出结构化字段 → 写入 `Cache[netId]` → 广播消息。
+2. **战斗中**：所有参与结算的代码从 `Cache` 读取；若需同时更新持久化与确定性，**两边**以相同顺序调用 `Increment` 类 API。
+3. **单人**：同步入口可能仍执行，发送可为空操作；缓存与文件保持一致即可。
+
+## 消息与 API（示例命名）
+
+```csharp
+public struct SyncCustomStateMessage : INetMessage
+{
+    public ulong NetId;
+    public int FieldA, FieldB;  // 按你的设计替换
+    // ShouldBroadcast / Mode 等按引擎约定设置
+}
+```
+
+静态类 `CustomStateSync` 可提供：
+
+- `InitializeLocal(Player)` — 从文件读入本地玩家快照。
+- `SetFromRemote(ulong netId, ...)` — 远端消息处理。
+- `Get(Player)` / `ApplyBonus(...)` — 战斗中确定性读取。
+
+## 时序
+
+自定义消息应与现有同步流程**顺序相容**；若存在 `WaitForSync()`，需确认你的消息在战斗开始前已到达或具有合理 fallback（与无修复时行为一致或更优）。
+
+## 与「把数据塞进遗物」对比
+
+| | 遗物字段同步 | 专用消息 + 缓存 |
+|---|---|---|
+| 耦合 | 与具体遗物绑定 | 可与遗物解耦 |
+| 扩展 | 换设计可能迁字段 | 消息与缓存可独立演进 |
+
+---
+
+本页为**模式说明**，具体类名、字段与补丁目标以你的 mod 与引擎版本为准。
+
+:::

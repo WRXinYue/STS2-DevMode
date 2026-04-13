@@ -103,6 +103,22 @@ export default defineValaxyConfig<ThemeConfig>({
         ],
       },
       {
+        locale: 'nav.notes',
+        link: '/notes',
+        subNav: [
+          { locale: 'nav.notes_hub', link: '/notes/' },
+          { locale: 'nav.notes_card_api', link: '/notes/sts2-card-api' },
+          { locale: 'nav.notes_localization', link: '/notes/sts2-localization' },
+          { locale: 'nav.notes_images', link: '/notes/sts2-image-standards' },
+          { locale: 'nav.notes_pitfalls', link: '/notes/sts2-modding-pitfalls' },
+          { locale: 'nav.notes_combat_ui', link: '/notes/sts2-combat-ui' },
+          { locale: 'nav.notes_skill_tree', link: '/notes/sts2-skill-tree' },
+          { locale: 'nav.notes_pets', link: '/notes/sts2-pet-guide' },
+          { locale: 'nav.notes_summon', link: '/notes/sts2-summon-guide' },
+          { locale: 'nav.notes_mp_sync', link: '/notes/sts2-multiplayer-sync' },
+        ],
+      },
+      {
         locale: 'nav.changelog',
         link: '/changelog',
         subNav: [

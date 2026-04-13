@@ -28,6 +28,17 @@ nav:
   panel_save_load: 存档 / 读档
   panel_settings: 设置
   changelog: 更新日志
+  notes: STS2 开发笔记
+  notes_hub: 笔记目录
+  notes_card_api: 卡牌 API
+  notes_localization: 本地化
+  notes_images: 图片规格
+  notes_pitfalls: 踩坑备忘
+  notes_combat_ui: 战斗 UI
+  notes_skill_tree: 技能树
+  notes_pets: 宠物（进阶）
+  notes_summon: 召唤物
+  notes_mp_sync: 多人同步
   dev_panel: 开发者面板
   mod_runtime: Mod 运行时
 
