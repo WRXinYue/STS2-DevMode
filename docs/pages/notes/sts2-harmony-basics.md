@@ -8,7 +8,7 @@ cover: https://wrxinyue.s3.bitiful.net/slay-the-spire-2-wallpaper.webp
 
 ::: en
 
-Harmony setup for STS2 mods: **patch target** (which `MethodBase` to hook), **patch type** (Prefix / Postfix / Transpiler), **registration** (`PatchAll` or manual), **injected parameters** (`__instance`, `__result`), and maintenance risks. **Full body in Chinese.**
+Harmony setup for STS2 mods: **patch target** (which `MethodBase` to hook), **patch type** (Prefix / Postfix / Transpiler), **registration** (`PatchAll` or manual), **injected parameters** (`__instance`, `__result`), and maintenance risks. Upstream overview: [Harmony — Introduction](https://harmony.pardeike.net/articles/intro.html). **Full body in Chinese.**
 
 :::
 
@@ -38,7 +38,7 @@ Harmony setup for STS2 mods: **patch target** (which `MethodBase` to hook), **pa
 
 **补丁目标** = 游戏或引擎里**已经存在**、且可被 Harmony 解析到的那个 **C# 成员**（绝大多数情况是**方法**）。
 
-实现上：用 [Harmony](https://github.com/pardeike/Harmony) 把自定义逻辑**织入**该方法的调用过程：在**目标方法执行前**跑 Prefix，在**执行后**跑 Postfix。读者需要你在文档里写清 **类型全名、方法名、实例/静态、关键重载**，必要时注明 Godot 生命周期（如 `_Ready`）的语义。
+实现上：用 Harmony 把自定义逻辑**织入**该方法的调用过程：在**目标方法执行前**跑 Prefix，在**执行后**跑 Postfix（概念与总览见 [Harmony — Introduction](https://harmony.pardeike.net/articles/intro.html)，仓库见 [GitHub](https://github.com/pardeike/Harmony)）。读者需要你在文档里写清 **类型全名、方法名、实例/静态、关键重载**，必要时注明 Godot 生命周期（如 `_Ready`）的语义。
 
 ---
 
@@ -143,6 +143,7 @@ public static class GlobalUiReadyPatch {
 
 ## 延伸阅读
 
+- **[Harmony — Introduction](https://harmony.pardeike.net/articles/intro.html)** — 官方入门：补丁思路、Hello World、运行时补丁限制
 - **[宠物（进阶）](/notes/sts2-pet-guide/)** — `CreateVisuals` 与 Prefix
 - **[踩坑备忘](/notes/sts2-modding-pitfalls/)** — `NMapScreen` 叠层与 Postfix、`__instance` 命名
 
