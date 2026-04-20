@@ -583,8 +583,7 @@ internal static class PotionSelectUI {
                 msg => s.StatusLabel.Text = msg));
 
         // Description
-        string? desc = null;
-        try { desc = potion.Description?.GetFormattedText(); } catch { }
+        string? desc = PotionActions.GetPotionDescriptionFormatted(potion);
         if (!string.IsNullOrWhiteSpace(desc)) {
             container.AddChild(new HSeparator());
             var descLabel = DevModeTheme.CreateGameBbcodeLabel();

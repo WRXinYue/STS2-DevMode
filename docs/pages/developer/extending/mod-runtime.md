@@ -40,7 +40,7 @@ Public hooks for other mods:
 
 | Member | Purpose |
 | --- | --- |
-| `ModRuntime.Catalog` (`IModCatalog`) | Snapshot of loaded mods (`GetSnapshot`, `GetIdSet`) backed by `ModManager.LoadedMods`. |
+| `ModRuntime.Catalog` (`IModCatalog`) | Snapshot of loaded mods (`GetSnapshot`, `GetIdSet`), using DevMode’s runtime enumeration over `ModManager` (works across STS2 builds that expose `GetLoadedMods()`, `LoadedMods`, or `Mods`). |
 | `ModRuntime.RegisterAfterAllModsLoaded(Action)` | Same queue and timing as `DevPanelRegistry.RegisterPanelWhenReady`. |
 
 `DevModeModInfo` exposes **Id**, **DisplayName**, and **Version** from each manifest.
@@ -53,7 +53,7 @@ Use this instead of re-implementing scans over `ModManager` when you need a cons
 
 | 成员 | 作用 |
 | --- | --- |
-| `ModRuntime.Catalog` (`IModCatalog`) | 已加载 mod 的快照 (`GetSnapshot`、`GetIdSet`)，数据来自 `ModManager.LoadedMods`。 |
+| `ModRuntime.Catalog` (`IModCatalog`) | 已加载 mod 的快照 (`GetSnapshot`、`GetIdSet`)，由 DevMode 在运行时枚举 `ModManager`（兼容不同 STS2 版本中 `GetLoadedMods()`、`LoadedMods` 或 `Mods` 等形态）。 |
 | `ModRuntime.RegisterAfterAllModsLoaded(Action)` | 与 `DevPanelRegistry.RegisterPanelWhenReady` 相同的队列与时机。 |
 
 `DevModeModInfo` 暴露各清单中的 **Id**、**DisplayName**、**Version**。

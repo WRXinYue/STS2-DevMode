@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using MegaCrit.Sts2.Core.Modding;
 
 namespace DevMode.Modding;
@@ -12,22 +13,22 @@ public readonly record struct DevModeModInfo(string Id, string DisplayName, stri
 /// Other assemblies can depend on DevMode and use <see cref="ModRuntime.Catalog"/> for a shared implementation.
 /// </summary>
 public interface IModCatalog {
-    /// <summary>Copies current <see cref="ModManager.LoadedMods"/> entries that have a non-empty manifest <c>id</c>.</summary>
+    /// <summary>Copies current loaded-mod entries that have a non-empty manifest <c>id</c>.</summary>
     IReadOnlyList<DevModeModInfo> GetSnapshot();
 
     /// <summary>Fast membership checks (e.g. log line attribution). Empty if no mods loaded.</summary>
     HashSet<string> GetIdSet(StringComparer? comparer = null);
 }
 
-/// <summary>Default <see cref="IModCatalog"/> backed by <see cref="ModManager.LoadedMods"/>.</summary>
+/// <summary>Default <see cref="IModCatalog"/> backed by the game's loaded mod enumeration.</summary>
 public sealed class ModCatalog : IModCatalog {
     public static IModCatalog Default { get; } = new ModCatalog();
 
     private ModCatalog() { }
 
     public IReadOnlyList<DevModeModInfo> GetSnapshot() {
-        var mods = ModManager.LoadedMods;
-        if (mods == null || mods.Count == 0)
+        var mods = ModManagerLoadedMods.Enumerate().ToList();
+        if (mods.Count == 0)
             return Array.Empty<DevModeModInfo>();
 
         var list = new List<DevModeModInfo>(mods.Count);
@@ -47,10 +48,7 @@ public sealed class ModCatalog : IModCatalog {
     public HashSet<string> GetIdSet(StringComparer? comparer = null) {
         comparer ??= StringComparer.Ordinal;
         var set = new HashSet<string>(comparer);
-        var mods = ModManager.LoadedMods;
-        if (mods == null) return set;
-
-        foreach (var m in mods) {
+        foreach (var m in ModManagerLoadedMods.Enumerate()) {
             var id = m.manifest?.id;
             if (!string.IsNullOrEmpty(id))
                 set.Add(id);

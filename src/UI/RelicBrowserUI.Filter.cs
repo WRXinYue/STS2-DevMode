@@ -41,11 +41,8 @@ internal static partial class RelicBrowserUI {
     internal static string GetRelicDescription(RelicModel relic) {
         try { return relic.DynamicDescription?.GetFormattedText() ?? ""; }
         catch {
-            try { return relic.Description?.GetFormattedText() ?? ""; }
-            catch {
-                try { return relic.Flavor?.GetFormattedText() ?? ""; }
-                catch { return ""; }
-            }
+            try { return relic.Flavor?.GetFormattedText() ?? ""; }
+            catch { return ""; }
         }
     }
 
