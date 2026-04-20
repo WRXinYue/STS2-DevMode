@@ -1,3 +1,4 @@
+using DevMode.Interop;
 using DevMode.Patches;
 using DevMode.Scripts;
 using DevMode.Settings;
@@ -27,6 +28,8 @@ public class MainFile {
 
         ScriptManager.Initialize();
         ScriptBridge.Start();
+
+        FrameworkBridge.Initialize();
 
         var harmony = new Harmony(ModID);
         harmony.PatchAll();

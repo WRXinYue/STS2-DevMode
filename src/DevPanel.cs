@@ -141,6 +141,8 @@ internal static class DevPanel {
         DevPanelRegistry.Register("devmode.hooks", MdiIcon.LightningBolt, I18N.T("panel.hooks", "Hooks"), 900, DevPanelTabGroup.Primary, _ => OpenHooks());
         DevPanelRegistry.Register("devmode.scripts", MdiIcon.PuzzleOutline, I18N.T("panel.scripts", "Scripts"), 950, DevPanelTabGroup.Primary, _ => OpenScripts());
         DevPanelRegistry.Register("devmode.logs", MdiIcon.TextBoxOutline, I18N.T("panel.logs", "Logs"), 960, DevPanelTabGroup.Primary, _ => OpenLogs());
+        DevPanelRegistry.Register("devmode.harmonyAnalysis", MdiIcon.Magnify, I18N.T("panel.harmonyAnalysis", "Harmony analysis"), 962, DevPanelTabGroup.Primary, _ => OpenHarmonyAnalysis());
+        DevPanelRegistry.Register("devmode.frameworks", MdiIcon.FilterVariant, I18N.T("panel.frameworks", "Frameworks"), 965, DevPanelTabGroup.Primary, _ => OpenFrameworks());
 
         // Utility group — settings / tools
         DevPanelRegistry.Register("devmode.save", MdiIcon.ContentSave, I18N.T("panel.save", "Save / Load"), 100, DevPanelTabGroup.Utility, gui => DevPanelUI.ShowSaveLoadOverlay(gui, actions));
@@ -316,6 +318,24 @@ internal static class DevPanel {
         LogViewerUI.Show(_globalUi);
     }
 
+    private static void OpenHarmonyAnalysis() {
+        if (_globalUi == null) return;
+        TryDismissCurrent();
+        DevModeState.ActivePanel = ActivePanel.HarmonyAnalysis;
+        UpdateTopBar();
+
+        HarmonyAnalysisUI.Show(_globalUi);
+    }
+
+    private static void OpenFrameworks() {
+        if (_globalUi == null) return;
+        TryDismissCurrent();
+        DevModeState.ActivePanel = ActivePanel.Frameworks;
+        UpdateTopBar();
+
+        FrameworkBridgeUI.Show(_globalUi);
+    }
+
     private static void StartNewTest() {
         try {
             var game = NGame.Instance;
@@ -357,6 +377,8 @@ internal static class DevPanel {
             case ActivePanel.Hooks: OpenHooks(); break;
             case ActivePanel.Scripts: OpenScripts(); break;
             case ActivePanel.Logs: OpenLogs(); break;
+            case ActivePanel.HarmonyAnalysis: OpenHarmonyAnalysis(); break;
+            case ActivePanel.Frameworks: OpenFrameworks(); break;
             case ActivePanel.CardEdit: break;
         }
     }

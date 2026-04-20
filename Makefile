@@ -12,9 +12,12 @@ VERSION := $(shell $(PYTHON) -c "import json;print(json.load(open('DevMode.json'
 
 MOD_MAIN := DevMode.csproj
 
+# RitsuLib — built standalone so Copy Mod can land DLL in game mods (needs Sts2Dir in local.props)
+RITSU_PROJ := extern/RitsuLib/STS2-RitsuLib.csproj
+
 DEPLOY_TO_GAME := /p:DeployToGame=true
 
-.PHONY: help init icons format build deploy sync compile pck publish zip clean docs docs-build
+.PHONY: help init icons format deps build deploy sync compile pck publish zip clean docs docs-build
 
 help:
 	@echo DevMode — targets
@@ -22,9 +25,10 @@ help:
 	@echo   init       detect STS2 + Godot, generate local.props + .vscode (Python 3; PYTHON=python3 to override)
 	@echo   icons      tree-shake MDI (mdi-used.json + MdiIcon.Generated.cs); downloads full icons.json on first run if missing
 	@echo   format     dotnet format DevMode.sln (C#; same rules as EditorConfig, for pre-commit / CI)
-	@echo   sync       build then deploy
-	@echo   build      write build/DevMode/ only (no game)
-	@echo   deploy     dotnet publish with DeployToGame=true
+	@echo   deps       RitsuLib (dotnet build). Run make init: root local.props supplies Sts2Dir
+	@echo   sync       deps + publish DevMode twice (repo build, then deploy to game)
+	@echo   build      deps + publish DevMode to build/DevMode/ only (no game)
+	@echo   deploy     deps + dotnet publish with DeployToGame=true
 	@echo   compile    dotnet build to game mods (no .pck)
 	@echo   pck        dotnet publish to game mods + .pck
 	@echo   publish    build + create GitHub Release (requires gh CLI)
@@ -40,18 +44,23 @@ icons:
 format:
 	$(DOTNET) format DevMode.sln --verbosity quiet
 
-build:
+deps:
+	$(DOTNET) build -c Release $(RITSU_PROJ) -p:SkipCopyToModsOnBuild=false
+
+build: deps
 	$(DOTNET) publish $(MOD_MAIN)
 
-deploy:
+deploy: deps
 	$(DOTNET) publish $(DEPLOY_TO_GAME) $(MOD_MAIN)
 
-sync: build deploy
+sync: deps
+	$(DOTNET) publish $(MOD_MAIN)
+	$(DOTNET) publish $(DEPLOY_TO_GAME) $(MOD_MAIN)
 
-compile:
+compile: deps
 	$(DOTNET) build $(DEPLOY_TO_GAME) $(MOD_MAIN)
 
-pck:
+pck: deps
 	$(DOTNET) publish $(DEPLOY_TO_GAME) $(MOD_MAIN)
 
 clean:

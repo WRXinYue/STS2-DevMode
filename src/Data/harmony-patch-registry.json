@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "owner": "BaseLib",
+      "category": "framework",
+      "displayName": "BaseLib",
+      "summary": "Shared utilities and Harmony patches for StS2 mods: content hooks, UI, localization helpers.",
+      "docUrl": "https://github.com/Alchyr/BaseLib-StS2"
+    },
+    {
+      "owner": "STS2-RitsuLib",
+      "category": "framework",
+      "displayName": "RitsuLib",
+      "summary": "Shared scaffolding for StS2 mods: settings, lifecycle, content/asset overrides, patches.",
+      "docUrl": "https://github.com/BAKAOLC/STS2-RitsuLib"
+    },
+    {
+      "owner": "DevMode",
+      "category": "devtools",
+      "displayName": "DevMode",
+      "summary": "Developer overlay (this mod): test harnesses, Harmony analysis, and debug tools.",
+      "docUrl": ""
+    }
+  ]
+}

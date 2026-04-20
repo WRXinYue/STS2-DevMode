@@ -105,6 +105,77 @@ localization/
 
 ---
 
+## 卡牌关键词的自动追加机制
+
+引擎在渲染卡牌描述时，会**自动**将 `CardModel.Keywords` 中的部分关键词拼接到描述文本的前/后——**不需要**在 description 里手写。
+
+源码参考：`CardModel.GetDescriptionForPile()`（`CardKeywordOrder.cs`）：
+
+```csharp
+// 自动追加在描述【前面】
+beforeDescription = { Ethereal, Sly, Retain, Innate, Unplayable }
+
+// 自动追加在描述【后面】
+afterDescription  = { Exhaust, Eternal }
+```
+
+### 常见陷阱：关键词重复显示
+
+若描述文本里**手写**了这些关键词，同时卡牌的 `CanonicalKeywords`（或 `OnUpgrade()` 里 `AddKeyword`）也包含它们，游戏内会连续显示两次。
+
+**错误示例（消耗出现两次）：**
+
+```json
+"description": "对所有敌人造成 12 点伤害。[gold]消耗[/gold]。"
+```
+
+```csharp
+public override IEnumerable<CardKeyword> CanonicalKeywords => [CardKeyword.Exhaust];
+```
+
+**正确写法：** description 里只写效果文字，关键词交给引擎自动追加。
+
+```json
+"description": "对所有敌人造成 12 点伤害。"
+```
+
+### 升级后新增关键词
+
+若 `OnUpgrade()` 调用 `AddKeyword(CardKeyword.Innate)` 等，引擎会在升级后自动在描述前插入「固有」。**无需**在 description 里用 `{IfUpgraded:show:\n[gold]固有[/gold]。}` 手动显示。
+
+```csharp
+// 正确：只在代码里加，description 不写
+protected override void OnUpgrade() => AddKeyword(CardKeyword.Innate);
+```
+
+```json
+// 正确：description 不含 {IfUpgraded:show:\n[gold]固有[/gold]。}
+"description": "每回合开始时，所有敌人获得 2 层[gold]敏感[/gold]。"
+```
+
+若升级后同时有**新增关键词**和**其他额外文字**，只保留额外文字部分：
+
+```json
+// 升级前后都会自动显示固有，仅保留升级额外效果文字
+"description": "你的回合结束时，恢复 4 点生命。{IfUpgraded:show:\n使用时抽一张牌。}"
+```
+
+### 总结：哪些关键词不用手写
+
+| 关键词 | 自动位置 | 触发条件 |
+| --- | --- | --- |
+| 虚无 Ethereal | 描述前 | `CanonicalKeywords` 包含 |
+| 狡猾 Sly | 描述前 | 当回合满足条件 |
+| 保留 Retain | 描述前 | `Keywords` 包含（含 `AddKeyword`） |
+| 固有 Innate | 描述前 | `Keywords` 包含（含 `AddKeyword`） |
+| 不可打出 Unplayable | 描述前 | `Keywords` 包含 |
+| **消耗 Exhaust** | 描述后 | `Keywords` 包含（含 `AddKeyword`） |
+| 永恒 Eternal | 描述后 | `Keywords` 包含 |
+
+其他出现在描述中的词（易伤、虚弱、力量等）只是富文本高亮，**不会**自动追加，需手动写入。
+
+---
+
 ## 换行
 
 不同渲染路径对换行符的处理不同：

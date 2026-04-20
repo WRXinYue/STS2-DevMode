@@ -33,7 +33,9 @@ public enum ActivePanel {
     CardEdit,
     Hooks,
     Scripts,
-    Logs
+    Logs,
+    HarmonyAnalysis,
+    Frameworks
 }
 
 public enum PowerTarget {
