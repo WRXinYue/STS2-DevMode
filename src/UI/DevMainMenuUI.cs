@@ -9,13 +9,13 @@ using MegaCrit.Sts2.Core.Nodes.Screens.MainMenu;
 
 namespace DevMode.UI;
 
-internal sealed class DevMenuActions {
+internal sealed class DevMainMenuActions {
     public required Action OnNewTest { get; init; }
     public required Action OnCardLibrary { get; init; }
     public required Action OnRelicCollection { get; init; }
 }
 
-internal static class DevMenuUI {
+internal static class DevMainMenuUI {
     private const string ButtonsContainerPath = "%MainMenuTextButtons";
 
     private static NMainMenu? _mainMenu;
@@ -28,7 +28,7 @@ internal static class DevMenuUI {
     private static readonly MethodInfo? MainMenuUnfocusedMethod =
         AccessTools.Method(typeof(NMainMenu), "MainMenuButtonUnfocused");
 
-    public static void Show(NMainMenu mainMenu, DevMenuActions actions) {
+    public static void Show(NMainMenu mainMenu, DevMainMenuActions actions) {
         _mainMenu = mainMenu;
 
         var container = mainMenu.GetNodeOrNull<Control>(ButtonsContainerPath);
@@ -245,11 +245,10 @@ internal static class DevMenuUI {
     private static NMainMenuTextButton AddButton(Control container, NMainMenuTextButton template, string text, Action action) {
         var btn = MainMenuTextButtonFactory.CreateFrom(
             template,
+            container,
             name: $"DevModeBtn_{text.Replace(" ", "")}",
-            text,
+            text: text,
             onReleased: _ => action());
-
-        container.AddChild(btn);
 
         if (_mainMenu != null)
             WireMainMenuTextButton(_mainMenu, btn);

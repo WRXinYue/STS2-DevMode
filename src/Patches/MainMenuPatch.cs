@@ -29,11 +29,11 @@ public static class MainMenuPatch {
 
         _devModeButton = MainMenuTextButtonFactory.CreateFrom(
             settingsBtn,
+            container,
             "DevModeButton",
             I18N.T("menu.developerMode", "Developer Mode"),
             OnDevModeButtonPressed);
 
-        container.AddChild(_devModeButton);
         container.MoveChild(_devModeButton, settingsBtn.GetIndex() + 1);
 
         MainFile.Logger.Info("DevMode: Button added to main menu (Prefix, before NMainMenu._Ready).");
@@ -79,8 +79,8 @@ public static class MainMenuPatch {
                 _devModeButton.Visible = settingsBtn.Visible;
         }
 
-        if (DevMenuUI.IsVisible)
-            DevMenuUI.ReapplyHide();
+        if (DevMainMenuUI.IsVisible)
+            DevMainMenuUI.ReapplyHide();
     }
 
     private static void OnDevModeButtonPressed(NButton _) {
@@ -88,7 +88,7 @@ public static class MainMenuPatch {
 
         MainFile.Logger.Info("DevMode: Opening dev mode menu...");
 
-        DevMenuUI.Show(_mainMenuRef, new UI.DevMenuActions {
+        DevMainMenuUI.Show(_mainMenuRef, new DevMainMenuActions {
             OnNewTest = () => {
                 DevModeState.IsActive = true;
                 var charSelect = _mainMenuRef.SubmenuStack.GetSubmenuType<NCharacterSelectScreen>();
@@ -103,10 +103,10 @@ public static class MainMenuPatch {
                     OnDevModeButtonPressed(null!);
                 };
                 AccessTools.Method(typeof(NMainMenu), "OpenCompendiumSubmenu")
-                    ?.Invoke(_mainMenuRef, new object?[] { null });
+                    ?.Invoke(_mainMenuRef, [null]);
                 var compendium = stack.Peek();
                 AccessTools.Method(compendium.GetType(), "OpenCardLibrary")
-                    ?.Invoke(compendium, new object?[] { null });
+                    ?.Invoke(compendium, [null]);
             },
             OnRelicCollection = () => {
                 DevModeState.InMenuPreview = true;
@@ -116,10 +116,10 @@ public static class MainMenuPatch {
                     OnDevModeButtonPressed(null!);
                 };
                 AccessTools.Method(typeof(NMainMenu), "OpenCompendiumSubmenu")
-                    ?.Invoke(_mainMenuRef, new object?[] { null });
+                    ?.Invoke(_mainMenuRef, [null]);
                 var compendium = stack.Peek();
                 AccessTools.Method(compendium.GetType(), "OpenRelicCollection")
-                    ?.Invoke(compendium, new object?[] { null });
+                    ?.Invoke(compendium, [null]);
             }
         });
     }

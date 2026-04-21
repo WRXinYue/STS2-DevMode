@@ -17,6 +17,7 @@ internal static class MainMenuTextButtonFactory {
 
     public static NMainMenuTextButton CreateFrom(
         NMainMenuTextButton template,
+        Node parent,
         string name,
         string text,
         Action<NButton> onReleased
@@ -24,6 +25,10 @@ internal static class MainMenuTextButtonFactory {
         var btn = (NMainMenuTextButton)template.Duplicate(DuplicateFlags);
         btn.Name = name;
         btn.Visible = true;
+
+        // Must AddChild before touching btn.label: NMainMenuTextButton.ConnectSignals (called from _Ready on tree-entry) is what
+        // assigns the label field. Setting label.Text earlier silently no-ops and the clone keeps the template's text.
+        parent.AddChild(btn);
 
         LocStringField?.SetValue(btn, null);
         if (btn.label != null)
