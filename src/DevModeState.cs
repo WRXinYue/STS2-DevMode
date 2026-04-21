@@ -83,9 +83,8 @@ public static class DevModeState {
     public static bool InDevRun { get; set; }
 
     /// <summary>
-    /// When true, normal (non-dev) runs also get the DevPanel sidebar, hooks, scripts, and other dev tools.
+    /// When true, normal runs get the DevPanel rail (only <see cref="UI.DevPanelTabKind.Developer"/> tabs unless <see cref="PersistCheats"/>), hooks, scripts, etc.
     /// Does NOT enable cheat effects on its own — see <see cref="PersistCheats"/>.
-    /// Toggled from the Developer Mode menu on the main menu.
     /// </summary>
     public static bool PersistDev { get; set; }
 

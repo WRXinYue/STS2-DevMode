@@ -140,9 +140,12 @@ internal static class DevPanel {
         DevPanelRegistry.Register("devmode.presets", MdiIcon.From("book-open-variant"), I18N.T("panel.presets", "Presets"), 800, DevPanelTabGroup.Primary, _ => OpenPresets());
         DevPanelRegistry.Register("devmode.hooks", MdiIcon.LightningBolt, I18N.T("panel.hooks", "Hooks"), 900, DevPanelTabGroup.Primary, _ => OpenHooks());
         DevPanelRegistry.Register("devmode.scripts", MdiIcon.PuzzleOutline, I18N.T("panel.scripts", "Scripts"), 950, DevPanelTabGroup.Primary, _ => OpenScripts());
-        DevPanelRegistry.Register("devmode.logs", MdiIcon.TextBoxOutline, I18N.T("panel.logs", "Logs"), 960, DevPanelTabGroup.Primary, _ => OpenLogs());
-        DevPanelRegistry.Register("devmode.harmonyAnalysis", MdiIcon.Magnify, I18N.T("panel.harmonyAnalysis", "Harmony analysis"), 962, DevPanelTabGroup.Primary, _ => OpenHarmonyAnalysis());
-        DevPanelRegistry.Register("devmode.frameworks", MdiIcon.FilterVariant, I18N.T("panel.frameworks", "Frameworks"), 965, DevPanelTabGroup.Primary, _ => OpenFrameworks());
+        DevPanelRegistry.Register("devmode.logs", MdiIcon.TextBoxOutline, I18N.T("panel.logs", "Logs"), 960, DevPanelTabGroup.Primary, _ => OpenLogs(), null,
+            DevPanelTabKind.Developer);
+        DevPanelRegistry.Register("devmode.harmonyAnalysis", MdiIcon.Magnify, I18N.T("panel.harmonyAnalysis", "Harmony analysis"), 962, DevPanelTabGroup.Primary,
+            _ => OpenHarmonyAnalysis(), null, DevPanelTabKind.Developer);
+        DevPanelRegistry.Register("devmode.frameworks", MdiIcon.FilterVariant, I18N.T("panel.frameworks", "Frameworks"), 965, DevPanelTabGroup.Primary,
+            _ => OpenFrameworks(), null, DevPanelTabKind.Developer);
 
         // Utility group — settings / tools
         DevPanelRegistry.Register("devmode.save", MdiIcon.ContentSave, I18N.T("panel.save", "Save / Load"), 100, DevPanelTabGroup.Utility, gui => DevPanelUI.ShowSaveLoadOverlay(gui, actions));

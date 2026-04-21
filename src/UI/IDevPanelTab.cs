@@ -26,6 +26,9 @@ public interface IDevPanelTab {
     /// <summary>Which section of the rail this tab belongs to.</summary>
     DevPanelTabGroup Group { get; }
 
+    /// <inheritdoc cref="DevPanelTabKind" />
+    DevPanelTabKind Kind => DevPanelTabKind.Cheat;
+
     /// <summary>Called when the user clicks this tab's icon.</summary>
     void OnActivate(NGlobalUi globalUi);
 
@@ -40,4 +43,16 @@ public enum DevPanelTabGroup {
 
     /// <summary>Lower section — utility panels (Save, Settings, AI, …).</summary>
     Utility
+}
+
+/// <summary>
+/// Rail tab capability. In normal runs with persist dev only (no cheat mode), only <see cref="Developer"/> tabs appear.
+/// Full dev runs and normal runs with cheat mode show every tab.
+/// </summary>
+public enum DevPanelTabKind {
+    /// <summary>Inspection and tooling that do not change run or save data (logs, Harmony report, framework bridge).</summary>
+    Developer,
+
+    /// <summary>May alter run state, saves, or combat (browsers with grant modes, console, cheats overlay, …).</summary>
+    Cheat
 }

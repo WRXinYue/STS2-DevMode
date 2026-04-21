@@ -39,8 +39,9 @@ public static class DevPanelRegistry {
     /// <summary>Convenience overload — register with lambdas, no need to implement <see cref="IDevPanelTab"/>.</summary>
     public static void Register(string id, MdiIcon icon, string displayName,
         int order, DevPanelTabGroup group, Action<NGlobalUi> onActivate,
-        Action<NGlobalUi>? onDeactivate = null) {
-        Register(new LambdaTab(id, icon, displayName, order, group, onActivate, onDeactivate));
+        Action<NGlobalUi>? onDeactivate = null,
+        DevPanelTabKind kind = DevPanelTabKind.Cheat) {
+        Register(new LambdaTab(id, icon, displayName, order, group, onActivate, onDeactivate, kind));
     }
 
     /// <summary>Remove a previously registered tab by id. Returns true if found.</summary>
@@ -84,18 +85,21 @@ public static class DevPanelRegistry {
         public string DisplayName { get; }
         public int Order { get; }
         public DevPanelTabGroup Group { get; }
+        public DevPanelTabKind Kind { get; }
 
         private readonly Action<NGlobalUi> _onActivate;
         private readonly Action<NGlobalUi>? _onDeactivate;
 
         public LambdaTab(string id, MdiIcon icon, string displayName,
             int order, DevPanelTabGroup group,
-            Action<NGlobalUi> onActivate, Action<NGlobalUi>? onDeactivate) {
+            Action<NGlobalUi> onActivate, Action<NGlobalUi>? onDeactivate,
+            DevPanelTabKind kind = DevPanelTabKind.Cheat) {
             Id = id;
             Icon = icon;
             DisplayName = displayName;
             Order = order;
             Group = group;
+            Kind = kind;
             _onActivate = onActivate;
             _onDeactivate = onDeactivate;
         }
