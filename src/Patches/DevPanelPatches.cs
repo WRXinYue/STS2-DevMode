@@ -21,7 +21,7 @@ public static class GlobalUiReadyPatch {
     private static AssetWarmupService? _warmup;
 
     public static void Postfix(NGlobalUi __instance) {
-        if (!DevModeState.InDevRun && !DevModeState.AlwaysEnabled) return;
+        if (!DevModeState.InDevRun && !DevModeState.PersistDev) return;
         if (_attached == __instance) return;
         _attached = __instance;
         DevPanel.Attach(__instance);

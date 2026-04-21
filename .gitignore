@@ -19,6 +19,7 @@ local.props
 *.py[cod]
 
 # IDE
+.cursor/
 .vs/
 .idea/
 .vscode/launch.json

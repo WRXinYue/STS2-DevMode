@@ -22,7 +22,7 @@ internal static class DevMainMenuUI {
     private static readonly List<NMainMenuTextButton> _addedButtons = new();
     private static readonly List<(Control control, bool wasVisible)> _hiddenControls = new();
 
-    // NMainMenu wires these to Focused/Unfocused signals only during _Ready, so runtime rows must re-wire manually or they get no reticle.
+    // Runtime rows miss NMainMenu._Ready wiring; forward focus to the same handlers as stock buttons.
     private static readonly MethodInfo? MainMenuFocusedMethod =
         AccessTools.Method(typeof(NMainMenu), "MainMenuButtonFocused");
     private static readonly MethodInfo? MainMenuUnfocusedMethod =
@@ -71,17 +71,11 @@ internal static class DevMainMenuUI {
         AddButton(container, template, I18N.T("devmenu.cardLibrary", "Card Library"), () => { Hide(); actions.OnCardLibrary(); });
         AddButton(container, template, I18N.T("devmenu.relicCollection", "Relic Collection"), () => { Hide(); actions.OnRelicCollection(); });
 
-        var alwaysLabel = DevModeState.AlwaysEnabled
-            ? I18N.T("devmenu.alwaysEnabled.on", "Normal Run DevMode: ON")
-            : I18N.T("devmenu.alwaysEnabled.off", "Normal Run DevMode: OFF");
-        NMainMenuTextButton? alwaysBtn = null;
-        alwaysBtn = AddButton(container, template, alwaysLabel, () => {
-            DevModeState.AlwaysEnabled = !DevModeState.AlwaysEnabled;
-            if (alwaysBtn?.label != null) {
-                alwaysBtn.label.Text = DevModeState.AlwaysEnabled
-                    ? I18N.T("devmenu.alwaysEnabled.on", "Normal Run DevMode: ON")
-                    : I18N.T("devmenu.alwaysEnabled.off", "Normal Run DevMode: OFF");
-            }
+        NMainMenuTextButton? persistNormalRunBtn = null;
+        persistNormalRunBtn = AddButton(container, template, GetPersistNormalRunModeLabel(), () => {
+            AdvanceNormalRunMode();
+            if (persistNormalRunBtn?.label != null)
+                persistNormalRunBtn.label.Text = GetPersistNormalRunModeLabel();
         });
 
         AddButton(container, template, I18N.T("devmenu.back", "Back"), Hide);
@@ -89,7 +83,6 @@ internal static class DevMainMenuUI {
 
     private static void WireMainMenuTextButton(NMainMenu mainMenu, NMainMenuTextButton button) {
         if (MainMenuFocusedMethod != null) {
-            // Deferred so the button's label layout has settled before MainMenuButtonFocused reads its global position.
             button.Connect(NClickableControl.SignalName.Focused, Callable.From<NMainMenuTextButton>(b => {
                 Callable.From(() => {
                     if (GodotObject.IsInstanceValid(mainMenu) && GodotObject.IsInstanceValid(b))
@@ -240,6 +233,25 @@ internal static class DevMainMenuUI {
 
         root.AddChild(overlay);
         seedInput.GrabFocus();
+    }
+
+    private static void AdvanceNormalRunMode() {
+        if (!DevModeState.PersistDev && !DevModeState.PersistCheats) {
+            DevModeState.PersistDev = true;
+        } else if (DevModeState.PersistDev && !DevModeState.PersistCheats) {
+            DevModeState.PersistCheats = true;
+        } else {
+            DevModeState.PersistDev = false;
+            DevModeState.PersistCheats = false;
+        }
+    }
+
+    private static string GetPersistNormalRunModeLabel() {
+        if (!DevModeState.PersistDev && !DevModeState.PersistCheats)
+            return I18N.T("devmenu.persistNormalRun.disabled", "Normal run: disabled");
+        if (DevModeState.PersistDev && !DevModeState.PersistCheats)
+            return I18N.T("devmenu.persistNormalRun.devMode", "Normal run: Dev Mode");
+        return I18N.T("devmenu.persistNormalRun.cheatMode", "Normal run: Cheat Mode");
     }
 
     private static NMainMenuTextButton AddButton(Control container, NMainMenuTextButton template, string text, Action action) {

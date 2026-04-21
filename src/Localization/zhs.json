@@ -7,8 +7,9 @@
   "devmenu.cardLibrary": "卡牌图鉴",
   "devmenu.relicCollection": "遗物图鉴",
   "devmenu.back": "返回",
-  "devmenu.alwaysEnabled.on": "正常对局启用开发者模式: 开",
-  "devmenu.alwaysEnabled.off": "正常对局启用开发者模式: 关",
+  "devmenu.persistNormalRun.disabled": "普通对局：禁用",
+  "devmenu.persistNormalRun.devMode": "普通对局：开发模式",
+  "devmenu.persistNormalRun.cheatMode": "普通对局：作弊模式",
 
   "panel.section.actions": "对局操作",
   "panel.section.save": "存档",

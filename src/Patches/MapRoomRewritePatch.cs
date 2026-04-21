@@ -22,7 +22,7 @@ public static class MapRoomRewritePatch {
 
     [HarmonyPrefix]
     public static void Prefix(ref RoomType __0, ref MapPointType __1, ref AbstractModel? __2) {
-        if (!DevModeState.InDevRun || !DevModeState.MapRewriteEnabled) return;
+        if (!DevModeState.CheatsInRun || !DevModeState.MapRewriteEnabled) return;
 
         // Optionally keep final boss
         if (DevModeState.MapKeepFinalBoss && __0 == RoomType.Boss) return;

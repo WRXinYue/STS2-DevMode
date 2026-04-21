@@ -8,12 +8,10 @@ using MegaCrit.Sts2.Core.Nodes.Screens.MainMenu;
 namespace DevMode.UI;
 
 internal static class MainMenuTextButtonFactory {
-    // Cleared on the clone so NMainMenuTextButton.RefreshLabel (fired on locale change) won't replace our text with the template's.
     private static readonly FieldInfo? LocStringField =
         AccessTools.Field(typeof(NMainMenuTextButton), "_locString");
 
-    // Groups | Scripts | UseInstantiation — omitting Signals (1) so the template's Released handler doesn't carry over.
-    private const int DuplicateFlags = 14;
+    private const int DuplicateFlags = 14; // Duplicate(14): no copied signals (template Released must not carry over).
 
     public static NMainMenuTextButton CreateFrom(
         NMainMenuTextButton template,
@@ -26,11 +24,9 @@ internal static class MainMenuTextButtonFactory {
         btn.Name = name;
         btn.Visible = true;
 
-        // Must AddChild before touching btn.label: NMainMenuTextButton.ConnectSignals (called from _Ready on tree-entry) is what
-        // assigns the label field. Setting label.Text earlier silently no-ops and the clone keeps the template's text.
-        parent.AddChild(btn);
+        parent.AddChild(btn); // _Ready assigns label; set text only after AddChild.
 
-        LocStringField?.SetValue(btn, null);
+        LocStringField?.SetValue(btn, null); // avoid locale refresh overwriting custom title
         if (btn.label != null)
             btn.label.Text = text;
 

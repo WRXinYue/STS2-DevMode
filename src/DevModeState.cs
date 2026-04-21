@@ -83,10 +83,21 @@ public static class DevModeState {
     public static bool InDevRun { get; set; }
 
     /// <summary>
-    /// When true, normal (non-dev) runs also get the DevPanel sidebar and cheat patches.
+    /// When true, normal (non-dev) runs also get the DevPanel sidebar, hooks, scripts, and other dev tools.
+    /// Does NOT enable cheat effects on its own — see <see cref="PersistCheats"/>.
     /// Toggled from the Developer Mode menu on the main menu.
     /// </summary>
-    public static bool AlwaysEnabled { get; set; }
+    public static bool PersistDev { get; set; }
+
+    /// <summary>
+    /// When true (AND <see cref="PersistDev"/> is also true), cheat effects apply in normal runs.
+    /// Has no effect unless <see cref="PersistDev"/> is on.
+    /// </summary>
+    public static bool PersistCheats { get; set; }
+
+    /// <summary>True when cheat patches should apply in the current run.
+    /// Set at <see cref="OnRunStarted"/> to <c>IsActive || (PersistDev &amp;&amp; PersistCheats)</c>.</summary>
+    public static bool CheatsInRun { get; set; }
 
     /// <summary>True while previewing card library / relic collection from the main menu.</summary>
     public static bool InMenuPreview { get; set; }
@@ -205,7 +216,8 @@ public static class DevModeState {
     }
 
     public static void OnRunStarted() {
-        InDevRun = IsActive || AlwaysEnabled;
+        InDevRun = IsActive || PersistDev;
+        CheatsInRun = IsActive || (PersistDev && PersistCheats);
         IsActive = false;
     }
 
@@ -227,6 +239,7 @@ public static class DevModeState {
 
     public static void OnRunEnded() {
         InDevRun = false;
+        CheatsInRun = false;
         GameSpeed = 1.0f;
         ClearEnemyOverrides();
         ResetCheats();

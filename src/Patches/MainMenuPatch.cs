@@ -13,7 +13,6 @@ public static class MainMenuPatch {
     private static NMainMenuTextButton? _devModeButton;
     private static NMainMenu? _mainMenuRef;
 
-    // Prefix, not Postfix: NMainMenu._Ready caches focus/signal wiring for the buttons present at that moment.
     [HarmonyPrefix]
     [HarmonyPatch("_Ready")]
     public static void AddDevModeButtonPrefix(NMainMenu __instance) {
@@ -36,7 +35,7 @@ public static class MainMenuPatch {
 
         container.MoveChild(_devModeButton, settingsBtn.GetIndex() + 1);
 
-        MainFile.Logger.Info("DevMode: Button added to main menu (Prefix, before NMainMenu._Ready).");
+        MainFile.Logger.Info("DevMode: Main menu Developer Mode button added.");
     }
 
     [HarmonyPostfix]
@@ -45,7 +44,6 @@ public static class MainMenuPatch {
         if (__instance != _mainMenuRef || _devModeButton == null || !GodotObject.IsInstanceValid(_devModeButton))
             return;
 
-        // Without "." self-pointers, Godot's geometry-based auto-focus sends Left/Right to the widest row.
         var textRow = __instance.GetNodeOrNull<Control>("%MainMenuTextButtons")
             ?? __instance.GetNodeOrNull<Control>("MainMenuTextButtons");
         if (textRow != null) {
@@ -57,7 +55,6 @@ public static class MainMenuPatch {
             }
         }
 
-        // SubmenuStack is only valid post-_Ready.
         if (DevModeState.AutoProceedToCharSelect) {
             DevModeState.AutoProceedToCharSelect = false;
             MainFile.Logger.Info("DevMode: Auto-proceeding to character select (Restart with Seed).");
@@ -67,7 +64,6 @@ public static class MainMenuPatch {
         }
     }
 
-    // RefreshButtons toggles visibility on rows it owns; it doesn't know about our row or the dev-submenu override.
     [HarmonyPostfix]
     [HarmonyPatch(nameof(NMainMenu.RefreshButtons))]
     public static void KeepDevButtonVisible(NMainMenu __instance) {

@@ -10,7 +10,7 @@ namespace DevMode;
 /// </summary>
 internal partial class DevModeProcessNode : Node {
     public override void _Process(double delta) {
-        if (!DevModeState.InDevRun && !DevModeState.AlwaysEnabled) return;
+        if (!DevModeState.InDevRun && !DevModeState.PersistDev) return;
         GlobalUiReadyPatch.Process(delta);
         ScriptManager.ProcessPendingReload();
     }
