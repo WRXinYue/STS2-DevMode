@@ -15,10 +15,6 @@ internal sealed class DevMenuActions {
     public required Action OnRelicCollection { get; init; }
 }
 
-/// <summary>
-/// Replaces the main menu buttons in-place with dev mode options,
-/// reusing the game's own NMainMenuTextButton style and container.
-/// </summary>
 internal static class DevMenuUI {
     private const string ButtonsContainerPath = "%MainMenuTextButtons";
 
@@ -26,8 +22,11 @@ internal static class DevMenuUI {
     private static readonly List<NMainMenuTextButton> _addedButtons = new();
     private static readonly List<(Control control, bool wasVisible)> _hiddenControls = new();
 
-    private static readonly FieldInfo? LocStringField =
-        AccessTools.Field(typeof(NMainMenuTextButton), "_locString");
+    // NMainMenu wires these to Focused/Unfocused signals only during _Ready, so runtime rows must re-wire manually or they get no reticle.
+    private static readonly MethodInfo? MainMenuFocusedMethod =
+        AccessTools.Method(typeof(NMainMenu), "MainMenuButtonFocused");
+    private static readonly MethodInfo? MainMenuUnfocusedMethod =
+        AccessTools.Method(typeof(NMainMenu), "MainMenuButtonUnfocused");
 
     public static void Show(NMainMenu mainMenu, DevMenuActions actions) {
         _mainMenu = mainMenu;
@@ -38,19 +37,17 @@ internal static class DevMenuUI {
             return;
         }
 
-        NMainMenuTextButton? template = null;
+        var template = container.GetNodeOrNull<NMainMenuTextButton>("SettingsButton");
+        if (template == null) {
+            MainFile.Logger.Warn("DevMode: SettingsButton not found under MainMenuTextButtons.");
+            return;
+        }
+
         _hiddenControls.Clear();
         foreach (var child in container.GetChildren()) {
             if (child is not Control ctrl) continue;
             _hiddenControls.Add((ctrl, ctrl.Visible));
             ctrl.Visible = false;
-            template ??= ctrl as NMainMenuTextButton;
-        }
-
-        if (template == null) {
-            MainFile.Logger.Warn("DevMode: No NMainMenuTextButton found to duplicate.");
-            RestoreButtons();
-            return;
         }
 
         _addedButtons.Clear();
@@ -74,7 +71,6 @@ internal static class DevMenuUI {
         AddButton(container, template, I18N.T("devmenu.cardLibrary", "Card Library"), () => { Hide(); actions.OnCardLibrary(); });
         AddButton(container, template, I18N.T("devmenu.relicCollection", "Relic Collection"), () => { Hide(); actions.OnRelicCollection(); });
 
-        // ── Settings: toggle "always enable DevMode in normal runs" ──
         var alwaysLabel = DevModeState.AlwaysEnabled
             ? I18N.T("devmenu.alwaysEnabled.on", "Normal Run DevMode: ON")
             : I18N.T("devmenu.alwaysEnabled.off", "Normal Run DevMode: OFF");
@@ -89,6 +85,24 @@ internal static class DevMenuUI {
         });
 
         AddButton(container, template, I18N.T("devmenu.back", "Back"), Hide);
+    }
+
+    private static void WireMainMenuTextButton(NMainMenu mainMenu, NMainMenuTextButton button) {
+        if (MainMenuFocusedMethod != null) {
+            // Deferred so the button's label layout has settled before MainMenuButtonFocused reads its global position.
+            button.Connect(NClickableControl.SignalName.Focused, Callable.From<NMainMenuTextButton>(b => {
+                Callable.From(() => {
+                    if (GodotObject.IsInstanceValid(mainMenu) && GodotObject.IsInstanceValid(b))
+                        MainMenuFocusedMethod.Invoke(mainMenu, [b]);
+                }).CallDeferred();
+            }));
+        }
+        if (MainMenuUnfocusedMethod != null) {
+            button.Connect(NClickableControl.SignalName.Unfocused, Callable.From<NMainMenuTextButton>(b => {
+                if (GodotObject.IsInstanceValid(mainMenu) && GodotObject.IsInstanceValid(b))
+                    MainMenuUnfocusedMethod.Invoke(mainMenu, [b]);
+            }));
+        }
     }
 
     public static void Hide() {
@@ -108,7 +122,6 @@ internal static class DevMenuUI {
 
     public static bool IsVisible => _mainMenu != null && GodotObject.IsInstanceValid(_mainMenu);
 
-    /// <summary>Re-hides original buttons after RefreshButtons() runs.</summary>
     public static void ReapplyHide() {
         foreach (var (ctrl, _) in _hiddenControls) {
             if (GodotObject.IsInstanceValid(ctrl))
@@ -124,15 +137,12 @@ internal static class DevMenuUI {
         _hiddenControls.Clear();
     }
 
-    // ── Seed input overlay (shown over the main menu) ───────────────────────
-
     private const string SeedOverlayName = "DevModeSeedInput";
 
     private static void ShowSeedInputOverlay(NMainMenu mainMenu, Action onNewTest) {
         var root = mainMenu.GetTree().Root;
         root.GetNodeOrNull<Control>(SeedOverlayName)?.QueueFree();
 
-        // Full-screen backdrop
         var overlay = new Control {
             Name = SeedOverlayName,
             MouseFilter = Control.MouseFilterEnum.Stop,
@@ -147,7 +157,6 @@ internal static class DevMenuUI {
         backdrop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         overlay.AddChild(backdrop);
 
-        // CenterContainer so the panel is always truly centred
         var wrapper = new CenterContainer();
         wrapper.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         overlay.AddChild(wrapper);
@@ -175,16 +184,13 @@ internal static class DevMenuUI {
         var vbox = new VBoxContainer();
         vbox.AddThemeConstantOverride("separation", 14);
 
-        // Title
         var title = new Label { Text = I18N.T("restart.title", "Restart with Seed"), HorizontalAlignment = HorizontalAlignment.Center };
         title.AddThemeFontSizeOverride("font_size", 16);
         title.AddThemeColorOverride("font_color", DevModeTheme.Accent);
         vbox.AddChild(title);
 
-        // Divider
         vbox.AddChild(new ColorRect { Color = DevModeTheme.Separator, CustomMinimumSize = new Vector2(0, 1), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
 
-        // Seed label + input
         var seedLbl = new Label { Text = I18N.T("restart.seed.label", "Seed (leave empty for random):") };
         seedLbl.AddThemeFontSizeOverride("font_size", 12);
         seedLbl.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
@@ -197,7 +203,6 @@ internal static class DevMenuUI {
         seedInput.AddThemeFontSizeOverride("font_size", 14);
         vbox.AddChild(seedInput);
 
-        // Buttons row
         var btnRow = new HBoxContainer();
         btnRow.AddThemeConstantOverride("separation", 10);
 
@@ -228,7 +233,6 @@ internal static class DevMenuUI {
         };
         btnRow.AddChild(startBtn);
 
-        // Also start on Enter key
         seedInput.TextSubmitted += _ => startBtn.EmitSignal(Button.SignalName.Pressed);
 
         vbox.AddChild(btnRow);
@@ -239,19 +243,16 @@ internal static class DevMenuUI {
     }
 
     private static NMainMenuTextButton AddButton(Control container, NMainMenuTextButton template, string text, Action action) {
-        var btn = (NMainMenuTextButton)template.Duplicate(14);
-        btn.Name = $"DevModeBtn_{text.Replace(" ", "")}";
-        btn.Visible = true;
-        btn.Connect(NClickableControl.SignalName.Released, Callable.From<NButton>(_ => action()));
+        var btn = MainMenuTextButtonFactory.CreateFrom(
+            template,
+            name: $"DevModeBtn_{text.Replace(" ", "")}",
+            text,
+            onReleased: _ => action());
+
         container.AddChild(btn);
 
-        LocStringField?.SetValue(btn, null);
-        if (btn.label != null) {
-            btn.label.Text = text;
-            btn.label.Modulate = Colors.White;
-            btn.label.SelfModulate = new Color("FFF6E2"); // StsColors.cream
-            btn.label.Scale = Vector2.One;
-        }
+        if (_mainMenu != null)
+            WireMainMenuTextButton(_mainMenu, btn);
 
         _addedButtons.Add(btn);
         return btn;

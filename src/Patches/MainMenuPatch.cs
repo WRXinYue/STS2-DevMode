@@ -1,5 +1,4 @@
 using System;
-using System.Reflection;
 using DevMode.UI;
 using Godot;
 using HarmonyLib;
@@ -9,61 +8,56 @@ using MegaCrit.Sts2.Core.Nodes.Screens.MainMenu;
 
 namespace DevMode.Patches;
 
-/// <summary>
-/// Adds a "Developer Mode" button below "Multiplayer" on the main menu.
-/// When pressed, sets DevModeState.IsActive and opens the character select screen.
-/// </summary>
 [HarmonyPatch(typeof(NMainMenu))]
 public static class MainMenuPatch {
     private static NMainMenuTextButton? _devModeButton;
     private static NMainMenu? _mainMenuRef;
 
-    private static readonly FieldInfo MultiplayerButtonField =
-        AccessTools.Field(typeof(NMainMenu), "_multiplayerButton");
-
-    private static readonly FieldInfo SingleplayerButtonField =
-        AccessTools.Field(typeof(NMainMenu), "_singleplayerButton");
-
-    [HarmonyPostfix]
+    // Prefix, not Postfix: NMainMenu._Ready caches focus/signal wiring for the buttons present at that moment.
+    [HarmonyPrefix]
     [HarmonyPatch("_Ready")]
-    public static void AddDevModeButton(NMainMenu __instance) {
+    public static void AddDevModeButtonPrefix(NMainMenu __instance) {
         _mainMenuRef = __instance;
 
-        var multiplayerBtn = (NMainMenuTextButton?)MultiplayerButtonField.GetValue(__instance);
-        if (multiplayerBtn == null) {
-            MainFile.Logger.Warn("DevMode: Could not find multiplayer button.");
+        var settingsBtn = __instance.GetNodeOrNull<NMainMenuTextButton>("MainMenuTextButtons/SettingsButton");
+        if (settingsBtn == null) {
+            MainFile.Logger.Warn("DevMode: Could not find Settings button.");
             return;
         }
 
-        var container = multiplayerBtn.GetParent();
+        var container = settingsBtn.GetParent();
 
-        // Duplicate the multiplayer button without signal connections (flags: Groups|Scripts|UseInstantiation = 14)
-        _devModeButton = (NMainMenuTextButton)multiplayerBtn.Duplicate(14);
-        _devModeButton.Name = "DevModeButton";
-        _devModeButton.Visible = true;
+        _devModeButton = MainMenuTextButtonFactory.CreateFrom(
+            settingsBtn,
+            "DevModeButton",
+            I18N.T("menu.developerMode", "Developer Mode"),
+            OnDevModeButtonPressed);
 
-        // AddChild first so _Ready runs → ConnectSignals → label = GetChild<MegaLabel>(0)
         container.AddChild(_devModeButton);
-        container.MoveChild(_devModeButton, multiplayerBtn.GetIndex() + 1);
+        container.MoveChild(_devModeButton, settingsBtn.GetIndex() + 1);
 
-        // Clear LocString so RefreshLabel() won't overwrite our text on translation change
-        var locField = AccessTools.Field(typeof(NMainMenuTextButton), "_locString");
-        locField?.SetValue(_devModeButton, null);
+        MainFile.Logger.Info("DevMode: Button added to main menu (Prefix, before NMainMenu._Ready).");
+    }
 
-        if (_devModeButton.label != null) {
-            _devModeButton.label.Text = I18N.T("menu.developerMode", "Developer Mode");
-            // Reset any disabled/animation state copied from the template
-            _devModeButton.label.Modulate = Colors.White;
-            _devModeButton.label.SelfModulate = new Color("FFF6E2"); // StsColors.cream
-            _devModeButton.label.Scale = Vector2.One;
+    [HarmonyPostfix]
+    [HarmonyPatch("_Ready")]
+    public static void AddDevModeButtonPostfix(NMainMenu __instance) {
+        if (__instance != _mainMenuRef || _devModeButton == null || !GodotObject.IsInstanceValid(_devModeButton))
+            return;
+
+        // Without "." self-pointers, Godot's geometry-based auto-focus sends Left/Right to the widest row.
+        var textRow = __instance.GetNodeOrNull<Control>("%MainMenuTextButtons")
+            ?? __instance.GetNodeOrNull<Control>("MainMenuTextButtons");
+        if (textRow != null) {
+            foreach (var child in textRow.GetChildren()) {
+                if (child is NMainMenuTextButton button) {
+                    button.FocusNeighborLeft = new NodePath(".");
+                    button.FocusNeighborRight = new NodePath(".");
+                }
+            }
         }
 
-        // Connect the 'released' signal (same signal NMainMenu uses for its buttons)
-        _devModeButton.Connect(NClickableControl.SignalName.Released, Callable.From<NButton>(OnDevModeButtonPressed));
-
-        MainFile.Logger.Info("DevMode: Button added to main menu.");
-
-        // "Restart with Seed" sets this flag so we skip the Dev menu submenu and go straight to char select.
+        // SubmenuStack is only valid post-_Ready.
         if (DevModeState.AutoProceedToCharSelect) {
             DevModeState.AutoProceedToCharSelect = false;
             MainFile.Logger.Info("DevMode: Auto-proceeding to character select (Restart with Seed).");
@@ -73,21 +67,18 @@ public static class MainMenuPatch {
         }
     }
 
-    /// <summary>
-    /// Ensure the dev mode button follows the same visibility rules as the singleplayer button.
-    /// </summary>
+    // RefreshButtons toggles visibility on rows it owns; it doesn't know about our row or the dev-submenu override.
     [HarmonyPostfix]
     [HarmonyPatch(nameof(NMainMenu.RefreshButtons))]
     public static void KeepDevButtonVisible(NMainMenu __instance) {
         if (__instance != _mainMenuRef) return;
 
         if (_devModeButton != null && GodotObject.IsInstanceValid(_devModeButton)) {
-            var singleplayerBtn = (NMainMenuTextButton?)SingleplayerButtonField.GetValue(__instance);
-            if (singleplayerBtn != null)
-                _devModeButton.Visible = singleplayerBtn.Visible;
+            var settingsBtn = __instance.GetNodeOrNull<NMainMenuTextButton>("MainMenuTextButtons/SettingsButton");
+            if (settingsBtn != null)
+                _devModeButton.Visible = settingsBtn.Visible;
         }
 
-        // Prevent RefreshButtons from re-showing the original buttons while dev menu is open
         if (DevMenuUI.IsVisible)
             DevMenuUI.ReapplyHide();
     }
