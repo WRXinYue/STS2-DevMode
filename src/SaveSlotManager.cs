@@ -201,6 +201,13 @@ internal static class SaveSlotManager {
             rm.CleanUp();
 
         DevModeState.InDevRun = true;
+        // New runs get DevModeState.OnRunStarted from RunManager.Launch postfix; snapshot loads do not.
+        if (DevModeState.IsActive)
+            DevModeState.OnRunStarted();
+        else {
+            DevModeState.CheatsInRun = DevModeState.PersistDev && DevModeState.PersistCheats;
+            DevModeState.DevRunFromMainMenu = false;
+        }
 
         var state = RunState.FromSerializable(save);
         rm.SetUpSavedSinglePlayer(state, save);

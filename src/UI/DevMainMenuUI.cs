@@ -62,6 +62,8 @@ internal static class DevMainMenuUI {
             SaveSlotUI.Show(mainMenu.GetTree().Root, saveMode: false, onConfirm: slot => {
                 SaveSlotUI.Hide();
                 Hide();
+                // Match "New Test": snapshot load skips RunManager.Launch, so OnRunStarted must see IsActive.
+                DevModeState.IsActive = true;
                 SaveSlotManager.LoadFromSlot(slot);
             });
         });

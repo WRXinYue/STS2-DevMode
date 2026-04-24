@@ -83,7 +83,7 @@ public static class DevModeState {
     public static bool InDevRun { get; set; }
 
     /// <summary>
-    /// When true, normal runs get the DevPanel rail (only <see cref="UI.DevPanelTabKind.Developer"/> tabs unless <see cref="PersistCheats"/>), hooks, scripts, etc.
+    /// When true, normal runs get the DevPanel rail, hooks, scripts, etc. Rail tab filtering (Dev vs Cheat) applies only here, not when <see cref="DevRunFromMainMenu"/>.
     /// Does NOT enable cheat effects on its own — see <see cref="PersistCheats"/>.
     /// </summary>
     public static bool PersistDev { get; set; }
@@ -97,6 +97,12 @@ public static class DevModeState {
     /// <summary>True when cheat patches should apply in the current run.
     /// Set at <see cref="OnRunStarted"/> to <c>IsActive || (PersistDev &amp;&amp; PersistCheats)</c>.</summary>
     public static bool CheatsInRun { get; set; }
+
+    /// <summary>
+    /// True for the current run started from main-menu Developer Mode (e.g. New Test). Used so the DevPanel rail shows every tab;
+    /// rail filtering by <see cref="UI.DevPanelTabKind"/> applies only to <see cref="PersistDev"/> normal runs without this flag.
+    /// </summary>
+    public static bool DevRunFromMainMenu { get; set; }
 
     /// <summary>True while previewing card library / relic collection from the main menu.</summary>
     public static bool InMenuPreview { get; set; }
@@ -217,6 +223,7 @@ public static class DevModeState {
     public static void OnRunStarted() {
         InDevRun = IsActive || PersistDev;
         CheatsInRun = IsActive || (PersistDev && PersistCheats);
+        DevRunFromMainMenu = IsActive;
         IsActive = false;
     }
 
@@ -239,6 +246,7 @@ public static class DevModeState {
     public static void OnRunEnded() {
         InDevRun = false;
         CheatsInRun = false;
+        DevRunFromMainMenu = false;
         GameSpeed = 1.0f;
         ClearEnemyOverrides();
         ResetCheats();

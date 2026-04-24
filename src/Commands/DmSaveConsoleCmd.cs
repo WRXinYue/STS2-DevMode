@@ -35,6 +35,7 @@ public class DmSaveConsoleCmd : AbstractConsoleCmd {
                     if (!SaveSlotManager.HasSlot(slot))
                         return new CmdResult(false, $"Slot {slot} is empty.");
 
+                    DevModeState.IsActive = true;
                     if (SaveSlotManager.LoadFromSlot(slot))
                         return new CmdResult(true, $"Loading from slot {slot}...");
                     return new CmdResult(false, $"Failed to load slot {slot}.");

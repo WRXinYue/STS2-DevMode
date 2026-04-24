@@ -90,7 +90,10 @@ internal static class DevPanel {
                 OnOpenSave = () => SaveSlotUI.Show(globalUi, saveMode: true,
                                     slot => SaveSlotManager.SaveToSlot(slot)),
                 OnOpenLoad = () => SaveSlotUI.Show(globalUi, saveMode: false,
-                                    slot => SaveSlotManager.LoadFromSlot(slot)),
+                                    slot => {
+                                        DevModeState.IsActive = true;
+                                        SaveSlotManager.LoadFromSlot(slot);
+                                    }),
                 OnNewTest = StartNewTest,
                 OnRefreshPanel = RefreshPanel,
                 OnCycleGameSpeed = SpeedControl.CycleSpeed,

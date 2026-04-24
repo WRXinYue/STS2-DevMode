@@ -46,8 +46,8 @@ public enum DevPanelTabGroup {
 }
 
 /// <summary>
-/// Rail tab capability. In normal runs with persist dev only (no cheat mode), only <see cref="Developer"/> tabs appear.
-/// Full dev runs and normal runs with cheat mode show every tab.
+/// Rail tab capability. When <see cref="DevModeState.CheatsInRun"/> or <see cref="DevModeState.DevRunFromMainMenu"/>, every tab appears.
+/// Otherwise (persist dev only on a normal run), only <see cref="Developer"/> tabs appear.
 /// </summary>
 public enum DevPanelTabKind {
     /// <summary>Inspection and tooling that do not change run or save data (logs, Harmony report, framework bridge).</summary>
