@@ -256,6 +256,14 @@ internal static partial class DevPanelUI {
         };
         col.AddChild(lightThemeBtn);
 
+        var resetWidthBtn = CreatePlainButton(
+            I18N.T("appearance.resetPanelWidths", "Reset saved panel widths"));
+        resetWidthBtn.Pressed += () => {
+            SettingsStore.Current.BrowserPanelWidths.Clear();
+            SettingsStore.Save();
+        };
+        col.AddChild(resetWidthBtn);
+
         return col;
     }
 

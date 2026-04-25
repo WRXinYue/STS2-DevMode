@@ -6,16 +6,41 @@ namespace DevMode.UI;
 
 internal static partial class DevPanelUI {
     /// <summary>
-    /// Standard rail-spliced browser shell: pins the rail, joins it to the panel edge, full-screen root,
-    /// optional click-outside backdrop, and a <see cref="CreateBrowserPanel(float)"/> instance.
-    /// <see cref="Control.TreeExiting"/> restores rail splice and unpin.
+    /// Creates a full-screen browser overlay shell with rail management and optional backdrop.
     /// </summary>
+    /// <param name="globalUi">The global UI context used for rail splicing.</param>
+    /// <param name="rootName">Unique name for the root control, used for persistence and identification.</param>
     /// <param name="panelWidth">
-    /// 0 = full-width browser panel. &gt; 0 = fixed width; backdrop is added automatically.
+    /// Desired panel width in pixels. Use <c>0</c> for full-width panel.
+    /// Values greater than <c>0</c> will automatically add a click-outside backdrop.
     /// </param>
+    /// <param name="onClose">Callback invoked when the backdrop is clicked or the overlay is dismissed.</param>
+    /// <param name="contentSeparation">Vertical spacing between content elements in the panel. Default is <c>10</c>.</param>
+    /// <param name="zIndex">Rendering order for the root control. Higher values appear on top. Default is <c>1250</c>.</param>
     /// <param name="backdropWhenFullWidth">
-    /// When <paramref name="panelWidth"/> is 0, set true to still add the backdrop (card browser / encounter picker).
+    /// When <c>true</c>, adds a backdrop even if <paramref name="panelWidth"/> is <c>0</c>.
+    /// Useful for card browsers and encounter pickers that need click-outside behavior.
     /// </param>
+    /// <returns>
+    /// A tuple containing:
+    /// <list type="bullet">
+    /// <item><description><c>Root</c> - The full-screen container control</description></item>
+    /// <item><description><c>Panel</c> - The browser panel with width grip attached</description></item>
+    /// <item><description><c>Content</c> - The VBoxContainer for adding browser content</description></item>
+    /// </list>
+    /// </returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="globalUi"/>, <paramref name="rootName"/>, or <paramref name="onClose"/> is <c>null</c>.
+    /// </exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="panelWidth"/> is negative.
+    /// </exception>
+    /// <remarks>
+    /// <para>This method manages rail pinning and splicing automatically. The rail is pinned
+    /// when the overlay is created and unpinned when the root control exits the scene tree.</para>
+    /// <para>Panel width is automatically persisted and restored via <see cref="DevModeSettings"/>.
+    /// A width grip is attached to the right edge for user resizing.</para>
+    /// </remarks>
     internal static (Control Root, PanelContainer Panel, VBoxContainer Content) CreateBrowserOverlayShell(
         NGlobalUi globalUi,
         string rootName,
@@ -24,32 +49,62 @@ internal static partial class DevPanelUI {
         int contentSeparation = 10,
         int zIndex = 1250,
         bool backdropWhenFullWidth = false) {
-        PinRail();
-        SpliceRail(globalUi, joined: true);
+        ArgumentNullException.ThrowIfNull(globalUi);
+        ArgumentNullException.ThrowIfNull(rootName);
+        ArgumentNullException.ThrowIfNull(onClose);
 
-        var root = new Control { Name = rootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = zIndex };
-        root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        root.TreeExiting += () => {
-            UnpinRail();
-            SpliceRail(globalUi, joined: false);
-        };
+        if (panelWidth < 0)
+            throw new ArgumentOutOfRangeException(nameof(panelWidth), "Panel width cannot be negative");
 
-        if (panelWidth > 0f || backdropWhenFullWidth)
+        var root = CreateAndSetupRoot(globalUi, rootName, zIndex);
+
+        float resolved = ResolveBrowserPanelWidth(rootName, panelWidth, (Node)globalUi);
+        if (resolved > 0f || backdropWhenFullWidth)
             root.AddChild(CreateBrowserBackdrop(onClose));
 
-        var panel = CreateBrowserPanel(panelWidth);
-        root.AddChild(panel);
+        var panel = CreateBrowserPanel(resolved);
+        AddPanelToRoot(root, panel, rootName, globalUi);
 
-        var content = panel.GetNode<VBoxContainer>("Content");
-        content.AddThemeConstantOverride("separation", contentSeparation);
+        var content = GetPanelContent(panel, contentSeparation);
 
         return (root, panel, content);
     }
 
     /// <summary>
-    /// Same as <see cref="CreateBrowserOverlayShell(NGlobalUi, string, float, Action, int, int, bool)"/>,
-    /// but uses a custom <see cref="PanelContainer"/> (e.g. card/relic browsers with different margins).
+    /// Creates a browser overlay shell using a pre-configured <see cref="PanelContainer"/>.
     /// </summary>
+    /// <param name="globalUi">The global UI context used for rail splicing.</param>
+    /// <param name="rootName">Unique name for the root control, used for persistence and identification.</param>
+    /// <param name="panel">
+    /// A pre-configured <see cref="PanelContainer"/> instance.
+    /// Use this overload for custom panels with specific margins (e.g., card or relic browsers).
+    /// </param>
+    /// <param name="onClose">Callback invoked when the backdrop is clicked or the overlay is dismissed.</param>
+    /// <param name="contentSeparation">Vertical spacing between content elements in the panel.</param>
+    /// <param name="addBackdrop">
+    /// When <c>true</c> (default), adds a click-outside backdrop.
+    /// Set to <c>false</c> for overlays that don't need dismissal behavior.
+    /// </param>
+    /// <param name="zIndex">Rendering order for the root control. Default is <c>1250</c>.</param>
+    /// <returns>
+    /// A tuple containing:
+    /// <list type="bullet">
+    /// <item><description><c>Root</c> - The full-screen container control</description></item>
+    /// <item><description><c>Panel</c> - The custom panel with width settings applied</description></item>
+    /// <item><description><c>Content</c> - The VBoxContainer for adding browser content</description></item>
+    /// </list>
+    /// </returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="globalUi"/>, <paramref name="rootName"/>, <paramref name="panel"/>, or <paramref name="onClose"/> is <c>null</c>.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the <paramref name="panel"/> does not contain a child named "Content" of type <see cref="VBoxContainer"/>.
+    /// </exception>
+    /// <remarks>
+    /// <para>Unlike the other overload, this method does not create a new panel but uses the provided one.
+    /// Width persistence and grip registration are still applied automatically.</para>
+    /// <para>The panel should have a direct child named "Content" of type <see cref="VBoxContainer"/>.</para>
+    /// </remarks>
     internal static (Control Root, PanelContainer Panel, VBoxContainer Content) CreateBrowserOverlayShell(
         NGlobalUi globalUi,
         string rootName,
@@ -58,24 +113,55 @@ internal static partial class DevPanelUI {
         int contentSeparation,
         bool addBackdrop = true,
         int zIndex = 1250) {
-        PinRail();
-        SpliceRail(globalUi, joined: true);
+        ArgumentNullException.ThrowIfNull(globalUi);
+        ArgumentNullException.ThrowIfNull(rootName);
+        ArgumentNullException.ThrowIfNull(panel);
+        ArgumentNullException.ThrowIfNull(onClose);
 
-        var root = new Control { Name = rootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = zIndex };
-        root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        root.TreeExiting += () => {
-            UnpinRail();
-            SpliceRail(globalUi, joined: false);
-        };
+        var root = CreateAndSetupRoot(globalUi, rootName, zIndex);
 
         if (addBackdrop)
             root.AddChild(CreateBrowserBackdrop(onClose));
 
-        root.AddChild(panel);
+        AddPanelToRoot(root, panel, rootName, globalUi);
 
-        var content = panel.GetNode<VBoxContainer>("Content");
-        content.AddThemeConstantOverride("separation", contentSeparation);
+        var content = GetPanelContent(panel, contentSeparation);
 
         return (root, panel, content);
     }
+
+    #region Private Helpers
+
+    private static Control CreateAndSetupRoot(NGlobalUi globalUi, string rootName, int zIndex) {
+        var root = new Control { Name = rootName, MouseFilter = Control.MouseFilterEnum.Ignore, ZIndex = zIndex };
+        root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+
+        SetupRailTransition(globalUi, root);
+        return root;
+    }
+
+    private static void SetupRailTransition(NGlobalUi globalUi, Control root) {
+        PinRail();
+        SpliceRail(globalUi, joined: true);
+        root.TreeExiting += () => {
+            UnpinRail();
+            SpliceRail(globalUi, joined: false);
+        };
+    }
+
+    private static void AddPanelToRoot(Control root, PanelContainer panel, string rootName, NGlobalUi globalUi) {
+        root.AddChild(panel);
+        ApplyInitialBrowserWidthFromSettings((Node)globalUi, panel, rootName);
+        RegisterBrowserPanelWidthGrip(root, panel, rootName);
+    }
+
+    private static VBoxContainer GetPanelContent(PanelContainer panel, int contentSeparation) {
+        var content = panel.GetNodeOrNull<VBoxContainer>("Content")
+            ?? throw new InvalidOperationException($"Panel '{panel.Name}' is missing a 'Content' VBoxContainer child");
+
+        content.AddThemeConstantOverride("separation", contentSeparation);
+        return content;
+    }
+
+    #endregion
 }
