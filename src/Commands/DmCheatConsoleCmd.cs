@@ -37,75 +37,75 @@ public class DmCheatConsoleCmd : AbstractConsoleCmd {
         switch (sub) {
             case "godmode":
             case "infinitehp": {
-                    var v = flag ?? !DevModeState.InfiniteHp;
-                    DevModeState.InfiniteHp = v;
+                    var v = flag ?? !DevModeState.PlayerCheats.InfiniteHp;
+                    DevModeState.PlayerCheats.InfiniteHp = v;
                     return new CmdResult(true, $"Infinite HP: {OnOff(v)}");
                 }
             case "infiniteblock": {
-                    var v = flag ?? !DevModeState.InfiniteBlock;
-                    DevModeState.InfiniteBlock = v;
+                    var v = flag ?? !DevModeState.PlayerCheats.InfiniteBlock;
+                    DevModeState.PlayerCheats.InfiniteBlock = v;
                     return new CmdResult(true, $"Infinite Block: {OnOff(v)}");
                 }
             case "infiniteenergy": {
-                    var v = flag ?? !DevModeState.InfiniteEnergy;
-                    DevModeState.InfiniteEnergy = v;
+                    var v = flag ?? !DevModeState.PlayerCheats.InfiniteEnergy;
+                    DevModeState.PlayerCheats.InfiniteEnergy = v;
                     return new CmdResult(true, $"Infinite Energy: {OnOff(v)}");
                 }
             case "infinitestars": {
-                    var v = flag ?? !DevModeState.InfiniteStars;
-                    DevModeState.InfiniteStars = v;
+                    var v = flag ?? !DevModeState.PlayerCheats.InfiniteStars;
+                    DevModeState.PlayerCheats.InfiniteStars = v;
                     return new CmdResult(true, $"Infinite Stars: {OnOff(v)}");
                 }
             case "freezeenemies": {
-                    var v = flag ?? !DevModeState.FreezeEnemies;
-                    DevModeState.FreezeEnemies = v;
+                    var v = flag ?? !DevModeState.EnemyCheats.FreezeEnemies;
+                    DevModeState.EnemyCheats.FreezeEnemies = v;
                     return new CmdResult(true, $"Freeze Enemies: {OnOff(v)}");
                 }
             case "onehitkill": {
-                    var v = flag ?? !DevModeState.OneHitKill;
-                    DevModeState.OneHitKill = v;
+                    var v = flag ?? !DevModeState.EnemyCheats.OneHitKill;
+                    DevModeState.EnemyCheats.OneHitKill = v;
                     return new CmdResult(true, $"One-Hit Kill: {OnOff(v)}");
                 }
             case "freeshop": {
-                    var v = flag ?? !DevModeState.FreeShop;
-                    DevModeState.FreeShop = v;
+                    var v = flag ?? !DevModeState.GameplayModifiers.FreeShop;
+                    DevModeState.GameplayModifiers.FreeShop = v;
                     return new CmdResult(true, $"Free Shop: {OnOff(v)}");
                 }
             case "alwayspotion": {
-                    var v = flag ?? !DevModeState.AlwaysRewardPotion;
-                    DevModeState.AlwaysRewardPotion = v;
+                    var v = flag ?? !DevModeState.PlayerCheats.AlwaysRewardPotion;
+                    DevModeState.PlayerCheats.AlwaysRewardPotion = v;
                     return new CmdResult(true, $"Always Reward Potion: {OnOff(v)}");
                 }
             case "alwaysupgrade": {
-                    var v = flag ?? !DevModeState.AlwaysUpgradeCardReward;
-                    DevModeState.AlwaysUpgradeCardReward = v;
+                    var v = flag ?? !DevModeState.PlayerCheats.AlwaysUpgradeCardReward;
+                    DevModeState.PlayerCheats.AlwaysUpgradeCardReward = v;
                     return new CmdResult(true, $"Always Upgrade Reward: {OnOff(v)}");
                 }
             case "maxrarity": {
-                    var v = flag ?? !DevModeState.MaxCardRewardRarity;
-                    DevModeState.MaxCardRewardRarity = v;
+                    var v = flag ?? !DevModeState.PlayerCheats.MaxCardRewardRarity;
+                    DevModeState.PlayerCheats.MaxCardRewardRarity = v;
                     return new CmdResult(true, $"Max Card Reward Rarity: {OnOff(v)}");
                 }
             case "unknowntreasure": {
-                    var v = flag ?? !DevModeState.UnknownMapAlwaysTreasure;
-                    DevModeState.UnknownMapAlwaysTreasure = v;
+                    var v = flag ?? !DevModeState.MapCheats.UnknownMapAlwaysTreasure;
+                    DevModeState.MapCheats.UnknownMapAlwaysTreasure = v;
                     return new CmdResult(true, $"Unknown → Treasure: {OnOff(v)}");
                 }
             case "maxscore": {
-                    var v = flag ?? !DevModeState.MaxScore;
-                    DevModeState.MaxScore = v;
+                    var v = flag ?? !DevModeState.GameplayModifiers.MaxScore;
+                    DevModeState.GameplayModifiers.MaxScore = v;
                     return new CmdResult(true, $"Max Score: {OnOff(v)}");
                 }
 
             // Multipliers
             case "damagemult":
-                return SetMultiplier(args, "Damage Multiplier", DevModeState.DamageMultiplier, v => DevModeState.DamageMultiplier = v);
+                return SetMultiplier(args, "Damage Multiplier", DevModeState.EnemyCheats.DamageMultiplier, v => DevModeState.EnemyCheats.DamageMultiplier = v);
             case "defensemult":
-                return SetMultiplier(args, "Defense Multiplier", DevModeState.DefenseMultiplier, v => DevModeState.DefenseMultiplier = v);
+                return SetMultiplier(args, "Defense Multiplier", DevModeState.PlayerCheats.DefenseMultiplier, v => DevModeState.PlayerCheats.DefenseMultiplier = v);
             case "goldmult":
-                return SetMultiplier(args, "Gold Multiplier", DevModeState.GoldMultiplier, v => DevModeState.GoldMultiplier = v);
+                return SetMultiplier(args, "Gold Multiplier", DevModeState.GameplayModifiers.GoldMultiplier, v => DevModeState.GameplayModifiers.GoldMultiplier = v);
             case "scoremult":
-                return SetMultiplier(args, "Score Multiplier", DevModeState.ScoreMultiplier, v => DevModeState.ScoreMultiplier = v);
+                return SetMultiplier(args, "Score Multiplier", DevModeState.GameplayModifiers.ScoreMultiplier, v => DevModeState.GameplayModifiers.ScoreMultiplier = v);
 
             default:
                 return new CmdResult(false, $"Unknown toggle: '{sub}'. Available: {string.Join(", ", AllSubs)}");

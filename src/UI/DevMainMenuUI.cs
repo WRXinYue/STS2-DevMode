@@ -62,8 +62,6 @@ internal static class DevMainMenuUI {
             SaveSlotUI.Show(mainMenu.GetTree().Root, saveMode: false, onConfirm: slot => {
                 SaveSlotUI.Hide();
                 Hide();
-                // Match "New Test": snapshot load skips RunManager.Launch, so OnRunStarted must see IsActive.
-                DevModeState.IsActive = true;
                 SaveSlotManager.LoadFromSlot(slot);
             });
         });
@@ -223,7 +221,6 @@ internal static class DevMainMenuUI {
 
             overlay.QueueFree();
             Hide();
-            DevModeState.IsActive = true;
             onNewTest();
         };
         btnRow.AddChild(startBtn);
@@ -238,22 +235,21 @@ internal static class DevMainMenuUI {
     }
 
     private static void AdvanceNormalRunMode() {
-        if (!DevModeState.PersistDev && !DevModeState.PersistCheats) {
-            DevModeState.PersistDev = true;
-        } else if (DevModeState.PersistDev && !DevModeState.PersistCheats) {
-            DevModeState.PersistCheats = true;
-        } else {
-            DevModeState.PersistDev = false;
-            DevModeState.PersistCheats = false;
-        }
+        DevModeState.DebugMode = DevModeState.DebugMode switch {
+            DebugMode.Off => DebugMode.Panel,
+            DebugMode.Panel => DebugMode.Full,
+            DebugMode.Full => DebugMode.Off,
+            _ => DebugMode.Off,
+        };
     }
 
     private static string GetPersistNormalRunModeLabel() {
-        if (!DevModeState.PersistDev && !DevModeState.PersistCheats)
-            return I18N.T("devmenu.persistNormalRun.disabled", "Normal run: disabled");
-        if (DevModeState.PersistDev && !DevModeState.PersistCheats)
-            return I18N.T("devmenu.persistNormalRun.devMode", "Normal run: Dev Mode");
-        return I18N.T("devmenu.persistNormalRun.cheatMode", "Normal run: Cheat Mode");
+        return DevModeState.DebugMode switch {
+            DebugMode.Off => I18N.T("devmenu.persistNormalRun.disabled", "Normal run: disabled"),
+            DebugMode.Panel => I18N.T("devmenu.persistNormalRun.devMode", "Normal run: Dev Mode"),
+            DebugMode.Full => I18N.T("devmenu.persistNormalRun.cheatMode", "Normal run: Cheat Mode"),
+            _ => "",
+        };
     }
 
     private static NMainMenuTextButton AddButton(Control container, NMainMenuTextButton template, string text, Action action) {

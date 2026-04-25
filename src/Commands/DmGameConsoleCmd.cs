@@ -33,8 +33,8 @@ public class DmGameConsoleCmd : AbstractConsoleCmd {
                 }
             case "maprewrite": {
                     if (args.Length < 2) {
-                        var current = DevModeState.MapRewriteEnabled
-                            ? DevModeState.MapRewriteMode.ToString()
+                        var current = DevModeState.MapCheats.MapRewriteEnabled
+                            ? DevModeState.MapCheats.MapRewriteMode.ToString()
                             : "disabled";
                         return new CmdResult(true, $"Map rewrite: {current}\nUsage: dmgame maprewrite <none|allchest|allelite|allboss>");
                     }
@@ -42,20 +42,20 @@ public class DmGameConsoleCmd : AbstractConsoleCmd {
                     var mode = args[1].ToLowerInvariant();
                     switch (mode) {
                         case "none" or "off" or "disable":
-                            DevModeState.MapRewriteEnabled = false;
-                            DevModeState.MapRewriteMode = MapRewriteMode.None;
+                            DevModeState.MapCheats.MapRewriteEnabled = false;
+                            DevModeState.MapCheats.MapRewriteMode = MapRewriteMode.None;
                             return new CmdResult(true, "Map rewrite: disabled");
                         case "allchest" or "chest":
-                            DevModeState.MapRewriteEnabled = true;
-                            DevModeState.MapRewriteMode = MapRewriteMode.AllChest;
+                            DevModeState.MapCheats.MapRewriteEnabled = true;
+                            DevModeState.MapCheats.MapRewriteMode = MapRewriteMode.AllChest;
                             return new CmdResult(true, "Map rewrite: AllChest");
                         case "allelite" or "elite":
-                            DevModeState.MapRewriteEnabled = true;
-                            DevModeState.MapRewriteMode = MapRewriteMode.AllElite;
+                            DevModeState.MapCheats.MapRewriteEnabled = true;
+                            DevModeState.MapCheats.MapRewriteMode = MapRewriteMode.AllElite;
                             return new CmdResult(true, "Map rewrite: AllElite");
                         case "allboss" or "boss":
-                            DevModeState.MapRewriteEnabled = true;
-                            DevModeState.MapRewriteMode = MapRewriteMode.AllBoss;
+                            DevModeState.MapCheats.MapRewriteEnabled = true;
+                            DevModeState.MapCheats.MapRewriteMode = MapRewriteMode.AllBoss;
                             return new CmdResult(true, "Map rewrite: AllBoss");
                         default:
                             return new CmdResult(false, $"Unknown mode: '{mode}'. Use: {string.Join(", ", MapModes)}");

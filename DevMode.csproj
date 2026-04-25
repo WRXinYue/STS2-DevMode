@@ -49,19 +49,12 @@
     </Reference>
   </ItemGroup>
 
-  <!-- Git submodules: compile-time reference; runtime loads each mod DLL from its own folder -->
-  <ItemGroup>
-    <ProjectReference Include="extern\RitsuLib\STS2-RitsuLib.csproj">
-      <Private>false</Private>
-      <AdditionalProperties>SkipCopyToModsOnBuild=true</AdditionalProperties>
-    </ProjectReference>
-  </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.3">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="STS2.RitsuLib" Version="0.2.3" PrivateAssets="All" GeneratePathProperty="true" />
   </ItemGroup>
 
   <ItemGroup>
@@ -97,8 +90,27 @@
     <Content Include="$(MSBuildProjectName)\**" />
   </ItemGroup>
 
+  <Target Name="CopyRitsuLibModToGame" DependsOnTargets="CheckLocalProps">
+    <PropertyGroup>
+      <_RitsuLibDll>$(PkgSTS2_RitsuLib)\lib\net9.0\STS2-RitsuLib.dll</_RitsuLibDll>
+    </PropertyGroup>
+    <Warning
+      Text="STS2.RitsuLib package path missing or DLL not found (run `dotnet restore DevMode.sln`). Skipping copy to game mods."
+      Condition="'$(PkgSTS2_RitsuLib)' == '' or !Exists('$(_RitsuLibDll)')" />
+    <Message Text="Copying STS2-RitsuLib to game mods folder." Importance="high" Condition="Exists('$(_RitsuLibDll)')" />
+    <MakeDir Directories="$(Sts2Dir)\mods\STS2-RitsuLib\" Condition="Exists('$(_RitsuLibDll)')" />
+    <ItemGroup Condition="Exists('$(_RitsuLibDll)')">
+      <_RitsuLibModFiles Include="$(PkgSTS2_RitsuLib)\lib\net9.0\STS2-RitsuLib.dll;$(PkgSTS2_RitsuLib)\lib\net9.0\STS2-RitsuLib.runtimeconfig.json;$(PkgSTS2_RitsuLib)\content\mod_manifest.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_RitsuLibModFiles)" DestinationFolder="$(Sts2Dir)\mods\STS2-RitsuLib\" SkipUnchangedFiles="true" Condition="Exists('$(_RitsuLibDll)')" />
+  </Target>
+
+  <Target Name="CopyFrameworkModsToGame" DependsOnTargets="CopyRitsuLibModToGame" />
+
+  <Target Name="AutoSyncFrameworkModsAfterRestore" AfterTargets="Restore" DependsOnTargets="CopyFrameworkModsToGame" Condition="'$(Sts2Dir)' != '' and '$(DisableFrameworkModsAfterRestore)' != 'true'" />
+
   <!-- Deploy built DLL + deps to game mods folder -->
-  <Target Name="DeployToGame" AfterTargets="Publish" Condition="'$(DeployToGame)' == 'true'">
+  <Target Name="DeployToGame" AfterTargets="Publish" DependsOnTargets="CopyFrameworkModsToGame" Condition="'$(DeployToGame)' == 'true'">
     <ItemGroup>
       <DeployFiles Include="$(PublishDir)\$(ModId).dll" />
       <DeployFiles Include="$(PublishDir)\$(ModId).pck" Condition="Exists('$(PublishDir)\$(ModId).pck')" />
@@ -114,7 +126,7 @@
   </Target>
 
   <!-- Copy repo build artifacts to game mods (used by VS Code sync task) -->
-  <Target Name="DeployRepoBuildToMods" DependsOnTargets="CheckLocalProps">
+  <Target Name="DeployRepoBuildToMods" DependsOnTargets="CheckLocalProps;CopyFrameworkModsToGame">
     <Error Condition="'$(DeployFromRepoBuild)' != 'true'" Text="Set DeployFromRepoBuild=true (e.g. make deploy)." />
     <ItemGroup>
       <RepoEditorFiles Include="$(MSBuildProjectDirectory)\editor\**\*" />

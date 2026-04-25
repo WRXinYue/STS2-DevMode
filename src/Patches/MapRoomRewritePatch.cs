@@ -22,15 +22,15 @@ public static class MapRoomRewritePatch {
 
     [HarmonyPrefix]
     public static void Prefix(ref RoomType __0, ref MapPointType __1, ref AbstractModel? __2) {
-        if (!DevModeState.CheatsInRun || !DevModeState.MapRewriteEnabled) return;
+        if (!DevModeState.CheatsInRun || !DevModeState.MapCheats.MapRewriteEnabled) return;
 
         // Optionally keep final boss
-        if (DevModeState.MapKeepFinalBoss && __0 == RoomType.Boss) return;
+        if (DevModeState.MapCheats.MapKeepFinalBoss && __0 == RoomType.Boss) return;
 
         // Only rewrite combat-related rooms (Monster, Elite, Unknown)
         if (__0 != RoomType.Monster && __0 != RoomType.Elite && (int)__0 != 8) return;
 
-        switch (DevModeState.MapRewriteMode) {
+        switch (DevModeState.MapCheats.MapRewriteMode) {
             case MapRewriteMode.AllChest:
                 __0 = RoomType.Treasure;
                 __1 = (MapPointType)3;

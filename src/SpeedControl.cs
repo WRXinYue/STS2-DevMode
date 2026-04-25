@@ -32,6 +32,6 @@ internal static class SpeedControl {
 
     private static void Apply() {
         Engine.TimeScale = Speeds[_index];
-        DevModeState.GameSpeed = Speeds[_index];
+        DevModeState.GameplayModifiers.GameSpeed = Speeds[_index];
     }
 }

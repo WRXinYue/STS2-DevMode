@@ -90,10 +90,7 @@ internal static class DevPanel {
                 OnOpenSave = () => SaveSlotUI.Show(globalUi, saveMode: true,
                                     slot => SaveSlotManager.SaveToSlot(slot)),
                 OnOpenLoad = () => SaveSlotUI.Show(globalUi, saveMode: false,
-                                    slot => {
-                                        DevModeState.IsActive = true;
-                                        SaveSlotManager.LoadFromSlot(slot);
-                                    }),
+                                    slot => SaveSlotManager.LoadFromSlot(slot)),
                 OnNewTest = StartNewTest,
                 OnRefreshPanel = RefreshPanel,
                 OnCycleGameSpeed = SpeedControl.CycleSpeed,
@@ -360,8 +357,6 @@ internal static class DevPanel {
 
         if (rm.IsInProgress)
             rm.CleanUp();
-
-        DevModeState.IsActive = true;
 
         await game.ReturnToMainMenu();
         await game.Transition.FadeIn();

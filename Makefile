@@ -12,9 +12,6 @@ VERSION := $(shell $(PYTHON) -c "import json;print(json.load(open('DevMode.json'
 
 MOD_MAIN := DevMode.csproj
 
-# RitsuLib — built standalone so Copy Mod can land DLL in game mods (needs Sts2Dir in local.props)
-RITSU_PROJ := extern/RitsuLib/STS2-RitsuLib.csproj
-
 DEPLOY_TO_GAME := /p:DeployToGame=true
 
 .PHONY: help init icons format deps build deploy sync compile pck publish zip clean docs docs-build
@@ -25,7 +22,7 @@ help:
 	@echo   init       detect STS2 + Godot, generate local.props + .vscode (Python 3; PYTHON=python3 to override)
 	@echo   icons      tree-shake MDI (mdi-used.json + MdiIcon.Generated.cs); downloads full icons.json on first run if missing
 	@echo   format     dotnet format DevMode.sln (C#; same rules as EditorConfig, for pre-commit / CI)
-	@echo   deps       RitsuLib (dotnet build). Run make init: root local.props supplies Sts2Dir
+	@echo   deps       dotnet restore DevMode (STS2.RitsuLib NuGet + sync to game mods when Sts2Dir is set)
 	@echo   sync       deps + publish DevMode twice (repo build, then deploy to game)
 	@echo   build      deps + publish DevMode to build/DevMode/ only (no game)
 	@echo   deploy     deps + dotnet publish with DeployToGame=true
@@ -45,7 +42,7 @@ format:
 	$(DOTNET) format DevMode.sln --verbosity quiet
 
 deps:
-	$(DOTNET) build -c Release $(RITSU_PROJ) -p:SkipCopyToModsOnBuild=false
+	$(DOTNET) restore $(MOD_MAIN)
 
 build: deps
 	$(DOTNET) publish $(MOD_MAIN)

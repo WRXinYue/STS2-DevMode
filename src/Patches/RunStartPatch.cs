@@ -17,7 +17,7 @@ public static class RunStartPatch {
     [HarmonyPrefix]
     [HarmonyPatch(nameof(RunManager.SetUpNewSinglePlayer))]
     public static void DisableSaveForDevRun(ref bool shouldSave) {
-        if (DevModeState.IsActive) {
+        if (DevModeState.InDevRun) {
             shouldSave = false;
             MainFile.Logger.Info("DevMode: Save disabled for dev run.");
         }
@@ -26,7 +26,8 @@ public static class RunStartPatch {
     [HarmonyPostfix]
     [HarmonyPatch(nameof(RunManager.Launch))]
     public static void InjectDevContent(RunState __result) {
-        if (!DevModeState.IsActive) return;
+        if (!DevModeState.InDevRun)
+            return;
 
         MainFile.Logger.Info("DevMode: Injecting dev mode content into run...");
 
@@ -35,8 +36,6 @@ public static class RunStartPatch {
         }
 
         ApplyPendingRestart(__result);
-
-        DevModeState.OnRunStarted();
         MainFile.Logger.Info("DevMode: Dev mode content injected successfully.");
     }
 

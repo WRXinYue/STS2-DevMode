@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -142,6 +144,65 @@ internal static class SaveSlotManager {
     private static string SlotPath(int slot) => Path.Combine(SnapshotDir, $"slot{slot}.json");
     private static string MetaPath(int slot) => Path.Combine(SnapshotDir, $"slot{slot}_meta.json");
 
+    // MissingMethodException has no blame API; stack + ModAssemblyLookup tie assemblies to manifests when possible.
+    private static void LogLoadFailure(Exception ex) {
+        MainFile.Logger.Warn($"SaveSlotManager: Load save async failed: {ex.Message}");
+
+        for (var inner = ex.InnerException; inner != null; inner = inner.InnerException)
+            MainFile.Logger.Warn($"SaveSlotManager: Inner: {inner.GetType().Name}: {inner.Message}");
+
+        const int maxFrames = 48;
+        var trace = new StackTrace(ex, fNeedFileInfo: true);
+        var n = Math.Min(trace.FrameCount, maxFrames);
+
+        string? culpritSummary = null;
+        var manifestModsOnStack = new HashSet<DevModeModInfo>();
+
+        var sb = new StringBuilder();
+        sb.Append("SaveSlotManager: Stack (assembly → type.method):");
+        for (var i = 0; i < n; i++) {
+            var frame = trace.GetFrame(i);
+            var method = frame?.GetMethod();
+            if (method?.DeclaringType == null) continue;
+
+            var assembly = method.DeclaringType.Assembly;
+            var asmName = assembly.GetName().Name ?? "?";
+
+            if (culpritSummary == null
+                && !ModAssemblyLookup.IsRuntimeInfrastructureAssembly(asmName)
+                && !ModAssemblyLookup.IsGameCoreAssembly(asmName)) {
+                var asmVer = ModAssemblyLookup.FormatAssemblyVersion(assembly);
+                if (ModAssemblyLookup.TryGetByAssemblySimpleName(asmName, out var mod))
+                    culpritSummary =
+                        $"{mod.DisplayName} v{mod.Version} (id={mod.Id}) — assembly {asmName} [{asmVer}]";
+                else
+                    culpritSummary =
+                        $"assembly {asmName} [{asmVer}] (no manifest match — dependency or unpackaged DLL)";
+            }
+
+            if (ModAssemblyLookup.TryGetByAssemblySimpleName(asmName, out var matched))
+                manifestModsOnStack.Add(matched);
+
+            sb.AppendLine().Append("  ").Append(asmName).Append(" → ")
+                .Append(method.DeclaringType.FullName).Append('.').Append(method.Name);
+        }
+
+        if (trace.FrameCount > maxFrames)
+            sb.AppendLine().Append("  … (truncated)");
+
+        if (culpritSummary != null)
+            MainFile.Logger.Warn($"SaveSlotManager: Likely culprit: {culpritSummary}");
+
+        if (manifestModsOnStack.Count > 0) {
+            var parts = new List<string>(manifestModsOnStack.Count);
+            foreach (var m in manifestModsOnStack)
+                parts.Add($"{m.DisplayName} v{m.Version} (id={m.Id})");
+            MainFile.Logger.Warn($"SaveSlotManager: Manifest-matched mod(s) on stack: {string.Join("; ", parts)}");
+        }
+
+        MainFile.Logger.Warn(sb.ToString());
+    }
+
     private static SaveSlotMeta CaptureMetaFromState(RunState state, string name) {
         var player = state.Players.FirstOrDefault();
         var meta = new SaveSlotMeta {
@@ -192,35 +253,41 @@ internal static class SaveSlotManager {
     }
 
     private static async Task LoadFromSaveAsync(SerializableRun save) {
-        var game = NGame.Instance!;
-        var rm = RunManager.Instance;
+        try {
+            await NGame.Instance!.Transition.FadeOut();
 
-        await game.Transition.FadeOut();
+            if (RunManager.Instance.IsInProgress)
+                RunManager.Instance.CleanUp();
 
-        if (rm.IsInProgress)
-            rm.CleanUp();
+            try {
+                DevModeState.InDevRun = true;
+                DevModeState.DebugMode = DebugMode.Full;
 
-        DevModeState.InDevRun = true;
-        // New runs get DevModeState.OnRunStarted from RunManager.Launch postfix; snapshot loads do not.
-        if (DevModeState.IsActive)
-            DevModeState.OnRunStarted();
-        else {
-            DevModeState.CheatsInRun = DevModeState.PersistDev && DevModeState.PersistCheats;
-            DevModeState.DevRunFromMainMenu = false;
+                var state = RunState.FromSerializable(save);
+                RunManager.Instance.SetUpSavedSinglePlayer(state, save);
+
+                var prop = AccessTools.Property(typeof(RunManager), "ShouldSave");
+                prop?.SetValue(RunManager.Instance, false);
+
+                NGame.Instance.ReactionContainer.InitializeNetworking(
+                    new MegaCrit.Sts2.Core.Multiplayer.NetSingleplayerGameService());
+
+                await NGame.Instance.LoadRun(state, save.PreFinishedRoom);
+                MainFile.Logger.Info("SaveSlotManager: Save loaded successfully.");
+            }
+            catch (Exception ex) {
+                LogLoadFailure(ex);
+                DevModeState.OnRunEnded();
+                throw;
+            }
         }
-
-        var state = RunState.FromSerializable(save);
-        rm.SetUpSavedSinglePlayer(state, save);
-
-        var prop = AccessTools.Property(typeof(RunManager), "ShouldSave");
-        prop?.SetValue(rm, false);
-
-        game.ReactionContainer.InitializeNetworking(
-            new MegaCrit.Sts2.Core.Multiplayer.NetSingleplayerGameService());
-
-        await game.LoadRun(state, save.PreFinishedRoom);
-        await game.Transition.FadeIn();
-
-        MainFile.Logger.Info("SaveSlotManager: Save loaded successfully.");
+        finally {
+            try {
+                await NGame.Instance!.Transition.FadeIn();
+            }
+            catch (Exception ex) {
+                MainFile.Logger.Warn($"SaveSlotManager: FadeIn failed: {ex.Message}");
+            }
+        }
     }
 }

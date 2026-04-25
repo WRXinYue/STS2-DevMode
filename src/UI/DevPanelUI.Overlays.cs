@@ -55,28 +55,28 @@ internal static partial class DevPanelUI {
 
         // ── Section: Player ──
         inner.AddChild(CreateSectionHeader(I18N.T("panel.section.player", "Player")));
-        inner.AddChild(CreateCheatToggle(I18N.T("cheat.infiniteHp", "Infinite HP"), I18N.T("cheat.infiniteHp.desc", "Player cannot lose HP"), () => DevModeState.InfiniteHp, v => DevModeState.InfiniteHp = v));
-        inner.AddChild(CreateCheatToggle(I18N.T("cheat.infiniteBlock", "Infinite Shield"), I18N.T("cheat.infiniteBlock.desc", "Block refills to 999 after loss"), () => DevModeState.InfiniteBlock, v => {
-            DevModeState.InfiniteBlock = v;
+        inner.AddChild(CreateCheatToggle(I18N.T("cheat.infiniteHp", "Infinite HP"), I18N.T("cheat.infiniteHp.desc", "Player cannot lose HP"), () => DevModeState.PlayerCheats.InfiniteHp, v => DevModeState.PlayerCheats.InfiniteHp = v));
+        inner.AddChild(CreateCheatToggle(I18N.T("cheat.infiniteBlock", "Infinite Shield"), I18N.T("cheat.infiniteBlock.desc", "Block refills to 999 after loss"), () => DevModeState.PlayerCheats.InfiniteBlock, v => {
+            DevModeState.PlayerCheats.InfiniteBlock = v;
             if (v && RunContext.TryGetRunAndPlayer(out _, out var bp)) {
                 var c = bp.Creature;
                 if (c.Block < 999) c.GainBlockInternal(999 - c.Block);
             }
         }));
-        inner.AddChild(CreateCheatToggle(I18N.T("cheat.infiniteEnergy", "Infinite Energy"), I18N.T("cheat.infiniteEnergy.desc", "Energy refills after spending"), () => DevModeState.InfiniteEnergy, v => DevModeState.InfiniteEnergy = v));
-        inner.AddChild(CreateCheatToggle(I18N.T("cheat.infiniteStars", "Infinite Stars"), I18N.T("cheat.infiniteStars.desc", "Stars refill after spending"), () => DevModeState.InfiniteStars, v => DevModeState.InfiniteStars = v));
-        inner.AddChild(CreateCheatToggle(I18N.T("cheat.alwaysPotion", "Always Reward Potion"), null, () => DevModeState.AlwaysRewardPotion, v => DevModeState.AlwaysRewardPotion = v));
-        inner.AddChild(CreateCheatToggle(I18N.T("cheat.alwaysUpgrade", "Always Upgrade Reward"), I18N.T("cheat.alwaysUpgrade.desc", "Card rewards are always upgraded"), () => DevModeState.AlwaysUpgradeCardReward, v => DevModeState.AlwaysUpgradeCardReward = v));
-        inner.AddChild(CreateCheatToggle(I18N.T("cheat.maxRarity", "Max Card Reward Rarity"), I18N.T("cheat.maxRarity.desc", "All card rewards are Rare"), () => DevModeState.MaxCardRewardRarity, v => DevModeState.MaxCardRewardRarity = v));
-        inner.AddChild(CreateCheatSlider(I18N.T("cheat.defenseMultiplier", "Defense Multiplier"), I18N.T("cheat.defenseMultiplier.desc", "Multiply block gained"), 0, 10, 0.5f, () => DevModeState.DefenseMultiplier, v => DevModeState.DefenseMultiplier = v));
+        inner.AddChild(CreateCheatToggle(I18N.T("cheat.infiniteEnergy", "Infinite Energy"), I18N.T("cheat.infiniteEnergy.desc", "Energy refills after spending"), () => DevModeState.PlayerCheats.InfiniteEnergy, v => DevModeState.PlayerCheats.InfiniteEnergy = v));
+        inner.AddChild(CreateCheatToggle(I18N.T("cheat.infiniteStars", "Infinite Stars"), I18N.T("cheat.infiniteStars.desc", "Stars refill after spending"), () => DevModeState.PlayerCheats.InfiniteStars, v => DevModeState.PlayerCheats.InfiniteStars = v));
+        inner.AddChild(CreateCheatToggle(I18N.T("cheat.alwaysPotion", "Always Reward Potion"), null, () => DevModeState.PlayerCheats.AlwaysRewardPotion, v => DevModeState.PlayerCheats.AlwaysRewardPotion = v));
+        inner.AddChild(CreateCheatToggle(I18N.T("cheat.alwaysUpgrade", "Always Upgrade Reward"), I18N.T("cheat.alwaysUpgrade.desc", "Card rewards are always upgraded"), () => DevModeState.PlayerCheats.AlwaysUpgradeCardReward, v => DevModeState.PlayerCheats.AlwaysUpgradeCardReward = v));
+        inner.AddChild(CreateCheatToggle(I18N.T("cheat.maxRarity", "Max Card Reward Rarity"), I18N.T("cheat.maxRarity.desc", "All card rewards are Rare"), () => DevModeState.PlayerCheats.MaxCardRewardRarity, v => DevModeState.PlayerCheats.MaxCardRewardRarity = v));
+        inner.AddChild(CreateCheatSlider(I18N.T("cheat.defenseMultiplier", "Defense Multiplier"), I18N.T("cheat.defenseMultiplier.desc", "Multiply block gained"), 0, 10, 0.5f, () => DevModeState.PlayerCheats.DefenseMultiplier, v => DevModeState.PlayerCheats.DefenseMultiplier = v));
 
         // ── Section: Inventory ──
         inner.AddChild(CreateSectionHeader(I18N.T("panel.section.inventory", "Inventory")));
         inner.AddChild(CreateCheatNumberEdit(I18N.T("cheat.editGold", "Edit Gold"), 0, 99999,
             () => { if (!RunContext.TryGetRunAndPlayer(out _, out var p)) return 0; return p.Gold; },
             v => { if (!RunContext.TryGetRunAndPlayer(out _, out var p)) return; p.Gold = (int)v; }));
-        inner.AddChild(CreateCheatSlider(I18N.T("cheat.goldMultiplier", "Gold Multiplier"), I18N.T("cheat.goldMultiplier.desc", "Multiply gold gained"), 0, 10, 0.5f, () => DevModeState.GoldMultiplier, v => DevModeState.GoldMultiplier = v));
-        inner.AddChild(CreateCheatToggle(I18N.T("cheat.freeShop", "Free Shop"), I18N.T("cheat.freeShop.desc", "All shop purchases are free"), () => DevModeState.FreeShop, v => DevModeState.FreeShop = v));
+        inner.AddChild(CreateCheatSlider(I18N.T("cheat.goldMultiplier", "Gold Multiplier"), I18N.T("cheat.goldMultiplier.desc", "Multiply gold gained"), 0, 10, 0.5f, () => DevModeState.GameplayModifiers.GoldMultiplier, v => DevModeState.GameplayModifiers.GoldMultiplier = v));
+        inner.AddChild(CreateCheatToggle(I18N.T("cheat.freeShop", "Free Shop"), I18N.T("cheat.freeShop.desc", "All shop purchases are free"), () => DevModeState.GameplayModifiers.FreeShop, v => DevModeState.GameplayModifiers.FreeShop = v));
 
         // ── Section: Status ──
         inner.AddChild(CreateSectionHeader(I18N.T("panel.section.status", "Status")));
@@ -98,23 +98,23 @@ internal static partial class DevPanelUI {
                     p.SubtractFromMaxPotionCount(-diff);
                 }
             }));
-        inner.AddChild(CreateCheatToggle(I18N.T("cheat.maxScore", "Max Score"), I18N.T("cheat.maxScore.desc", "Enable max score tracking"), () => DevModeState.MaxScore, v => DevModeState.MaxScore = v));
-        inner.AddChild(CreateCheatSlider(I18N.T("cheat.scoreMultiplier", "Score Multiplier"), I18N.T("cheat.scoreMultiplier.desc", "Multiply score gained"), 0, 10, 0.5f, () => DevModeState.ScoreMultiplier, v => DevModeState.ScoreMultiplier = v));
+        inner.AddChild(CreateCheatToggle(I18N.T("cheat.maxScore", "Max Score"), I18N.T("cheat.maxScore.desc", "Enable max score tracking"), () => DevModeState.GameplayModifiers.MaxScore, v => DevModeState.GameplayModifiers.MaxScore = v));
+        inner.AddChild(CreateCheatSlider(I18N.T("cheat.scoreMultiplier", "Score Multiplier"), I18N.T("cheat.scoreMultiplier.desc", "Multiply score gained"), 0, 10, 0.5f, () => DevModeState.GameplayModifiers.ScoreMultiplier, v => DevModeState.GameplayModifiers.ScoreMultiplier = v));
 
         // ── Section: Enemy ──
         inner.AddChild(CreateSectionHeader(I18N.T("panel.section.enemy", "Enemy")));
-        inner.AddChild(CreateCheatToggle(I18N.T("cheat.freezeEnemies", "Freeze Enemies"), I18N.T("cheat.freezeEnemies.desc", "Enemies skip their turns"), () => DevModeState.FreezeEnemies, v => DevModeState.FreezeEnemies = v));
-        inner.AddChild(CreateCheatToggle(I18N.T("cheat.oneHitKill", "One-Hit Kill"), I18N.T("cheat.oneHitKill.desc", "Deal massive damage to enemies"), () => DevModeState.OneHitKill, v => DevModeState.OneHitKill = v));
-        inner.AddChild(CreateCheatSlider(I18N.T("cheat.damageMultiplier", "Damage Multiplier"), I18N.T("cheat.damageMultiplier.desc", "Multiply damage dealt to enemies"), 0, 10, 0.5f, () => DevModeState.DamageMultiplier, v => DevModeState.DamageMultiplier = v));
+        inner.AddChild(CreateCheatToggle(I18N.T("cheat.freezeEnemies", "Freeze Enemies"), I18N.T("cheat.freezeEnemies.desc", "Enemies skip their turns"), () => DevModeState.EnemyCheats.FreezeEnemies, v => DevModeState.EnemyCheats.FreezeEnemies = v));
+        inner.AddChild(CreateCheatToggle(I18N.T("cheat.oneHitKill", "One-Hit Kill"), I18N.T("cheat.oneHitKill.desc", "Deal massive damage to enemies"), () => DevModeState.EnemyCheats.OneHitKill, v => DevModeState.EnemyCheats.OneHitKill = v));
+        inner.AddChild(CreateCheatSlider(I18N.T("cheat.damageMultiplier", "Damage Multiplier"), I18N.T("cheat.damageMultiplier.desc", "Multiply damage dealt to enemies"), 0, 10, 0.5f, () => DevModeState.EnemyCheats.DamageMultiplier, v => DevModeState.EnemyCheats.DamageMultiplier = v));
 
         // ── Section: Game ──
         inner.AddChild(CreateSectionHeader(I18N.T("panel.section.game", "Game")));
-        inner.AddChild(CreateCheatToggle(I18N.T("cheat.unknownTreasure", "Unknown → Treasure"), I18N.T("cheat.unknownTreasure.desc", "Unknown map nodes always give treasure"), () => DevModeState.UnknownMapAlwaysTreasure, v => DevModeState.UnknownMapAlwaysTreasure = v));
-        inner.AddChild(CreateCheatToggle(I18N.T("mapRewrite.enabled", "Enable Map Rewrite"), "", () => DevModeState.MapRewriteEnabled, v => DevModeState.MapRewriteEnabled = v));
+        inner.AddChild(CreateCheatToggle(I18N.T("cheat.unknownTreasure", "Unknown → Treasure"), I18N.T("cheat.unknownTreasure.desc", "Unknown map nodes always give treasure"), () => DevModeState.MapCheats.UnknownMapAlwaysTreasure, v => DevModeState.MapCheats.UnknownMapAlwaysTreasure = v));
+        inner.AddChild(CreateCheatToggle(I18N.T("mapRewrite.enabled", "Enable Map Rewrite"), "", () => DevModeState.MapCheats.MapRewriteEnabled, v => DevModeState.MapCheats.MapRewriteEnabled = v));
 
         var mapModeBtn = CreatePlainButton(I18N.T("mapRewrite.mode", "Mode") + ": " + GetMapRewriteLabel(), MdiIcon.Map);
         mapModeBtn.Pressed += () => {
-            DevModeState.MapRewriteMode = DevModeState.MapRewriteMode switch {
+            DevModeState.MapCheats.MapRewriteMode = DevModeState.MapCheats.MapRewriteMode switch {
                 MapRewriteMode.None => MapRewriteMode.AllChest,
                 MapRewriteMode.AllChest => MapRewriteMode.AllElite,
                 MapRewriteMode.AllElite => MapRewriteMode.AllBoss,
@@ -124,7 +124,7 @@ internal static partial class DevPanelUI {
             mapModeBtn.Text = I18N.T("mapRewrite.mode", "Mode") + ": " + GetMapRewriteLabel();
         };
         inner.AddChild(mapModeBtn);
-        inner.AddChild(CreateCheatToggle(I18N.T("mapRewrite.keepFinalBoss", "Keep Final Boss"), "", () => DevModeState.MapKeepFinalBoss, v => DevModeState.MapKeepFinalBoss = v));
+        inner.AddChild(CreateCheatToggle(I18N.T("mapRewrite.keepFinalBoss", "Keep Final Boss"), "", () => DevModeState.MapCheats.MapKeepFinalBoss, v => DevModeState.MapCheats.MapKeepFinalBoss = v));
 
         var gameSpeedBtn = CreatePlainButton(I18N.T("panel.speed", "Speed: {0}", actions.GetGameSpeedLabel()), MdiIcon.SpeedometerMedium);
         gameSpeedBtn.Pressed += () => {
@@ -474,7 +474,7 @@ internal static partial class DevPanelUI {
         });
     }
 
-    private static string GetMapRewriteLabel() => DevModeState.MapRewriteMode switch {
+    private static string GetMapRewriteLabel() => DevModeState.MapCheats.MapRewriteMode switch {
         MapRewriteMode.None => I18N.T("mapRewrite.none", "None"),
         MapRewriteMode.AllChest => I18N.T("mapRewrite.allChest", "All Chest"),
         MapRewriteMode.AllElite => I18N.T("mapRewrite.allElite", "All Elite"),

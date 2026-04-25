@@ -67,47 +67,26 @@ public enum RelicMode {
 }
 
 public enum EnemyMode {
-    /// <summary>Set a global override — all combat rooms use this encounter.</summary>
     Global,
-    /// <summary>Set per-room-type overrides (Monster / Elite / Boss separately).</summary>
     PerType,
-    /// <summary>Clear all overrides.</summary>
     Off
 }
 
-public static class DevModeState {
-    /// <summary>Whether the user clicked "Developer Mode" on the main menu.</summary>
-    public static bool IsActive { get; set; }
+public enum DebugMode {
+    Off,
+    Panel,
+    Full,
+}
 
-    /// <summary>True while inside a dev-mode run (set at launch, cleared on run end).</summary>
+public static class DevModeState {
     public static bool InDevRun { get; set; }
 
-    /// <summary>
-    /// When true, normal runs get the DevPanel rail, hooks, scripts, etc. Rail tab filtering (Dev vs Cheat) applies only here, not when <see cref="DevRunFromMainMenu"/>.
-    /// Does NOT enable cheat effects on its own — see <see cref="PersistCheats"/>.
-    /// </summary>
-    public static bool PersistDev { get; set; }
+    public static DebugMode DebugMode { get; set; } = DebugMode.Off;
 
-    /// <summary>
-    /// When true (AND <see cref="PersistDev"/> is also true), cheat effects apply in normal runs.
-    /// Has no effect unless <see cref="PersistDev"/> is on.
-    /// </summary>
-    public static bool PersistCheats { get; set; }
+    public static bool CheatsInRun => InDevRun || DebugMode == DebugMode.Full;
 
-    /// <summary>True when cheat patches should apply in the current run.
-    /// Set at <see cref="OnRunStarted"/> to <c>IsActive || (PersistDev &amp;&amp; PersistCheats)</c>.</summary>
-    public static bool CheatsInRun { get; set; }
-
-    /// <summary>
-    /// True for the current run started from main-menu Developer Mode (e.g. New Test). Used so the DevPanel rail shows every tab;
-    /// rail filtering by <see cref="UI.DevPanelTabKind"/> applies only to <see cref="PersistDev"/> normal runs without this flag.
-    /// </summary>
-    public static bool DevRunFromMainMenu { get; set; }
-
-    /// <summary>True while previewing card library / relic collection from the main menu.</summary>
     public static bool InMenuPreview { get; set; }
 
-    /// <summary>Called when a menu preview submenu closes, to pop the compendium wrapper.</summary>
     public static Action? OnMenuPreviewClosed { get; set; }
 
     public static int MaxEnergy { get; set; } = 0;
@@ -118,89 +97,98 @@ public static class DevModeState {
     public static CardMode CardMode { get; set; } = CardMode.View;
     public static RelicMode RelicMode { get; set; } = RelicMode.View;
 
-    /// <summary>Current game speed multiplier (1.0 = normal).</summary>
-    public static float GameSpeed { get; set; } = 1.0f;
+    // ── Restart-with-Seed ──
 
-    // ── Player cheats ──
-
-    public static bool InfiniteHp { get; set; }
-    public static bool InfiniteBlock { get; set; }
-    public static bool InfiniteEnergy { get; set; }
-    public static bool InfiniteStars { get; set; }
-    public static bool AlwaysRewardPotion { get; set; }
-    public static bool AlwaysUpgradeCardReward { get; set; }
-    public static bool MaxCardRewardRarity { get; set; }
-    public static float DefenseMultiplier { get; set; } = 1.0f;
-
-    // ── Inventory cheats ──
-
-    public static float GoldMultiplier { get; set; } = 1.0f;
-    public static bool FreeShop { get; set; }
-
-    // ── Status cheats ──
-
-    public static bool MaxScore { get; set; }
-    public static float ScoreMultiplier { get; set; } = 1.0f;
-
-    // ── Enemy cheats ──
-
-    public static bool FreezeEnemies { get; set; }
-    public static bool OneHitKill { get; set; }
-    public static float DamageMultiplier { get; set; } = 1.0f;
-
-    // ── Game cheats ──
-
-    public static bool UnknownMapAlwaysTreasure { get; set; }
-
-    // ── Map rewrite (QoL) ──
-
-    public static bool MapRewriteEnabled { get; set; }
-    public static MapRewriteMode MapRewriteMode { get; set; } = MapRewriteMode.None;
-    public static bool MapKeepFinalBoss { get; set; } = true;
-
-    // ── Restart-with-Seed pending state ──
-
-    /// <summary>Cards/Relics to carry over into the next run. Consumed in RunStartPatch.</summary>
     public static LoadoutPreset? PendingRestartPreset { get; set; }
 
-    /// <summary>Which parts of <see cref="PendingRestartPreset"/> to apply.</summary>
     public static PresetContents PendingRestartScope { get; set; }
 
-    /// <summary>Gold amount to carry over. Null = don't carry gold.</summary>
     public static int? PendingRestartGold { get; set; }
 
-    /// <summary>
-    /// Seed to inject into the next run via a Harmony prefix on NGame.StartNewSingleplayerRun.
-    /// Null = let the game generate a random seed as usual.
-    /// Note: NGame.DebugSeedOverride is overwritten/cleared by NCharacterSelectScreen.BeginRun,
-    /// so we inject the seed directly into the StartNewSingleplayerRun call instead.
-    /// </summary>
+    /// <summary>Injected via StartNewSingleplayerRun; char select overwrites/clears DebugSeedOverride.</summary>
     public static string? PendingRestartSeed { get; set; }
-
-    // ── Runtime stat modifiers ──
 
     public static RuntimeStatModifiers? StatModifiers { get; set; }
 
-    // ── Enemy override state ──
+    // ── Enemy overrides ──
 
     public static EnemyMode EnemyMode { get; set; } = EnemyMode.Off;
 
-    /// <summary>Global encounter override (used when <see cref="EnemyMode"/> == Global).</summary>
     public static EncounterModel? GlobalEncounterOverride { get; set; }
 
-    /// <summary>Per-room-type encounter overrides (used when <see cref="EnemyMode"/> == PerType).</summary>
     public static Dictionary<RoomType, EncounterModel?> RoomTypeOverrides { get; } = new() {
         [RoomType.Monster] = null,
         [RoomType.Elite] = null,
         [RoomType.Boss] = null,
     };
 
-    /// <summary>Per-floor encounter overrides. Key = floor index (0-based). Takes highest priority.</summary>
     public static Dictionary<int, EncounterModel?> FloorOverrides { get; } = new();
 
-    /// <summary>Try to resolve an encounter override for the given room type and floor.</summary>
+    public static class PlayerCheats {
+        public static bool InfiniteHp { get; set; }
+        public static bool InfiniteBlock { get; set; }
+        public static bool InfiniteEnergy { get; set; }
+        public static bool InfiniteStars { get; set; }
+        public static bool AlwaysRewardPotion { get; set; }
+        public static bool AlwaysUpgradeCardReward { get; set; }
+        public static bool MaxCardRewardRarity { get; set; }
+        public static float DefenseMultiplier { get; set; } = 1.0f;
+
+        public static void Reset() {
+            InfiniteHp = false;
+            InfiniteBlock = false;
+            InfiniteEnergy = false;
+            InfiniteStars = false;
+            AlwaysRewardPotion = false;
+            AlwaysUpgradeCardReward = false;
+            MaxCardRewardRarity = false;
+            DefenseMultiplier = 1.0f;
+        }
+    }
+
+    public static class EnemyCheats {
+        public static bool FreezeEnemies { get; set; }
+        public static bool OneHitKill { get; set; }
+        public static float DamageMultiplier { get; set; } = 1.0f;
+
+        public static void Reset() {
+            FreezeEnemies = false;
+            OneHitKill = false;
+            DamageMultiplier = 1.0f;
+        }
+    }
+
+    public static class GameplayModifiers {
+        public static float GameSpeed { get; set; } = 1.0f;
+        public static float GoldMultiplier { get; set; } = 1.0f;
+        public static float ScoreMultiplier { get; set; } = 1.0f;
+        public static bool FreeShop { get; set; }
+        public static bool MaxScore { get; set; }
+
+        public static void Reset() {
+            GameSpeed = 1.0f;
+            GoldMultiplier = 1.0f;
+            ScoreMultiplier = 1.0f;
+            FreeShop = false;
+            MaxScore = false;
+        }
+    }
+
+    public static class MapCheats {
+        public static bool UnknownMapAlwaysTreasure { get; set; }
+        public static bool MapRewriteEnabled { get; set; }
+        public static MapRewriteMode MapRewriteMode { get; set; } = MapRewriteMode.None;
+        public static bool MapKeepFinalBoss { get; set; } = true;
+
+        public static void Reset() {
+            UnknownMapAlwaysTreasure = false;
+            MapRewriteEnabled = false;
+            MapRewriteMode = MapRewriteMode.None;
+            MapKeepFinalBoss = true;
+        }
+    }
+
     public static EncounterModel? ResolveOverride(RoomType roomType, int floor) {
-        // Floor-specific override has highest priority
         if (FloorOverrides.TryGetValue(floor, out var floorEnc) && floorEnc != null)
             return floorEnc;
 
@@ -220,21 +208,8 @@ public static class DevModeState {
         FloorOverrides.Clear();
     }
 
-    public static void OnRunStarted() {
-        InDevRun = IsActive || PersistDev;
-        CheatsInRun = IsActive || (PersistDev && PersistCheats);
-        DevRunFromMainMenu = IsActive;
-        IsActive = false;
-    }
-
-    /// <summary>
-    /// When true, <see cref="MainMenuPatch"/> will automatically push character-select
-    /// as soon as the main menu is ready, bypassing the Dev menu submenu.
-    /// Used by "Restart with Seed" so the user doesn't have to click twice.
-    /// </summary>
     public static bool AutoProceedToCharSelect { get; set; }
 
-    /// <summary>Clear pending restart state after it has been consumed (or the run was abandoned).</summary>
     public static void ClearPendingRestart() {
         PendingRestartPreset = null;
         PendingRestartScope = PresetContents.None;
@@ -245,37 +220,16 @@ public static class DevModeState {
 
     public static void OnRunEnded() {
         InDevRun = false;
-        CheatsInRun = false;
-        DevRunFromMainMenu = false;
-        GameSpeed = 1.0f;
         ClearEnemyOverrides();
-        ResetCheats();
-        // Note: PendingRestart is NOT cleared here — OnRunEnded fires when the *current* run
-        // is torn down (CleanUp), which happens right before starting the new run. Clearing
-        // here would discard the just-captured carry-over state. It is cleared in
-        // ApplyPendingRestart() after being consumed, or on the next run end if unused.
+        ResetAllCheats();
+        // PendingRestart survives across run boundaries — cleared on consumption.
     }
 
-    private static void ResetCheats() {
-        InfiniteHp = false;
-        InfiniteBlock = false;
-        InfiniteEnergy = false;
-        InfiniteStars = false;
-        AlwaysRewardPotion = false;
-        AlwaysUpgradeCardReward = false;
-        MaxCardRewardRarity = false;
-        DefenseMultiplier = 1.0f;
-        GoldMultiplier = 1.0f;
-        FreeShop = false;
-        MaxScore = false;
-        ScoreMultiplier = 1.0f;
-        FreezeEnemies = false;
-        OneHitKill = false;
-        DamageMultiplier = 1.0f;
-        UnknownMapAlwaysTreasure = false;
-        MapRewriteEnabled = false;
-        MapRewriteMode = MapRewriteMode.None;
-        MapKeepFinalBoss = true;
+    public static void ResetAllCheats() {
+        PlayerCheats.Reset();
+        EnemyCheats.Reset();
+        GameplayModifiers.Reset();
+        MapCheats.Reset();
         StatModifiers = null;
     }
 }

@@ -14,7 +14,7 @@ internal static class HookManager {
     /// those whose conditions pass will have their actions executed.
     /// </summary>
     public static void Fire(TriggerType trigger, Player? player) {
-        if (!DevModeState.InDevRun && !DevModeState.PersistDev) return;
+        if (!DevModeState.InDevRun && DevModeState.DebugMode == DebugMode.Off) return;
 
         List<HookEntry> hooks;
         try { hooks = SettingsStore.Current.Hooks; }

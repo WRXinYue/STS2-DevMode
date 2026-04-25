@@ -10,7 +10,7 @@ namespace DevMode.UI;
 
 internal static partial class DevPanelUI {
     private static bool IsRailTabVisible(IDevPanelTab tab) {
-        if (DevModeState.CheatsInRun || DevModeState.DevRunFromMainMenu) return true;
+        if (DevModeState.CheatsInRun) return true;
         return tab.Kind == DevPanelTabKind.Developer;
     }
 

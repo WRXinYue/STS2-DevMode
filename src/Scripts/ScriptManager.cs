@@ -86,7 +86,7 @@ internal static class ScriptManager {
     // ──────── Fire ────────
 
     public static void Fire(TriggerType trigger, Player? player) {
-        if (!DevModeState.InDevRun && !DevModeState.PersistDev) return;
+        if (!DevModeState.InDevRun && DevModeState.DebugMode == DebugMode.Off) return;
         if (_scripts.Count == 0) return;
         if (player == null && !RunContext.TryGetRunAndPlayer(out _, out player)) return;
 

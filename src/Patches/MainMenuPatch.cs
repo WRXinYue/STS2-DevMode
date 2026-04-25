@@ -57,6 +57,7 @@ public static class MainMenuPatch {
 
         if (DevModeState.AutoProceedToCharSelect) {
             DevModeState.AutoProceedToCharSelect = false;
+            DevModeState.InDevRun = true;
             MainFile.Logger.Info("DevMode: Auto-proceeding to character select (Restart with Seed).");
             var charSelect = __instance.SubmenuStack.GetSubmenuType<NCharacterSelectScreen>();
             charSelect.InitializeSingleplayer();
@@ -86,7 +87,7 @@ public static class MainMenuPatch {
 
         DevMainMenuUI.Show(_mainMenuRef, new DevMainMenuActions {
             OnNewTest = () => {
-                DevModeState.IsActive = true;
+                DevModeState.InDevRun = true;
                 var charSelect = _mainMenuRef.SubmenuStack.GetSubmenuType<NCharacterSelectScreen>();
                 charSelect.InitializeSingleplayer();
                 _mainMenuRef.SubmenuStack.Push(charSelect);
