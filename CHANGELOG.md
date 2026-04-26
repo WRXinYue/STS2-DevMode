@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-04-26
+
+### Added
+
+- Dev rail browser panels now support drag-resize width and remember each panel's width between sessions.
+
+### Changed
+
+- Browser panels now use smoother side-rail transitions: open with a rail-origin slide animation and close with a matching slide-out animation.
+
+### Fixed
+
+- Switching panels no longer causes the rail edge to flicker back to rounded corners during transition.
+- Dragging a resized browser panel after animation no longer detaches it from the rail edge.
+
 ## [0.4.2] - 2026-04-11
 
 ### Fixed
