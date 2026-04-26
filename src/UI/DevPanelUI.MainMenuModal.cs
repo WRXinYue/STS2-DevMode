@@ -1,5 +1,6 @@
 using System;
 using Godot;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
 namespace DevMode.UI;
 
@@ -73,7 +74,7 @@ internal static partial class DevPanelUI {
     /// Transparent click-to-close layer for <see cref="CreateMainMenuModalPanel"/> stacks.
     /// Pins the rail while open; leaves the rail strip clickable.
     /// </summary>
-    internal static ColorRect CreateMainMenuModalBackdrop(Action onClose) {
+    internal static ColorRect CreateMainMenuModalBackdrop(NGlobalUi globalUi, Action onClose) {
         bool closed = false;
         void SafeClose() {
             if (closed) return;
@@ -95,7 +96,11 @@ internal static partial class DevPanelUI {
         };
 
         PinRail();
-        backdrop.TreeExited += UnpinRail;
+        HoldBrowserRail(globalUi);
+        backdrop.TreeExited += () => {
+            UnpinRail();
+            ReleaseBrowserRail(globalUi);
+        };
 
         backdrop.GuiInput += e => {
             if (e is InputEventMouseButton { Pressed: true })

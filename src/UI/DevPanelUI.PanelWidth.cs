@@ -21,6 +21,22 @@ internal static partial class DevPanelUI {
         panel.OffsetRight = BrowserPanelLeft + targetWidth;
     }
 
+    /// <summary>Fixed width from the rail. <paramref name="widthPx"/> may be 0 (collapsed at rail) for open animation; no 320px minimum.</summary>
+    internal static void SetFixedPixelWidthFromRailUnclamped(PanelContainer panel, float widthPx) {
+        panel.AnchorLeft = 0;
+        panel.AnchorRight = 0;
+        panel.OffsetLeft = BrowserPanelLeft;
+        panel.OffsetRight = BrowserPanelLeft + Math.Max(0f, widthPx);
+    }
+
+    /// <summary>Full-width browser panel: rail splice to the right screen margin (matches <c>CreateBrowserPanel(0)</c>).</summary>
+    internal static void ApplyFullWidthBrowserPanelLayout(PanelContainer panel) {
+        panel.AnchorLeft = 0;
+        panel.AnchorRight = 1;
+        panel.OffsetLeft = BrowserPanelLeft;
+        panel.OffsetRight = -BrowserPanelRight;
+    }
+
     public static float GetMaxBrowserPanelWidth(Node? onTree) {
         Viewport? viewport = GetViewport(onTree);
 

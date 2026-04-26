@@ -5,6 +5,9 @@ using MegaCrit.Sts2.Core.Nodes.CommonUi;
 namespace DevMode.UI;
 
 internal static partial class DevPanelUI {
+    private const string BrowserPanelAnimatingMetaKey = "_dm_browser_panel_animating";
+    private const string BrowserPanelClosingMetaKey = "_dm_browser_panel_closing";
+    private const string BrowserPanelClipHostName = "BrowserPanelClipHost";
     /// <summary>
     /// Creates a full-screen browser overlay shell with rail management and optional backdrop.
     /// </summary>
@@ -57,10 +60,11 @@ internal static partial class DevPanelUI {
             throw new ArgumentOutOfRangeException(nameof(panelWidth), "Panel width cannot be negative");
 
         var root = CreateAndSetupRoot(globalUi, rootName, zIndex);
+        void RequestClose() => RequestCloseBrowserOverlay(globalUi, rootName, onClose);
 
         float resolved = ResolveBrowserPanelWidth(rootName, panelWidth, (Node)globalUi);
         if (resolved > 0f || backdropWhenFullWidth)
-            root.AddChild(CreateBrowserBackdrop(onClose));
+            root.AddChild(CreateBrowserBackdrop(RequestClose));
 
         var panel = CreateBrowserPanel(resolved);
         AddPanelToRoot(root, panel, rootName, globalUi);
@@ -119,9 +123,10 @@ internal static partial class DevPanelUI {
         ArgumentNullException.ThrowIfNull(onClose);
 
         var root = CreateAndSetupRoot(globalUi, rootName, zIndex);
+        void RequestClose() => RequestCloseBrowserOverlay(globalUi, rootName, onClose);
 
         if (addBackdrop)
-            root.AddChild(CreateBrowserBackdrop(onClose));
+            root.AddChild(CreateBrowserBackdrop(RequestClose));
 
         AddPanelToRoot(root, panel, rootName, globalUi);
 
@@ -141,17 +146,31 @@ internal static partial class DevPanelUI {
     }
 
     private static void SetupRailTransition(NGlobalUi globalUi, Control root) {
+        _browserOverlayCount++;
         PinRail();
-        SpliceRail(globalUi, joined: true);
+        ReconcileBrowserRail(globalUi);
         root.TreeExiting += () => {
+            // Any browser overlay closing means there is no active primary content on screen.
+            _activePrimaryTabId = null;
+            _browserOverlayCount = Math.Max(0, _browserOverlayCount - 1);
             UnpinRail();
-            SpliceRail(globalUi, joined: false);
+            ReconcileBrowserRail(globalUi);
         };
     }
 
     private static void AddPanelToRoot(Control root, PanelContainer panel, string rootName, NGlobalUi globalUi) {
-        root.AddChild(panel);
         ApplyInitialBrowserWidthFromSettings((Node)globalUi, panel, rootName);
+        RebasePanelLayoutForClipHost(panel);
+
+        bool played = false;
+        panel.TreeEntered += () => {
+            if (played) return;
+            played = true;
+            PlayBrowserPanelOpenAnimation(panel);
+        };
+        var clipHost = CreateBrowserPanelClipHost();
+        clipHost.AddChild(panel);
+        root.AddChild(clipHost);
         RegisterBrowserPanelWidthGrip(root, panel, rootName);
     }
 
@@ -161,6 +180,103 @@ internal static partial class DevPanelUI {
 
         content.AddThemeConstantOverride("separation", contentSeparation);
         return content;
+    }
+
+    private static void PlayBrowserPanelOpenAnimation(PanelContainer panel) {
+        if (!panel.IsInsideTree())
+            return;
+
+        float panelWidth = panel.GetRect().Size.X;
+        if (panelWidth < 1f)
+            return;
+
+        panel.SetMeta(BrowserPanelAnimatingMetaKey, true);
+        float targetX = panel.Position.X;
+        float startX = targetX - panelWidth;
+        panel.Position = new Vector2(startX, panel.Position.Y);
+
+        var t = panel.CreateTween();
+        t.SetTrans(Tween.TransitionType.Quint);
+        t.SetEase(Tween.EaseType.Out);
+        t.TweenProperty(panel, "position:x", targetX, 0.82f);
+        t.Chain()
+            .TweenCallback(Callable.From(() => {
+                panel.SetMeta(BrowserPanelAnimatingMetaKey, false);
+                var root = panel.GetParentOrNull<Control>();
+                if (root?.GetParent() is Control parentRoot)
+                    root = parentRoot;
+                root?.GetNodeOrNull<BrowserPanelWidthGrip>("PanelWidthGrip")?.Sync();
+            }));
+    }
+
+    private static Control CreateBrowserPanelClipHost() {
+        var clipHost = new Control {
+            Name = BrowserPanelClipHostName,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            ClipContents = true
+        };
+        clipHost.AnchorLeft = 0;
+        clipHost.AnchorRight = 1;
+        clipHost.AnchorTop = 0;
+        clipHost.AnchorBottom = 1;
+        clipHost.OffsetLeft = BrowserPanelLeft;
+        clipHost.OffsetRight = 0;
+        clipHost.OffsetTop = 0;
+        clipHost.OffsetBottom = 0;
+        return clipHost;
+    }
+
+    private static void RebasePanelLayoutForClipHost(PanelContainer panel) {
+        panel.OffsetLeft -= BrowserPanelLeft;
+        if (panel.AnchorRight < 0.5f)
+            panel.OffsetRight -= BrowserPanelLeft;
+    }
+
+    internal static void RequestCloseBrowserOverlay(NGlobalUi globalUi, string rootName, Action fallbackClose) {
+        var parent = (Node)globalUi;
+        var root = parent.GetNodeOrNull<Control>(rootName);
+        if (root == null) {
+            fallbackClose();
+            return;
+        }
+
+        if (TryAnimateBrowserOverlayClose(parent, root))
+            return;
+
+        fallbackClose();
+    }
+
+    internal static bool TryAnimateBrowserOverlayClose(Node parent, Control root) {
+        var clipHost = root.GetNodeOrNull<Control>(BrowserPanelClipHostName);
+        var panel = clipHost?.GetNodeOrNull<PanelContainer>("BrowserPanel");
+        if (panel == null)
+            return false;
+
+        if (root.HasMeta(BrowserPanelClosingMetaKey) && root.GetMeta(BrowserPanelClosingMetaKey).AsBool())
+            return true;
+
+        root.SetMeta(BrowserPanelClosingMetaKey, true);
+        root.SetMeta(BrowserPanelAnimatingMetaKey, true);
+        root.MouseFilter = Control.MouseFilterEnum.Ignore;
+        root.GetNodeOrNull<BrowserPanelWidthGrip>("PanelWidthGrip")?.Hide();
+
+        float startX = panel.Position.X;
+        float endX = startX - MathF.Max(1f, panel.GetRect().Size.X);
+
+        var tween = panel.CreateTween();
+        tween.SetTrans(Tween.TransitionType.Cubic);
+        tween.SetEase(Tween.EaseType.In);
+        tween.TweenProperty(panel, "position:x", endX, 0.22f);
+        tween.Chain().TweenCallback(Callable.From(() => {
+            root.SetMeta(BrowserPanelAnimatingMetaKey, false);
+            if (root.IsInsideTree()) {
+                var p = root.GetParent();
+                p?.RemoveChild(root);
+                root.QueueFree();
+            }
+        }));
+
+        return true;
     }
 
     #endregion

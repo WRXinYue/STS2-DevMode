@@ -76,7 +76,7 @@ internal sealed partial class BrowserPanelWidthGrip : Control {
     private void UpdatePanelWidth() {
         var mouseX = _viewport.GetMousePosition().X;
         var newWidth = Math.Clamp(_dragStartWidth + (mouseX - _dragStartMouseX), MinPanelWidth, GetMaxWidth());
-        DevPanelUI.ApplyFixedWidthToBrowserPanel(_panel, (float)newWidth);
+        ApplyFixedWidthForCurrentHost((float)newWidth);
         Sync();
     }
 
@@ -95,7 +95,7 @@ internal sealed partial class BrowserPanelWidthGrip : Control {
         _dragStartMouseX = mousePosition.X;
 
         if (_panel.AnchorRight > 0.5f) {
-            DevPanelUI.ApplyFixedWidthToBrowserPanel(_panel, _panel.GetRect().Size.X);
+            ApplyFixedWidthForCurrentHost(_panel.GetRect().Size.X);
         }
         _dragStartWidth = _panel.GetRect().Size.X;
         _isDragging = true;
@@ -119,6 +119,13 @@ internal sealed partial class BrowserPanelWidthGrip : Control {
     }
 
     private void OnResized() {
+        // Opening animation changes panel width every frame; skip grip relayout until it settles.
+        if (!_isDragging
+            && _panel.HasMeta("_dm_browser_panel_animating")
+            && _panel.GetMeta("_dm_browser_panel_animating").AsBool()) {
+            return;
+        }
+
         if (!_syncScheduled) {
             _syncScheduled = true;
             CallDeferred(nameof(SyncDeferred));
@@ -138,6 +145,19 @@ internal sealed partial class BrowserPanelWidthGrip : Control {
         if (globalRect.Size.Y < 1f) return;
         Size = new Vector2(GripWidth, globalRect.Size.Y);
         GlobalPosition = new Vector2(globalRect.End.X - GripWidth, globalRect.Position.Y);
+    }
+
+    private void ApplyFixedWidthForCurrentHost(float width) {
+        if (_panel.GetParent() is Control host && host.Name.ToString() == "BrowserPanelClipHost") {
+            float clamped = Math.Max(MinPanelWidth, width);
+            _panel.AnchorLeft = 0;
+            _panel.AnchorRight = 0;
+            _panel.OffsetLeft = 0;
+            _panel.OffsetRight = clamped;
+            return;
+        }
+
+        DevPanelUI.ApplyFixedWidthToBrowserPanel(_panel, width);
     }
 
     private double GetMaxWidth() => DevPanelUI.GetMaxBrowserPanelWidth(_root);

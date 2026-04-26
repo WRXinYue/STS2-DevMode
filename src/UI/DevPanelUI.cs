@@ -38,7 +38,10 @@ internal static partial class DevPanelUI {
 
     private static Action? _onRefreshPanel;
     private static string? _activeOverlayId;
+    private static string? _activePrimaryTabId;
     private static int _pinRailCount;
+    private static int _browserOverlayCount;
+    private static int _browserRailHoldCount;
 
     // ── Stored StyleBoxFlat refs for live theme refresh ──
     private static StyleBoxFlat? _railStyle;
@@ -68,6 +71,21 @@ internal static partial class DevPanelUI {
             sb.CornerRadiusBottomRight = r;
             sb.BorderWidthRight = joined ? 0 : 1;
         }
+    }
+
+    private static void HoldBrowserRail(NGlobalUi globalUi) {
+        _browserRailHoldCount++;
+        ReconcileBrowserRail(globalUi);
+    }
+
+    private static void ReleaseBrowserRail(NGlobalUi globalUi) {
+        _browserRailHoldCount = Math.Max(0, _browserRailHoldCount - 1);
+        ReconcileBrowserRail(globalUi);
+    }
+
+    private static void ReconcileBrowserRail(NGlobalUi globalUi) {
+        bool joined = (_browserOverlayCount + _browserRailHoldCount) > 0;
+        SpliceRail(globalUi, joined);
     }
 
     // ── Colour palette — delegates to active theme ──
@@ -116,6 +134,9 @@ internal static partial class DevPanelUI {
 
         _onRefreshPanel = actions.OnRefreshPanel;
         _activeOverlayId = null;
+        _activePrimaryTabId = null;
+        _browserOverlayCount = 0;
+        _browserRailHoldCount = 0;
         _railStyle = null;
         _railIndicatorStyle = null;
         _railSepStyle = null;
@@ -209,9 +230,12 @@ internal static partial class DevPanelUI {
             var btn = CreateRailIcon(t.Icon, FormatRailTooltip(t));
             int btnIdx = railButtons.Count;
             btn.Pressed += () => {
+                if (_activePrimaryTabId == t.Id)
+                    return;
                 MoveRailIndicator(btnIdx, true);
                 CloseAllOverlays(globalUi);
                 t.OnActivate(globalUi);
+                _activePrimaryTabId = t.Id;
             };
             railButtons.Add(btn);
             _railIconButtons.Add((btn, t.Icon));
@@ -241,6 +265,7 @@ internal static partial class DevPanelUI {
             int btnIdx = railButtons.Count;
             btn.Pressed += () => {
                 MoveRailIndicator(btnIdx, true);
+                _activePrimaryTabId = null;
                 CloseAllOverlays(globalUi);
                 t.OnActivate(globalUi);
             };
@@ -381,6 +406,9 @@ internal static partial class DevPanelUI {
     // ──────── Detach ────────
     public static void Detach(NGlobalUi globalUi) {
         _activeOverlayId = null;
+        _activePrimaryTabId = null;
+        _browserOverlayCount = 0;
+        _browserRailHoldCount = 0;
         _pinRailCount = 0;
         ThemeManager.OnThemeChanged -= ApplyRailTheme;
         _railStyle = null;
@@ -401,6 +429,8 @@ internal static partial class DevPanelUI {
     /// picked up automatically — no list to maintain.
     /// </summary>
     public static void CloseAllOverlays(NGlobalUi globalUi) {
+        _activePrimaryTabId = null;
+        HoldBrowserRail(globalUi);
         CloseOverlay(globalUi);
 
         var parent = (Node)globalUi;
@@ -408,10 +438,13 @@ internal static partial class DevPanelUI {
             if (child is Control ctrl
                 && ctrl.Name.ToString().StartsWith("DevMode", StringComparison.Ordinal)
                 && !_keepNodes.Contains(ctrl.Name)) {
-                parent.RemoveChild(ctrl);
-                ctrl.QueueFree();
+                if (!TryAnimateBrowserOverlayClose(parent, ctrl)) {
+                    parent.RemoveChild(ctrl);
+                    ctrl.QueueFree();
+                }
             }
         }
+        Callable.From(() => ReleaseBrowserRail(globalUi)).CallDeferred();
     }
 
     // ──────── Overlay: toggle / close ────────
