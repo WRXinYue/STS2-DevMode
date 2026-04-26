@@ -273,8 +273,11 @@ internal static partial class CardBrowserUI {
         s.PoolFilterPredicates["quest"] = c => c.Rarity == CardRarity.Quest;
         s.PoolFilterPredicates["token"] = c => c.Rarity == CardRarity.Token;
 
-        void AddPoolChip(string key, string text) {
-            var chip = CreateFilterChip(text);
+        var defaultPoolKey = GetDefaultPoolFilterKeyForPlayer(player);
+
+        void AddPoolChip(string key, string text, bool startPressed = false) {
+            var chip = CreateFilterChip(text, startPressed);
+            if (startPressed) s.ActivePoolFilters.Add(key);
             var capturedKey = key;
             chip.Toggled += on => {
                 ToggleSet(s.ActivePoolFilters, capturedKey, on);
@@ -299,11 +302,11 @@ internal static partial class CardBrowserUI {
 
         // Character group (built-ins, Colorless last)
         AddPoolChipGroupLabel(I18N.T("cardBrowser.chipCharacter", "Character"));
-        AddPoolChip("ironclad", I18N.T("cardBrowser.poolIronclad", "Ironclad"));
-        AddPoolChip("silent", I18N.T("cardBrowser.poolSilent", "Silent"));
-        AddPoolChip("defect", I18N.T("cardBrowser.poolDefect", "Defect"));
-        AddPoolChip("regent", I18N.T("cardBrowser.poolRegent", "Regent"));
-        AddPoolChip("necrobinder", I18N.T("cardBrowser.poolNecrobinder", "Necrobinder"));
+        AddPoolChip("ironclad", I18N.T("cardBrowser.poolIronclad", "Ironclad"), defaultPoolKey == "ironclad");
+        AddPoolChip("silent", I18N.T("cardBrowser.poolSilent", "Silent"), defaultPoolKey == "silent");
+        AddPoolChip("defect", I18N.T("cardBrowser.poolDefect", "Defect"), defaultPoolKey == "defect");
+        AddPoolChip("regent", I18N.T("cardBrowser.poolRegent", "Regent"), defaultPoolKey == "regent");
+        AddPoolChip("necrobinder", I18N.T("cardBrowser.poolNecrobinder", "Necrobinder"), defaultPoolKey == "necrobinder");
 
         // Mod characters: any character whose pool type isn't one of the 5 built-ins
         var builtInPoolTypes = new System.Collections.Generic.HashSet<Type>
@@ -317,12 +320,12 @@ internal static partial class CardBrowserUI {
             var key = "mod_" + pool.Title;
             var capturedPool = pool;
             s.PoolFilterPredicates[key] = c => c.Pool == capturedPool;
-            try { AddPoolChip(key, character.Title.GetFormattedText()); }
-            catch { AddPoolChip(key, pool.Title); }
+            try { AddPoolChip(key, character.Title.GetFormattedText(), defaultPoolKey == key); }
+            catch { AddPoolChip(key, pool.Title, defaultPoolKey == key); }
         }
 
         // Colorless always last in the Character group
-        AddPoolChip("colorless", I18N.T("cardBrowser.poolColorless", "Colorless"));
+        AddPoolChip("colorless", I18N.T("cardBrowser.poolColorless", "Colorless"), defaultPoolKey == "colorless");
 
         // Special group
         AddPoolChipGroupSep();

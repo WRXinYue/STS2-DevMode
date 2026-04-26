@@ -86,10 +86,11 @@ internal static partial class CardBrowserUI {
     private static readonly Color ColChipOn = new(0.25f, 0.40f, 0.65f, 0.90f);
     private static readonly Color ColChipOnHover = new(0.30f, 0.48f, 0.75f, 0.95f);
 
-    private static Button CreateFilterChip(string text) {
+    private static Button CreateFilterChip(string text, bool buttonPressed = false) {
         var btn = new Button {
             Text = text,
             ToggleMode = true,
+            ButtonPressed = buttonPressed,
             FocusMode = Control.FocusModeEnum.None,
             MouseFilter = Control.MouseFilterEnum.Stop,
             CustomMinimumSize = new Vector2(0, 24)

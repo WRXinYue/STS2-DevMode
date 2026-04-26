@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Globalization;
 using Godot;
 using MegaCrit.Sts2.Core.Entities.Cards;
+using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Models.CardPools;
 
 namespace DevMode.UI;
 
@@ -28,6 +30,24 @@ internal static partial class CardBrowserUI {
     };
 
     private static bool IsLibrarySource => _browseSource == BrowseSource.AllCards;
+
+    // Pool chip key aligned with predicates registered in Show() for the run's character card pool.
+    private static string? GetDefaultPoolFilterKeyForPlayer(Player player) {
+        try {
+            var pool = player.Character?.CardPool;
+            if (pool == null) return null;
+            if (pool is IroncladCardPool) return "ironclad";
+            if (pool is SilentCardPool) return "silent";
+            if (pool is DefectCardPool) return "defect";
+            if (pool is RegentCardPool) return "regent";
+            if (pool is NecrobinderCardPool) return "necrobinder";
+            if (pool is ColorlessCardPool) return "colorless";
+            return "mod_" + pool.Title;
+        }
+        catch {
+            return null;
+        }
+    }
 
     // ── Rarity colors ──
 
