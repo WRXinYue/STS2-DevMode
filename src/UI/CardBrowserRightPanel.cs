@@ -24,10 +24,18 @@ namespace DevMode.UI;
 internal static class CardBrowserRightPanel {
     private static Color ColSubtle => DevModeTheme.Subtle;
 
+    /// <summary>Base cost to apply on <see cref="CardActions.AddCardBuilder.BaseCost"/> (canonical library cards are not mutable in-place).</summary>
+    private sealed class LibraryAddCostStaging {
+        public int BaseCost { get; set; }
+    }
+
     internal static void Build(VBoxContainer container, Label statusLabel,
         CardModel card, RunState state, Player player, NGlobalUi globalUi, Action onGridRefresh,
         bool isLibrary, CardTarget? browseTarget, bool libraryUpgradeDetailPreview = false) {
         var displayCard = ResolveLibraryDisplayCard(card, isLibrary, libraryUpgradeDetailPreview);
+        LibraryAddCostStaging? libraryAddCost = null;
+        if (isLibrary)
+            libraryAddCost = new LibraryAddCostStaging { BaseCost = CardEditActions.GetBaseCost(card) ?? 0 };
 
         var cardName = CardEditActions.GetCardDisplayName(displayCard);
 
@@ -82,15 +90,16 @@ internal static class CardBrowserRightPanel {
         container.AddChild(new HSeparator());
 
         if (isLibrary) {
-            BuildAddSection(container, statusLabel, card, displayCard, state, player, libraryUpgradeDetailPreview);
+            BuildAddSection(container, statusLabel, card, displayCard, state, player, libraryUpgradeDetailPreview,
+                libraryAddCost!);
         }
         else {
             BuildOwnedCardActions(container, statusLabel, card, state, player, globalUi, onGridRefresh, browseTarget);
         }
 
         container.AddChild(new HSeparator());
-        // Inline editors apply to the library definition / pile instance, not the throwaway upgrade preview clone.
-        BuildEditSection(container, statusLabel, card);
+        // Inline editors apply to the pile instance, or stage values for Add when browsing the library.
+        BuildEditSection(container, statusLabel, card, libraryAddCost);
     }
 
     /// <summary>When browsing the card library with "view upgrades" on, match grid + NCard: clone and UpgradeInternal for read-only UI.</summary>
@@ -112,7 +121,8 @@ internal static class CardBrowserRightPanel {
     // ── Add section (for library source) ──
 
     private static void BuildAddSection(VBoxContainer container, Label statusLabel,
-        CardModel card, CardModel displayCard, RunState state, Player player, bool libraryUpgradeDetailPreview) {
+        CardModel card, CardModel displayCard, RunState state, Player player, bool libraryUpgradeDetailPreview,
+        LibraryAddCostStaging addCostStaging) {
         var upgradeLevelsToApply = 0;
         if (libraryUpgradeDetailPreview && !ReferenceEquals(displayCard, card)) {
             try {
@@ -178,6 +188,7 @@ internal static class CardBrowserRightPanel {
             new Color(0.25f, 0.55f, 0.35f, 0.9f));
         addBtn.Pressed += () => {
             TaskHelper.RunSafely(CardActions.Add(state, player, card)
+                .BaseCost(addCostStaging.BaseCost)
                 .UpgradeLevels(upgradeLevelsToApply)
                 .UpgradePreviewStyle(CardPreviewStyle.HorizontalLayout)
                 .RunAsync());
@@ -275,10 +286,25 @@ internal static class CardBrowserRightPanel {
 
     // ── Edit section (inline property editor) ──
 
-    private static void BuildEditSection(VBoxContainer container, Label statusLabel, CardModel card) {
-        AddIntEditor(container, I18N.T("cardEdit.cost", "Base Cost"),
-            CardEditActions.GetBaseCost(card) ?? 0,
-            v => { CardEditActions.TrySetBaseCost(card, v); statusLabel.Text = I18N.T("cardBrowser.costSet", "Cost set."); });
+    private static void BuildEditSection(VBoxContainer container, Label statusLabel, CardModel card,
+        LibraryAddCostStaging? libraryAddCost = null) {
+        if (libraryAddCost != null) {
+            AddIntEditor(container, I18N.T("cardEdit.cost", "Base Cost"), libraryAddCost.BaseCost,
+                v => {
+                    libraryAddCost.BaseCost = v;
+                    statusLabel.Text = I18N.T("cardBrowser.costAppliesOnAdd", "Base cost applies when you add this card.");
+                });
+        }
+        else {
+            AddIntEditor(container, I18N.T("cardEdit.cost", "Base Cost"),
+                CardEditActions.GetBaseCost(card) ?? 0,
+                v => {
+                    if (CardEditActions.TrySetBaseCost(card, v))
+                        statusLabel.Text = I18N.T("cardBrowser.costSet", "Cost set.");
+                    else
+                        statusLabel.Text = I18N.T("cardBrowser.costSetFailed", "Could not set cost.");
+                });
+        }
 
         AddIntEditor(container, I18N.T("cardEdit.replay", "Replay Count"),
             CardEditActions.GetReplayCount(card) ?? 0,

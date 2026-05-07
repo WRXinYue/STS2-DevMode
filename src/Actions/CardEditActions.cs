@@ -12,26 +12,33 @@ using MegaCrit.Sts2.Core.Models;
 namespace DevMode.Actions;
 
 /// <summary>
-/// Deep card editing: modify cost, replay, damage, block, keywords, enchantments.
-/// Uses reflection for cross-version compatibility.
+/// Dev panel card editing: cost (official <see cref="CardModel.EnergyCost"/> API), replay, damage, block,
+/// keywords, enchantments. Cost uses <see cref="TrySetBaseCost"/> / <see cref="GetBaseCost"/>; other fields
+/// still use reflection where the game has no stable public surface.
 /// </summary>
 internal static class CardEditActions {
     private const BindingFlags ReflFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
-    // ── Cost: STS2 uses EnergyCost.Canonical / SetCustomBaseCost ──
+    // ── Cost: mutable instances — SetCustomBaseCost (requires AssertMutable). Canonical library templates
+    // cannot be edited in-place; use <see cref="CardActions.AddCardBuilder.BaseCost"/> when adding a new instance.
 
     public static bool TrySetBaseCost(CardModel card, int cost) {
-        try { card.EnergyCost.SetCustomBaseCost(cost); return true; } catch { }
-        return TrySetProperty(card, "BaseCost", cost)
-            || TrySetProperty(card, "Cost", cost)
-            || TrySetField(card, "_baseCost", cost);
+        try {
+            card.EnergyCost.SetCustomBaseCost(cost);
+            return true;
+        }
+        catch {
+            return false;
+        }
     }
 
     public static int? GetBaseCost(CardModel card) {
-        try { return card.EnergyCost.Canonical; } catch { }
-        return TryGetInt(card, "CanonicalEnergyCost")
-            ?? TryGetInt(card, "BaseCost")
-            ?? TryGetInt(card, "Cost");
+        try {
+            return card.EnergyCost.GetWithModifiers(CostModifiers.None);
+        }
+        catch {
+            return null;
+        }
     }
 
     // ── Replay: STS2 uses BaseReplayCount ──
