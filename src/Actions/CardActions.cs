@@ -18,7 +18,103 @@ using MegaCrit.Sts2.Core.Runs;
 
 namespace DevMode.Actions;
 
+/// <summary>
+/// Parameter object for <see cref="CardActions.Add"/> / <see cref="CardActions.AddCardBuilder"/> — target pile,
+/// duration, and post-create upgrade steps. Defaults from <see cref="FromDevPanelState"/>.
+/// </summary>
+/// <remarks>
+/// This is a <see langword="struct"/>; use <see cref="AddCardRequestConfigure"/> (<see langword="ref"/> delegate)
+/// or <see cref="CardActions.AddCardBuilder.Configure"/> to mutate fields. <c>Action&lt;AddCardRequest&gt;</c> would operate on a copy.
+/// </remarks>
+internal struct AddCardRequest {
+    public CardTarget Target;
+    public EffectDuration Duration;
+    public int UpgradeLevelsToApply;
+
+    public static AddCardRequest FromDevPanelState(int upgradeLevelsToApply = 0) => new() {
+        Target = DevModeState.CardTarget,
+        Duration = DevModeState.EffectDuration,
+        UpgradeLevelsToApply = upgradeLevelsToApply,
+    };
+}
+
+/// <summary>Callback that receives an <see cref="AddCardRequest"/> by <see langword="ref"/> for mutation.</summary>
+internal delegate void AddCardRequestConfigure(ref AddCardRequest request);
+
 internal static class CardActions {
+    /// <summary>Begins adding a card; chain options then call <see cref="AddCardBuilder.RunAsync"/>.</summary>
+    /// <example><code><![CDATA[
+    /// await CardActions.Add(state, player, template).RunAsync();
+    /// await CardActions.Add(state, player, template)
+    ///     .UpgradeLevels(2)
+    ///     .UpgradePreviewStyle(CardPreviewStyle.HorizontalLayout)
+    ///     .RunAsync();
+    /// ]]></code></example>
+    public static AddCardBuilder Add(RunState state, Player player, CardModel canonicalCard) =>
+        new(state, player, canonicalCard);
+
+    /// <summary>Fluent builder for <see cref="CardActions.Add"/>.</summary>
+    public readonly struct AddCardBuilder {
+        private readonly RunState _state;
+        private readonly Player _player;
+        private readonly CardModel _canonical;
+        private readonly AddCardRequest _request;
+        private readonly CardPreviewStyle? _upgradePreviewStyle;
+
+        internal AddCardBuilder(RunState state, Player player, CardModel canonical) {
+            _state = state;
+            _player = player;
+            _canonical = canonical;
+            _request = AddCardRequest.FromDevPanelState();
+            _upgradePreviewStyle = null;
+        }
+
+        private AddCardBuilder(RunState state, Player player, CardModel canonical, AddCardRequest request,
+            CardPreviewStyle? upgradePreviewStyle) {
+            _state = state;
+            _player = player;
+            _canonical = canonical;
+            _request = request;
+            _upgradePreviewStyle = upgradePreviewStyle;
+        }
+
+        public AddCardBuilder FromDevPanel(int upgradeLevelsToApply = 0) =>
+            new(_state, _player, _canonical, AddCardRequest.FromDevPanelState(upgradeLevelsToApply), _upgradePreviewStyle);
+
+        public AddCardBuilder WithRequest(AddCardRequest request) =>
+            new(_state, _player, _canonical, request, _upgradePreviewStyle);
+
+        public AddCardBuilder Target(CardTarget target) {
+            var r = _request;
+            r.Target = target;
+            return new(_state, _player, _canonical, r, _upgradePreviewStyle);
+        }
+
+        public AddCardBuilder Duration(EffectDuration duration) {
+            var r = _request;
+            r.Duration = duration;
+            return new(_state, _player, _canonical, r, _upgradePreviewStyle);
+        }
+
+        public AddCardBuilder UpgradeLevels(int levels) {
+            var r = _request;
+            r.UpgradeLevelsToApply = levels;
+            return new(_state, _player, _canonical, r, _upgradePreviewStyle);
+        }
+
+        public AddCardBuilder Configure(AddCardRequestConfigure configure) {
+            var r = _request;
+            configure(ref r);
+            return new(_state, _player, _canonical, r, _upgradePreviewStyle);
+        }
+
+        /// <summary>Each post-create upgrade step uses <c>CardCmd.Upgrade(new[] { card }, style)</c>.</summary>
+        public AddCardBuilder UpgradePreviewStyle(CardPreviewStyle style) =>
+            new(_state, _player, _canonical, _request, style);
+
+        public Task RunAsync() => ExecuteAddAsync(_state, _player, _canonical, _request, _upgradePreviewStyle);
+    }
+
     public static async Task RemoveCards(RunState state, Player player) {
         await Task.Yield();
 
@@ -82,7 +178,7 @@ internal static class CardActions {
         var target = DevModeState.CardTarget;
         var cards = CollectCardsForTarget(player, target);
         var upgradable = cards
-            .Where(c => c.CurrentUpgradeLevel < c.MaxUpgradeLevel)
+            .Where(c => c.IsUpgradable)
             .ToList();
 
         if (upgradable.Count == 0) {
@@ -124,12 +220,18 @@ internal static class CardActions {
         MainFile.Logger.Info($"CardActions: Upgraded {selected.Count} card(s)");
     }
 
-    public static async Task AddCard(RunState state, Player player, CardModel canonicalCard) {
-        var target = DevModeState.CardTarget;
-        var duration = DevModeState.EffectDuration;
+    /// <summary>Core add implementation used by <see cref="AddCardBuilder.RunAsync"/>.</summary>
+    /// <param name="request">Where to add, temp vs permanent deck mirror, and post-create upgrade steps.</param>
+    /// <param name="upgradePreviewStyle">When set, each upgrade step uses <c>CardCmd.Upgrade(new[] { instance }, style)</c>; otherwise the single-card overload.</param>
+    private static async Task ExecuteAddAsync(RunState state, Player player, CardModel canonicalCard, AddCardRequest request,
+        CardPreviewStyle? upgradePreviewStyle = null) {
+        var target = request.Target;
+        var duration = request.Duration;
+        var upgradeLevelsToApply = request.UpgradeLevelsToApply;
 
         if (target == CardTarget.Deck) {
             var card = state.CreateCard(canonicalCard.CanonicalInstance, player);
+            ApplyUpgradeSteps(card, upgradeLevelsToApply, upgradePreviewStyle);
             var result = await CardPileCmd.Add(card, PileType.Deck);
             CardCmd.PreviewCardPileAdd(result);
         }
@@ -149,6 +251,7 @@ internal static class CardActions {
             };
 
             var combatCard = combatState.CreateCard(canonicalCard.CanonicalInstance, player);
+            ApplyUpgradeSteps(combatCard, upgradeLevelsToApply, upgradePreviewStyle);
             await CardPileCmd.AddGeneratedCardToCombat(combatCard, pileType, true);
 
             // AddGeneratedCardToCombat silently calls AddInternal() for brand-new cards added to
@@ -159,7 +262,9 @@ internal static class CardActions {
                 combatCard.Pile?.InvokeCardAddFinished();
 
             if (duration == EffectDuration.Permanent) {
+                // Separate deck instance from combat instance (same as vanilla “also write to deck” semantics).
                 var deckCard = state.CreateCard(canonicalCard.CanonicalInstance, player);
+                ApplyUpgradeSteps(deckCard, upgradeLevelsToApply, upgradePreviewStyle);
                 await CardPileCmd.Add(deckCard, PileType.Deck, skipVisuals: true);
             }
         }
@@ -167,12 +272,21 @@ internal static class CardActions {
         MainFile.Logger.Info($"CardActions: Added {canonicalCard.Id.Entry} to {target} ({duration})");
     }
 
+    private static void ApplyUpgradeSteps(CardModel instance, int count, CardPreviewStyle? previewStyle = null) {
+        for (var i = 0; i < count; i++) {
+            if (previewStyle.HasValue)
+                CardCmd.Upgrade(new[] { instance }, previewStyle.Value);
+            else
+                CardCmd.Upgrade(instance);
+        }
+    }
+
     public static bool HasRelevantCards(Player player, CardTarget target, CardMode mode) {
         if (mode == CardMode.Add)
             return target == CardTarget.Deck || player.PlayerCombatState != null;
         var cards = CollectCardsForTarget(player, target);
         if (mode == CardMode.Upgrade)
-            return cards.Any(c => c.CurrentUpgradeLevel < c.MaxUpgradeLevel);
+            return cards.Any(c => c.IsUpgradable);
         return cards.Count > 0;
     }
 

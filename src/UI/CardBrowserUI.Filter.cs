@@ -31,6 +31,23 @@ internal static partial class CardBrowserUI {
 
     private static bool IsLibrarySource => _browseSource == BrowseSource.AllCards;
 
+    /// <summary>
+    /// Type / rarity / cost / pool chips, multi-sort order, search text, and library upgrade preview.
+    /// Survives closing the card browser (same game session).
+    /// </summary>
+    private static class CardBrowserFilterPersistence {
+        public static readonly HashSet<CardType> ActiveTypeFilters = new();
+        public static readonly HashSet<CardRarity> ActiveRarityFilters = new();
+        public static readonly HashSet<int> ActiveCostFilters = new();
+        public static readonly HashSet<string> ActivePoolFilters = new();
+        public static readonly List<(SortField field, bool asc)> SortPriority = new() {
+            (SortField.Rarity, true), (SortField.Type, true),
+            (SortField.Cost, true), (SortField.Alphabet, true)
+        };
+        public static string LastSearchText = "";
+        public static bool LibraryShowUpgradePreview;
+    }
+
     // Pool chip key aligned with predicates registered in Show() for the run's character card pool.
     private static string? GetDefaultPoolFilterKeyForPlayer(Player player) {
         try {

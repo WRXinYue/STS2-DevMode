@@ -6,6 +6,7 @@ using DevMode.Hooks;
 using DevMode.Presets;
 using DevMode.Settings;
 using Godot;
+using MegaCrit.Sts2.Core.CardSelection;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -25,8 +26,10 @@ internal static class CardBrowserRightPanel {
 
     internal static void Build(VBoxContainer container, Label statusLabel,
         CardModel card, RunState state, Player player, NGlobalUi globalUi, Action onGridRefresh,
-        bool isLibrary, CardTarget? browseTarget) {
-        var cardName = CardEditActions.GetCardDisplayName(card);
+        bool isLibrary, CardTarget? browseTarget, bool libraryUpgradeDetailPreview = false) {
+        var displayCard = ResolveLibraryDisplayCard(card, isLibrary, libraryUpgradeDetailPreview);
+
+        var cardName = CardEditActions.GetCardDisplayName(displayCard);
 
         var headerLabel = new Label {
             Text = cardName,
@@ -41,11 +44,11 @@ internal static class CardBrowserRightPanel {
                 msg => statusLabel.Text = msg));
 
         var infoLines = new List<string>();
-        var typeName = CardBrowserUI.GetLocalizedTypeName(card);
-        var rarityName = CardBrowserUI.GetLocalizedRarityName(card);
+        var typeName = CardBrowserUI.GetLocalizedTypeName(displayCard);
+        var rarityName = CardBrowserUI.GetLocalizedRarityName(displayCard);
         if (!string.IsNullOrEmpty(typeName)) infoLines.Add(typeName);
         if (!string.IsNullOrEmpty(rarityName)) infoLines.Add(rarityName);
-        var costVal = CardEditActions.GetBaseCost(card);
+        var costVal = CardEditActions.GetBaseCost(displayCard);
         if (costVal.HasValue)
             infoLines.Add(string.Format(I18N.T("cardBrowser.cost", "Cost: {0}"), costVal.Value));
 
@@ -60,8 +63,14 @@ internal static class CardBrowserRightPanel {
         }
 
         string desc;
-        try { desc = card.GetDescriptionForPile(PileType.None); }
-        catch { desc = CardEditActions.GetDescriptionText(card); }
+        if (ReferenceEquals(displayCard, card) == false) {
+            try { desc = displayCard.GetDescriptionForUpgradePreview(); }
+            catch { desc = CardEditActions.GetDescriptionText(displayCard); }
+        }
+        else {
+            try { desc = card.GetDescriptionForPile(PileType.None); }
+            catch { desc = CardEditActions.GetDescriptionText(card); }
+        }
         if (!string.IsNullOrWhiteSpace(desc)) {
             var descLabel = DevModeTheme.CreateGameBbcodeLabel();
             descLabel.Text = DevModeTheme.ConvertGameBbcode(desc);
@@ -73,20 +82,49 @@ internal static class CardBrowserRightPanel {
         container.AddChild(new HSeparator());
 
         if (isLibrary) {
-            BuildAddSection(container, statusLabel, card, state, player);
+            BuildAddSection(container, statusLabel, card, displayCard, state, player, libraryUpgradeDetailPreview);
         }
         else {
             BuildOwnedCardActions(container, statusLabel, card, state, player, globalUi, onGridRefresh, browseTarget);
         }
 
         container.AddChild(new HSeparator());
+        // Inline editors apply to the library definition / pile instance, not the throwaway upgrade preview clone.
         BuildEditSection(container, statusLabel, card);
+    }
+
+    /// <summary>When browsing the card library with "view upgrades" on, match grid + NCard: clone and UpgradeInternal for read-only UI.</summary>
+    private static CardModel ResolveLibraryDisplayCard(CardModel card, bool isLibrary, bool libraryUpgradeDetailPreview) {
+        if (!isLibrary || !libraryUpgradeDetailPreview)
+            return card;
+        try {
+            if (!card.IsUpgradable)
+                return card;
+            var upgraded = (CardModel)card.MutableClone();
+            upgraded.UpgradeInternal();
+            return upgraded;
+        }
+        catch {
+            return card;
+        }
     }
 
     // ── Add section (for library source) ──
 
     private static void BuildAddSection(VBoxContainer container, Label statusLabel,
-        CardModel card, RunState state, Player player) {
+        CardModel card, CardModel displayCard, RunState state, Player player, bool libraryUpgradeDetailPreview) {
+        var upgradeLevelsToApply = 0;
+        if (libraryUpgradeDetailPreview && !ReferenceEquals(displayCard, card)) {
+            try {
+                upgradeLevelsToApply = displayCard.CurrentUpgradeLevel - card.CurrentUpgradeLevel;
+                if (upgradeLevelsToApply < 0) upgradeLevelsToApply = 0;
+            }
+            catch { /* keep 0 */ }
+        }
+
+        var nameAfterAdd = upgradeLevelsToApply > 0
+            ? CardEditActions.GetCardDisplayName(displayCard)
+            : CardEditActions.GetCardDisplayName(card);
         var targetRow = new HBoxContainer();
         targetRow.AddThemeConstantOverride("separation", 4);
         var targetLbl = new Label { Text = I18N.T("cardBrowser.sidebarTarget", "Target") };
@@ -139,9 +177,11 @@ internal static class CardBrowserRightPanel {
             I18N.T("cardBrowser.addCard", "Add Card"),
             new Color(0.25f, 0.55f, 0.35f, 0.9f));
         addBtn.Pressed += () => {
-            TaskHelper.RunSafely(CardActions.AddCard(state, player, card));
-            statusLabel.Text = string.Format(I18N.T("cardBrowser.addedCard", "Added: {0}"),
-                CardEditActions.GetCardDisplayName(card));
+            TaskHelper.RunSafely(CardActions.Add(state, player, card)
+                .UpgradeLevels(upgradeLevelsToApply)
+                .UpgradePreviewStyle(CardPreviewStyle.HorizontalLayout)
+                .RunAsync());
+            statusLabel.Text = string.Format(I18N.T("cardBrowser.addedCard", "Added: {0}"), nameAfterAdd);
         };
         container.AddChild(addBtn);
 

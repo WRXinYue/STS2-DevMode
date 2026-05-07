@@ -40,16 +40,39 @@ internal static partial class CardBrowserUI {
         };
     }
 
-    private static NCard? PopulateHost(Control host, CardModel card) {
+    private static NCard? PopulateHost(State s, Control host, CardModel card) {
         float slotW = host.CustomMinimumSize.X;
         float slotH = host.CustomMinimumSize.Y;
         try {
-            var nCard = NCard.Create(card);
+            CardModel modelForNode = card;
+            var useLibraryUpgradePreview = false;
+            if (IsLibrarySource && s.LibraryShowUpgradePreview) {
+                try {
+                    if (card.IsUpgradable) {
+                        var upgraded = (CardModel)card.MutableClone();
+                        upgraded.UpgradeInternal();
+                        modelForNode = upgraded;
+                        useLibraryUpgradePreview = true;
+                    }
+                }
+                catch (Exception ex) {
+                    MainFile.Logger.Warn($"[DevMode] Library upgrade preview clone failed for {card.Id}: {ex.Message}");
+                }
+            }
+
+            var nCard = NCard.Create(modelForNode);
             if (nCard != null) {
                 nCard.Position = new Vector2(slotW / 2f, slotH / 2f);
                 nCard.Scale = new Vector2(CardDisplayScale, CardDisplayScale);
                 SetDescendantsMouseFilterIgnore(nCard);
                 host.AddChild(nCard);
+                try {
+                    if (useLibraryUpgradePreview)
+                        nCard.ShowUpgradePreview();
+                    else
+                        nCard.UpdateVisuals(PileType.None, CardPreviewMode.Normal);
+                }
+                catch { }
                 return nCard;
             }
         }
@@ -144,6 +167,15 @@ internal static partial class CardBrowserUI {
         return (host, true);
     }
 
+    private static void TryHighlightCardHost(State s, CardModel? card) {
+        if (card == null) return;
+        if (!s.HostCache.TryGetValue(card, out var entry)) return;
+        if (s.SelectedPickHost != null)
+            s.SelectedPickHost.Modulate = ColCardPickNormal;
+        s.SelectedPickHost = entry.host;
+        entry.host.Modulate = ColCardPickSelected;
+    }
+
     private static void UpdateCardGridColumns(State s) {
         if (!s.CardGrid.IsNodeReady())
             return;
@@ -217,11 +249,7 @@ internal static partial class CardBrowserUI {
             if (!s.HostCache.TryGetValue(card, out var entry)) continue;
             if (entry.nCard != null) continue;
 
-            var nCard = PopulateHost(entry.host, card);
-            if (nCard != null) {
-                try { nCard.UpdateVisuals(PileType.None, CardPreviewMode.Normal); }
-                catch { }
-            }
+            var nCard = PopulateHost(s, entry.host, card);
             s.HostCache[card] = (entry.host, nCard, true);
         }
     }

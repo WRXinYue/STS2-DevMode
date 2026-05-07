@@ -66,7 +66,7 @@ public class DmCardConsoleCmd : AbstractConsoleCmd {
                         };
                     }
 
-                    TaskHelper.RunSafely(CardActions.AddCard(state, player, card));
+                    TaskHelper.RunSafely(CardActions.Add(state, player, card).RunAsync());
                     return new CmdResult(true, $"Added '{cardId}' to {DevModeState.CardTarget} ({DevModeState.EffectDuration})");
                 }
             default:

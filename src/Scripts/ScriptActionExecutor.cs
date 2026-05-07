@@ -95,7 +95,7 @@ internal static class ScriptActionExecutor {
         var card = FindCard(action.TargetId);
         if (card == null) return;
         if (!RunContext.TryGetRunAndPlayer(out var state, out _)) return;
-        TaskHelper.RunSafely(CardActions.AddCard(state, player, card));
+        TaskHelper.RunSafely(CardActions.Add(state, player, card).RunAsync());
     }
 
     private static void ExecuteUsePotion(BasicActionNode action, Player player) {

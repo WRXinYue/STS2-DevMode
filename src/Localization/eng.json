@@ -378,6 +378,9 @@
   "room.desc.treasure": "Open a chest — gain a relic.",
   "room.desc.map": "Return to the map screen.",
 
+  "cardBrowser.chipLibrary": "Library",
+  "cardBrowser.viewUpgrades": "View upgrades",
+  "cardBrowser.maxUpgrade": "Already at max upgrade level.",
   "cardBrowser.sortType": "Type",
   "cardBrowser.sortRarity": "Rarity",
   "cardBrowser.sortCost": "Cost",

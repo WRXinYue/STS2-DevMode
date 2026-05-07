@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DevMode;
 using DevMode.Actions;
 using DevMode.Icons;
 using Godot;
@@ -58,21 +59,24 @@ internal static partial class CardBrowserUI {
         // Sort
         public Dictionary<SortField, Button> SortBtnMap = new();
         public (SortField field, string label)[] SortFieldDefs = Array.Empty<(SortField, string)>();
-        public List<(SortField field, bool asc)> SortPriority = new()
-        {
-            (SortField.Rarity, true), (SortField.Type, true),
-            (SortField.Cost, true), (SortField.Alphabet, true)
-        };
+        public List<(SortField field, bool asc)> SortPriority => CardBrowserFilterPersistence.SortPriority;
 
-        // Filters
-        public readonly HashSet<CardType> ActiveTypeFilters = new();
-        public readonly HashSet<CardRarity> ActiveRarityFilters = new();
-        public readonly HashSet<int> ActiveCostFilters = new();
-        public readonly HashSet<string> ActivePoolFilters = new();
+        // Filters (shared across panel opens — see CardBrowserFilterPersistence)
+        public HashSet<CardType> ActiveTypeFilters => CardBrowserFilterPersistence.ActiveTypeFilters;
+        public HashSet<CardRarity> ActiveRarityFilters => CardBrowserFilterPersistence.ActiveRarityFilters;
+        public HashSet<int> ActiveCostFilters => CardBrowserFilterPersistence.ActiveCostFilters;
+        public HashSet<string> ActivePoolFilters => CardBrowserFilterPersistence.ActivePoolFilters;
         public readonly Dictionary<string, Func<CardModel, bool>> PoolFilterPredicates = new();
 
         // UI refs for conditional visibility
         public HBoxContainer PoolChipRow = null!;
+        public HBoxContainer LibraryUpgradeRow = null!;
+
+        /// <summary>When true and source is All Cards, thumbnails use the same upgrade preview as official NCardLibrary (MutableClone + UpgradeInternal + ShowUpgradePreview).</summary>
+        public bool LibraryShowUpgradePreview {
+            get => CardBrowserFilterPersistence.LibraryShowUpgradePreview;
+            set => CardBrowserFilterPersistence.LibraryShowUpgradePreview = value;
+        }
 
         // Card data
         public List<CardModel> CachedAllCards = new();
@@ -199,7 +203,8 @@ internal static partial class CardBrowserUI {
         s.SearchInput = new LineEdit {
             PlaceholderText = I18N.T("cardBrowser.search", "Search..."),
             ClearButtonEnabled = true,
-            CustomMinimumSize = new Vector2(180, 0)
+            CustomMinimumSize = new Vector2(180, 0),
+            Text = CardBrowserFilterPersistence.LastSearchText
         };
         sortRow.AddChild(s.SearchInput);
         content.AddChild(sortRow);
@@ -208,7 +213,7 @@ internal static partial class CardBrowserUI {
         var chipRow = new HBoxContainer();
         chipRow.AddThemeConstantOverride("separation", 4);
 
-        void AddChipGroup(string groupLabel, (string text, Action<bool> onToggle)[] chips) {
+        void AddChipGroup(string groupLabel, (string text, Action<bool> onToggle, bool startPressed)[] chips) {
             if (chipRow.GetChildCount() > 0) {
                 var sep = new VSeparator { CustomMinimumSize = new Vector2(1, 0) };
                 sep.AddThemeColorOverride("separator", DevModeTheme.Separator);
@@ -220,8 +225,8 @@ internal static partial class CardBrowserUI {
             groupLbl.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
             chipRow.AddChild(groupLbl);
 
-            foreach (var (text, onToggle) in chips) {
-                var chip = CreateFilterChip(text);
+            foreach (var (text, onToggle, startPressed) in chips) {
+                var chip = CreateFilterChip(text, startPressed);
                 chip.Toggled += on => {
                     onToggle(on);
                     RebuildGrid(s, s.SearchInput.Text ?? "");
@@ -230,27 +235,35 @@ internal static partial class CardBrowserUI {
             }
         }
 
-        AddChipGroup(I18N.T("cardBrowser.chipType", "Type"), new (string, Action<bool>)[]
+        AddChipGroup(I18N.T("cardBrowser.chipType", "Type"), new (string, Action<bool>, bool)[]
         {
-            (I18N.T("cardBrowser.filterAttack", "Attack"), on => ToggleSet(s.ActiveTypeFilters, CardType.Attack, on)),
-            (I18N.T("cardBrowser.filterSkill",  "Skill"),  on => ToggleSet(s.ActiveTypeFilters, CardType.Skill, on)),
-            (I18N.T("cardBrowser.filterPower",  "Power"),  on => ToggleSet(s.ActiveTypeFilters, CardType.Power, on)),
-            (I18N.T("cardBrowser.chipOther",    "Other"),  on => ToggleSet(s.ActiveTypeFilters, CardType.None, on))
+            (I18N.T("cardBrowser.filterAttack", "Attack"), on => ToggleSet(s.ActiveTypeFilters, CardType.Attack, on),
+                s.ActiveTypeFilters.Contains(CardType.Attack)),
+            (I18N.T("cardBrowser.filterSkill",  "Skill"),  on => ToggleSet(s.ActiveTypeFilters, CardType.Skill, on),
+                s.ActiveTypeFilters.Contains(CardType.Skill)),
+            (I18N.T("cardBrowser.filterPower",  "Power"),  on => ToggleSet(s.ActiveTypeFilters, CardType.Power, on),
+                s.ActiveTypeFilters.Contains(CardType.Power)),
+            (I18N.T("cardBrowser.chipOther",    "Other"),  on => ToggleSet(s.ActiveTypeFilters, CardType.None, on),
+                s.ActiveTypeFilters.Contains(CardType.None))
         });
-        AddChipGroup(I18N.T("cardBrowser.chipRarity", "Rarity"), new (string, Action<bool>)[]
+        AddChipGroup(I18N.T("cardBrowser.chipRarity", "Rarity"), new (string, Action<bool>, bool)[]
         {
-            (I18N.T("cardBrowser.filterCommon",   "Common"),   on => ToggleSet(s.ActiveRarityFilters, CardRarity.Common, on)),
-            (I18N.T("cardBrowser.filterUncommon", "Uncommon"), on => ToggleSet(s.ActiveRarityFilters, CardRarity.Uncommon, on)),
-            (I18N.T("cardBrowser.filterRare",     "Rare"),     on => ToggleSet(s.ActiveRarityFilters, CardRarity.Rare, on)),
-            (I18N.T("cardBrowser.chipOther",      "Other"),    on => ToggleSet(s.ActiveRarityFilters, CardRarity.None, on))
+            (I18N.T("cardBrowser.filterCommon",   "Common"),   on => ToggleSet(s.ActiveRarityFilters, CardRarity.Common, on),
+                s.ActiveRarityFilters.Contains(CardRarity.Common)),
+            (I18N.T("cardBrowser.filterUncommon", "Uncommon"), on => ToggleSet(s.ActiveRarityFilters, CardRarity.Uncommon, on),
+                s.ActiveRarityFilters.Contains(CardRarity.Uncommon)),
+            (I18N.T("cardBrowser.filterRare",     "Rare"),     on => ToggleSet(s.ActiveRarityFilters, CardRarity.Rare, on),
+                s.ActiveRarityFilters.Contains(CardRarity.Rare)),
+            (I18N.T("cardBrowser.chipOther",      "Other"),    on => ToggleSet(s.ActiveRarityFilters, CardRarity.None, on),
+                s.ActiveRarityFilters.Contains(CardRarity.None))
         });
-        AddChipGroup(I18N.T("cardBrowser.chipCost", "Cost"), new (string, Action<bool>)[]
+        AddChipGroup(I18N.T("cardBrowser.chipCost", "Cost"), new (string, Action<bool>, bool)[]
         {
-            ("0",  on => ToggleSet(s.ActiveCostFilters, 0, on)),
-            ("1",  on => ToggleSet(s.ActiveCostFilters, 1, on)),
-            ("2",  on => ToggleSet(s.ActiveCostFilters, 2, on)),
-            ("3+", on => ToggleSet(s.ActiveCostFilters, 3, on)),
-            ("X",  on => ToggleSet(s.ActiveCostFilters, CostFilterX, on))
+            ("0",  on => ToggleSet(s.ActiveCostFilters, 0, on), s.ActiveCostFilters.Contains(0)),
+            ("1",  on => ToggleSet(s.ActiveCostFilters, 1, on), s.ActiveCostFilters.Contains(1)),
+            ("2",  on => ToggleSet(s.ActiveCostFilters, 2, on), s.ActiveCostFilters.Contains(2)),
+            ("3+", on => ToggleSet(s.ActiveCostFilters, 3, on), s.ActiveCostFilters.Contains(3)),
+            ("X",  on => ToggleSet(s.ActiveCostFilters, CostFilterX, on), s.ActiveCostFilters.Contains(CostFilterX))
         });
         content.AddChild(chipRow);
 
@@ -275,9 +288,12 @@ internal static partial class CardBrowserUI {
 
         var defaultPoolKey = GetDefaultPoolFilterKeyForPlayer(player);
 
-        void AddPoolChip(string key, string text, bool startPressed = false) {
+        void AddPoolChip(string key, string text) {
+            var pf = s.ActivePoolFilters;
+            var startPressed = pf.Contains(key) || (pf.Count == 0 && defaultPoolKey == key);
             var chip = CreateFilterChip(text, startPressed);
-            if (startPressed) s.ActivePoolFilters.Add(key);
+            if (startPressed)
+                pf.Add(key);
             var capturedKey = key;
             chip.Toggled += on => {
                 ToggleSet(s.ActivePoolFilters, capturedKey, on);
@@ -302,11 +318,11 @@ internal static partial class CardBrowserUI {
 
         // Character group (built-ins, Colorless last)
         AddPoolChipGroupLabel(I18N.T("cardBrowser.chipCharacter", "Character"));
-        AddPoolChip("ironclad", I18N.T("cardBrowser.poolIronclad", "Ironclad"), defaultPoolKey == "ironclad");
-        AddPoolChip("silent", I18N.T("cardBrowser.poolSilent", "Silent"), defaultPoolKey == "silent");
-        AddPoolChip("defect", I18N.T("cardBrowser.poolDefect", "Defect"), defaultPoolKey == "defect");
-        AddPoolChip("regent", I18N.T("cardBrowser.poolRegent", "Regent"), defaultPoolKey == "regent");
-        AddPoolChip("necrobinder", I18N.T("cardBrowser.poolNecrobinder", "Necrobinder"), defaultPoolKey == "necrobinder");
+        AddPoolChip("ironclad", I18N.T("cardBrowser.poolIronclad", "Ironclad"));
+        AddPoolChip("silent", I18N.T("cardBrowser.poolSilent", "Silent"));
+        AddPoolChip("defect", I18N.T("cardBrowser.poolDefect", "Defect"));
+        AddPoolChip("regent", I18N.T("cardBrowser.poolRegent", "Regent"));
+        AddPoolChip("necrobinder", I18N.T("cardBrowser.poolNecrobinder", "Necrobinder"));
 
         // Mod characters: any character whose pool type isn't one of the 5 built-ins
         var builtInPoolTypes = new System.Collections.Generic.HashSet<Type>
@@ -320,12 +336,12 @@ internal static partial class CardBrowserUI {
             var key = "mod_" + pool.Title;
             var capturedPool = pool;
             s.PoolFilterPredicates[key] = c => c.Pool == capturedPool;
-            try { AddPoolChip(key, character.Title.GetFormattedText(), defaultPoolKey == key); }
-            catch { AddPoolChip(key, pool.Title, defaultPoolKey == key); }
+            try { AddPoolChip(key, character.Title.GetFormattedText()); }
+            catch { AddPoolChip(key, pool.Title); }
         }
 
         // Colorless always last in the Character group
-        AddPoolChip("colorless", I18N.T("cardBrowser.poolColorless", "Colorless"), defaultPoolKey == "colorless");
+        AddPoolChip("colorless", I18N.T("cardBrowser.poolColorless", "Colorless"));
 
         // Special group
         AddPoolChipGroupSep();
@@ -338,6 +354,37 @@ internal static partial class CardBrowserUI {
         AddPoolChip("token", I18N.T("cardBrowser.poolToken", "Token"));
 
         content.AddChild(s.PoolChipRow);
+
+        // ── Card library only: upgrade preview toggle (same chip style as pool filters) ──
+        s.LibraryUpgradeRow = new HBoxContainer();
+        s.LibraryUpgradeRow.AddThemeConstantOverride("separation", 6);
+        s.LibraryUpgradeRow.Visible = IsLibrarySource;
+        var libRowLbl = new Label {
+            Text = I18N.T("cardBrowser.chipLibrary", "Library"),
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter
+        };
+        libRowLbl.AddThemeFontSizeOverride("font_size", 11);
+        libRowLbl.AddThemeColorOverride("font_color", ColSubtle);
+        s.LibraryUpgradeRow.AddChild(libRowLbl);
+        var viewUpgradeChip = CreateFilterChip(
+            I18N.T("cardBrowser.viewUpgrades", "View upgrades"),
+            CardBrowserFilterPersistence.LibraryShowUpgradePreview);
+        viewUpgradeChip.Toggled += pressed => {
+            if (s.LibraryShowUpgradePreview == pressed) return;
+            var keepSelection = s.SelectedCard;
+            s.LibraryShowUpgradePreview = pressed;
+            InvalidateCardCache(s);
+            RebuildGrid(s, s.SearchInput.Text ?? "");
+            if (keepSelection != null && IsLibrarySource) {
+                ShowRightPanel(s, keepSelection);
+                Callable.From(() => TryHighlightCardHost(s, keepSelection)).CallDeferred();
+            }
+            else
+                ClearRightPanel(s);
+        };
+        s.LibraryUpgradeRow.AddChild(viewUpgradeChip);
+        s.LibraryUpgradeRow.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
+        content.AddChild(s.LibraryUpgradeRow);
 
         // ── Body: card grid (left) + right panel ──
         var body = new HSplitContainer {
@@ -416,12 +463,19 @@ internal static partial class CardBrowserUI {
         content.AddChild(s.StatusLabel);
 
         // ── Wire up ──
-        s.SearchInput.TextChanged += text => RebuildGrid(s, text);
+        s.SearchInput.TextChanged += text => {
+            CardBrowserFilterPersistence.LastSearchText = text ?? "";
+            RebuildGrid(s, text ?? "");
+        };
 
         ((Node)globalUi).AddChild(root);
 
+        var initialPileTarget = BrowseSourceToTarget(_browseSource);
+        if (initialPileTarget.HasValue)
+            DevModeState.CardTarget = initialPileTarget.Value;
+
         InvalidateCardCache(s);
-        RebuildGrid(s, "");
+        RebuildGrid(s, s.SearchInput.Text ?? "");
         Callable.From(() => UpdateCardGridColumns(s)).CallDeferred();
     }
 
@@ -442,7 +496,8 @@ internal static partial class CardBrowserUI {
         s.SelectedCard = card;
         foreach (var child in s.RightContent.GetChildren()) ((Node)child).QueueFree();
         CardBrowserRightPanel.Build(s.RightContent, s.StatusLabel, card, s.RunState, s.Player, s.GlobalUi,
-            () => RebuildGrid(s, s.SearchInput.Text ?? ""), IsLibrarySource, BrowseSourceToTarget(_browseSource));
+            () => RebuildGrid(s, s.SearchInput.Text ?? ""), IsLibrarySource, BrowseSourceToTarget(_browseSource),
+            IsLibrarySource && s.LibraryShowUpgradePreview);
     }
 
     private static void ClearRightPanel(State s) {
@@ -486,6 +541,10 @@ internal static partial class CardBrowserUI {
 
         MoveIndicator(s, tabIdx, true);
         s.PoolChipRow.Visible = IsLibrarySource;
+        s.LibraryUpgradeRow.Visible = IsLibrarySource;
+        var pileTarget = BrowseSourceToTarget(_browseSource);
+        if (pileTarget.HasValue)
+            DevModeState.CardTarget = pileTarget.Value;
         ClearRightPanel(s);
         InvalidateCardCache(s);
         RebuildGrid(s, s.SearchInput.Text ?? "");
