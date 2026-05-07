@@ -457,11 +457,16 @@ internal static class CardBrowserRightPanel {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 4);
         row.AddChild(new Label { Text = label, CustomMinimumSize = new Vector2(80, 0) });
-        var spin = new SpinBox { MinValue = -999, MaxValue = 9999, Value = currentValue, Step = 1, CustomMinimumSize = new Vector2(70, 26) };
+        var spin = new SpinBox {
+            MinValue = -999,
+            MaxValue = 9999,
+            Value = currentValue,
+            Step = 1,
+            CustomMinimumSize = new Vector2(70, 26),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+        };
+        spin.ValueChanged += value => onApply((int)value);
         row.AddChild(spin);
-        var btn = new Button { Text = I18N.T("cardEdit.apply", "Set"), CustomMinimumSize = new Vector2(36, 26) };
-        btn.Pressed += () => onApply((int)spin.Value);
-        row.AddChild(btn);
         parent.AddChild(row);
     }
 
@@ -479,10 +484,10 @@ internal static class CardBrowserRightPanel {
         row.AddThemeConstantOverride("separation", 4);
         row.AddChild(new Label { Text = label, CustomMinimumSize = new Vector2(80, 0) });
         var input = new LineEdit { Text = currentValue ?? string.Empty, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        void Apply() => onApply(input.Text ?? string.Empty);
+        input.TextSubmitted += _ => Apply();
+        input.FocusExited += () => Apply();
         row.AddChild(input);
-        var btn = new Button { Text = I18N.T("cardEdit.apply", "Set"), CustomMinimumSize = new Vector2(36, 26) };
-        btn.Pressed += () => onApply(input.Text ?? string.Empty);
-        row.AddChild(btn);
         parent.AddChild(row);
     }
 
