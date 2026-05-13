@@ -85,9 +85,9 @@ internal static class SaveSlotUI {
     private static void PlayEnterAnim() {
         if (_root == null || _center == null || _bg == null) return;
 
-        _bg.Color = new Color(0, 0, 0, 0f);
+        _bg.Color = OverlayScrimColor() with { A = 0f };
         var bgTween = _root.CreateTween();
-        bgTween.TweenProperty(_bg, "color", new Color(0, 0, 0, 0.75f), 0.18f)
+        bgTween.TweenProperty(_bg, "color", OverlayScrimColor(), 0.18f)
                .SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.Out);
 
         _center.Scale = new Vector2(0.93f, 0.93f);
@@ -152,7 +152,7 @@ internal static class SaveSlotUI {
         root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         root.MouseFilter = Control.MouseFilterEnum.Stop;
 
-        _bg = new ColorRect { Color = new Color(0, 0, 0, 0.75f) };
+        _bg = new ColorRect { Color = OverlayScrimColor() };
         _bg.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         root.AddChild(_bg);
 
@@ -223,6 +223,7 @@ internal static class SaveSlotUI {
         addBtn.AddThemeFontSizeOverride("font_size", 13);
         addBtn.Pressed += OnAddSlotPressed;
         if (!_isSaveMode) addBtn.Disabled = true;
+        ApplySecondaryButton(addBtn);
         outerVbox.AddChild(addBtn);
 
         // Cancel button
@@ -233,6 +234,7 @@ internal static class SaveSlotUI {
         };
         cancelBtn.AddThemeFontSizeOverride("font_size", 13);
         cancelBtn.Pressed += Hide;
+        ApplySecondaryButton(cancelBtn);
         outerVbox.AddChild(cancelBtn);
 
         panel.AddChild(outerVbox);
@@ -359,7 +361,7 @@ internal static class SaveSlotUI {
                 HorizontalAlignment = HorizontalAlignment.Right,
             };
             goldLabel.AddThemeFontSizeOverride("font_size", 12);
-            goldLabel.AddThemeColorOverride("font_color", new Color(1f, 0.85f, 0.3f));
+            goldLabel.AddThemeColorOverride("font_color", DevModeTheme.RarityRare);
             statsRow.AddChild(goldLabel);
             vbox.AddChild(statsRow);
 
@@ -379,7 +381,7 @@ internal static class SaveSlotUI {
 
         // Background track
         var bg = new ColorRect {
-            Color = new Color(0.2f, 0.2f, 0.22f),
+            Color = DevModeTheme.PanelBg.Lerp(DevModeTheme.TextPrimary, 0.12f),
             AnchorRight = 1f,
             AnchorBottom = 1f,
         };
@@ -397,17 +399,20 @@ internal static class SaveSlotUI {
     }
 
     private static StyleBoxFlat MakeSlotCardStyle(bool selected, bool hover = false) {
-        var bg = selected
-            ? new Color(DevModeTheme.Accent.R, DevModeTheme.Accent.G, DevModeTheme.Accent.B, 0.15f)
-            : hover
-                ? new Color(0.18f, 0.18f, 0.22f, 0.9f)
-                : new Color(0.13f, 0.13f, 0.16f, 0.8f);
-
-        var border = selected
-            ? DevModeTheme.Accent
-            : hover
-                ? new Color(0.4f, 0.4f, 0.5f, 0.6f)
-                : new Color(0.25f, 0.25f, 0.3f, 0.5f);
+        Color bg;
+        Color border;
+        if (selected) {
+            bg = DevModeTheme.AccentAlpha with { A = 0.15f };
+            border = DevModeTheme.Accent;
+        }
+        else if (hover) {
+            bg = DevModeTheme.PanelBg.Lerp(DevModeTheme.Accent, 0.10f);
+            border = DevModeTheme.PanelBorder.Lerp(DevModeTheme.Accent, 0.40f);
+        }
+        else {
+            bg = DevModeTheme.PanelBg.Lerp(DevModeTheme.TextPrimary, 0.06f);
+            border = DevModeTheme.PanelBorder;
+        }
 
         return new StyleBoxFlat {
             BgColor = bg,
@@ -433,7 +438,7 @@ internal static class SaveSlotUI {
 
     private static PanelContainer BuildRightPanel() {
         var panel = new PanelContainer { CustomMinimumSize = new Vector2(600, 520) };
-        panel.AddThemeStyleboxOverride("panel", MakePanel(0, 10, 10, 0, new Color(0.07f, 0.07f, 0.09f, 0.98f)));
+        panel.AddThemeStyleboxOverride("panel", MakePanel(0, 10, 10, 0));
 
         var outerVbox = new VBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill };
         outerVbox.AddThemeConstantOverride("separation", 0);
@@ -464,9 +469,9 @@ internal static class SaveSlotUI {
         _detailFloor = MakeBadgeLabel();
         _detailHp = MakeBadgeLabel();
         _detailGold = MakeBadgeLabel();
-        badgeRow.AddChild(MakeBadge(_detailFloor, new Color(0.35f, 0.55f, 0.85f, 0.2f)));
-        badgeRow.AddChild(MakeBadge(_detailHp, new Color(0.85f, 0.35f, 0.35f, 0.2f)));
-        badgeRow.AddChild(MakeBadge(_detailGold, new Color(1f, 0.85f, 0.3f, 0.2f)));
+        badgeRow.AddChild(MakeBadge(_detailFloor, BadgeTint(DevModeTheme.Accent, 0.20f)));
+        badgeRow.AddChild(MakeBadge(_detailHp, BadgeTint(DevModeTheme.RarityCurse, 0.18f)));
+        badgeRow.AddChild(MakeBadge(_detailGold, BadgeTint(DevModeTheme.RarityRare, 0.22f)));
         _detailContainer.AddChild(badgeRow);
 
         // Seed
@@ -523,6 +528,7 @@ internal static class SaveSlotUI {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         _nameInput.AddThemeFontSizeOverride("font_size", 14);
+        ApplyThemedLineEdit(_nameInput);
         footerRow.AddChild(_nameInput);
 
         _confirmBtn = new Button {
@@ -533,6 +539,7 @@ internal static class SaveSlotUI {
         };
         _confirmBtn.AddThemeFontSizeOverride("font_size", 15);
         _confirmBtn.Pressed += OnConfirmPressed;
+        ApplyPrimaryButton(_confirmBtn);
         footerRow.AddChild(_confirmBtn);
 
         _deleteBtn = new Button {
@@ -541,8 +548,8 @@ internal static class SaveSlotUI {
             FocusMode = Control.FocusModeEnum.None,
         };
         _deleteBtn.AddThemeFontSizeOverride("font_size", 13);
-        _deleteBtn.AddThemeColorOverride("font_color", new Color(0.9f, 0.35f, 0.35f));
         _deleteBtn.Pressed += OnDeletePressed;
+        ApplyDangerButton(_deleteBtn);
         footerRow.AddChild(_deleteBtn);
 
         _detailContainer.AddChild(footerRow);
@@ -576,7 +583,7 @@ internal static class SaveSlotUI {
     // ──────── Interaction ────────
 
     private static void SelectSlot(int slotId) {
-        int prevSlot = _selectedSlot;
+        bool sameSlot = _selectedSlot == slotId;
         _selectedSlot = slotId;
 
         // Update card styles
@@ -586,7 +593,8 @@ internal static class SaveSlotUI {
         }
 
         SetDetailVisible(true);
-        AnimateDetailTransition(() => RefreshDetail(slotId));
+        if (!sameSlot)
+            AnimateDetailTransition(() => RefreshDetail(slotId));
     }
 
     private static void RefreshDetail(int slotId) {
@@ -753,20 +761,129 @@ internal static class SaveSlotUI {
         return badge;
     }
 
-    private static HSeparator MakeThinSep() => new();
+    private static HSeparator MakeThinSep() {
+        var sep = new HSeparator();
+        sep.AddThemeColorOverride("separator", DevModeTheme.Separator);
+        return sep;
+    }
+
+    /// <summary>Full-screen dim behind the dialog — tinted from <see cref="DevModeTheme.PanelBg"/> so it tracks the active theme.</summary>
+    private static Color OverlayScrimColor() {
+        var baseCol = DevModeTheme.PanelBg.Lerp(Colors.Black, 0.52f);
+        return baseCol with { A = 0.78f };
+    }
+
+    private static Color BadgeTint(Color hue, float alpha) => hue with { A = alpha };
+
+    private static StyleBoxFlat MakeButtonBox(Color bg, Color border, int radius = 6, int marginH = 12, int marginV = 5) => new() {
+        BgColor = bg,
+        CornerRadiusTopLeft = radius,
+        CornerRadiusTopRight = radius,
+        CornerRadiusBottomLeft = radius,
+        CornerRadiusBottomRight = radius,
+        ContentMarginLeft = marginH,
+        ContentMarginRight = marginH,
+        ContentMarginTop = marginV,
+        ContentMarginBottom = marginV,
+        BorderWidthLeft = 1,
+        BorderWidthRight = 1,
+        BorderWidthTop = 1,
+        BorderWidthBottom = 1,
+        BorderColor = border,
+    };
+
+    private static void ApplySecondaryButton(Button btn) {
+        var bgN = DevModeTheme.ButtonBgNormal;
+        var borderN = new Color(bgN.R, bgN.G, bgN.B, Mathf.Max(bgN.A, 0.08f));
+        var accent = DevModeTheme.Accent;
+        btn.AddThemeStyleboxOverride("normal", MakeButtonBox(bgN, borderN));
+        btn.AddThemeStyleboxOverride("hover", MakeButtonBox(DevModeTheme.ButtonBgHover, new Color(accent.R, accent.G, accent.B, 0.28f)));
+        btn.AddThemeStyleboxOverride("pressed", MakeButtonBox(new Color(accent.R, accent.G, accent.B, 0.14f), new Color(accent.R, accent.G, accent.B, 0.45f)));
+        btn.AddThemeStyleboxOverride("disabled", MakeButtonBox(bgN with { A = bgN.A * 0.45f }, borderN with { A = borderN.A * 0.45f }));
+        btn.AddThemeStyleboxOverride("focus", MakeButtonBox(bgN, borderN));
+        btn.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
+        btn.AddThemeColorOverride("font_hover_color", DevModeTheme.TextPrimary);
+        btn.AddThemeColorOverride("font_pressed_color", DevModeTheme.TextPrimary);
+        btn.AddThemeColorOverride("font_disabled_color", DevModeTheme.Subtle);
+    }
+
+    private static Color TextOnAccentBackground() {
+        var a = DevModeTheme.Accent;
+        float lum = 0.299f * a.R + 0.587f * a.G + 0.114f * a.B;
+        return lum > 0.55f ? new Color(0.12f, 0.10f, 0.08f, 1f) : Colors.White;
+    }
+
+    private static void ApplyPrimaryButton(Button btn) {
+        var accent = DevModeTheme.Accent;
+        var bgN = accent with { A = 0.38f };
+        var bgH = accent with { A = 0.52f };
+        var bgP = accent with { A = 0.30f };
+        var border = new Color(accent.R, accent.G, accent.B, 0.55f);
+        var fg = TextOnAccentBackground();
+        btn.AddThemeStyleboxOverride("normal", MakeButtonBox(bgN, border));
+        btn.AddThemeStyleboxOverride("hover", MakeButtonBox(bgH, border with { A = 0.75f }));
+        btn.AddThemeStyleboxOverride("pressed", MakeButtonBox(bgP, border));
+        btn.AddThemeStyleboxOverride("disabled", MakeButtonBox(bgN with { A = bgN.A * 0.4f }, border with { A = border.A * 0.4f }));
+        btn.AddThemeStyleboxOverride("focus", MakeButtonBox(bgN, border));
+        btn.AddThemeColorOverride("font_color", fg);
+        btn.AddThemeColorOverride("font_hover_color", fg);
+        btn.AddThemeColorOverride("font_pressed_color", fg);
+        btn.AddThemeColorOverride("font_disabled_color", DevModeTheme.Subtle);
+    }
+
+    private static void ApplyDangerButton(Button btn) {
+        var danger = DevModeTheme.RarityCurse;
+        var bgN = DevModeTheme.ButtonBgNormal;
+        var borderN = new Color(bgN.R, bgN.G, bgN.B, Mathf.Max(bgN.A, 0.08f));
+        btn.AddThemeStyleboxOverride("normal", MakeButtonBox(bgN, new Color(danger.R, danger.G, danger.B, 0.35f)));
+        btn.AddThemeStyleboxOverride("hover", MakeButtonBox(new Color(danger.R, danger.G, danger.B, 0.14f), new Color(danger.R, danger.G, danger.B, 0.55f)));
+        btn.AddThemeStyleboxOverride("pressed", MakeButtonBox(new Color(danger.R, danger.G, danger.B, 0.22f), danger with { A = 0.65f }));
+        btn.AddThemeStyleboxOverride("focus", MakeButtonBox(bgN, new Color(danger.R, danger.G, danger.B, 0.35f)));
+        btn.AddThemeColorOverride("font_color", danger);
+        btn.AddThemeColorOverride("font_hover_color", danger);
+        btn.AddThemeColorOverride("font_pressed_color", danger);
+    }
+
+    private static void ApplyThemedLineEdit(LineEdit edit) {
+        StyleBoxFlat FieldStyle(bool focused) => new() {
+            BgColor = DevModeTheme.ButtonBgNormal,
+            BorderColor = focused ? DevModeTheme.Accent : DevModeTheme.PanelBorder,
+            BorderWidthLeft = 1,
+            BorderWidthRight = 1,
+            BorderWidthTop = 1,
+            BorderWidthBottom = 1,
+            CornerRadiusTopLeft = 4,
+            CornerRadiusTopRight = 4,
+            CornerRadiusBottomLeft = 4,
+            CornerRadiusBottomRight = 4,
+            ContentMarginLeft = 8,
+            ContentMarginRight = 8,
+            ContentMarginTop = 4,
+            ContentMarginBottom = 4,
+        };
+        edit.AddThemeStyleboxOverride("normal", FieldStyle(false));
+        edit.AddThemeStyleboxOverride("focus", FieldStyle(true));
+        edit.AddThemeStyleboxOverride("read_only", FieldStyle(false));
+        edit.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
+        edit.AddThemeColorOverride("font_placeholder_color", DevModeTheme.Subtle);
+        edit.AddThemeColorOverride("caret_color", DevModeTheme.Accent);
+        edit.AddThemeColorOverride("selection_color", DevModeTheme.AccentAlpha with { A = 0.35f });
+    }
 
     private static Color HpColor(int hp, int maxHp) {
         if (maxHp <= 0) return DevModeTheme.Subtle;
         float ratio = (float)hp / maxHp;
-        if (ratio > 0.6f) return new Color(0.35f, 0.78f, 0.35f);
-        if (ratio > 0.3f) return new Color(0.9f, 0.75f, 0.2f);
-        return new Color(0.85f, 0.3f, 0.3f);
+        var accent = DevModeTheme.Accent;
+        var mid = DevModeTheme.TextSecondary;
+        if (ratio > 0.6f) return accent;
+        if (ratio > 0.3f) return mid.Lerp(accent, (ratio - 0.3f) / 0.3f);
+        return DevModeTheme.RarityCurse.Lerp(mid, ratio / 0.3f);
     }
 
     private static StyleBoxFlat MakePanel(
         float tl = 10, float tr = 10, float br = 10, float bl = 10, Color? color = null) {
         return new StyleBoxFlat {
-            BgColor = color ?? new Color(0.10f, 0.10f, 0.13f, 0.98f),
+            BgColor = color ?? DevModeTheme.PanelBg,
             ContentMarginLeft = 16,
             ContentMarginRight = 16,
             ContentMarginTop = 16,
@@ -779,7 +896,7 @@ internal static class SaveSlotUI {
             BorderWidthTop = 1,
             BorderWidthLeft = 1,
             BorderWidthRight = 1,
-            BorderColor = new Color(0.3f, 0.3f, 0.38f, 0.6f),
+            BorderColor = DevModeTheme.PanelBorder,
         };
     }
 }
