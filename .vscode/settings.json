@@ -4,15 +4,21 @@
     "editor.formatOnSave": true
   },
   "dotnet.formatting.organizeImportsOnFormat": true,
-  "dotnet.backgroundAnalysis.analyzerDiagnosticsScope": "fullSolution",
-  "dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution",
+  "dotnet.backgroundAnalysis.analyzerDiagnosticsScope": "openFiles",
+  "dotnet.backgroundAnalysis.compilerDiagnosticsScope": "openFiles",
   "[python]": {
     "editor.defaultFormatter": "ms-python.black-formatter",
     "editor.formatOnSave": true
   },
   "python.linting.flake8Enabled": true,
   "python.linting.pylintEnabled": false,
-  "deepscan.enable": true,
+  "deepscan.enable": false,
+  "files.watcherExclude": {
+    "**/.godot/**": true,
+    "**/build/**": true,
+    "**/Publish/**": true,
+    "**/packages/**": true
+  },
   "cSpell.words": [
     "BepInEx",
     "DeployToGame",
