@@ -60,33 +60,46 @@ compile: deps
 pck: deps
 	$(DOTNET) publish $(DEPLOY_TO_GAME) $(MOD_MAIN)
 
-clean:
-	@if exist build rmdir /s /q build
-	$(DOTNET) clean DevMode.sln
-
 publish:
 	$(PYTHON) scripts/publish_release.py $(if $(VERSION),--version $(VERSION),)
 
 # ── zip: build + package into build/DevMode-vX.X.X.zip ──
-ZIP_NAME := build\DevMode-v$(VERSION).zip
-DIST_DIR := build\dist\DevMode
+ZIP_NAME := build/DevMode-v$(VERSION).zip
+DIST_DIR := build/dist/DevMode
 
+ifeq ($(OS),Windows_NT)
 zip: build
 	@if exist build\dist rmdir /s /q build\dist
-	@mkdir "$(DIST_DIR)"
-	@mkdir "$(DIST_DIR)\editor"
-	@mkdir "$(DIST_DIR)\scripts"
-	@copy /y build\DevMode\DevMode.dll "$(DIST_DIR)\" >nul
-	@copy /y build\DevMode\DevMode.pck "$(DIST_DIR)\" >nul
-	@copy /y build\DevMode\mod_manifest.json "$(DIST_DIR)\" >nul
-	@xcopy /s /y /q editor\* "$(DIST_DIR)\editor\" >nul
-	@if exist "$(ZIP_NAME)" del "$(ZIP_NAME)"
-	$(PYTHON) -c "import zipfile,os;z=zipfile.ZipFile('$(ZIP_NAME)','w',zipfile.ZIP_DEFLATED);[z.write(os.path.join(r,f),os.path.join(os.path.relpath(r,'build\\dist'),f)) for r,_,fs in os.walk('build\\dist\\DevMode') for f in fs];z.close()"
+	@mkdir build\dist\DevMode\editor
+	@mkdir build\dist\DevMode\scripts
+	@copy /y build\DevMode\DevMode.dll build\dist\DevMode\ >nul
+	@if exist build\DevMode\DevMode.pck copy /y build\DevMode\DevMode.pck build\dist\DevMode\ >nul
+	@copy /y build\DevMode\mod_manifest.json build\dist\DevMode\ >nul
+	@xcopy /s /y /q editor\* build\dist\DevMode\editor\ >nul
+	@if exist build\DevMode-v$(VERSION).zip del build\DevMode-v$(VERSION).zip
+	$(PYTHON) -c "import zipfile,os;z=zipfile.ZipFile('build/DevMode-v$(VERSION).zip','w',zipfile.ZIP_DEFLATED);[z.write(os.path.join(r,f),os.path.join(os.path.relpath(r,'build/dist'),f)) for r,_,fs in os.walk('build/dist/DevMode') for f in fs];z.close()"
 	@echo.
-	@echo Done: $(ZIP_NAME)
+	@echo Done: build\DevMode-v$(VERSION).zip
 	@echo Install: extract into "Slay the Spire 2\mods\"
+
+clean:
+	@if exist build rmdir /s /q build
+	$(DOTNET) clean DevMode.sln
+else
+zip: build
+	rm -rf build/dist
+	mkdir -p $(DIST_DIR)/editor $(DIST_DIR)/scripts
+	cp build/DevMode/DevMode.dll build/DevMode/mod_manifest.json $(DIST_DIR)/
+	@[ -f build/DevMode/DevMode.pck ] && cp build/DevMode/DevMode.pck $(DIST_DIR)/ || echo "Warning: DevMode.pck not found (Godot not configured) — skipping"
+	cp -R editor/. $(DIST_DIR)/editor/
+	rm -f $(ZIP_NAME)
+	cd build/dist && zip -qr ../DevMode-v$(VERSION).zip DevMode
+	@echo ""
+	@echo "Done: $(ZIP_NAME)"
+	@echo 'Install: extract into "Slay the Spire 2/mods/"'
 
 clean:
 	rm -rf build
 	find src -type f \( -name '*.uid' -o -name '*.import' \) -exec rm -f {} +
 	$(DOTNET) clean DevMode.sln
+endif
