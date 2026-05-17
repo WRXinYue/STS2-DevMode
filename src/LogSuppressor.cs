@@ -34,6 +34,12 @@ internal static class LogSuppressor {
 
         new("warmup job failed",
             "DevMode 资源预热任务失败：通常为 Mod 中存在无效内容，不影响运行"),
+
+        new("Limiting background FPS",
+            "窗口失焦时限帧：游戏后台运行时的正常 INFO 日志"),
+
+        new("Restored foreground FPS",
+            "窗口重新聚焦时恢复帧率：正常 INFO 日志"),
     };
 
     /// <summary>
