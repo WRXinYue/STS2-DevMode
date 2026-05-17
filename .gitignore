@@ -31,3 +31,6 @@ local.props
 
 # Generated tree-shaken icon set (rebuilt on each build)
 src/Icons/mdi-used.json
+
+# Other
+.DS_Store

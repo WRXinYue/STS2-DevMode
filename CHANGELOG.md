@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The in-game **mod list** now shows a **preview image** for DevMode.
 - Card browser (full library): set **base energy cost** before you add a card — the value applies to the new copy you receive, not the catalog entry.
 - Card browser **remembers** type/rarity/cost/pool filters, sort, search text, and **View upgrades** between sessions.
 - Clearer **upgrade preview** when browsing library cards with View upgrades enabled.

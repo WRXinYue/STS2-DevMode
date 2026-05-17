@@ -22,6 +22,10 @@
     <DeployToGame Condition="'$(DeployToGame)' == ''">false</DeployToGame>
     <DevModePython Condition="'$(DevModePython)' == '' and '$(OS)' == 'Windows_NT'">python</DevModePython>
     <DevModePython Condition="'$(DevModePython)' == '' and '$(OS)' != 'Windows_NT'">python3</DevModePython>
+    <GodotExe Condition="'$(GodotExe)' == '' and '$(GodotPath)' != ''">$(GodotPath)</GodotExe>
+    <GodotExportPreset>BasicExport</GodotExportPreset>
+    <ModPckPath>$(PublishDir)\$(ModId).pck</ModPckPath>
+    <RunPckExport Condition="'$(RunPckExport)' == ''">true</RunPckExport>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(DeployToGame)' == 'false'">
@@ -113,7 +117,17 @@
   <Target Name="AutoSyncFrameworkModsAfterRestore" AfterTargets="Restore" DependsOnTargets="CopyFrameworkModsToGame" Condition="'$(Sts2Dir)' != '' and '$(DisableFrameworkModsAfterRestore)' != 'true'" />
 
   <!-- Deploy built DLL + deps to game mods folder -->
-  <Target Name="DeployToGame" AfterTargets="Publish" DependsOnTargets="CopyFrameworkModsToGame" Condition="'$(DeployToGame)' == 'true'">
+  <Target Name="ExportModPck" AfterTargets="Publish" Condition="'$(RunPckExport)' == 'true' and '$(STS2_SKIP_PCK_EXPORT)' != '1' and Exists('$(GodotExe)')">
+    <Message Text="Exporting mod PCK to $(ModPckPath)..." Importance="high" />
+    <MakeDir Directories="$(PublishDir)" />
+    <Exec Command="&quot;$(GodotExe)&quot; --headless --path &quot;$(MSBuildProjectDirectory)&quot; --export-pack &quot;$(GodotExportPreset)&quot; &quot;$(ModPckPath)&quot;" EnvironmentVariables="STS2_SKIP_PCK_EXPORT=1" />
+  </Target>
+
+  <Target Name="WarnMissingGodotForPck" AfterTargets="Publish" Condition="'$(RunPckExport)' == 'true' and '$(STS2_SKIP_PCK_EXPORT)' != '1' and !Exists('$(GodotExe)')">
+    <Warning Text="Godot not found (set GodotPath in local.props). Skipped PCK export; mod_image.png will not appear in-game." />
+  </Target>
+
+  <Target Name="DeployToGame" AfterTargets="Publish;ExportModPck" DependsOnTargets="CopyFrameworkModsToGame" Condition="'$(DeployToGame)' == 'true'">
     <ItemGroup>
       <DeployFiles Include="$(PublishDir)\$(ModId).dll" />
       <DeployFiles Include="$(PublishDir)\$(ModId).pck" Condition="Exists('$(PublishDir)\$(ModId).pck')" />

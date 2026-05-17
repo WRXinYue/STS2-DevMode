@@ -77,6 +77,7 @@ zip: build
 	@mkdir "$(DIST_DIR)\editor"
 	@mkdir "$(DIST_DIR)\scripts"
 	@copy /y build\DevMode\DevMode.dll "$(DIST_DIR)\" >nul
+	@copy /y build\DevMode\DevMode.pck "$(DIST_DIR)\" >nul
 	@copy /y build\DevMode\mod_manifest.json "$(DIST_DIR)\" >nul
 	@xcopy /s /y /q editor\* "$(DIST_DIR)\editor\" >nul
 	@if exist "$(ZIP_NAME)" del "$(ZIP_NAME)"
