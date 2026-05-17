@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 局内 **Save / Load** 的存档列表改为在菜单旁**侧滑展开的浏览器列**中打开（与其他开发面板一致的侧栏风格），不再单独弹出全屏对话框。
 - 主菜单 **Load Save** 全屏读档界面在**大分辨率**下会**随窗口变高**（高度随显示区域缩放）。
 
+### Removed
+
+- **第三方面板注册接口**：`DevPanelModApi`、`RegisterPanelWhenReady` 及相关延迟注册队列已全部移除，DevMode 不再支持外部模组注册自定义侧栏面板。
+
 ### Fixed
 
 - 开发模式读/写存档列表：再次点击**同一存档槽**时，右侧详情区不再**闪一下**。

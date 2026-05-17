@@ -3,11 +3,8 @@ using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
 namespace DevMode.UI;
 
-/// <summary>
-/// Implement this interface to add a custom tab to the DevMode rail.
-/// Register via <see cref="DevPanelRegistry.Register(IDevPanelTab)"/>.
-/// </summary>
-public interface IDevPanelTab {
+/// <summary>Represents a tab in the DevMode rail.</summary>
+internal interface IDevPanelTab {
     /// <summary>Unique identifier, e.g. "mymod.debug".</summary>
     string Id { get; }
 
@@ -37,7 +34,7 @@ public interface IDevPanelTab {
 }
 
 /// <summary>Determines where the tab icon is placed in the rail.</summary>
-public enum DevPanelTabGroup {
+internal enum DevPanelTabGroup {
     /// <summary>Upper section — primary feature panels (Cards, Relics, …).</summary>
     Primary,
 
@@ -49,7 +46,7 @@ public enum DevPanelTabGroup {
 /// Rail tab capability. When <see cref="DevModeState.CheatsInRun"/> (<see cref="DebugMode.Full"/>), every tab appears.
 /// Otherwise (e.g. persist <see cref="DebugMode.Panel"/> on an ordinary run), only <see cref="Developer"/> tabs appear.
 /// </summary>
-public enum DevPanelTabKind {
+internal enum DevPanelTabKind {
     /// <summary>Inspection and tooling that do not change run or save data (logs, Harmony report, framework bridge).</summary>
     Developer,
 

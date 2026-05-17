@@ -2,34 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DevMode.Icons;
-using DevMode.Modding;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
 namespace DevMode.UI;
 
-/// <summary>
-/// Central registry for DevMode rail tabs.
-/// Both built-in panels and external mods register here.
-/// </summary>
-public static class DevPanelRegistry {
+/// <summary>Central registry for DevMode rail tabs.</summary>
+internal static class DevPanelRegistry {
     private static readonly List<IDevPanelTab> _tabs = new();
     private static bool _dirty = true;
 
-    /// <summary>
-    /// Queues a callback to run once, after all mods have finished <see cref="MegaCrit.Sts2.Core.Modding.ModManager"/> initialization
-    /// and immediately before <see cref="MegaCrit.Sts2.Core.Localization.LocManager.Initialize"/> runs (same timing as safe external registration).
-    /// If called after that phase, <paramref name="registration"/> runs immediately.
-    /// </summary>
-    /// <remarks>
-    /// Prefer this over <see cref="Register"/> from another mod's <c>[ModInitializer]</c> when load order is uncertain.
-    /// For compile-time references to DevMode, list <c>DevMode</c> in your mod manifest <c>dependencies</c> so DevMode loads first.
-    /// Equivalent to <see cref="ModRuntime.RegisterAfterAllModsLoaded"/>; use whichever reads clearer in your mod.
-    /// </remarks>
-    public static void RegisterPanelWhenReady(Action registration)
-        => ModLoadCoordinator.Register(registration);
-
     /// <summary>Register a tab. If a tab with the same <see cref="IDevPanelTab.Id"/> already exists, it is replaced.</summary>
-    public static void Register(IDevPanelTab tab) {
+    internal static void Register(IDevPanelTab tab) {
         if (tab == null) throw new ArgumentNullException(nameof(tab));
         _tabs.RemoveAll(t => t.Id == tab.Id);
         _tabs.Add(tab);
@@ -37,7 +20,7 @@ public static class DevPanelRegistry {
     }
 
     /// <summary>Convenience overload — register with lambdas, no need to implement <see cref="IDevPanelTab"/>.</summary>
-    public static void Register(string id, MdiIcon icon, string displayName,
+    internal static void Register(string id, MdiIcon icon, string displayName,
         int order, DevPanelTabGroup group, Action<NGlobalUi> onActivate,
         Action<NGlobalUi>? onDeactivate = null,
         DevPanelTabKind kind = DevPanelTabKind.Cheat) {
@@ -45,14 +28,14 @@ public static class DevPanelRegistry {
     }
 
     /// <summary>Remove a previously registered tab by id. Returns true if found.</summary>
-    public static bool Unregister(string id) {
+    internal static bool Unregister(string id) {
         int removed = _tabs.RemoveAll(t => t.Id == id);
         if (removed > 0) _dirty = true;
         return removed > 0;
     }
 
     /// <summary>Get all tabs for a given group, sorted by <see cref="IDevPanelTab.Order"/> (stable).</summary>
-    public static IReadOnlyList<IDevPanelTab> GetTabs(DevPanelTabGroup group) {
+    internal static IReadOnlyList<IDevPanelTab> GetTabs(DevPanelTabGroup group) {
         if (_dirty) {
             _tabs.Sort((a, b) => a.Order.CompareTo(b.Order));
             _dirty = false;
@@ -61,7 +44,7 @@ public static class DevPanelRegistry {
     }
 
     /// <summary>Get all registered tabs across all groups, sorted by order.</summary>
-    public static IReadOnlyList<IDevPanelTab> GetAllTabs() {
+    internal static IReadOnlyList<IDevPanelTab> GetAllTabs() {
         if (_dirty) {
             _tabs.Sort((a, b) => a.Order.CompareTo(b.Order));
             _dirty = false;

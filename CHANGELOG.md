@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - In-run **Save / Load** opens the snapshot picker in a **slide-out column** beside the menu (same browser rail style as other dev panels) instead of a separate full-screen dialog.
 - Main-menu **Load Save** fullscreen picker **grows taller on large displays** (height scales with your window).
 
+### Removed
+
+- **Third-party panel registration**: `DevPanelModApi`, `RegisterPanelWhenReady`, and the related deferred-registration queue have been removed. DevMode no longer supports external mods registering custom rail panels.
+
 ### Fixed
 
 - Dev save/load snapshot list: clicking the **same slot again** no longer makes the right-hand detail area **flash**.
