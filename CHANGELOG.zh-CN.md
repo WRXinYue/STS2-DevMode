@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-17
+
 ### Added
 
 - **Mod 反馈**面板 — 填写问题说明并导出 **ZIP 报告包**，可发给任意 Mod 作者：降噪后的游戏内日志、已加载 Mod 列表、Harmony 补丁转储与框架桥接快照。可从 `logs` 目录**附加游戏日志**（默认当前会话的 `godot.log`，取末尾 512 KB）。**隐私模式**（默认开启）会将用户数据路径替换为 `<user-data>`。

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-17
+
 ### Added
 
 - **Mod Feedback** panel — describe an issue and export a **ZIP report** for any mod author: filtered in-game logs, loaded mod list, Harmony patch dump, and framework bridge snapshot. Attach a **game log** from the `logs` folder (defaults to the current session’s `godot.log`, last 512 KB). **Privacy mode** (on by default) replaces your user-data path with `<user-data>` in the package.
