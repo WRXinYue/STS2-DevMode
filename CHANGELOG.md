@@ -17,9 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Card browser **remembers** type/rarity/cost/pool filters, sort, search text, and **View upgrades** between sessions.
 - Clearer **upgrade preview** when browsing library cards with View upgrades enabled.
 - Dev **map** entry from the dev room: on that map screen, **more nodes stay selectable** for movement (normally greyed-out paths unlock) so you can hop around faster while testing.
+- Dedicated **Cheats** rail tab — all gameplay modifiers (player, enemy, rewards, map, stat locks, and related toggles) in one panel when cheat mode is active.
 
 ### Changed
 
+- **Settings** now only covers appearance and workflow (game speed, skip animations); gameplay cheats live on the **Cheats** tab instead of under Settings.
+- **Cheats** panel is wider and arranges sections in **one, two, or three columns** based on panel width, with more space between columns so options are easier to scan.
 - Dev panel **rail tooltips** show the tab name only (no extra Dev/Cheat suffix).
 - Card browser **pool filter** defaults to the **current character** instead of all pools.
 - Card **number and text** fields in the browser apply as you edit (on change or when leaving the field), without a separate apply step.
@@ -33,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Cheats** panel strings (including god mode, draw limits, and map cheats) now localize correctly in Chinese instead of showing English fallbacks.
+- **Infinite energy** cheat label and behavior are unified: one toggle keeps energy topped up every frame (no duplicate “runtime” entry).
 - DevMode now appears under the correct **display name** in the game’s mod list manifest.
 - Dev save/load snapshot list: clicking the **same slot again** no longer makes the right-hand detail area **flash**.
 - In-run snapshot picker no longer appears as a **thin strip** at the top of the extension column — it now fills the panel height.
