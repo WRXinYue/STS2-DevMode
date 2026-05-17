@@ -1,6 +1,7 @@
 using System;
 using DevMode;
 using DevMode.Icons;
+using DevMode.Panels;
 using DevMode.Presets;
 using DevMode.Settings;
 using Godot;

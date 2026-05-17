@@ -6,7 +6,7 @@ namespace DevMode.UI;
 
 internal static partial class DevPanelUI {
     private const string BrowserPanelAnimatingMetaKey = "_dm_browser_panel_animating";
-    private const string BrowserPanelClosingMetaKey = "_dm_browser_panel_closing";
+    internal const string BrowserPanelClosingMetaKey = "_dm_browser_panel_closing";
     private const string BrowserPanelClipHostName = "BrowserPanelClipHost";
     /// <summary>
     /// Creates a full-screen browser overlay shell with rail management and optional backdrop.
@@ -150,8 +150,6 @@ internal static partial class DevPanelUI {
         PinRail();
         ReconcileBrowserRail(globalUi);
         root.TreeExiting += () => {
-            // Any browser overlay closing means there is no active primary content on screen.
-            _activePrimaryTabId = null;
             _browserOverlayCount = Math.Max(0, _browserOverlayCount - 1);
             UnpinRail();
             ReconcileBrowserRail(globalUi);
@@ -240,6 +238,9 @@ internal static partial class DevPanelUI {
     }
 
     internal static void RequestCloseBrowserOverlay(NGlobalUi globalUi, string rootName, Action fallbackClose) {
+        // User explicitly closed the panel — tell the controller so the tab can be reopened.
+        _controller.Deactivate();
+
         var parent = (Node)globalUi;
         var root = parent.GetNodeOrNull<Control>(rootName);
         if (root == null) {

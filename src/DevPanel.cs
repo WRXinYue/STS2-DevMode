@@ -5,6 +5,7 @@ using DevMode.Actions;
 using DevMode.Actions.CardModes;
 using DevMode.Icons;
 using DevMode.Navigation;
+using DevMode.Panels;
 using DevMode.UI;
 using Godot;
 using MegaCrit.Sts2.Core.Entities.Players;

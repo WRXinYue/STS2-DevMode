@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DevMode;
 using DevMode.Icons;
+using DevMode.Panels;
 using Godot;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
@@ -14,8 +15,10 @@ internal static partial class DevPanelUI {
         return tab.Kind == DevPanelTabKind.Developer;
     }
 
-    private const string RootName = "DevModeRailRoot";
-    private const string TopBarName = "DevModeTopBar";
+    internal const string RailRootName = "DevModeRailRoot";
+    internal const string TopBarRootName = "DevModeTopBar";
+    private const string RootName = RailRootName;
+    private const string TopBarName = TopBarRootName;
     private const string OverlayName = "DevModeOverlay";
     private const float RailW = 52f;
     private const float IconBtnSize = 36f;
@@ -31,7 +34,7 @@ internal static partial class DevPanelUI {
 
     private static Action? _onRefreshPanel;
     private static string? _activeOverlayId;
-    private static string? _activePrimaryTabId;
+    private static readonly DevPanelController _controller = new();
     private static int _pinRailCount;
     private static int _browserOverlayCount;
     private static int _browserRailHoldCount;
@@ -127,7 +130,24 @@ internal static partial class DevPanelUI {
 
         _onRefreshPanel = actions.OnRefreshPanel;
         _activeOverlayId = null;
-        _activePrimaryTabId = null;
+        _controller.Attach(closeAllPanels: () => {
+            HoldBrowserRail(globalUi);
+            CloseOverlay(globalUi);
+            var parent = (Node)globalUi;
+            foreach (var child in parent.GetChildren()) {
+                if (child is Control ctrl) {
+                    string name = ctrl.Name.ToString();
+                    if (name.StartsWith("DevMode", StringComparison.Ordinal)
+                        && !_keepNodes.Contains(name)) {
+                        if (!TryAnimateBrowserOverlayClose(parent, ctrl)) {
+                            parent.RemoveChild(ctrl);
+                            ctrl.QueueFree();
+                        }
+                    }
+                }
+            }
+            Callable.From(() => ReleaseBrowserRail(globalUi)).CallDeferred();
+        });
         _browserOverlayCount = 0;
         _browserRailHoldCount = 0;
         _railStyle = null;
@@ -222,14 +242,10 @@ internal static partial class DevPanelUI {
             var t = tab;
             var btn = CreateRailIcon(t.Icon, t.DisplayName);
             int btnIdx = railButtons.Count;
-            btn.Pressed += () => {
-                if (_activePrimaryTabId == t.Id)
-                    return;
+            btn.Pressed += () => _controller.SwitchTo(t.Id, () => {
                 MoveRailIndicator(btnIdx, true);
-                CloseAllOverlays(globalUi);
                 t.OnActivate(globalUi);
-                _activePrimaryTabId = t.Id;
-            };
+            });
             railButtons.Add(btn);
             _railIconButtons.Add((btn, t.Icon));
             railVBox.AddChild(btn);
@@ -256,12 +272,10 @@ internal static partial class DevPanelUI {
             var t = tab;
             var btn = CreateRailIcon(t.Icon, t.DisplayName);
             int btnIdx = railButtons.Count;
-            btn.Pressed += () => {
+            btn.Pressed += () => _controller.SwitchTo(t.Id, () => {
                 MoveRailIndicator(btnIdx, true);
-                _activePrimaryTabId = null;
-                CloseAllOverlays(globalUi);
                 t.OnActivate(globalUi);
-            };
+            });
             railButtons.Add(btn);
             _railIconButtons.Add((btn, t.Icon));
             railVBox.AddChild(btn);
@@ -399,7 +413,7 @@ internal static partial class DevPanelUI {
     // ──────── Detach ────────
     public static void Detach(NGlobalUi globalUi) {
         _activeOverlayId = null;
-        _activePrimaryTabId = null;
+        _controller.Detach();
         _browserOverlayCount = 0;
         _browserRailHoldCount = 0;
         _pinRailCount = 0;
@@ -418,27 +432,10 @@ internal static partial class DevPanelUI {
 
     /// <summary>
     /// Close the internal overlay (cheats/save/ai) and remove all DevMode external
-    /// panels from globalUi.  Uses the "DevMode" naming convention so new panels are
-    /// picked up automatically — no list to maintain.
+    /// panels from globalUi. Delegates to <see cref="DevPanelController.CloseAll"/>
+    /// so all panel-lifecycle decisions stay in the controller layer.
     /// </summary>
-    public static void CloseAllOverlays(NGlobalUi globalUi) {
-        _activePrimaryTabId = null;
-        HoldBrowserRail(globalUi);
-        CloseOverlay(globalUi);
-
-        var parent = (Node)globalUi;
-        foreach (var child in parent.GetChildren()) {
-            if (child is Control ctrl
-                && ctrl.Name.ToString().StartsWith("DevMode", StringComparison.Ordinal)
-                && !_keepNodes.Contains(ctrl.Name)) {
-                if (!TryAnimateBrowserOverlayClose(parent, ctrl)) {
-                    parent.RemoveChild(ctrl);
-                    ctrl.QueueFree();
-                }
-            }
-        }
-        Callable.From(() => ReleaseBrowserRail(globalUi)).CallDeferred();
-    }
+    public static void CloseAllOverlays(NGlobalUi globalUi) => _controller.CloseVisuals();
 
     // ──────── Overlay: toggle / close ────────
     private static void ToggleOverlay(NGlobalUi globalUi, string id, Action<Control> buildContent) {

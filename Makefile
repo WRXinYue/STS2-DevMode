@@ -85,3 +85,8 @@ zip: build
 	@echo.
 	@echo Done: $(ZIP_NAME)
 	@echo Install: extract into "Slay the Spire 2\mods\"
+
+clean:
+	rm -rf build
+	find src -type f \( -name '*.uid' -o -name '*.import' \) -exec rm -f {} +
+	$(DOTNET) clean DevMode.sln

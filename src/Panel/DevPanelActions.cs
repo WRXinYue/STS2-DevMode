@@ -1,6 +1,6 @@
 using System;
 
-namespace DevMode.UI;
+namespace DevMode.Panels;
 
 /// <summary>
 /// Callbacks consumed by built-in overlay panels (Save/Load, Settings).

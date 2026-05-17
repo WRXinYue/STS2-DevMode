@@ -1,7 +1,7 @@
 using DevMode.Icons;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
-namespace DevMode.UI;
+namespace DevMode.Panels;
 
 /// <summary>Represents a tab in the DevMode rail.</summary>
 internal interface IDevPanelTab {

@@ -4,7 +4,7 @@ using System.Linq;
 using DevMode.Icons;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
-namespace DevMode.UI;
+namespace DevMode.Panels;
 
 /// <summary>Central registry for DevMode rail tabs.</summary>
 internal static class DevPanelRegistry {
