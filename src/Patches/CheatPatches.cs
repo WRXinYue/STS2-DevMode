@@ -236,7 +236,7 @@ public static class MapTravelabilityRewritePatch {
 [HarmonyPatch(typeof(NPotionContainer), "GrowPotionHolders")]
 public static class PotionContainerShrinkPatch {
     public static void Postfix(NPotionContainer __instance, int newMaxPotionSlots) {
-        if (!DevModeState.InDevRun) return;
+        if (!DevModeState.IsActive) return;
 
         var holdersField = AccessTools.Field(typeof(NPotionContainer), "_holders");
         if (holdersField == null) return;

@@ -72,18 +72,37 @@ public enum EnemyMode {
     Off
 }
 
-public enum DebugMode {
-    Off,
-    Panel,
-    Full,
+/// <summary>
+/// Dev overlay level applied to normal (non-test) runs.
+/// This is independent of <see cref="DevModeState.InDevRun"/>; it persists across run boundaries
+/// and is cycled by the user from the Developer Mode menu.
+/// </summary>
+public enum NormalRunMode {
+    /// <summary>No DevMode features on normal runs.</summary>
+    Disabled,
+    /// <summary>Dev sidebar and hooks are active; cheat patches are not.</summary>
+    DevPanel,
+    /// <summary>Dev sidebar, hooks, and all cheat patches are active.</summary>
+    Cheat,
 }
 
 public static class DevModeState {
+    /// <summary>True when this is a dev test run started from the Developer Mode menu (no save).</summary>
     public static bool InDevRun { get; set; }
 
-    public static DebugMode DebugMode { get; set; } = DebugMode.Off;
+    /// <summary>Dev overlay level for normal runs. Cycled by the user; not reset between runs.</summary>
+    public static NormalRunMode NormalRunMode { get; set; } = NormalRunMode.Disabled;
 
-    public static bool CheatsInRun => InDevRun || DebugMode == DebugMode.Full;
+    /// <summary>
+    /// DevMode is active in any form — the dev sidebar, hooks, and scripts are mounted.
+    /// True for dev test runs and for any non-<see cref="NormalRunMode.Disabled"/> normal run.
+    /// </summary>
+    public static bool IsActive => InDevRun || NormalRunMode != NormalRunMode.Disabled;
+
+    /// <summary>
+    /// Cheat patches are active — either a dev test run or a <see cref="NormalRunMode.Cheat"/> normal run.
+    /// </summary>
+    public static bool CheatsInRun => InDevRun || NormalRunMode == NormalRunMode.Cheat;
 
     public static bool InMenuPreview { get; set; }
 
@@ -224,7 +243,8 @@ public static class DevModeState {
         InDevRun = false;
         ClearEnemyOverrides();
         ResetAllCheats();
-        // PendingRestart survives across run boundaries — cleared on consumption.
+        // NormalRunMode and PendingRestart survive across run boundaries — NormalRunMode is
+        // a persistent user choice; PendingRestart is cleared on consumption.
     }
 
     public static void ResetAllCheats() {

@@ -236,20 +236,20 @@ internal static class DevMainMenuUI {
     }
 
     private static void AdvanceNormalRunMode() {
-        DevModeState.DebugMode = DevModeState.DebugMode switch {
-            DebugMode.Off => DebugMode.Panel,
-            DebugMode.Panel => DebugMode.Full,
-            DebugMode.Full => DebugMode.Off,
-            _ => DebugMode.Off,
+        DevModeState.NormalRunMode = DevModeState.NormalRunMode switch {
+            NormalRunMode.Disabled => NormalRunMode.DevPanel,
+            NormalRunMode.DevPanel => NormalRunMode.Cheat,
+            NormalRunMode.Cheat   => NormalRunMode.Disabled,
+            _                     => NormalRunMode.Disabled,
         };
     }
 
     private static string GetPersistNormalRunModeLabel() {
-        return DevModeState.DebugMode switch {
-            DebugMode.Off => I18N.T("devmenu.persistNormalRun.disabled", "Normal run: disabled"),
-            DebugMode.Panel => I18N.T("devmenu.persistNormalRun.devMode", "Normal run: Dev Mode"),
-            DebugMode.Full => I18N.T("devmenu.persistNormalRun.cheatMode", "Normal run: Cheat Mode"),
-            _ => "",
+        return DevModeState.NormalRunMode switch {
+            NormalRunMode.Disabled => I18N.T("devmenu.persistNormalRun.disabled", "Normal run: disabled"),
+            NormalRunMode.DevPanel => I18N.T("devmenu.persistNormalRun.devMode", "Normal run: Dev Mode"),
+            NormalRunMode.Cheat   => I18N.T("devmenu.persistNormalRun.cheatMode", "Normal run: Cheat Mode"),
+            _                     => "",
         };
     }
 

@@ -260,8 +260,8 @@ internal static class SaveSlotManager {
                 RunManager.Instance.CleanUp();
 
             try {
+                // InDevRun = true already implies CheatsInRun and IsActive; no need to change NormalRunMode.
                 DevModeState.InDevRun = true;
-                DevModeState.DebugMode = DebugMode.Full;
 
                 var state = RunState.FromSerializable(save);
                 RunManager.Instance.SetUpSavedSinglePlayer(state, save);

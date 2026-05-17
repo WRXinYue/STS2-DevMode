@@ -43,8 +43,9 @@ internal enum DevPanelTabGroup {
 }
 
 /// <summary>
-/// Rail tab capability. When <see cref="DevModeState.CheatsInRun"/> (<see cref="DebugMode.Full"/>), every tab appears.
-/// Otherwise (e.g. persist <see cref="DebugMode.Panel"/> on an ordinary run), only <see cref="Developer"/> tabs appear.
+/// Rail tab capability. When <see cref="DevModeState.CheatsInRun"/> (<see cref="NormalRunMode.Cheat"/> or
+/// <see cref="DevModeState.InDevRun"/>), every tab appears.
+/// Otherwise (e.g. <see cref="NormalRunMode.DevPanel"/> on an ordinary run), only <see cref="Developer"/> tabs appear.
 /// </summary>
 internal enum DevPanelTabKind {
     /// <summary>Inspection and tooling that do not change run or save data (logs, Harmony report, framework bridge).</summary>
