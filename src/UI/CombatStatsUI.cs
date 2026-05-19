@@ -31,7 +31,6 @@ internal static partial class CombatStatsUI {
     public static void Show(NGlobalUi globalUi) {
         Remove(globalUi);
         _panelOpen = true;
-        HideMultiplayerOverlay();
 
         var (root, _, vbox) = DevPanelUI.CreateBrowserOverlayShell(
             globalUi, RootName, PanelW, () => Remove(globalUi), contentSeparation: 10);
@@ -378,6 +377,7 @@ internal static partial class CombatStatsUI {
 
         ((Node)globalUi).AddChild(root);
         ScheduleUpdateDisplay(forceRebuild: true, animate: false);
+        RefreshMultiplayerOverlay();
     }
 
     private static void ClearScrollContent(VBoxContainer inner) {
