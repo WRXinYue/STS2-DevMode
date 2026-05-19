@@ -81,18 +81,28 @@ internal static partial class CombatStatsUI {
         chipScroll.AddChild(chipRow);
         vbox.AddChild(chipScroll);
 
-        var scroll = new ScrollContainer {
+        var splitOptions = new DevPanelUI.SplitBodyOptions {
+            Name = "stats.body.split",
+            InitialSplitRight = PieSplitInitialRight,
+            MinSplitRight = PieSplitMinRight,
+            MinMainWidth = 320,
+        };
+        var body = DevPanelUI.CreateSplitBody(splitOptions);
+        var scroll = body.MainScroll;
+        var inner = body.MainInner;
+
+        var panelPie = new CategoryPieSidebarPanel("stats.pie.sidebar");
+        var pieScroll = new ScrollContainer {
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
         };
-        var inner = new VBoxContainer {
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            SizeFlagsVertical = Control.SizeFlags.ShrinkBegin,
-        };
-        inner.AddThemeConstantOverride("separation", 8);
-        scroll.AddChild(inner);
-        vbox.AddChild(scroll);
+        pieScroll.AddChild(panelPie.Root);
+        body.SidebarPanel.AddChild(pieScroll);
+        vbox.AddChild(body.Split);
+
+        var detachSplitInit = DevPanelUI.AttachSplitInit(body, splitOptions);
+        var detachMergeStyle = DevPanelUI.AttachMergeStyle(body);
 
         var playerRow = new HBoxContainer();
         playerRow.AddThemeConstantOverride("separation", 6);
@@ -214,7 +224,16 @@ internal static partial class CombatStatsUI {
             }
         }
 
+        void RefreshPanelPie(PlayerCombatStats? player) {
+            if (!GodotObject.IsInstanceValid(panelPie.Root))
+                return;
+            panelPie.SetContext(player);
+            panelPie.PrepareForViewMode(mode);
+            panelPie.Refresh();
+        }
+
         void RefreshGameContextPane(CombatStatsSnapshot? snap, PlayerCombatStats? player, bool isRun) {
+            RefreshPanelPie(player);
             SyncGameContextPane(mode, snap, player, isRun);
         }
 
@@ -347,6 +366,8 @@ internal static partial class CombatStatsUI {
         root.TreeExiting += () => {
             CombatStatsTracker.Changed -= onStatsChanged;
             _panelOpen = false;
+            detachSplitInit();
+            detachMergeStyle();
             DevPanelUI.ResetContextPaneToDefault();
             if (GodotObject.IsInstanceValid(timer)) {
                 timer.Timeout -= OnAutoRefreshTimeout;
