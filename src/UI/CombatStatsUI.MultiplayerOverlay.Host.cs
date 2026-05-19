@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DevMode.CombatStats;
+using DevMode.Settings;
 using Godot;
 
 namespace DevMode.UI;
@@ -55,11 +56,17 @@ internal static partial class CombatStatsUI {
                 CustomMinimumSize = new Vector2(MpOverlayLayout.PanelWidth, 0),
             };
             ApplyDefaultPanelLayout();
+            ApplySavedPanelLayout();
 
             _panelStyle = CreatePanelStyle();
             _panel.AddThemeStyleboxOverride("panel", _panelStyle);
 
-            _drag = new DraggablePanelBinding(this, _panel, () => _usingFreePosition, v => _usingFreePosition = v);
+            _drag = new DraggablePanelBinding(
+                this,
+                _panel,
+                () => _usingFreePosition,
+                v => _usingFreePosition = v,
+                SavePanelPosition);
 
             var body = new VBoxContainer();
             body.AddThemeConstantOverride("separation", 4);
@@ -71,8 +78,17 @@ internal static partial class CombatStatsUI {
 
             AddChild(_panel);
 
+            TreeEntered += OnTreeEntered;
             ThemeManager.OnThemeChanged += OnThemeChanged;
-            TreeExiting += () => ThemeManager.OnThemeChanged -= OnThemeChanged;
+            TreeExiting += () => {
+                TreeEntered -= OnTreeEntered;
+                ThemeManager.OnThemeChanged -= OnThemeChanged;
+            };
+        }
+
+        private void OnTreeEntered() {
+            if (_usingFreePosition)
+                _drag.ClampAndCommit();
         }
 
         public void Refresh() {
@@ -180,6 +196,31 @@ internal static partial class CombatStatsUI {
             _usingFreePosition = false;
         }
 
+        private void ApplySavedPanelLayout() {
+            float? x = SettingsStore.Current.CombatStatsMpOverlayPosX;
+            float? y = SettingsStore.Current.CombatStatsMpOverlayPosY;
+            if (x == null || y == null)
+                return;
+
+            ApplyFreePosition(new Vector2(x.Value, y.Value));
+        }
+
+        private void ApplyFreePosition(Vector2 pos) {
+            var size = _panel.Size;
+            if (size.X <= 0f)
+                size.X = MpOverlayLayout.PanelWidth;
+            if (size.Y <= 0f)
+                size.Y = _panel.GetCombinedMinimumSize().Y;
+
+            _panel.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopLeft);
+            _panel.Size = size;
+            _panel.Position = pos;
+            _usingFreePosition = true;
+        }
+
+        private static void SavePanelPosition(Vector2 pos) =>
+            SettingsStore.SetCombatStatsMpOverlayPosition(pos.X, pos.Y);
+
         private static StyleBoxFlat CreatePanelStyle() {
             var theme = ThemeManager.Current;
             return new StyleBoxFlat {
@@ -211,6 +252,7 @@ internal static partial class CombatStatsUI {
         private readonly PanelContainer _panel;
         private readonly Func<bool> _isFreePosition;
         private readonly Action<bool> _setFreePosition;
+        private readonly Action<Vector2>? _onPositionCommitted;
         private bool _dragging;
         private Vector2 _dragOffset;
 
@@ -218,11 +260,13 @@ internal static partial class CombatStatsUI {
             Control host,
             PanelContainer panel,
             Func<bool> isFreePosition,
-            Action<bool> setFreePosition) {
+            Action<bool> setFreePosition,
+            Action<Vector2>? onPositionCommitted = null) {
             _host = host;
             _panel = panel;
             _isFreePosition = isFreePosition;
             _setFreePosition = setFreePosition;
+            _onPositionCommitted = onPositionCommitted;
         }
 
         public void WireHandle(Control handle) {
@@ -242,10 +286,16 @@ internal static partial class CombatStatsUI {
 
                 if (_dragging) {
                     _dragging = false;
-                    ClampPanel();
+                    ClampAndCommit();
                     handle.AcceptEvent();
                 }
             };
+        }
+
+        public void ClampAndCommit() {
+            ClampPanel();
+            if (_isFreePosition())
+                _onPositionCommitted?.Invoke(_panel.Position);
         }
 
         public void Process() {
@@ -254,7 +304,7 @@ internal static partial class CombatStatsUI {
 
             if (!Input.IsMouseButtonPressed(MouseButton.Left)) {
                 _dragging = false;
-                ClampPanel();
+                ClampAndCommit();
                 return;
             }
 

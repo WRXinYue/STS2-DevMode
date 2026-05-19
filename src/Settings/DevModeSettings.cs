@@ -35,6 +35,11 @@ public sealed class DevModeSettings {
 
     /// <summary>Whether the draggable top-right multiplayer combat score panel is shown.</summary>
     public bool CombatStatsMpOverlayEnabled { get; set; } = true;
+
+    /// <summary>Saved free position for the multiplayer score overlay (null = default top-right).</summary>
+    public float? CombatStatsMpOverlayPosX { get; set; }
+
+    public float? CombatStatsMpOverlayPosY { get; set; }
 }
 
 public static class ThemeNames {

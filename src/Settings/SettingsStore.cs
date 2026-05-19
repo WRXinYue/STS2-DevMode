@@ -47,6 +47,12 @@ public static class SettingsStore {
         Save();
     }
 
+    public static void SetCombatStatsMpOverlayPosition(float x, float y) {
+        Current.CombatStatsMpOverlayPosX = x;
+        Current.CombatStatsMpOverlayPosY = y;
+        Save();
+    }
+
     private static void ApplyNormalRunModeFromSettings() {
         DevModeState.NormalRunMode = ParseNormalRunMode(Current.NormalRunMode);
     }
