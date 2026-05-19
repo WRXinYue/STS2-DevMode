@@ -32,6 +32,9 @@ public sealed class DevModeSettings {
     /// Dev overlay level for normal (non-test) runs: Disabled, DevPanel, or Cheat.
     /// </summary>
     public string NormalRunMode { get; set; } = "DevPanel";
+
+    /// <summary>Whether the draggable top-right multiplayer combat score panel is shown.</summary>
+    public bool CombatStatsMpOverlayEnabled { get; set; } = true;
 }
 
 public static class ThemeNames {

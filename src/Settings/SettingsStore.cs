@@ -42,6 +42,11 @@ public static class SettingsStore {
         Save();
     }
 
+    public static void SetCombatStatsMpOverlayEnabled(bool enabled) {
+        Current.CombatStatsMpOverlayEnabled = enabled;
+        Save();
+    }
+
     private static void ApplyNormalRunModeFromSettings() {
         DevModeState.NormalRunMode = ParseNormalRunMode(Current.NormalRunMode);
     }

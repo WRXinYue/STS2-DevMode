@@ -15,6 +15,7 @@ internal static partial class CombatStatsUI {
         public const float RowHeight = 26f;
         public const float NameWidth = 96f;
         public const float ScoreWidth = 40f;
+        public const float ScoreRightPadding = 6f;
         public const float BarCornerRadius = 5f;
         public const float SegmentGap = 1f;
         /// <summary>Above browser overlays (1250), below card edit overlays (1400).</summary>
@@ -42,11 +43,14 @@ internal static partial class CombatStatsUI {
                 Name = "MpStatsPanel",
                 MouseFilter = MouseFilterEnum.Stop,
                 Visible = false,
+                CustomMinimumSize = new Vector2(MpOverlayLayout.PanelWidth, 0),
             };
             ApplyDefaultPanelLayout();
 
             _panelStyle = CreatePanelStyle();
             _panel.AddThemeStyleboxOverride("panel", _panelStyle);
+
+            _drag = new DraggablePanelBinding(this, _panel, () => _usingFreePosition, v => _usingFreePosition = v);
 
             var body = new VBoxContainer();
             body.AddThemeConstantOverride("separation", 4);
@@ -56,7 +60,6 @@ internal static partial class CombatStatsUI {
             body.AddChild(_playerList);
             _panel.AddChild(body);
 
-            _drag = new DraggablePanelBinding(this, _panel, () => _usingFreePosition, v => _usingFreePosition = v);
             AddChild(_panel);
 
             ThemeManager.OnThemeChanged += OnThemeChanged;
@@ -64,7 +67,7 @@ internal static partial class CombatStatsUI {
         }
 
         public void Refresh() {
-            if (!ShouldUseMultiplayerOverlay()) {
+            if (!CanShowMultiplayerOverlay()) {
                 HidePanel();
                 return;
             }
@@ -255,9 +258,16 @@ internal static partial class CombatStatsUI {
             if (_isFreePosition())
                 return;
 
-            var globalPos = _panel.GlobalPosition;
+            var pos = _panel.Position;
+            var size = _panel.Size;
+            if (size.X <= 0f)
+                size.X = MpOverlayLayout.PanelWidth;
+            if (size.Y <= 0f)
+                size.Y = _panel.GetCombinedMinimumSize().Y;
+
             _panel.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopLeft);
-            _panel.GlobalPosition = globalPos;
+            _panel.Size = size;
+            _panel.Position = pos;
             _setFreePosition(true);
         }
 

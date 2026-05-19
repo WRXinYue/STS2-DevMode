@@ -11,7 +11,6 @@ internal static partial class CombatStatsUI {
         private readonly MpOverlayBarTrack _barTrack;
         private readonly Label _scoreLabel;
         private bool _isLeader;
-        private bool _hovered;
         private bool _initialized;
         private float _displayScore;
         private Tween? _scoreTween;
@@ -54,6 +53,10 @@ internal static partial class CombatStatsUI {
             content.AddChild(_nameLabel);
             content.AddChild(_barTrack);
             content.AddChild(_scoreLabel);
+            content.AddChild(new Control {
+                CustomMinimumSize = new Vector2(MpOverlayLayout.ScoreRightPadding, 0),
+                MouseFilter = MouseFilterEnum.Ignore,
+            });
         }
 
         public void Bind(PlayerCombatStats player, int total, int maxScore, bool isLeader) {
@@ -65,18 +68,16 @@ internal static partial class CombatStatsUI {
             string tooltip = FormatPlayerTooltip(name, total, bd);
 
             _nameLabel.Text = name;
-            _barTrack.SetData(ScoreBreakdownSegments(bd), total, maxScore, isLeader, animate: _initialized);
+            _barTrack.SetData(ScoreBreakdownSegments(bd), total, maxScore, animate: _initialized);
             AnimateScore(total, _initialized);
             ApplyLeaderStyle();
             ApplyTooltips(tooltip);
 
             _initialized = true;
-            QueueRedraw();
         }
 
         internal void RefreshTheme() {
             ApplyLeaderStyle();
-            QueueRedraw();
             _barTrack.QueueRedraw();
         }
 
@@ -117,26 +118,6 @@ internal static partial class CombatStatsUI {
             };
         }
 
-        public override void _Draw() {
-            if (!_hovered && !_isLeader)
-                return;
-
-            float alpha = _hovered ? 0.12f : 0.06f;
-            var accent = DevModeTheme.Accent;
-            DrawRect(new Rect2(Vector2.Zero, Size), new Color(accent.R, accent.G, accent.B, alpha));
-        }
-
-        public override void _Notification(int what) {
-            if (what == NotificationMouseEnter) {
-                _hovered = true;
-                QueueRedraw();
-            }
-            else if (what == NotificationMouseExit) {
-                _hovered = false;
-                QueueRedraw();
-            }
-        }
-
         public override void _ExitTree() {
             _scoreTween?.Kill();
             base._ExitTree();
@@ -151,7 +132,6 @@ internal static partial class CombatStatsUI {
         private float _targetFillWidth;
         private float _displayTotal = 1f;
         private int _targetTotal = 1;
-        private bool _isLeader;
         private bool _initialized;
         private Tween? _animTween;
 
@@ -161,9 +141,7 @@ internal static partial class CombatStatsUI {
             IReadOnlyList<(string Key, int Amount, Color Color)> segments,
             int total,
             int maxScore,
-            bool isLeader,
             bool animate) {
-            _isLeader = isLeader;
             _targetTotal = Math.Max(total, 1);
             _targetFillWidth = Math.Max(
                 6f,
@@ -236,11 +214,6 @@ internal static partial class CombatStatsUI {
 
             var fillRect = new Rect2(0f, y, Math.Min(_displayFillWidth, trackW), barH);
             DrawSegments(fillRect);
-
-            if (_isLeader) {
-                var border = MpOverlayBarStyles.LeaderBorder();
-                DrawStyleBox(border, fillRect.GrowIndividual(-0.5f, -0.5f, -0.5f, -0.5f));
-            }
         }
 
         private void DrawSegments(Rect2 fillRect) {
@@ -293,20 +266,6 @@ internal static partial class CombatStatsUI {
                 new Color(DevModeTheme.Subtle, 0.22f),
                 new Color(DevModeTheme.PanelBorder, 0.45f),
                 MpOverlayLayout.BarCornerRadius);
-
-        public static StyleBoxFlat LeaderBorder() =>
-            new() {
-                BgColor = Colors.Transparent,
-                BorderColor = new Color(DevModeTheme.Accent, 0.55f),
-                BorderWidthTop = 1,
-                BorderWidthBottom = 1,
-                BorderWidthLeft = 1,
-                BorderWidthRight = 1,
-                CornerRadiusTopLeft = (int)MpOverlayLayout.BarCornerRadius,
-                CornerRadiusTopRight = (int)MpOverlayLayout.BarCornerRadius,
-                CornerRadiusBottomLeft = (int)MpOverlayLayout.BarCornerRadius,
-                CornerRadiusBottomRight = (int)MpOverlayLayout.BarCornerRadius,
-            };
 
         public static StyleBoxFlat Segment(Color color, float radiusLeft, float radiusRight) =>
             new() {

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using DevMode.CombatStats;
+using DevMode.Settings;
 using Godot;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Multiplayer.Game;
@@ -15,6 +16,19 @@ internal static partial class CombatStatsUI {
     private static MultiplayerOverlayHost? _mpOverlay;
 
     internal static bool IsMultiplayerOverlayActive() => _mpOverlay?.IsPanelVisible ?? false;
+
+    internal static bool IsMultiplayerOverlayEnabled() =>
+        SettingsStore.Current.CombatStatsMpOverlayEnabled;
+
+    internal static bool CanShowMultiplayerOverlay() =>
+        ShouldUseMultiplayerOverlay() && IsMultiplayerOverlayEnabled();
+
+    internal static void SyncMultiplayerOverlayState() {
+        if (CanShowMultiplayerOverlay())
+            RefreshMultiplayerOverlay();
+        else
+            HideMultiplayerOverlay();
+    }
 
     internal static bool ShouldUseMultiplayerOverlay() {
         var run = RunManager.Instance;

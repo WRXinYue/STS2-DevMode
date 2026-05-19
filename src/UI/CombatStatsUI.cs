@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using DevMode.CombatStats;
+using DevMode.Settings;
 using Godot;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
@@ -131,6 +132,17 @@ internal static partial class CombatStatsUI {
         autoRefresh.AddThemeFontSizeOverride("font_size", 11);
         vbox.AddChild(autoRefresh);
 
+        var mpOverlayToggle = new CheckButton {
+            Text = I18N.T("combatStats.mpOverlay.enabled", "Show top-right score panel"),
+            ButtonPressed = SettingsStore.Current.CombatStatsMpOverlayEnabled,
+        };
+        mpOverlayToggle.AddThemeFontSizeOverride("font_size", 11);
+        mpOverlayToggle.Pressed += () => {
+            SettingsStore.SetCombatStatsMpOverlayEnabled(mpOverlayToggle.ButtonPressed);
+            SyncMultiplayerOverlayState();
+        };
+        vbox.AddChild(mpOverlayToggle);
+
         ViewMode mode = ViewMode.Summary;
         string? contentFingerprint = null;
         string? selectedPlayerKey = null;
@@ -154,6 +166,7 @@ internal static partial class CombatStatsUI {
                 pendingForceRebuild = false;
                 UpdateDisplay(rebuild, shouldAnimate);
                 DevPanelUI.NotifyBrowserContextLayoutChanged(globalUi);
+                SyncMultiplayerOverlayState();
             }).CallDeferred();
         }
 
@@ -364,6 +377,8 @@ internal static partial class CombatStatsUI {
         root.AddChild(timer);
 
         root.TreeExiting += () => {
+            if (((Node)globalUi).GetNodeOrNull<Control>(RootName) != root)
+                return;
             CombatStatsTracker.Changed -= onStatsChanged;
             _panelOpen = false;
             detachSplitInit();
@@ -377,7 +392,7 @@ internal static partial class CombatStatsUI {
 
         ((Node)globalUi).AddChild(root);
         ScheduleUpdateDisplay(forceRebuild: true, animate: false);
-        RefreshMultiplayerOverlay();
+        SyncMultiplayerOverlayState();
     }
 
     private static void ClearScrollContent(VBoxContainer inner) {
@@ -400,7 +415,7 @@ internal static partial class CombatStatsUI {
         _panelOpen = false;
         DevPanelUI.ResetContextPaneToDefault();
         ((Node)globalUi).GetNodeOrNull<Control>(RootName)?.QueueFree();
-        RefreshMultiplayerOverlay();
+        SyncMultiplayerOverlayState();
     }
 
     /// <summary>Layout-only key — value changes refresh in place to avoid QueueFree churn during combat.</summary>

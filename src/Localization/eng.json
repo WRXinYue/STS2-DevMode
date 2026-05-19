@@ -512,6 +512,7 @@
   "combatStats.pie.hint.tank": "Damage taken by source.",
   "combatStats.sidebar.players": "Player scores",
   "combatStats.mpOverlay.dragHint": "Drag to move panel",
+  "combatStats.mpOverlay.enabled": "Show top-right score panel",
   "combatStats.sidebar.playersHint": "Bar height = total combat score. Colors = damage, block, setup, etc.",
   "combatStats.sidebar.total": "Total {0}",
   "combatStats.sidebar.totalShort": "Total",
