@@ -456,7 +456,6 @@
   "combatStats.emptyHint": "Tracking starts automatically when Dev Mode is active and a combat begins.",
   "combatStats.status.live": "Live — {0}",
   "combatStats.status.last": "Last combat — {0}",
-  "combatStats.autoRefresh": "Auto-refresh",
   "combatStats.view.summary": "Summary",
   "combatStats.view.byCard": "By card",
   "combatStats.view.bySource": "Damage taken",

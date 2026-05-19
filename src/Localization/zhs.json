@@ -471,7 +471,6 @@
   "combatStats.emptyHint": "开启开发者模式后，进入战斗会自动开始追踪。",
   "combatStats.status.live": "进行中 — {0}",
   "combatStats.status.last": "上一场 — {0}",
-  "combatStats.autoRefresh": "自动刷新",
   "combatStats.view.summary": "概览",
   "combatStats.view.byCard": "按卡牌",
   "combatStats.view.bySource": "承伤来源",

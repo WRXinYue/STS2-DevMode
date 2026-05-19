@@ -66,25 +66,17 @@ internal static partial class CombatStatsUI {
         private readonly CombatStatsPieChart _chart;
         private readonly VBoxContainer _legend;
         private readonly Label _emptyLabel;
-        private readonly GridContainer _categoryGrid;
-        private readonly Dictionary<CombatPieCategory, Button> _chips = new();
-        private readonly Action? _onCategoryChanged;
         private PlayerCombatStats? _selectedPlayer;
         private readonly bool _railCompact;
         private readonly VerticalScoreStack? _compactStack;
         private bool _hasContent;
 
-        public CategoryPieSidebarPanel(string name, Action? onCategoryChanged = null, bool railCompact = false) {
-            _onCategoryChanged = onCategoryChanged;
+        public CategoryPieSidebarPanel(string name, bool railCompact = false) {
             _railCompact = railCompact;
             _root = new VBoxContainer { Name = name };
             _root.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
             _root.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             _root.AddThemeConstantOverride("separation", railCompact ? 2 : 8);
-
-            _categoryGrid = BuildCategoryGrid();
-            _root.AddChild(_categoryGrid);
-            _categoryGrid.Visible = !railCompact;
 
             _chart = new CombatStatsPieChart("stats.pie.chart");
             _root.AddChild(_chart);
@@ -132,38 +124,16 @@ internal static partial class CombatStatsUI {
             RefreshPlayer(_selectedPlayer);
         }
 
-        private GridContainer BuildCategoryGrid() {
-            var grid = new GridContainer {
-                Columns = 2,
-                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            };
-            grid.AddThemeConstantOverride("h_separation", 6);
-            grid.AddThemeConstantOverride("v_separation", 6);
-
-            AddCategoryChip(grid, CombatPieCategory.Overview,
-                I18N.T("combatStats.pie.overview", "Overview"));
-            AddCategoryChip(grid, CombatPieCategory.Cards,
-                I18N.T("combatStats.pie.cards", "Cards"));
-            AddCategoryChip(grid, CombatPieCategory.Offense,
-                I18N.T("combatStats.pie.offense", "Offense"));
-            AddCategoryChip(grid, CombatPieCategory.Support,
-                I18N.T("combatStats.pie.support", "Support"));
-            AddCategoryChip(grid, CombatPieCategory.Tank,
-                I18N.T("combatStats.pie.tank", "Taken"));
-
-            return grid;
-        }
-
-        private void AddCategoryChip(GridContainer grid, CombatPieCategory category, string label) {
-            var chip = DevPanelUI.CreateFilterChip(label, active: category == _category);
-            chip.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-            grid.AddChild(chip);
-            _chips[category] = chip;
-            chip.Pressed += () => SetCategory(category);
-        }
-
         private PlayerCombatStats? _lastPlayer;
         private string? _lastPieFingerprint;
+
+        private void SetCategory(CombatPieCategory category) {
+            if (_category == category)
+                return;
+            _category = category;
+            _lastPieFingerprint = null;
+            RefreshPlayer(_lastPlayer);
+        }
 
         private void RefreshPlayer(PlayerCombatStats? player) {
             _lastPlayer = player;
@@ -233,15 +203,6 @@ internal static partial class CombatStatsUI {
             }
             _chart.Visible = visible;
             _legend.Visible = visible;
-        }
-
-        private void SetCategory(CombatPieCategory category) {
-            _category = category;
-            _lastPieFingerprint = null;
-            foreach (var (cat, chip) in _chips)
-                chip.SetPressedNoSignal(cat == category);
-            RefreshPlayer(_lastPlayer);
-            _onCategoryChanged?.Invoke();
         }
 
         private void ClearLegend() {

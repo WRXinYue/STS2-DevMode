@@ -15,7 +15,6 @@ internal static partial class CombatStatsUI {
     private const float PanelW = 960f;
     private const int PieSplitInitialRight = 280;
     private const int PieSplitMinRight = 220;
-    private const double AutoRefreshIntervalSec = 0.5;
     private const float BarAnimDuration = 0.22f;
     private const float ValueAnimDuration = 0.18f;
 
@@ -66,9 +65,9 @@ internal static partial class CombatStatsUI {
         var chipTimeline = DevPanelUI.CreateFilterChip(I18N.T("combatStats.view.timeline", "Timeline"), active: false);
         var chipRun = DevPanelUI.CreateFilterChip(I18N.T("combatStats.view.run", "Run total"), active: false);
         chipRow.AddChild(chipSummary);
+        chipRow.AddChild(chipByTurn);
         chipRow.AddChild(chipByCard);
         chipRow.AddChild(chipBySource);
-        chipRow.AddChild(chipByTurn);
         chipRow.AddChild(chipExtended);
         chipRow.AddChild(chipTimeline);
         chipRow.AddChild(chipRun);
@@ -81,6 +80,11 @@ internal static partial class CombatStatsUI {
         };
         chipScroll.AddChild(chipRow);
         vbox.AddChild(chipScroll);
+
+        var playerRow = new HBoxContainer();
+        playerRow.AddThemeConstantOverride("separation", 6);
+        playerRow.Visible = false;
+        vbox.AddChild(playerRow);
 
         var splitOptions = new DevPanelUI.SplitBodyOptions {
             Name = "stats.body.split",
@@ -100,15 +104,10 @@ internal static partial class CombatStatsUI {
         };
         pieScroll.AddChild(panelPie.Root);
         body.SidebarPanel.AddChild(pieScroll);
-        vbox.AddChild(body.Split);
 
         var detachSplitInit = DevPanelUI.AttachSplitInit(body, splitOptions);
         var detachMergeStyle = DevPanelUI.AttachMergeStyle(body);
-
-        var playerRow = new HBoxContainer();
-        playerRow.AddThemeConstantOverride("separation", 6);
-        playerRow.Visible = false;
-        vbox.AddChild(playerRow);
+        vbox.AddChild(body.Split);
 
         var exportRow = new HBoxContainer();
         exportRow.AddThemeConstantOverride("separation", 8);
@@ -123,14 +122,6 @@ internal static partial class CombatStatsUI {
         exportStatus.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         exportRow.AddChild(exportBtn);
         exportRow.AddChild(exportStatus);
-        vbox.AddChild(exportRow);
-
-        var autoRefresh = new CheckButton {
-            Text = I18N.T("combatStats.autoRefresh", "Auto-refresh"),
-            ButtonPressed = true,
-        };
-        autoRefresh.AddThemeFontSizeOverride("font_size", 11);
-        vbox.AddChild(autoRefresh);
 
         var mpOverlayToggle = new CheckButton {
             Text = I18N.T("combatStats.mpOverlay.enabled", "Show top-right score panel"),
@@ -141,7 +132,9 @@ internal static partial class CombatStatsUI {
             SettingsStore.SetCombatStatsMpOverlayEnabled(mpOverlayToggle.ButtonPressed);
             SyncMultiplayerOverlayState(globalUi);
         };
+
         vbox.AddChild(mpOverlayToggle);
+        vbox.AddChild(exportRow);
 
         ViewMode mode = ViewMode.Summary;
         string? contentFingerprint = null;
@@ -363,19 +356,6 @@ internal static partial class CombatStatsUI {
         };
         CombatStatsTracker.Changed += onStatsChanged;
 
-        var timer = new Timer {
-            WaitTime = AutoRefreshIntervalSec,
-            OneShot = false,
-            Autostart = true,
-        };
-        void OnAutoRefreshTimeout() {
-            if (!GodotObject.IsInstanceValid(root) || !autoRefresh.ButtonPressed)
-                return;
-            ScheduleUpdateDisplay(forceRebuild: false, animate: false);
-        }
-        timer.Timeout += OnAutoRefreshTimeout;
-        root.AddChild(timer);
-
         root.TreeExiting += () => {
             if (((Node)globalUi).GetNodeOrNull<Control>(RootName) != root)
                 return;
@@ -384,10 +364,6 @@ internal static partial class CombatStatsUI {
             detachSplitInit();
             detachMergeStyle();
             DevPanelUI.ResetContextPaneToDefault();
-            if (GodotObject.IsInstanceValid(timer)) {
-                timer.Timeout -= OnAutoRefreshTimeout;
-                timer.Stop();
-            }
         };
 
         ((Node)globalUi).AddChild(root);

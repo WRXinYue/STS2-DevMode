@@ -19,7 +19,7 @@ internal static partial class CombatStatsUI {
 
         _gameHost = host;
         _gamePlayers = new PlayerContributionSidebarPanel(railCompact: true);
-        _gamePie = new CategoryPieSidebarPanel("game.stats.pie", DevPanelUI.RefreshContextPaneChrome, railCompact: true);
+        _gamePie = new CategoryPieSidebarPanel("game.stats.pie", railCompact: true);
 
         DevPanelUI.SetDefaultContextId(DefaultContextId);
         DevPanelUI.RegisterContextProvider(DefaultContextId, _gamePlayers);
