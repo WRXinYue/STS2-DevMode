@@ -1,3 +1,4 @@
+using DevMode.CombatStats;
 using DevMode.Interop;
 using DevMode.Patches;
 using DevMode.Scripts;
@@ -30,6 +31,8 @@ public class MainFile {
         ScriptBridge.Start();
 
         FrameworkBridge.Initialize();
+
+        CombatStatsTracker.Initialize();
 
         var harmony = new Harmony(ModID);
         harmony.PatchAll();
