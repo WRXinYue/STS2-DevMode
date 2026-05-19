@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **战斗统计**面板 — 基于游戏 `CombatHistory` 的实时单场战斗数据（输出/承伤/格挡/出牌，按卡牌/来源/回合分组）。完整版待办见 `TODO.md`。
+- **战斗统计**面板 — 基于游戏 `CombatHistory` 的实时单场战斗数据（输出/承伤/格挡/出牌，按卡牌/来源/回合分组）。扩展统计（溢出/格挡、能量、药水、Debuff、能力伤害、事件时间线）、整局累计、当前 vs 上一场对比、JSON 导出与 `dmstats` 控制台命令。HUD、联机细化等待办见 `TODO.md`。
 - **支持 STS2 Steam beta** — DevMode 可在《杀戮尖塔 2》Steam beta 分支上使用，含施加能力、战斗中添加卡牌、敌人/战斗相关作弊与开发工具。请在 beta 游戏安装上使用 beta 版 mod 包，勿与正式版/公开版混用。
 - **可自定义开发侧栏** — 在 **设置 → 侧边栏** 中拖动调整轨道面板顺序，取消勾选即可隐藏不需要的入口；布局会跨会话保存。**Harmony 分析**、**脚本**、**框架** 默认隐藏，需要时在设置中重新勾选显示。
 

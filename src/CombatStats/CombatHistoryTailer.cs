@@ -4,6 +4,11 @@ using System.Linq;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Combat.History;
 using MegaCrit.Sts2.Core.Combat.History.Entries;
+using MegaCrit.Sts2.Core.Entities.Creatures;
+using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.Entities.Powers;
+using MegaCrit.Sts2.Core.Models.Cards;
+using MegaCrit.Sts2.Core.Models.Powers;
 
 namespace DevMode.CombatStats;
 
@@ -15,12 +20,14 @@ internal sealed class CombatHistoryTailer {
     private CombatHistory? _history;
     private CombatState? _combatState;
     private int _lastSeenIndex;
+    private bool _lastCardWasSoul;
 
     public void Attach(CombatHistory history, CombatState combatState) {
         Detach();
         _history = history;
         _combatState = combatState;
         _lastSeenIndex = 0;
+        _lastCardWasSoul = false;
         _history.Changed += OnChanged;
         Drain();
     }
@@ -31,6 +38,8 @@ internal sealed class CombatHistoryTailer {
         _history = null;
         _combatState = null;
         _lastSeenIndex = 0;
+        _lastCardWasSoul = false;
+        CombatStatsTracker.PendingPowerDamage = PowerDamageContext.None;
     }
 
     private void OnChanged() => Drain();
@@ -54,19 +63,76 @@ internal sealed class CombatHistoryTailer {
         try {
             switch (entry) {
                 case DamageReceivedEntry dmg:
+                    InferPowerDamageContext(dmg, entry);
                     CombatStatsTracker.RecordDamage(_combatState, dmg.Dealer, dmg.Receiver,
-                        dmg.Result, dmg.CardSource, entry.RoundNumber);
+                        dmg.Result, dmg.CardSource, entry.RoundNumber, entry.CurrentSide);
+                    CombatStatsTracker.PendingPowerDamage = PowerDamageContext.None;
+                    _lastCardWasSoul = false;
                     break;
                 case BlockGainedEntry block:
-                    CombatStatsTracker.RecordBlockGained(block.Receiver, block.Amount, block.CardPlay);
+                    CombatStatsTracker.RecordBlockGained(block.Receiver, block.Amount, block.CardPlay, entry.RoundNumber);
                     break;
                 case CardPlayFinishedEntry play:
-                    CombatStatsTracker.RecordCardPlay(play.CardPlay);
+                    _lastCardWasSoul = play.CardPlay.Card is Soul;
+                    CombatStatsTracker.RecordCardPlay(play.CardPlay, entry.RoundNumber);
+                    break;
+                case EnergySpentEntry energy:
+                    CombatStatsTracker.RecordEnergySpent(energy.Amount, energy.Actor, entry.RoundNumber);
+                    break;
+                case PotionUsedEntry potion:
+                    CombatStatsTracker.RecordPotionUsed(potion.Potion, entry.RoundNumber);
+                    break;
+                case PowerReceivedEntry power: {
+                    int stacks = Math.Max(1, (int)Math.Round(power.Amount));
+                    if (power.Power.Type == PowerType.Debuff) {
+                        CombatStatsTracker.RecordDebuffApplied(
+                            power.Power, power.Actor, power.Applier, entry.RoundNumber, stacks);
+                    }
+                    else if (power.Power.Type == PowerType.Buff) {
+                        CombatStatsTracker.RecordBuffApplied(
+                            power.Power, power.Actor, power.Applier, entry.RoundNumber, stacks);
+                    }
+                    break;
+                }
+                case MonsterPerformedMoveEntry move:
+                    CombatStatsTracker.RecordEnemyMove(move.Monster, entry.RoundNumber);
                     break;
             }
         }
         catch (Exception ex) {
             MainFile.Logger.Warn($"CombatHistoryTailer: dispatch failed ({entry.GetType().Name}): {ex.Message}");
         }
+    }
+
+    private void InferPowerDamageContext(DamageReceivedEntry dmg, CombatHistoryEntry entry) {
+        if (dmg.Dealer != null || !dmg.Receiver.IsEnemy || _combatState == null) {
+            CombatStatsTracker.PendingPowerDamage = PowerDamageContext.None;
+            return;
+        }
+
+        if (entry.CurrentSide == CombatSide.Enemy && dmg.Receiver.GetPower<PoisonPower>() != null) {
+            CombatStatsTracker.PendingPowerDamage = PowerDamageContext.Create(
+                null, I18N.T("combatStats.power.poison", "Poison"));
+            return;
+        }
+
+        if (entry.CurrentSide == CombatSide.Player && dmg.Receiver.GetPower<StranglePower>() != null) {
+            CombatStatsTracker.PendingPowerDamage = PowerDamageContext.Create(
+                null, I18N.T("combatStats.power.strangle", "Strangle"));
+            return;
+        }
+
+        if (_lastCardWasSoul) {
+            foreach (Player player in _combatState.Players) {
+                var haunt = player.Creature.GetPower<HauntPower>();
+                if (haunt != null) {
+                    CombatStatsTracker.PendingPowerDamage = PowerDamageContext.Create(
+                        player.Creature, I18N.T("combatStats.power.haunt", "Haunt"));
+                    return;
+                }
+            }
+        }
+
+        CombatStatsTracker.PendingPowerDamage = PowerDamageContext.None;
     }
 }

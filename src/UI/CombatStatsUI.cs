@@ -21,6 +21,9 @@ internal static partial class CombatStatsUI {
         ByCard,
         BySource,
         ByTurn,
+        Extended,
+        Timeline,
+        Run,
     }
 
     public static void Show(NGlobalUi globalUi) {
@@ -55,11 +58,25 @@ internal static partial class CombatStatsUI {
         var chipByCard = DevPanelUI.CreateFilterChip(I18N.T("combatStats.view.byCard", "By card"), active: false);
         var chipBySource = DevPanelUI.CreateFilterChip(I18N.T("combatStats.view.bySource", "Damage taken"), active: false);
         var chipByTurn = DevPanelUI.CreateFilterChip(I18N.T("combatStats.view.byTurn", "By turn"), active: false);
+        var chipExtended = DevPanelUI.CreateFilterChip(I18N.T("combatStats.view.extended", "Extended"), active: false);
+        var chipTimeline = DevPanelUI.CreateFilterChip(I18N.T("combatStats.view.timeline", "Timeline"), active: false);
+        var chipRun = DevPanelUI.CreateFilterChip(I18N.T("combatStats.view.run", "Run total"), active: false);
         chipRow.AddChild(chipSummary);
         chipRow.AddChild(chipByCard);
         chipRow.AddChild(chipBySource);
         chipRow.AddChild(chipByTurn);
-        vbox.AddChild(chipRow);
+        chipRow.AddChild(chipExtended);
+        chipRow.AddChild(chipTimeline);
+        chipRow.AddChild(chipRun);
+
+        var chipScroll = new ScrollContainer {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Auto,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            CustomMinimumSize = new Vector2(0, 30),
+        };
+        chipScroll.AddChild(chipRow);
+        vbox.AddChild(chipScroll);
 
         var scroll = new ScrollContainer {
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
@@ -74,11 +91,25 @@ internal static partial class CombatStatsUI {
         scroll.AddChild(inner);
         vbox.AddChild(scroll);
 
-        void SyncInnerWidth() {
-            inner.CustomMinimumSize = new Vector2(Math.Max(scroll.Size.X, 1f), 0f);
-        }
-        scroll.Resized += SyncInnerWidth;
-        scroll.TreeEntered += SyncInnerWidth;
+        var playerRow = new HBoxContainer();
+        playerRow.AddThemeConstantOverride("separation", 6);
+        playerRow.Visible = false;
+        vbox.AddChild(playerRow);
+
+        var exportRow = new HBoxContainer();
+        exportRow.AddThemeConstantOverride("separation", 8);
+        var exportBtn = new Button {
+            Text = I18N.T("combatStats.export", "Export JSON"),
+            SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin,
+        };
+        exportBtn.AddThemeFontSizeOverride("font_size", 11);
+        var exportStatus = new Label { Text = "" };
+        exportStatus.AddThemeFontSizeOverride("font_size", 10);
+        exportStatus.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
+        exportStatus.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        exportRow.AddChild(exportBtn);
+        exportRow.AddChild(exportStatus);
+        vbox.AddChild(exportRow);
 
         var autoRefresh = new CheckButton {
             Text = I18N.T("combatStats.autoRefresh", "Auto-refresh"),
@@ -89,6 +120,8 @@ internal static partial class CombatStatsUI {
 
         ViewMode mode = ViewMode.Summary;
         string? contentFingerprint = null;
+        string? selectedPlayerKey = null;
+        var playerChips = new List<(string Key, Button Chip)>();
 
         void SetMode(ViewMode next) {
             mode = next;
@@ -97,6 +130,9 @@ internal static partial class CombatStatsUI {
             chipByCard.SetPressedNoSignal(next == ViewMode.ByCard);
             chipBySource.SetPressedNoSignal(next == ViewMode.BySource);
             chipByTurn.SetPressedNoSignal(next == ViewMode.ByTurn);
+            chipExtended.SetPressedNoSignal(next == ViewMode.Extended);
+            chipTimeline.SetPressedNoSignal(next == ViewMode.Timeline);
+            chipRun.SetPressedNoSignal(next == ViewMode.Run);
             UpdateDisplay(forceRebuild: true, animate: false);
         }
 
@@ -104,11 +140,81 @@ internal static partial class CombatStatsUI {
         chipByCard.Pressed += () => SetMode(ViewMode.ByCard);
         chipBySource.Pressed += () => SetMode(ViewMode.BySource);
         chipByTurn.Pressed += () => SetMode(ViewMode.ByTurn);
+        chipExtended.Pressed += () => SetMode(ViewMode.Extended);
+        chipTimeline.Pressed += () => SetMode(ViewMode.Timeline);
+        chipRun.Pressed += () => SetMode(ViewMode.Run);
+
+        exportBtn.Pressed += () => {
+            try {
+                var bundle = CombatStatsExport.CaptureBundle();
+                string json = CombatStatsExport.ToJson(bundle);
+                DisplayServer.ClipboardSet(json);
+
+                string dir = System.IO.Path.Combine(OS.GetUserDataDir(), "mod_data", "DevMode");
+                System.IO.Directory.CreateDirectory(dir);
+                string path = System.IO.Path.Combine(dir, $"combat-stats-{DateTime.Now:yyyyMMdd-HHmmss}.json");
+                System.IO.File.WriteAllText(path, json);
+                exportStatus.Text = I18N.T("combatStats.exported", "Copied + saved to {0}", path);
+            }
+            catch (Exception ex) {
+                exportStatus.Text = I18N.T("combatStats.exportFailed", "Export failed: {0}", ex.Message);
+            }
+        };
+
+        void RebuildPlayerChips(CombatStatsSnapshot? snap) {
+            foreach (var (_, chip) in playerChips)
+                chip.QueueFree();
+            playerChips.Clear();
+            playerRow.Visible = false;
+
+            if (snap == null || snap.Players.Count <= 1 || mode == ViewMode.Run)
+                return;
+
+            playerRow.Visible = true;
+            foreach (var (key, stats) in snap.Players.OrderBy(kv => kv.Value.DisplayName)) {
+                var chip = DevPanelUI.CreateFilterChip(
+                    string.IsNullOrWhiteSpace(stats.DisplayName) ? key : stats.DisplayName,
+                    active: key == selectedPlayerKey);
+                playerChips.Add((key, chip));
+                playerRow.AddChild(chip);
+                string captured = key;
+                chip.Pressed += () => {
+                    selectedPlayerKey = captured;
+                    contentFingerprint = null;
+                    foreach (var (k, c) in playerChips)
+                        c.SetPressedNoSignal(k == captured);
+                    UpdateDisplay(forceRebuild: true, animate: false);
+                };
+            }
+        }
 
         void UpdateDisplay(bool forceRebuild, bool animate) {
+            if (mode == ViewMode.Run) {
+                statusLabel.Text = I18N.T("combatStats.status.run",
+                    "Run total — {0} combat(s)", CombatStatsTracker.RunCombatCount);
+                playerRow.Visible = false;
+
+                string runFingerprint = $"run|{CombatStatsTracker.RunCombatCount}|{CombatStatsTracker.RunTotal.PrimaryPlayer?.DamageDealt ?? 0}";
+                if (!forceRebuild && contentFingerprint == runFingerprint && inner.GetChildCount() > 0) {
+                    var runPlayer = CombatStatsTracker.RunTotal.PrimaryPlayer;
+                    if (runPlayer != null)
+                        RefreshExtended(inner, runPlayer, CombatStatsTracker.RunTotal.MaxTurn, animate);
+                    return;
+                }
+
+                ClearScrollContent(inner);
+                contentFingerprint = runFingerprint;
+                BuildRunView(inner);
+                ResetScrollLayout(scroll);
+                return;
+            }
+
             var snap = CombatStatsTracker.IsTracking
                 ? CombatStatsTracker.Current
                 : CombatStatsTracker.Last;
+
+            if (forceRebuild || playerChips.Count == 0)
+                RebuildPlayerChips(snap);
 
             if (snap == null || snap.Players.Count == 0) {
                 if (forceRebuild || inner.GetChildCount() == 0) {
@@ -128,11 +234,12 @@ internal static partial class CombatStatsUI {
                 ? I18N.T("combatStats.status.live", "Live — {0}", encounter)
                 : I18N.T("combatStats.status.last", "Last combat — {0}", encounter);
 
-            var player = snap.PrimaryPlayer;
-            if (player == null) {
-                ResetScrollLayout(scroll);
-                return;
-            }
+            if (selectedPlayerKey == null || !snap.Players.ContainsKey(selectedPlayerKey))
+                selectedPlayerKey = snap.Players.Keys.First();
+
+            var player = snap.Players[selectedPlayerKey];
+            foreach (var (k, c) in playerChips)
+                c.SetPressedNoSignal(k == selectedPlayerKey);
 
             string fingerprint = BuildFingerprint(mode, player, snap.MaxTurn);
             bool canRefresh = !forceRebuild
@@ -151,6 +258,9 @@ internal static partial class CombatStatsUI {
             switch (mode) {
                 case ViewMode.Summary:
                     BuildSummary(inner, player, snap.MaxTurn, animate: false);
+                    if (CombatStatsTracker.IsTracking
+                        && CombatStatsTracker.Last?.Players.TryGetValue(player.Key, out var lastPlayer) == true)
+                        BuildCompareSection(inner, player, lastPlayer);
                     break;
                 case ViewMode.ByCard:
                     BuildRankedList(inner, player.DamageByCard,
@@ -163,7 +273,13 @@ internal static partial class CombatStatsUI {
                         player.DamageTaken, animate: false);
                     break;
                 case ViewMode.ByTurn:
-                    BuildTurnList(inner, player.DamagePerTurn, player.DamageDealt, animate: false);
+                    BuildTurnList(inner, player.DamagePerTurn, snap.MaxTurn, animate: false);
+                    break;
+                case ViewMode.Extended:
+                    BuildExtendedView(inner, player, snap.MaxTurn);
+                    break;
+                case ViewMode.Timeline:
+                    BuildTimelineView(inner, player);
                     break;
             }
 
@@ -218,9 +334,11 @@ internal static partial class CombatStatsUI {
         switch (mode) {
             case ViewMode.Summary:
                 sb.Append(maxTurn).Append('|');
+                sb.Append(CombatScoreCalculator.TotalScore(player)).Append('|');
                 AppendKeys(sb, TopEntries(player.DamageByCard, 5).Select(x => x.Name));
                 sb.Append('|');
-                AppendKeys(sb, player.DamagePerTurn.OrderBy(kv => kv.Key).Take(8).Select(k => k.Key.ToString()));
+                AppendKeys(sb, BuildTurnSeries(player.DamagePerTurn, maxTurn, 8)
+                    .Select(p => $"{p.Turn}:{p.Amount}"));
                 break;
             case ViewMode.ByCard:
                 AppendKeys(sb, TopEntries(player.DamageByCard, 24).Select(x => x.Name));
@@ -229,7 +347,26 @@ internal static partial class CombatStatsUI {
                 AppendKeys(sb, TopEntries(player.DamageTakenBySource, 24).Select(x => x.Name));
                 break;
             case ViewMode.ByTurn:
-                AppendKeys(sb, player.DamagePerTurn.OrderBy(kv => kv.Key).Select(k => k.Key.ToString()));
+                sb.Append(maxTurn).Append('|');
+                AppendKeys(sb, BuildTurnSeries(player.DamagePerTurn, maxTurn, null)
+                    .Select(p => $"{p.Turn}:{p.Amount}"));
+                break;
+            case ViewMode.Extended:
+                sb.Append(maxTurn).Append('|');
+                sb.Append(player.OverkillDealt).Append('|');
+                sb.Append(player.EnergySpent).Append('|');
+                sb.Append(player.PowerDamageBySource.Count).Append('|');
+                sb.Append(player.BlockByCard.Count).Append('|');
+                sb.Append(player.PotionUseCount.Count);
+                break;
+            case ViewMode.Timeline:
+                sb.Append(CombatScoreCalculator.TotalScore(player)).Append('|');
+                sb.Append(player.Events.Count).Append('|');
+                if (player.Events.Count > 0) {
+                    var last = player.Events[^1];
+                    sb.Append(last.Turn).Append('|').Append(last.Kind).Append('|').Append(last.Text)
+                        .Append('|').Append(last.ScorePoints);
+                }
                 break;
         }
         return sb.ToString();
@@ -248,6 +385,7 @@ internal static partial class CombatStatsUI {
         bool animate) {
         switch (mode) {
             case ViewMode.Summary:
+                FindValueRow(inner, "stat.score")?.SetValue(CombatScoreCalculator.TotalScore(player), animate);
                 FindValueRow(inner, "stat.dealt")?.SetValue(player.DamageDealt, animate);
                 FindValueRow(inner, "stat.hits")?.SetValue(player.HitCount, animate);
                 FindValueRow(inner, "stat.cards")?.SetValue(player.CardsPlayed, animate);
@@ -255,10 +393,7 @@ internal static partial class CombatStatsUI {
                 FindValueRow(inner, "stat.taken")?.SetValue(player.DamageTaken, animate);
                 FindValueRow(inner, "stat.block")?.SetValue(player.BlockGained, animate);
                 RefreshBarRows(inner, TopEntries(player.DamageByCard, 5), player.DamageDealt, animate);
-                RefreshBarRows(inner,
-                    player.DamagePerTurn.OrderBy(kv => kv.Key).Take(8)
-                        .Select(kv => (I18N.T("combatStats.turnLabel", "Turn {0}", kv.Key), kv.Value)),
-                    player.DamageDealt, animate);
+                RefreshTurnChart(inner, player.DamagePerTurn, maxTurn, animate, turnLimit: 8);
                 break;
             case ViewMode.ByCard:
                 RefreshBarRows(inner, TopEntries(player.DamageByCard, 24), player.DamageDealt, animate);
@@ -267,10 +402,13 @@ internal static partial class CombatStatsUI {
                 RefreshBarRows(inner, TopEntries(player.DamageTakenBySource, 24), player.DamageTaken, animate);
                 break;
             case ViewMode.ByTurn:
-                RefreshBarRows(inner,
-                    player.DamagePerTurn.OrderBy(kv => kv.Key)
-                        .Select(kv => (I18N.T("combatStats.turnLabel", "Turn {0}", kv.Key), kv.Value)),
-                    player.DamageDealt, animate);
+                RefreshTurnChart(inner, player.DamagePerTurn, maxTurn, animate);
+                break;
+            case ViewMode.Extended:
+                RefreshExtended(inner, player, maxTurn, animate);
+                break;
+            case ViewMode.Timeline:
+                RefreshTimeline(inner, player, animate);
                 break;
         }
     }
@@ -291,6 +429,11 @@ internal static partial class CombatStatsUI {
     }
 
     private static void BuildSummary(VBoxContainer parent, PlayerCombatStats player, int maxTurn, bool animate) {
+        parent.AddChild(MakeSectionCard(I18N.T("combatStats.section.score", "Combat score"), section => {
+            section.AddChild(MakeValueRow("stat.score", I18N.T("combatStats.score", "Total"),
+                CombatScoreCalculator.TotalScore(player), animate));
+        }));
+
         parent.AddChild(MakeSectionCard(I18N.T("combatStats.section.offense", "Offense"), section => {
             section.AddChild(MakeValueRow("stat.dealt", I18N.T("combatStats.dealt", "Damage dealt"), player.DamageDealt, animate));
             section.AddChild(MakeValueRow("stat.hits", I18N.T("combatStats.hits", "Hit count"), player.HitCount, animate));
@@ -312,10 +455,7 @@ internal static partial class CombatStatsUI {
 
         if (player.DamagePerTurn.Count > 0) {
             parent.AddChild(MakeSectionCard(I18N.T("combatStats.section.topTurns", "Damage per turn"), section => {
-                foreach (var (turn, amount) in player.DamagePerTurn.OrderBy(kv => kv.Key).Take(8)) {
-                    string label = I18N.T("combatStats.turnLabel", "Turn {0}", turn);
-                    section.AddChild(MakeBarRow(label, amount, player.DamageDealt, animate));
-                }
+                section.AddChild(MakeTurnDamageChart(player.DamagePerTurn, maxTurn, animate, turnLimit: 8));
             }));
         }
     }
@@ -339,20 +479,15 @@ internal static partial class CombatStatsUI {
 
     private static void BuildTurnList(
         VBoxContainer parent,
-        Dictionary<int, int> data,
-        int totalDealt,
+        Dictionary<string, int> data,
+        int maxTurn,
         bool animate) {
-        if (data.Count == 0) {
+        if (data.Count == 0 && maxTurn <= 0) {
             parent.AddChild(MakeHintLabel(I18N.T("combatStats.noData", "No entries yet.")));
             return;
         }
 
-        parent.AddChild(MakeSectionCard(I18N.T("combatStats.view.byTurn", "By turn"), section => {
-            foreach (var (turn, amount) in data.OrderBy(kv => kv.Key)) {
-                string label = I18N.T("combatStats.turnLabel", "Turn {0}", turn);
-                section.AddChild(MakeBarRow(label, amount, Math.Max(totalDealt, 1), animate));
-            }
-        }));
+        parent.AddChild(MakeTurnDamageChart(data, maxTurn, animate));
     }
 
     private static IEnumerable<(string Name, int Amount)> TopEntries(Dictionary<string, int> data, int limit) =>

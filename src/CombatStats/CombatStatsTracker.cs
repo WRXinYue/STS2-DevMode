@@ -1,10 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using MegaCrit.Sts2.Core.Combat;
+using MegaCrit.Sts2.Core.Combat.History.Entries;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Creatures;
+using MegaCrit.Sts2.Core.Entities.Powers;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Rooms;
+using MegaCrit.Sts2.Core.Runs;
 
 namespace DevMode.CombatStats;
 
@@ -12,24 +16,42 @@ namespace DevMode.CombatStats;
 /// Aggregates combat statistics from <see cref="CombatHistory"/> for the DevMode stats panel.
 /// </summary>
 internal static class CombatStatsTracker {
+    private const int MaxEventsPerPlayer = 200;
+
     private static readonly CombatHistoryTailer _tailer = new();
     private static bool _initialized;
 
     private static CombatStatsSnapshot _current = new();
     private static CombatStatsSnapshot? _last;
+    private static CombatStatsSnapshot _runTotal = new();
+    private static int _runCombatCount;
+
+    /// <summary>Maps (receiver creature, power id) → player stats key who applied it.</summary>
+    private static readonly Dictionary<(string ReceiverKey, string PowerId), string> _powerAppliers = new();
+
+    internal static PowerDamageContext PendingPowerDamage { get; set; }
 
     public static event Action? Changed;
 
     public static CombatStatsSnapshot Current => _current;
     public static CombatStatsSnapshot? Last => _last;
+    public static CombatStatsSnapshot RunTotal => _runTotal;
+    public static int RunCombatCount => _runCombatCount;
     public static bool IsTracking => _current.IsActive;
 
     public static void Initialize() {
         if (_initialized) return;
         _initialized = true;
 
+        RunManager.Instance.RunStarted += OnRunStarted;
         CombatManager.Instance.CombatSetUp += OnCombatSetUp;
         CombatManager.Instance.CombatEnded += OnCombatEnded;
+    }
+
+    private static void OnRunStarted(RunState state) {
+        if (!DevModeState.IsActive) return;
+        _runTotal = new CombatStatsSnapshot();
+        _runCombatCount = 0;
     }
 
     private static void OnCombatSetUp(CombatState state) {
@@ -39,6 +61,8 @@ internal static class CombatStatsTracker {
             EncounterKey = ResolveEncounterKey(state),
             IsActive = true,
         };
+        PendingPowerDamage = PowerDamageContext.None;
+        _powerAppliers.Clear();
 
         _tailer.Attach(CombatManager.Instance.History, state);
         NotifyChanged();
@@ -46,11 +70,15 @@ internal static class CombatStatsTracker {
 
     private static void OnCombatEnded(CombatRoom room) {
         _tailer.Detach();
+        PendingPowerDamage = PowerDamageContext.None;
+        _powerAppliers.Clear();
 
         if (!_current.IsActive) return;
 
         _current.IsActive = false;
         _last = _current.Clone();
+        _runTotal.MergeInto(_last);
+        _runCombatCount++;
         NotifyChanged();
     }
 
@@ -60,48 +88,263 @@ internal static class CombatStatsTracker {
         Creature receiver,
         DamageResult result,
         CardModel? cardSource,
-        int roundNumber) {
+        int roundNumber,
+        CombatSide currentSide) {
         if (!_current.IsActive) return;
 
         _current.MaxTurn = Math.Max(_current.MaxTurn, roundNumber);
 
-        if (dealer != null && (dealer.IsPlayer || dealer.IsPet) && receiver.IsEnemy) {
-            var owner = ResolveDamageOwner(dealer);
-            var stats = GetOrCreate(owner);
-            int total = result.UnblockedDamage + result.BlockedDamage + result.OverkillDamage;
-            stats.DamageDealt += total;
-            stats.HitCount++;
+        if (TryRecordPlayerDamageDealt(dealer, receiver, result, cardSource, roundNumber))
+            return;
 
-            AddToDict(stats.DamagePerTurn, roundNumber, total);
-
-            string cardKey = ResolveDamageCardKey(dealer, cardSource);
-            AddToDict(stats.DamageByCard, cardKey, total);
+        if (dealer == null && receiver.IsEnemy && PendingPowerDamage.IsActive) {
+            RecordPowerDamageToEnemy(receiver, result, roundNumber);
+            return;
         }
 
         if (receiver.IsPlayer) {
             var stats = GetOrCreate(receiver);
             int taken = result.UnblockedDamage;
             stats.DamageTaken += taken;
+            stats.DamageBlockedOnTaken += result.BlockedDamage;
 
             string sourceKey = ResolveDamageSourceKey(dealer);
             AddToDict(stats.DamageTakenBySource, sourceKey, taken);
+
+            if (taken > 0) {
+                AddEvent(stats, roundNumber, CombatStatEventKind.DamageTaken, $"{sourceKey} → {taken}", taken, 0);
+                RecordTakenSynergies(dealer, receiver, result, cardSource, roundNumber);
+            }
         }
     }
 
-    internal static void RecordBlockGained(Creature receiver, int amount, CardPlay? cardPlay) {
-        if (!_current.IsActive || amount <= 0) return;
-        if (!receiver.IsPlayer) return;
+    private static bool TryRecordPlayerDamageDealt(
+        Creature? dealer,
+        Creature receiver,
+        DamageResult result,
+        CardModel? cardSource,
+        int roundNumber) {
+        if (dealer == null || !(dealer.IsPlayer || dealer.IsPet) || !receiver.IsEnemy)
+            return false;
 
-        GetOrCreate(receiver).BlockGained += amount;
+        var owner = ResolveDamageOwner(dealer);
+        var stats = GetOrCreate(owner);
+        int total = result.UnblockedDamage + result.BlockedDamage + result.OverkillDamage;
+        stats.DamageDealt += total;
+        stats.OverkillDealt += result.OverkillDamage;
+        stats.BlockedByTarget += result.BlockedDamage;
+        stats.HitCount++;
+
+        AddToDict(stats.DamagePerTurn, roundNumber.ToString(), total);
+
+        string cardKey = ResolveDamageCardKey(dealer, cardSource);
+        AddToDict(stats.DamageByCard, cardKey, total);
+
+        if (total > 0)
+            AddEvent(stats, roundNumber, CombatStatEventKind.DamageDealt, $"{cardKey} → {total}", total,
+                CombatScoreCalculator.DamageScore(total));
+
+        RecordDealSynergies(owner, dealer, receiver, result, cardSource, roundNumber);
+        return true;
     }
 
-    internal static void RecordCardPlay(CardPlay cardPlay) {
+    private static void RecordPowerDamageToEnemy(Creature receiver, DamageResult result, int roundNumber) {
+        var owner = PendingPowerDamage.Owner;
+        if (owner == null || !owner.IsPlayer) {
+            owner = ResolvePrimaryPlayerCreature();
+            if (owner == null) return;
+        }
+
+        var stats = GetOrCreate(owner);
+        int total = result.UnblockedDamage + result.BlockedDamage + result.OverkillDamage;
+        stats.DamageDealt += total;
+        stats.OverkillDealt += result.OverkillDamage;
+        stats.BlockedByTarget += result.BlockedDamage;
+        stats.HitCount++;
+
+        AddToDict(stats.DamagePerTurn, roundNumber.ToString(), total);
+        AddToDict(stats.PowerDamageBySource, PendingPowerDamage.SourceKey, total);
+
+        if (total > 0) {
+            AddEvent(stats, roundNumber, CombatStatEventKind.DamageDealt,
+                $"{PendingPowerDamage.SourceKey} → {total}", total,
+                CombatScoreCalculator.DamageScore(total));
+        }
+    }
+
+    internal static void RecordBlockGained(Creature receiver, int amount, CardPlay? cardPlay, int roundNumber) {
+        if (!_current.IsActive || amount <= 0 || !receiver.IsPlayer) return;
+
+        var stats = GetOrCreate(receiver);
+        stats.BlockGained += amount;
+
+        string cardKey = ResolveCardKey(cardPlay?.Card);
+        if (cardKey != null)
+            AddToDict(stats.BlockByCard, cardKey, amount);
+
+        AddEvent(stats, roundNumber, CombatStatEventKind.BlockGained, $"+{amount} block", amount,
+            CombatScoreCalculator.BlockScore(amount));
+    }
+
+    internal static void RecordCardPlay(CardPlay cardPlay, int roundNumber) {
         if (!_current.IsActive) return;
 
         var owner = cardPlay.Card.Owner?.Creature;
         if (owner == null || !owner.IsPlayer) return;
 
-        GetOrCreate(owner).CardsPlayed++;
+        var stats = GetOrCreate(owner);
+        stats.CardsPlayed++;
+
+        string? title = ResolveCardKey(cardPlay.Card);
+        string cardKey = title ?? cardPlay.Card.Id.Entry;
+        int energy = Math.Max(0, cardPlay.Resources.EnergySpent);
+        if (energy > 0)
+            AddToDict(stats.EnergySpentByCard, cardKey, energy);
+
+        int utilityScore = cardPlay.Card.Type == CardType.Attack
+            ? 0
+            : CombatScoreCalculator.UtilityPlayScore(energy);
+        AddEvent(stats, roundNumber, CombatStatEventKind.CardPlayed, cardKey, energy, utilityScore);
+    }
+
+    internal static void RecordEnergySpent(int amount, Creature playerCreature, int roundNumber) {
+        if (!_current.IsActive || amount <= 0 || !playerCreature.IsPlayer) return;
+
+        var stats = GetOrCreate(playerCreature);
+        stats.EnergySpent += amount;
+        AddEvent(stats, roundNumber, CombatStatEventKind.EnergySpent, $"-{amount} energy", amount, 0);
+    }
+
+    internal static void RecordPotionUsed(PotionModel potion, int roundNumber) {
+        if (!_current.IsActive) return;
+
+        var owner = potion.Owner?.Creature;
+        if (owner == null || !owner.IsPlayer) return;
+
+        var stats = GetOrCreate(owner);
+        stats.PotionsUsed++;
+        string key = potion.Id.Entry;
+        AddToDict(stats.PotionUseCount, key, 1);
+        AddEvent(stats, roundNumber, CombatStatEventKind.PotionUsed, key, 1, CombatScoreCalculator.PotionScore());
+    }
+
+    internal static void RecordDebuffApplied(
+        PowerModel power,
+        Creature receiver,
+        Creature? applier,
+        int roundNumber,
+        int stacks) {
+        if (!_current.IsActive) return;
+        if (power.Type != PowerType.Debuff) return;
+
+        Creature? credit = applier is { IsPlayer: true } ? applier : receiver.IsPlayer ? receiver : applier;
+        if (credit == null || !credit.IsPlayer) return;
+
+        int amount = Math.Max(1, stacks);
+        var stats = GetOrCreate(credit);
+        stats.DebuffsApplied += amount;
+        string key = power.Id.Entry;
+        AddToDict(stats.DebuffsByPower, key, amount);
+        RegisterPowerApplier(receiver, key, stats);
+        AddEvent(stats, roundNumber, CombatStatEventKind.DebuffApplied, key, amount,
+            CombatScoreCalculator.DebuffScore(amount));
+    }
+
+    internal static void RecordBuffApplied(
+        PowerModel power,
+        Creature receiver,
+        Creature? applier,
+        int roundNumber,
+        int stacks) {
+        if (!_current.IsActive) return;
+        if (power.Type != PowerType.Buff) return;
+
+        Creature? credit = applier is { IsPlayer: true } ? applier : receiver.IsPlayer ? receiver : applier;
+        if (credit == null || !credit.IsPlayer) return;
+
+        int amount = Math.Max(1, stacks);
+        var stats = GetOrCreate(credit);
+        stats.BuffsApplied += amount;
+        string key = power.Id.Entry;
+        RegisterPowerApplier(receiver, key, stats);
+        AddEvent(stats, roundNumber, CombatStatEventKind.BuffApplied, key, amount,
+            CombatScoreCalculator.BuffScore(amount));
+    }
+
+    private static void RecordDealSynergies(
+        Creature owner,
+        Creature dealer,
+        Creature receiver,
+        DamageResult result,
+        CardModel? cardSource,
+        int roundNumber) {
+        foreach (var hit in CombatDamageSynergyScorer.AnalyzeDealDamage(dealer, receiver, result, cardSource))
+            CreditSynergy(hit, receiver, owner, roundNumber);
+    }
+
+    private static void RecordTakenSynergies(
+        Creature? dealer,
+        Creature receiver,
+        DamageResult result,
+        CardModel? cardSource,
+        int roundNumber) {
+        if (dealer == null) return;
+        foreach (var hit in CombatDamageSynergyScorer.AnalyzeDamageTaken(dealer, receiver, result, cardSource))
+            CreditSynergy(hit, dealer, receiver, roundNumber);
+    }
+
+    private static void CreditSynergy(
+        CombatDamageSynergyScorer.SynergyHit hit,
+        Creature powerHost,
+        Creature? fallbackPlayer,
+        int roundNumber) {
+        var stats = ResolveSynergyCreditStats(powerHost, hit.PowerId, fallbackPlayer);
+        if (stats == null) return;
+
+        int score = CombatScoreCalculator.SynergyScore(hit.Amount);
+        AddEvent(stats, roundNumber, CombatStatEventKind.PowerSynergy, $"{hit.Label} → {hit.Amount}", hit.Amount, score);
+    }
+
+    private static PlayerCombatStats? ResolveSynergyCreditStats(
+        Creature powerHost,
+        string powerId,
+        Creature? fallbackPlayer) {
+        if (TryGetApplierStats(powerHost, powerId, out var applier))
+            return applier;
+
+        if (fallbackPlayer != null && fallbackPlayer.IsPlayer)
+            return GetOrCreate(fallbackPlayer);
+
+        return null;
+    }
+
+    private static bool TryGetApplierStats(Creature receiver, string powerId, out PlayerCombatStats stats) {
+        stats = null!;
+        string receiverKey = CreatureKey(receiver);
+        if (!_powerAppliers.TryGetValue((receiverKey, powerId), out string? playerKey))
+            return false;
+        return _current.Players.TryGetValue(playerKey, out stats);
+    }
+
+    private static void RegisterPowerApplier(Creature receiver, string powerId, PlayerCombatStats applier) {
+        _powerAppliers[(CreatureKey(receiver), powerId)] = applier.Key;
+    }
+
+    private static string CreatureKey(Creature creature) {
+        if (creature.IsPlayer && creature.Player != null)
+            return creature.Player.NetId.ToString();
+        return $"c_{creature.GetHashCode()}";
+    }
+
+    internal static void RecordEnemyMove(MonsterModel monster, int roundNumber) {
+        if (!_current.IsActive) return;
+
+        var player = ResolvePrimaryPlayerCreature();
+        if (player == null) return;
+
+        var stats = GetOrCreate(player);
+        string name = monster.Id.Entry;
+        AddEvent(stats, roundNumber, CombatStatEventKind.EnemyMove, name, 0, 0);
     }
 
     private static PlayerCombatStats GetOrCreate(Creature creature) {
@@ -118,6 +361,22 @@ internal static class CombatStatsTracker {
         return stats;
     }
 
+    private static Creature? ResolvePrimaryPlayerCreature() {
+        RunState? run = RunManager.Instance?.DebugOnlyGetState();
+        if (RunContext.TryGetRunAndPlayer(out var runState, out var player)) {
+            run = runState;
+            return player.Creature;
+        }
+
+        if (run == null || _current.Players.Count == 0) return null;
+        string key = _current.Players.Keys.First();
+        foreach (var p in run.Players) {
+            if (p.NetId.ToString() == key)
+                return p.Creature;
+        }
+        return null;
+    }
+
     private static Creature ResolveDamageOwner(Creature dealer) {
         if (dealer.IsPet && dealer.PetOwner != null)
             return dealer.PetOwner.Creature;
@@ -125,23 +384,22 @@ internal static class CombatStatsTracker {
     }
 
     private static string ResolveDamageCardKey(Creature dealer, CardModel? cardSource) {
-        if (dealer.IsPet) {
+        if (dealer.IsPet)
             return dealer.Monster?.Id.Entry ?? "Pet";
-        }
+        return ResolveCardKey(cardSource) ?? I18N.T("combatStats.source.other", "Other");
+    }
 
-        if (cardSource != null) {
-            try {
-                string title = cardSource.Title;
-                if (!string.IsNullOrWhiteSpace(title))
-                    return title;
-            }
-            catch {
-                // fall through to id
-            }
-            return cardSource.Id.Entry;
+    private static string? ResolveCardKey(CardModel? card) {
+        if (card == null) return null;
+        try {
+            string title = card.Title;
+            if (!string.IsNullOrWhiteSpace(title))
+                return title;
         }
-
-        return I18N.T("combatStats.source.other", "Other");
+        catch {
+            // fall through
+        }
+        return card.Id.Entry;
     }
 
     private static string ResolveDamageSourceKey(Creature? dealer) {
@@ -171,6 +429,24 @@ internal static class CombatStatsTracker {
         }
     }
 
+    private static void AddEvent(
+        PlayerCombatStats stats,
+        int turn,
+        CombatStatEventKind kind,
+        string text,
+        int amount,
+        int scorePoints) {
+        if (stats.Events.Count >= MaxEventsPerPlayer)
+            stats.Events.RemoveAt(0);
+        stats.Events.Add(new CombatStatEvent {
+            Turn = turn,
+            Kind = kind,
+            Text = text,
+            Amount = amount,
+            ScorePoints = scorePoints,
+        });
+    }
+
     private static void AddToDict<TKey>(Dictionary<TKey, int> dict, TKey key, int amount)
         where TKey : notnull {
         dict.TryGetValue(key, out int prev);
@@ -178,4 +454,18 @@ internal static class CombatStatsTracker {
     }
 
     private static void NotifyChanged() => Changed?.Invoke();
+}
+
+internal readonly struct PowerDamageContext {
+    public bool IsActive { get; init; }
+    public Creature? Owner { get; init; }
+    public string SourceKey { get; init; }
+
+    public static PowerDamageContext None => default;
+
+    public static PowerDamageContext Create(Creature? owner, string sourceKey) => new() {
+        IsActive = true,
+        Owner = owner,
+        SourceKey = sourceKey,
+    };
 }

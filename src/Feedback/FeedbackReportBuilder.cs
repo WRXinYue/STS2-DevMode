@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using DevMode.CombatStats;
 using DevMode.Interop;
 using DevMode.Modding;
 using Godot;
@@ -69,6 +70,7 @@ internal static class FeedbackReportBuilder {
         WriteEntry(archive, "logs-filtered.txt", BuildFilteredLog(), req, userDataDir);
         WriteEntry(archive, "harmony-patches.txt", BuildHarmonyDump(), req, userDataDir);
         WriteEntry(archive, "framework-bridge.txt", BuildFrameworkBridge(), req, userDataDir);
+        WriteEntry(archive, "combat-stats.json", BuildCombatStatsJson(), req, userDataDir);
 
         if (req.LogFilePath != null && File.Exists(req.LogFilePath)) {
             var logName = Path.GetFileName(req.LogFilePath);
@@ -139,6 +141,17 @@ internal static class FeedbackReportBuilder {
     private static string BuildHarmonyDump() {
         var report = HarmonyPatchReportBuilder.BuildReport(out var error);
         return string.IsNullOrEmpty(error) ? report : $"(error generating report: {error})";
+    }
+
+    private static string BuildCombatStatsJson() {
+        try {
+            if (!DevModeState.IsActive)
+                return "{\"note\":\"Dev Mode inactive during report\"}";
+            return CombatStatsExport.ToJson(CombatStatsExport.CaptureBundle());
+        }
+        catch (Exception ex) {
+            return $"{{\"error\":\"{ex.Message}\"}}";
+        }
     }
 
     private static string BuildFrameworkBridge() {
