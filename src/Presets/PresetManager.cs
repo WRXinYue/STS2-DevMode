@@ -169,7 +169,7 @@ internal static class PresetManager {
 #if STS2_BETA
                                 await CardPileCmd.AddGeneratedCardToCombat(combatCard, PileType.Draw, player);
 #else
-                                await CardPileCmd.AddGeneratedCardToCombat(combatCard, PileType.Draw, true);
+                                await CardPileCmd.AddGeneratedCardToCombat(combatCard, PileType.Draw, addedByPlayer: true);
 #endif
                                 combatCard.Pile?.InvokeCardAddFinished();
                             }
@@ -258,7 +258,7 @@ internal static class PresetManager {
 #if STS2_BETA
                 await CardPileCmd.AddGeneratedCardToCombat(combatCard, pileType, player);
 #else
-                await CardPileCmd.AddGeneratedCardToCombat(combatCard, pileType, true);
+                await CardPileCmd.AddGeneratedCardToCombat(combatCard, pileType, addedByPlayer: true);
 #endif
                 if (pileType is PileType.Draw or PileType.Discard)
                     combatCard.Pile?.InvokeCardAddFinished();

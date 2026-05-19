@@ -268,7 +268,7 @@ internal static class CardActions {
 #if STS2_BETA
             await CardPileCmd.AddGeneratedCardToCombat(combatCard, pileType, player);
 #else
-            await CardPileCmd.AddGeneratedCardToCombat(combatCard, pileType, true);
+            await CardPileCmd.AddGeneratedCardToCombat(combatCard, pileType, addedByPlayer: true);
 #endif
 
             // AddGeneratedCardToCombat silently calls AddInternal() for brand-new cards added to
