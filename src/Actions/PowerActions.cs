@@ -6,6 +6,7 @@ using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Models;
 
@@ -54,7 +55,11 @@ internal static class PowerActions {
             // Owner.InvokePowerModified before Owner is set, throwing a NullReferenceException.
             // The actual amount is passed to PowerCmd.Apply and applied correctly via ApplyInternal.
             var mutable = power.ToMutable(0);
+#if STS2_BETA
+            await PowerCmd.Apply(new BlockingPlayerChoiceContext(), mutable, target, (decimal)amount, source, null, false);
+#else
             await PowerCmd.Apply(mutable, target, (decimal)amount, source, null, false);
+#endif
         }
         catch (Exception ex) {
             MainFile.Logger.Warn($"[DevMode] ApplyPower failed ({((AbstractModel)power).Id.Entry}): {ex.Message}");

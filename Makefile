@@ -13,26 +13,46 @@ VERSION := $(shell $(PYTHON) -c "import json;print(json.load(open('DevMode.json'
 MOD_MAIN := DevMode.csproj
 
 DEPLOY_TO_GAME := /p:DeployToGame=true
+BETA_FLAG     := /p:Sts2Beta=true
 
-.PHONY: help init icons format deps build deploy sync compile pck publish nexus readme-nexus zip clean docs docs-build
+# STS2 Steam beta branch game version (update when Megacrit bumps beta; see beta install release_info.json).
+STS2_GAME_BETA_VERSION ?= 0.105.1
+ZIP_BETA_TAG := -sts2beta-v$(STS2_GAME_BETA_VERSION)
+ZIP_NAME_BETA := build/DevMode-v$(VERSION)$(ZIP_BETA_TAG).zip
+
+.PHONY: help init icons format deps build deploy sync compile pck publish nexus readme-nexus zip clean docs docs-build \
+        build-beta deploy-beta sync-beta compile-beta pck-beta zip-beta nexus-beta publish-beta
 
 help:
-	@echo DevMode — targets
-	@echo.
-	@echo   init       detect STS2 + Godot, generate local.props + .vscode (Python 3; PYTHON=python3 to override)
-	@echo   icons      tree-shake MDI (mdi-used.json + MdiIcon.Generated.cs); downloads full icons.json on first run if missing
-	@echo   format     dotnet format DevMode.sln (C#; same rules as EditorConfig, for pre-commit / CI)
-	@echo   deps       dotnet restore DevMode (STS2.RitsuLib NuGet + sync to game mods when Sts2Dir is set)
-	@echo   sync       deps + publish DevMode twice (repo build, then deploy to game)
-	@echo   build      deps + publish DevMode to build/DevMode/ only (no game)
-	@echo   deploy     deps + dotnet publish with DeployToGame=true
-	@echo   compile    dotnet build to game mods (no .pck)
-	@echo   pck        dotnet publish to game mods + .pck
-	@echo   publish    build + create GitHub Release (requires gh CLI)
-	@echo   nexus      build + upload to Nexus Mods (requires NEXUS_API_KEY + NEXUS_FILE_GROUP_ID)
-	@echo   readme-nexus  merge README.md + README.zh-CN.md into assets/readme.nexus.txt (Nexus BBCode, strips title + lang switcher)
-	@echo   zip        build + package into build/DevMode-vX.X.X.zip
-	@echo   clean      remove build/ + dotnet clean
+	@echo "DevMode — targets"
+	@echo ""
+	@echo "  init         detect STS2 + Godot, generate local.props + .vscode (PYTHON=python3 to override)"
+	@echo "  icons        tree-shake MDI (mdi-used.json + MdiIcon.Generated.cs)"
+	@echo "  format       dotnet format DevMode.sln (EditorConfig / pre-commit)"
+	@echo "  deps         dotnet restore (STS2.RitsuLib NuGet; sync to game when Sts2Dir is set)"
+	@echo ""
+	@echo "  sync         deps + publish twice (repo build, then deploy to game)"
+	@echo "  build        deps + publish to build/DevMode/ only (no game)"
+	@echo "  deploy       deps + dotnet publish with DeployToGame=true"
+	@echo "  compile      dotnet build to game mods (no .pck)"
+	@echo "  pck          dotnet publish to game mods + .pck"
+	@echo ""
+	@echo "  sync-beta    deps + publish twice (STS2 Steam beta; Sts2Dir = beta install)"
+	@echo "  build-beta   publish to build/DevMode/ only (STS2 Steam beta)"
+	@echo "  deploy-beta  publish with DeployToGame=true (STS2 Steam beta)"
+	@echo "  compile-beta dotnet build to game mods, no .pck (STS2 Steam beta)"
+	@echo "  pck-beta     dotnet publish to game mods + .pck (STS2 Steam beta)"
+	@echo ""
+	@echo "  zip          build + package build/DevMode-vX.X.X.zip"
+	@echo "  publish      zip + GitHub Release (requires gh CLI)"
+	@echo "  nexus        zip + upload to Nexus Mods (NEXUS_API_KEY + NEXUS_FILE_GROUP_ID)"
+	@echo "  readme-nexus merge READMEs into assets/readme.nexus.txt (Nexus BBCode)"
+	@echo ""
+	@echo "  zip-beta     build-beta + package …-sts2beta-v$(STS2_GAME_BETA_VERSION).zip"
+	@echo "  publish-beta zip-beta + GitHub Release for STS2 beta v$(STS2_GAME_BETA_VERSION)"
+	@echo "  nexus-beta   zip-beta + Nexus upload for STS2 beta v$(STS2_GAME_BETA_VERSION)"
+	@echo ""
+	@echo "  clean        remove build/ + dotnet clean"
 
 init:
 	$(PYTHON) scripts/init.py
@@ -59,14 +79,36 @@ sync: deps
 compile: deps
 	$(DOTNET) build $(DEPLOY_TO_GAME) $(MOD_MAIN)
 
+build-beta: deps
+	$(DOTNET) publish $(BETA_FLAG) $(MOD_MAIN)
+
+deploy-beta: deps
+	$(DOTNET) publish $(DEPLOY_TO_GAME) $(BETA_FLAG) $(MOD_MAIN)
+
+sync-beta: deps
+	$(DOTNET) publish $(BETA_FLAG) $(MOD_MAIN)
+	$(DOTNET) publish $(DEPLOY_TO_GAME) $(BETA_FLAG) $(MOD_MAIN)
+
+compile-beta: deps
+	$(DOTNET) build $(DEPLOY_TO_GAME) $(BETA_FLAG) $(MOD_MAIN)
+
 pck: deps
 	$(DOTNET) publish $(DEPLOY_TO_GAME) $(MOD_MAIN)
+
+pck-beta: deps
+	$(DOTNET) publish $(DEPLOY_TO_GAME) $(BETA_FLAG) $(MOD_MAIN)
 
 publish:
 	$(PYTHON) scripts/publish_release.py $(if $(VERSION),--version $(VERSION),)
 
+publish-beta:
+	STS2_GAME_BETA_VERSION=$(STS2_GAME_BETA_VERSION) $(PYTHON) scripts/publish_release.py --beta $(if $(VERSION),--version $(VERSION),)
+
 nexus:
 	$(PYTHON) scripts/publish_nexus.py $(if $(VERSION),--version $(VERSION),)
+
+nexus-beta:
+	STS2_GAME_BETA_VERSION=$(STS2_GAME_BETA_VERSION) $(PYTHON) scripts/publish_nexus.py --beta $(if $(VERSION),--version $(VERSION),)
 
 readme-nexus:
 	$(PYTHON) scripts/readme_to_nexus.py
@@ -76,6 +118,20 @@ ZIP_NAME := build/DevMode-v$(VERSION).zip
 DIST_DIR := build/dist/DevMode
 
 ifeq ($(OS),Windows_NT)
+zip-beta: build-beta
+	@if exist build\dist rmdir /s /q build\dist
+	@mkdir build\dist\DevMode\editor
+	@mkdir build\dist\DevMode\scripts
+	@copy /y build\DevMode\DevMode.dll build\dist\DevMode\ >nul
+	@if exist build\DevMode\DevMode.pck copy /y build\DevMode\DevMode.pck build\dist\DevMode\ >nul
+	@copy /y build\DevMode\mod_manifest.json build\dist\DevMode\ >nul
+	@xcopy /s /y /q editor\* build\dist\DevMode\editor\ >nul
+	@if exist $(ZIP_NAME_BETA) del $(ZIP_NAME_BETA)
+	$(PYTHON) -c "import zipfile,os;z=zipfile.ZipFile('$(ZIP_NAME_BETA)','w',zipfile.ZIP_DEFLATED);[z.write(os.path.join(r,f),os.path.join(os.path.relpath(r,'build/dist'),f)) for r,_,fs in os.walk('build/dist/DevMode') for f in fs];z.close()"
+	@echo.
+	@echo Done: $(ZIP_NAME_BETA)  (STS2 Steam beta v$(STS2_GAME_BETA_VERSION))
+	@echo Install: extract into "Slay the Spire 2" beta branch mods folder
+
 zip: build
 	@if exist build\dist rmdir /s /q build\dist
 	@mkdir build\dist\DevMode\editor
@@ -94,6 +150,18 @@ clean:
 	@if exist build rmdir /s /q build
 	$(DOTNET) clean DevMode.sln
 else
+zip-beta: build-beta
+	rm -rf build/dist
+	mkdir -p $(DIST_DIR)/editor $(DIST_DIR)/scripts
+	cp build/DevMode/DevMode.dll build/DevMode/mod_manifest.json $(DIST_DIR)/
+	@[ -f build/DevMode/DevMode.pck ] && cp build/DevMode/DevMode.pck $(DIST_DIR)/ || echo "Warning: DevMode.pck not found (Godot not configured) — skipping"
+	cp -R editor/. $(DIST_DIR)/editor/
+	rm -f $(ZIP_NAME_BETA)
+	cd build/dist && zip -qr ../DevMode-v$(VERSION)$(ZIP_BETA_TAG).zip DevMode
+	@echo ""
+	@echo "Done: $(ZIP_NAME_BETA)  (STS2 Steam beta v$(STS2_GAME_BETA_VERSION))"
+	@echo 'Install: extract into "Slay the Spire 2" beta branch mods/'
+
 zip: build
 	rm -rf build/dist
 	mkdir -p $(DIST_DIR)/editor $(DIST_DIR)/scripts

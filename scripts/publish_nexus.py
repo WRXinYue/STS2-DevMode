@@ -19,6 +19,29 @@ import time
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _sts2_beta_version(raw: str) -> str:
+    return raw.strip().lstrip("v") or "0.105.1"
+
+
+def _resolve_sts2_beta_version(cli_value: str) -> str:
+    if cli_value.strip():
+        return _sts2_beta_version(cli_value)
+    return _sts2_beta_version(os.environ.get("STS2_GAME_BETA_VERSION", "0.105.1"))
+
+
+def _zip_path(version: str, *, beta: bool, sts2_beta_version: str) -> Path:
+    if beta:
+        return _REPO_ROOT / "build" / f"DevMode-v{version}-sts2beta-v{sts2_beta_version}.zip"
+    return _REPO_ROOT / "build" / f"DevMode-v{version}.zip"
+
+
+def _beta_notice_bbcode(sts2_beta_version: str) -> str:
+    return (
+        f"[b]Requires Slay the Spire 2 Steam beta branch v{sts2_beta_version}.[/b] "
+        "Do not use on the public/stable game build.\n\n"
+    )
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
@@ -268,6 +291,16 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Upload DevMode zip to Nexus Mods.")
     ap.add_argument("--version", default="", help="Semver, e.g. 0.6.0 (default: DevMode.json)")
     ap.add_argument(
+        "--beta",
+        action="store_true",
+        help="Build/package/upload the STS2 Steam beta build (make zip-beta).",
+    )
+    ap.add_argument(
+        "--sts2-beta-version",
+        default="",
+        help="STS2 game beta version label, e.g. 0.105.1 (default: STS2_GAME_BETA_VERSION env or 0.105.1).",
+    )
+    ap.add_argument(
         "--dry-run",
         action="store_true",
         help="Build/package only; skip the actual Nexus upload.",
@@ -282,7 +315,10 @@ def main() -> int:
         version = str(manifest["version"])
         print(f"Version auto-detected from DevMode.json: {version}")
 
-    zip_path = _REPO_ROOT / "build" / f"DevMode-v{version}.zip"
+    sts2_beta_version = _resolve_sts2_beta_version(args.sts2_beta_version)
+    zip_path = _zip_path(version, beta=args.beta, sts2_beta_version=sts2_beta_version)
+    if args.beta:
+        print(f"STS2 Steam beta branch game version: v{sts2_beta_version}")
 
     # ── check credentials ────────────────────────────────────────────────────
     api_key = os.environ.get("NEXUS_API_KEY", "").strip()
@@ -306,12 +342,13 @@ def main() -> int:
 
     # ── ensure zip exists ────────────────────────────────────────────────────
     if not zip_path.is_file():
-        print(f"Zip not found at {zip_path} — running 'make zip' first…")
+        make_target = "zip-beta" if args.beta else "zip"
+        print(f"Zip not found at {zip_path} — running 'make {make_target}' first…")
         import subprocess
 
-        r = subprocess.run(["make", "zip"], cwd=_REPO_ROOT)
+        r = subprocess.run(["make", make_target], cwd=_REPO_ROOT)
         if r.returncode != 0:
-            print("make zip failed.", file=sys.stderr)
+            print(f"make {make_target} failed.", file=sys.stderr)
             return 1
 
     if not zip_path.is_file():
@@ -329,8 +366,13 @@ def main() -> int:
     if notes_zh:
         parts.append(convert_markdown(notes_zh))
     description = "\n\n[line]\n\n".join(parts)
+    if args.beta:
+        description = _beta_notice_bbcode(sts2_beta_version) + description
 
-    display_name = f"DevMode v{version}"
+    if args.beta:
+        display_name = f"DevMode v{version} (STS2 beta v{sts2_beta_version})"
+    else:
+        display_name = f"DevMode v{version}"
 
     if args.dry_run:
         print(f"\n[dry-run] Would upload: {zip_path}")

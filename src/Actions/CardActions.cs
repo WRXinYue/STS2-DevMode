@@ -265,7 +265,11 @@ internal static class CardActions {
             var combatCard = combatState.CreateCard(canonicalCard.CanonicalInstance, player);
             ApplyCustomBaseCostIfAny(combatCard, request.CustomBaseCost);
             ApplyUpgradeSteps(combatCard, upgradeLevelsToApply, upgradePreviewStyle);
+#if STS2_BETA
+            await CardPileCmd.AddGeneratedCardToCombat(combatCard, pileType, player);
+#else
             await CardPileCmd.AddGeneratedCardToCombat(combatCard, pileType, true);
+#endif
 
             // AddGeneratedCardToCombat silently calls AddInternal() for brand-new cards added to
             // Draw/Discard without creating any VFX. The pile-count UI (NCombatCardPile) only

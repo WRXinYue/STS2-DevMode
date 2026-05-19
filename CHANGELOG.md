@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **STS2 Steam beta support** — DevMode can be used on the Steam beta branch of Slay the Spire 2, including cheats and dev tools for powers, mid-combat card adds, and enemy/combat edits. Use the beta build of the mod on the beta game install (not interchangeable with the stable/public build).
+
+### Changed
+
+- **RitsuLib is now optional.** DevMode no longer lists RitsuLib as a required dependency mod — it loads and runs without RitsuLib installed. The Framework Bridge panel shows "—" when RitsuLib is absent instead of preventing DevMode from loading.
+
 ### Fixed
 
 - **Settings, save slots, presets, and scripts** are now stored in the game's user-data directory (`SlayTheSpire2/steam/<id>/mod_data/DevMode/`) instead of inside the mod folder — they survive Steam Workshop updates without data loss.

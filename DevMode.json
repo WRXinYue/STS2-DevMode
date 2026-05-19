@@ -6,8 +6,6 @@
   "version": "0.6.0",
   "has_pck": true,
   "has_dll": true,
-  "dependencies": [
-    "STS2-RitsuLib"
-  ],
+  "dependencies": [],
   "affects_gameplay": false
 }

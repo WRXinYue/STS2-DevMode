@@ -26,6 +26,8 @@
     <GodotExportPreset>BasicExport</GodotExportPreset>
     <ModPckPath>$(PublishDir)\$(ModId).pck</ModPckPath>
     <RunPckExport Condition="'$(RunPckExport)' == ''">true</RunPckExport>
+    <!-- Set Sts2Beta=true in local.props when building against the Steam beta branch -->
+    <DefineConstants Condition="'$(Sts2Beta)' == 'true'">$(DefineConstants);STS2_BETA</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(DeployToGame)' == 'false'">
@@ -60,7 +62,12 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="STS2.RitsuLib" Version="0.2.3" PrivateAssets="All" GeneratePathProperty="true" />
+    <!-- RitsuLib: compile reference removed (bridge uses reflection). Package kept only for
+         CopyRitsuLibModToGame deploy target (GeneratePathProperty gives $(PkgSTS2_RitsuLib)). -->
+    <PackageReference Include="STS2.RitsuLib" Version="0.2.3"
+                      PrivateAssets="all"
+                      IncludeAssets="none"
+                      GeneratePathProperty="true" />
   </ItemGroup>
 
   <ItemGroup>

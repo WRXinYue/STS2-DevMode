@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **支持 STS2 Steam beta** — DevMode 可在《杀戮尖塔 2》Steam beta 分支上使用，含施加能力、战斗中添加卡牌、敌人/战斗相关作弊与开发工具。请在 beta 游戏安装上使用 beta 版 mod 包，勿与正式版/公开版混用。
+
+### Changed
+
+- **RitsuLib 现为可选依赖。** DevMode 不再将 RitsuLib 列为必需依赖 mod，未安装时也能正常加载运行；框架桥接面板在 RitsuLib 缺失时显示「—」，而不会导致 DevMode 无法加载。
+
 ### Fixed
 
 - **设置、存档槽、预设与脚本**现存储在游戏用户数据目录（`SlayTheSpire2/steam/<id>/mod_data/DevMode/`）而非 mod 文件夹内 — Steam Workshop 更新 mod 后数据不再丢失。
