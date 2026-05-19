@@ -243,8 +243,12 @@ internal static class CombatStatsTracker {
         if (!_current.IsActive) return;
         if (power.Type != PowerType.Debuff) return;
 
-        Creature? credit = applier is { IsPlayer: true } ? applier : receiver.IsPlayer ? receiver : applier;
-        if (credit == null || !credit.IsPlayer) return;
+        // Only score debuffs applied by players (or their pets), not enemy debuffs on players.
+        if (applier == null)
+            return;
+        var credit = ResolveDamageOwner(applier);
+        if (!credit.IsPlayer)
+            return;
 
         int amount = Math.Max(1, stacks);
         var stats = GetOrCreate(credit);
