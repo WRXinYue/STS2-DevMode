@@ -139,7 +139,7 @@ internal static partial class CombatStatsUI {
         mpOverlayToggle.AddThemeFontSizeOverride("font_size", 11);
         mpOverlayToggle.Pressed += () => {
             SettingsStore.SetCombatStatsMpOverlayEnabled(mpOverlayToggle.ButtonPressed);
-            SyncMultiplayerOverlayState();
+            SyncMultiplayerOverlayState(globalUi);
         };
         vbox.AddChild(mpOverlayToggle);
 
@@ -166,7 +166,7 @@ internal static partial class CombatStatsUI {
                 pendingForceRebuild = false;
                 UpdateDisplay(rebuild, shouldAnimate);
                 DevPanelUI.NotifyBrowserContextLayoutChanged(globalUi);
-                SyncMultiplayerOverlayState();
+                SyncMultiplayerOverlayState(globalUi);
             }).CallDeferred();
         }
 
@@ -392,7 +392,7 @@ internal static partial class CombatStatsUI {
 
         ((Node)globalUi).AddChild(root);
         ScheduleUpdateDisplay(forceRebuild: true, animate: false);
-        SyncMultiplayerOverlayState();
+        SyncMultiplayerOverlayState(globalUi);
     }
 
     private static void ClearScrollContent(VBoxContainer inner) {
@@ -415,7 +415,7 @@ internal static partial class CombatStatsUI {
         _panelOpen = false;
         DevPanelUI.ResetContextPaneToDefault();
         ((Node)globalUi).GetNodeOrNull<Control>(RootName)?.QueueFree();
-        SyncMultiplayerOverlayState();
+        SyncMultiplayerOverlayState(globalUi);
     }
 
     /// <summary>Layout-only key — value changes refresh in place to avoid QueueFree churn during combat.</summary>

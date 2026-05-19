@@ -10,14 +10,23 @@ internal static partial class CombatStatsUI {
     private static class MpOverlayLayout {
         public const float PanelWidth = 400f;
         public const float Margin = 10f;
+        public const float ContentMarginH = 10f;
+        public const float RowSeparation = 8f;
         public const float BarHeight = 12f;
-        public const float BarTrackWidth = 240f;
         public const float RowHeight = 26f;
         public const float NameWidth = 96f;
         public const float ScoreWidth = 40f;
-        public const float ScoreRightPadding = 6f;
+        public const float ScoreRightPadding = 8f;
         public const float BarCornerRadius = 5f;
         public const float SegmentGap = 1f;
+        /// <summary>Panel inner width minus fixed row columns, separations, and score inset.</summary>
+        public const float BarTrackWidth =
+            PanelWidth
+            - ContentMarginH * 2f
+            - NameWidth
+            - ScoreWidth
+            - ScoreRightPadding
+            - RowSeparation * 2f;
         /// <summary>Above browser overlays (1250), below card edit overlays (1400).</summary>
         public const int ZIndex = 1310;
     }
@@ -67,14 +76,16 @@ internal static partial class CombatStatsUI {
         }
 
         public void Refresh() {
-            if (!CanShowMultiplayerOverlay()) {
+            if (!IsMultiplayerOverlayEnabled() || !ShouldUseMultiplayerOverlay()) {
                 HidePanel();
                 return;
             }
 
-            var players = ResolvePlayers();
+            var players = ResolveOverlayPlayers();
             if (players.Count < 2) {
-                HidePanel();
+                ClearPlayerRows();
+                _panel.Visible = true;
+                MoveToFront();
                 return;
             }
 
@@ -87,6 +98,11 @@ internal static partial class CombatStatsUI {
 
         public void HidePanel() => _panel.Visible = false;
 
+        private void ClearPlayerRows() {
+            foreach (var child in _playerList.GetChildren())
+                child.QueueFree();
+        }
+
         private void OnThemeChanged() {
             var theme = ThemeManager.Current;
             _panelStyle.BgColor = theme.RailBg;
@@ -96,13 +112,6 @@ internal static partial class CombatStatsUI {
                 if (child is MpOverlayPlayerRow row)
                     row.RefreshTheme();
             }
-        }
-
-        private static List<PlayerCombatStats> ResolvePlayers() {
-            var snap = CombatStatsTracker.IsTracking
-                ? CombatStatsTracker.Current
-                : CombatStatsTracker.Last;
-            return snap?.Players.Values.ToList() ?? new List<PlayerCombatStats>();
         }
 
         private void SyncPlayerRows(List<PlayerCombatStats> players, int maxScore) {
@@ -179,8 +188,8 @@ internal static partial class CombatStatsUI {
                 CornerRadiusTopRight = 8,
                 CornerRadiusBottomLeft = 8,
                 CornerRadiusBottomRight = 8,
-                ContentMarginLeft = 10,
-                ContentMarginRight = 10,
+                ContentMarginLeft = (int)MpOverlayLayout.ContentMarginH,
+                ContentMarginRight = (int)MpOverlayLayout.ContentMarginH,
                 ContentMarginTop = 8,
                 ContentMarginBottom = 8,
                 BorderWidthTop = 1,

@@ -15,6 +15,10 @@ internal static partial class CombatStatsUI {
         private float _displayScore;
         private Tween? _scoreTween;
 
+        private string _tooltipName = "";
+        private int _tooltipTotal;
+        private CombatScoreBreakdown? _tooltipBreakdown;
+
         public string PlayerKey { get; private set; } = "";
 
         public MpOverlayPlayerRow() {
@@ -27,11 +31,12 @@ internal static partial class CombatStatsUI {
                 SizeFlagsVertical = SizeFlags.ExpandFill,
                 MouseFilter = MouseFilterEnum.Ignore,
             };
-            content.AddThemeConstantOverride("separation", 8);
+            content.AddThemeConstantOverride("separation", (int)MpOverlayLayout.RowSeparation);
             AddChild(content);
 
             _nameLabel = new Label {
                 CustomMinimumSize = new Vector2(MpOverlayLayout.NameWidth, 0),
+                SizeFlagsHorizontal = SizeFlags.ShrinkBegin,
                 ClipText = true,
                 TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
                 MouseFilter = MouseFilterEnum.Ignore,
@@ -40,23 +45,28 @@ internal static partial class CombatStatsUI {
 
             _barTrack = new MpOverlayBarTrack {
                 CustomMinimumSize = new Vector2(MpOverlayLayout.BarTrackWidth, MpOverlayLayout.BarHeight + 4f),
+                SizeFlagsHorizontal = SizeFlags.ShrinkBegin,
                 SizeFlagsVertical = SizeFlags.ShrinkCenter,
             };
 
             _scoreLabel = new Label {
                 CustomMinimumSize = new Vector2(MpOverlayLayout.ScoreWidth, 0),
+                SizeFlagsHorizontal = SizeFlags.ShrinkBegin,
                 HorizontalAlignment = HorizontalAlignment.Right,
                 MouseFilter = MouseFilterEnum.Ignore,
             };
             _scoreLabel.AddThemeFontSizeOverride("font_size", 10);
 
+            var scoreWrap = new MarginContainer {
+                SizeFlagsHorizontal = SizeFlags.ShrinkEnd,
+                MouseFilter = MouseFilterEnum.Ignore,
+            };
+            scoreWrap.AddThemeConstantOverride("margin_right", (int)MpOverlayLayout.ScoreRightPadding);
+            scoreWrap.AddChild(_scoreLabel);
+
             content.AddChild(_nameLabel);
             content.AddChild(_barTrack);
-            content.AddChild(_scoreLabel);
-            content.AddChild(new Control {
-                CustomMinimumSize = new Vector2(MpOverlayLayout.ScoreRightPadding, 0),
-                MouseFilter = MouseFilterEnum.Ignore,
-            });
+            content.AddChild(scoreWrap);
         }
 
         public void Bind(PlayerCombatStats player, int total, int maxScore, bool isLeader) {
@@ -65,13 +75,12 @@ internal static partial class CombatStatsUI {
 
             string name = ResolvePlayerDisplayName(player);
             var bd = CombatScoreCalculator.BreakdownForDisplay(player);
-            string tooltip = FormatPlayerTooltip(name, total, bd);
 
             _nameLabel.Text = name;
             _barTrack.SetData(ScoreBreakdownSegments(bd), total, maxScore, animate: _initialized);
             AnimateScore(total, _initialized);
             ApplyLeaderStyle();
-            ApplyTooltips(tooltip);
+            ApplyTooltip(name, total, bd);
 
             _initialized = true;
         }
@@ -81,11 +90,18 @@ internal static partial class CombatStatsUI {
             _barTrack.QueueRedraw();
         }
 
-        private void ApplyTooltips(string tooltip) {
-            ApplyBarTooltip(this, tooltip);
-            ApplyBarTooltip(_nameLabel, tooltip);
-            ApplyBarTooltip(_barTrack, tooltip);
-            ApplyBarTooltip(_scoreLabel, tooltip);
+        private void ApplyTooltip(string name, int total, CombatScoreBreakdown bd) {
+            _tooltipName = name;
+            _tooltipTotal = total;
+            _tooltipBreakdown = bd;
+            TooltipText = name;
+            MouseFilter = MouseFilterEnum.Stop;
+        }
+
+        public override Control _MakeCustomTooltip(string forText) {
+            if (_tooltipBreakdown == null)
+                return new Label { Text = forText };
+            return BuildScoreBreakdownTooltipControl(_tooltipName, _tooltipTotal, _tooltipBreakdown);
         }
 
         private void ApplyLeaderStyle() {
@@ -145,7 +161,7 @@ internal static partial class CombatStatsUI {
             _targetTotal = Math.Max(total, 1);
             _targetFillWidth = Math.Max(
                 6f,
-                MpOverlayLayout.BarTrackWidth * total / (float)Math.Max(maxScore, 1));
+                (Size.X > 1f ? Size.X : MpOverlayLayout.BarTrackWidth) * total / (float)Math.Max(maxScore, 1));
 
             _targetSegments.Clear();
             foreach (var seg in segments)
@@ -202,7 +218,7 @@ internal static partial class CombatStatsUI {
         }
 
         public override void _Draw() {
-            float trackW = MpOverlayLayout.BarTrackWidth;
+            float trackW = Size.X > 1f ? Size.X : MpOverlayLayout.BarTrackWidth;
             float barH = MpOverlayLayout.BarHeight;
             float y = Math.Max(0f, (Size.Y - barH) * 0.5f);
             var trackRect = new Rect2(0f, y, trackW, barH);

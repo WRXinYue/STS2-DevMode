@@ -113,6 +113,77 @@ internal static partial class CombatStatsUI {
             .Append("%)");
     }
 
+    private static Control BuildScoreBreakdownTooltipControl(string name, int total, CombatScoreBreakdown bd) {
+        var panel = new PanelContainer();
+        panel.AddThemeStyleboxOverride("panel", new StyleBoxFlat {
+            BgColor = DevModeTheme.PanelBg,
+            BorderColor = DevModeTheme.PanelBorder,
+            BorderWidthTop = 1,
+            BorderWidthBottom = 1,
+            BorderWidthLeft = 1,
+            BorderWidthRight = 1,
+            CornerRadiusTopLeft = 6,
+            CornerRadiusTopRight = 6,
+            CornerRadiusBottomLeft = 6,
+            CornerRadiusBottomRight = 6,
+            ContentMarginLeft = 8,
+            ContentMarginRight = 8,
+            ContentMarginTop = 6,
+            ContentMarginBottom = 6,
+        });
+
+        var vbox = new VBoxContainer();
+        vbox.AddThemeConstantOverride("separation", 3);
+        panel.AddChild(vbox);
+
+        var title = new Label { Text = name };
+        title.AddThemeFontSizeOverride("font_size", 11);
+        title.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
+        vbox.AddChild(title);
+
+        var totalLbl = new Label {
+            Text = I18N.T("combatStats.sidebar.total", "Total {0}", total),
+        };
+        totalLbl.AddThemeFontSizeOverride("font_size", 10);
+        totalLbl.AddThemeColorOverride("font_color", DevModeTheme.TextSecondary);
+        vbox.AddChild(totalLbl);
+
+        foreach (var (key, amount, color) in ScoreBreakdownSegments(bd)) {
+            float pct = total > 0 ? 100f * amount / total : 0f;
+            vbox.AddChild(MakeScoreBreakdownTooltipRow(key, amount, pct, color));
+        }
+
+        return panel;
+    }
+
+    private static Control MakeScoreBreakdownTooltipRow(string kind, int amount, float pct, Color color) {
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 6);
+
+        var swatch = new Panel {
+            CustomMinimumSize = new Vector2(10, 10),
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        swatch.AddThemeStyleboxOverride("panel", new StyleBoxFlat {
+            BgColor = color,
+            CornerRadiusTopLeft = 2,
+            CornerRadiusTopRight = 2,
+            CornerRadiusBottomLeft = 2,
+            CornerRadiusBottomRight = 2,
+        });
+        row.AddChild(swatch);
+
+        var line = new Label {
+            Text = $"{LocalizeScoreKind(kind)} {amount} ({pct:0.#}%)",
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        line.AddThemeFontSizeOverride("font_size", 10);
+        line.AddThemeColorOverride("font_color", DevModeTheme.TextSecondary);
+        row.AddChild(line);
+        return row;
+    }
+
     /// <summary>Default sidebar: per-player vertical score stacks.</summary>
     private sealed partial class PlayerContributionSidebarPanel : IDevPanelSidebarProvider {
         private readonly VBoxContainer _root;
