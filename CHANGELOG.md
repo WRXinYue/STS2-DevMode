@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Combat Stats** panel — live per-combat damage statistics (dealt, taken, block, cards played, breakdowns by card/source/turn) via the game's `CombatHistory` API. Extended stats (overkill, blocked damage, energy, potions, debuffs, power damage, event timeline), run totals, current-vs-last comparison, JSON export, and `dmstats` console command. See `TODO.md` for remaining backlog (HUD, co-op polish).
+- **Combat Stats game right rail** — During fights, a slim pane on the right edge of the game shows live player contribution bars or a compact score breakdown; it updates in combat without opening the full stats panel. When the stats browser is nearly full width, the panel can merge flush with that rail.
+- **Combat Stats pie breakdown** — The stats panel includes a right sidebar with a category pie chart (overview, cards, offense, support, damage taken) and color legend; the default category follows the active view tab.
 - **STS2 Steam beta support** — DevMode can be used on the Steam beta branch of Slay the Spire 2, including cheats and dev tools for powers, mid-combat card adds, and enemy/combat edits. Use the beta build of the mod on the beta game install (not interchangeable with the stable/public build).
 - **Customizable dev sidebar** — In **Settings → Sidebar**, drag to reorder rail panels and uncheck any you want hidden. Your layout is saved between sessions. **Harmony analysis**, **Scripts**, and **Frameworks** start hidden; turn them on in Settings when you need them.
 
@@ -22,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Settings, save slots, presets, and scripts** are now stored in the game's user-data directory (`SlayTheSpire2/steam/<id>/mod_data/DevMode/`) instead of inside the mod folder — they survive Steam Workshop updates without data loss.
 - Settings and save-slot files are now written atomically, preventing file corruption if the game crashes mid-save.
+- Applying powers, adding cards in combat, and loading presets work on the **stable/public** STS2 build again, not only the Steam beta branch.
 
 ## [0.6.0] - 2026-05-17
 
