@@ -88,6 +88,9 @@ def main() -> int:
     print("  make compile  -- dotnet build: DLL/manifest to game mods (no .pck)")
     print("  make pck      -- dotnet publish + Godot .pck to game mods")
     print("  make sync      -- build + deploy into game mods")
+    print("  make sync-launch       -- sync + launch game")
+    print("  make launch            -- launch via Steam (macOS/Linux) or Sts2Dir exe (Windows)")
+    print("  make sync-beta-launch  -- sync-beta + launch game")
     print("  make deploy    -- deploy from build/DevMode/ (after make build)")
     print("  make build     -- artifacts under build/DevMode/ only (no game copy)")
     return 0

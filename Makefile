@@ -21,7 +21,8 @@ ZIP_BETA_TAG := -sts2beta-v$(STS2_GAME_BETA_VERSION)
 ZIP_NAME_BETA := build/DevMode-v$(VERSION)$(ZIP_BETA_TAG).zip
 
 .PHONY: help init icons format deps build deploy sync compile pck publish nexus readme-nexus zip clean docs docs-build \
-        build-beta deploy-beta sync-beta compile-beta pck-beta zip-beta nexus-beta publish-beta
+        build-beta deploy-beta sync-beta sync-beta-launch compile-beta pck-beta zip-beta nexus-beta publish-beta \
+        launch launch-beta sync-launch sync-beta-run
 
 help:
 	@echo "DevMode — targets"
@@ -32,13 +33,16 @@ help:
 	@echo "  deps         dotnet restore (STS2.RitsuLib NuGet; sync to game when Sts2Dir is set)"
 	@echo ""
 	@echo "  sync         deps + publish twice (repo build, then deploy to game)"
+	@echo "  sync-launch  sync + launch game"
+	@echo "  launch       launch via Steam (macOS/Linux) or Sts2Dir exe (Windows)"
 	@echo "  build        deps + publish to build/DevMode/ only (no game)"
 	@echo "  deploy       deps + dotnet publish with DeployToGame=true"
 	@echo "  compile      dotnet build to game mods (no .pck)"
 	@echo "  pck          dotnet publish to game mods + .pck"
 	@echo ""
-	@echo "  sync-beta    deps + publish twice (STS2 Steam beta; Sts2Dir = beta install)"
-	@echo "  build-beta   publish to build/DevMode/ only (STS2 Steam beta)"
+	@echo "  sync-beta         deps + publish twice (STS2 Steam beta; Sts2Dir = beta install)"
+	@echo "  sync-beta-launch  sync-beta + launch game (same as LAUNCH=1 make sync-beta)"
+	@echo "  build-beta        publish to build/DevMode/ only (STS2 Steam beta)"
 	@echo "  deploy-beta  publish with DeployToGame=true (STS2 Steam beta)"
 	@echo "  compile-beta dotnet build to game mods, no .pck (STS2 Steam beta)"
 	@echo "  pck-beta     dotnet publish to game mods + .pck (STS2 Steam beta)"
@@ -88,6 +92,17 @@ deploy-beta: deps
 sync-beta: deps
 	$(DOTNET) publish $(BETA_FLAG) $(MOD_MAIN)
 	$(DOTNET) publish $(DEPLOY_TO_GAME) $(BETA_FLAG) $(MOD_MAIN)
+ifneq ($(LAUNCH),)
+	$(PYTHON) scripts/launch_sts2.py
+endif
+
+sync-beta-launch sync-beta-run: sync-beta
+	$(PYTHON) scripts/launch_sts2.py
+
+launch launch-beta:
+	$(PYTHON) scripts/launch_sts2.py
+
+sync-launch: sync launch
 
 compile-beta: deps
 	$(DOTNET) build $(DEPLOY_TO_GAME) $(BETA_FLAG) $(MOD_MAIN)

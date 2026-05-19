@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
 _STS2_COMMON = Path("common") / "Slay the Spire 2"
+STS2_STEAM_APP_ID = 2868840
 
 
 def _steam_root_windows() -> Path | None:
@@ -136,3 +138,53 @@ def resolve_sts2_dir() -> Path | None:
             return cand.resolve()
 
     return None
+
+
+def read_sts2_dir_from_local_props(repo_root: Path) -> Path | None:
+    props = repo_root / "local.props"
+    if not props.is_file():
+        return None
+    text = props.read_text(encoding="utf-8", errors="replace")
+    m = re.search(r"<Sts2Dir>([^<]+)</Sts2Dir>", text)
+    if not m:
+        return None
+    p = Path(m.group(1).strip()).expanduser()
+    if _sts2_game_root_valid(p):
+        return p.resolve()
+    return None
+
+
+def resolve_sts2_executable(game_root: Path) -> Path | None:
+    mac = game_root / "SlayTheSpire2.app" / "Contents" / "MacOS" / "Slay the Spire 2"
+    if mac.is_file():
+        return mac
+
+    win = game_root / "SlayTheSpire2.exe"
+    if win.is_file():
+        return win
+
+    for name in ("SlayTheSpire2", "Slay the Spire 2"):
+        candidate = game_root / name
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def launch_sts2_via_steam(app_id: int = STS2_STEAM_APP_ID) -> None:
+    """Launch through the Steam client (required on macOS/Linux)."""
+    url = f"steam://run/{app_id}"
+    print(f"Launching via Steam: {url}")
+    if sys.platform == "darwin":
+        subprocess.Popen(["open", url], start_new_session=True, close_fds=True)
+    elif sys.platform == "win32":
+        subprocess.Popen(["start", url], shell=True, close_fds=True)
+    else:
+        subprocess.Popen(["xdg-open", url], start_new_session=True, close_fds=True)
+
+
+def ensure_steam_appid_file(game_root: Path, app_id: int = STS2_STEAM_APP_ID) -> None:
+    """Write steam_appid.txt for direct Windows launches outside the Steam UI."""
+    try:
+        (game_root / "steam_appid.txt").write_text(str(app_id), encoding="ascii")
+    except OSError:
+        pass

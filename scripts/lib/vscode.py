@@ -77,52 +77,21 @@ def write_vscode_files(root: Path, sts2_dir: Path) -> None:
         ],
     }
 
-    if sys.platform == "win32":
-        debug_bat = str((sts2_dir / "launch_debug.bat").resolve())
-        tasks["tasks"].append(
-            {
-                "label": "launch-sts2",
-                "type": "shell",
-                "command": "cmd.exe",
-                "args": ["/c", debug_bat],
-                "presentation": {
-                    "reveal": "always",
-                    "panel": "dedicated",
-                    "clear": True,
-                },
-                "isBackground": True,
-            }
-        )
-    elif sys.platform == "darwin":
-        tasks["tasks"].append(
-            {
-                "label": "launch-sts2",
-                "type": "shell",
-                "command": "open",
-                "args": ["steam://run/2868840"],
-                "presentation": {
-                    "reveal": "always",
-                    "panel": "dedicated",
-                    "clear": True,
-                },
-                "isBackground": True,
-            }
-        )
-    else:
-        tasks["tasks"].append(
-            {
-                "label": "launch-sts2",
-                "type": "shell",
-                "command": "xdg-open",
-                "args": ["steam://run/2868840"],
-                "presentation": {
-                    "reveal": "always",
-                    "panel": "dedicated",
-                    "clear": True,
-                },
-                "isBackground": True,
-            }
-        )
+    launch_script = str((root / "scripts" / "launch_sts2.py").resolve())
+    tasks["tasks"].append(
+        {
+            "label": "launch-sts2",
+            "type": "shell",
+            "command": sys.executable,
+            "args": [launch_script],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": True,
+            },
+            "isBackground": True,
+        }
+    )
 
     tasks["tasks"].append(
         {
