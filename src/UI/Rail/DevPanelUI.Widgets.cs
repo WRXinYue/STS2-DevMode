@@ -33,7 +33,7 @@ internal static partial class DevPanelUI {
         else {
             panel.AnchorLeft = 0; panel.AnchorRight = 1;
             panel.OffsetLeft = BrowserPanelLeft;
-            panel.OffsetRight = -BrowserPanelRight;
+            panel.OffsetRight = -EffectiveBrowserContentRight;
         }
 
         var style = new StyleBoxFlat {

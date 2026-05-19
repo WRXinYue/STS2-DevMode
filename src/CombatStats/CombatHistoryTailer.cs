@@ -52,10 +52,13 @@ internal sealed class CombatHistoryTailer {
         if (entries.Count < _lastSeenIndex)
             _lastSeenIndex = 0;
 
+        int before = _lastSeenIndex;
         for (int i = _lastSeenIndex; i < entries.Count; i++)
             DispatchEntry(entries[i]);
 
         _lastSeenIndex = entries.Count;
+        if (_lastSeenIndex > before)
+            CombatStatsTracker.NotifyStatsUpdated();
     }
 
     private void DispatchEntry(CombatHistoryEntry entry) {

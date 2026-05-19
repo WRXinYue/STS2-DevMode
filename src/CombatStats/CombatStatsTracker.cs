@@ -454,6 +454,9 @@ internal static class CombatStatsTracker {
     }
 
     private static void NotifyChanged() => Changed?.Invoke();
+
+    /// <summary>Called when live combat stats change (history tailer processed new entries).</summary>
+    internal static void NotifyStatsUpdated() => NotifyChanged();
 }
 
 internal readonly struct PowerDamageContext {

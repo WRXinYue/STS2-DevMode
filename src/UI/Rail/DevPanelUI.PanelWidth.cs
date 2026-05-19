@@ -34,7 +34,7 @@ internal static partial class DevPanelUI {
         panel.AnchorLeft = 0;
         panel.AnchorRight = 1;
         panel.OffsetLeft = BrowserPanelLeft;
-        panel.OffsetRight = -BrowserPanelRight;
+        panel.OffsetRight = -EffectiveBrowserContentRight;
     }
 
     public static float GetMaxBrowserPanelWidth(Node? onTree) {

@@ -30,6 +30,7 @@ internal static partial class CombatStatsUI {
 
     public static void Show(NGlobalUi globalUi) {
         Remove(globalUi);
+        _panelOpen = true;
 
         var (root, _, vbox) = DevPanelUI.CreateBrowserOverlayShell(
             globalUi, RootName, PanelW, () => Remove(globalUi), contentSeparation: 10);
@@ -91,37 +92,7 @@ internal static partial class CombatStatsUI {
         };
         inner.AddThemeConstantOverride("separation", 8);
         scroll.AddChild(inner);
-
-        var bodySplit = new HSplitContainer {
-            Name = "stats.body.split",
-            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            SplitOffset = (int)Math.Max(PanelW - PieSplitInitialRight, 480),
-        };
-        bodySplit.AddChild(scroll);
-
-        var pieScroll = new ScrollContainer {
-            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
-            CustomMinimumSize = new Vector2(PieSplitMinRight, 0),
-        };
-        var pieSidebar = MakePieSidebar();
-        pieScroll.AddChild(pieSidebar);
-        bodySplit.AddChild(pieScroll);
-        vbox.AddChild(bodySplit);
-
-        bool splitInitialized = false;
-        void InitSplitOnce() {
-            if (!GodotObject.IsInstanceValid(bodySplit))
-                return;
-            if (splitInitialized || bodySplit.Size.X < PieSplitMinRight + 320)
-                return;
-            splitInitialized = true;
-            int right = Math.Clamp(PieSplitInitialRight, PieSplitMinRight, (int)bodySplit.Size.X - 320);
-            bodySplit.SplitOffset = (int)bodySplit.Size.X - right;
-        }
-        bodySplit.Resized += InitSplitOnce;
+        vbox.AddChild(scroll);
 
         var playerRow = new HBoxContainer();
         playerRow.AddThemeConstantOverride("separation", 6);
@@ -172,6 +143,7 @@ internal static partial class CombatStatsUI {
                 bool rebuild = pendingForceRebuild;
                 pendingForceRebuild = false;
                 UpdateDisplay(rebuild, shouldAnimate);
+                DevPanelUI.NotifyBrowserContextLayoutChanged(globalUi);
             }).CallDeferred();
         }
 
@@ -242,10 +214,8 @@ internal static partial class CombatStatsUI {
             }
         }
 
-        void RefreshPie(PlayerCombatStats? player) {
-            if (!GodotObject.IsInstanceValid(pieSidebar))
-                return;
-            pieSidebar.Refresh(player);
+        void RefreshGameContextPane(CombatStatsSnapshot? snap, PlayerCombatStats? player, bool isRun) {
+            SyncGameContextPane(mode, snap, player, isRun);
         }
 
         void UpdateDisplay(bool forceRebuild, bool animate) {
@@ -261,7 +231,7 @@ internal static partial class CombatStatsUI {
                     var runPlayer = CombatStatsTracker.RunTotal.PrimaryPlayer;
                     if (runPlayer != null) {
                         RefreshExtended(inner, runPlayer, CombatStatsTracker.RunTotal.MaxTurn, animate);
-                        RefreshPie(runPlayer);
+                        RefreshGameContextPane(CombatStatsTracker.RunTotal, runPlayer, isRun: true);
                     }
                     return;
                 }
@@ -270,7 +240,7 @@ internal static partial class CombatStatsUI {
                 contentFingerprint = runFingerprint;
                 BuildRunView(inner);
                 ResetScrollLayout(scroll);
-                RefreshPie(CombatStatsTracker.RunTotal.PrimaryPlayer);
+                RefreshGameContextPane(CombatStatsTracker.RunTotal, CombatStatsTracker.RunTotal.PrimaryPlayer, isRun: true);
                 return;
             }
 
@@ -291,7 +261,7 @@ internal static partial class CombatStatsUI {
                     inner.AddChild(MakeHintLabel(I18N.T("combatStats.emptyHint",
                         "Tracking starts automatically when Dev Mode is active and a combat begins.")));
                 ResetScrollLayout(scroll);
-                RefreshPie(null);
+                RefreshGameContextPane(null, null, isRun: false);
                 return;
             }
 
@@ -314,7 +284,7 @@ internal static partial class CombatStatsUI {
 
             if (canRefresh) {
                 RefreshContent(inner, mode, player, snap.MaxTurn, animate);
-                RefreshPie(player);
+                RefreshGameContextPane(snap, player, isRun: false);
                 return;
             }
 
@@ -351,7 +321,7 @@ internal static partial class CombatStatsUI {
             }
 
             ResetScrollLayout(scroll);
-            RefreshPie(player);
+            RefreshGameContextPane(snap, player, isRun: false);
         }
 
         Action onStatsChanged = () => {
@@ -376,7 +346,8 @@ internal static partial class CombatStatsUI {
 
         root.TreeExiting += () => {
             CombatStatsTracker.Changed -= onStatsChanged;
-            bodySplit.Resized -= InitSplitOnce;
+            _panelOpen = false;
+            DevPanelUI.ResetContextPaneToDefault();
             if (GodotObject.IsInstanceValid(timer)) {
                 timer.Timeout -= OnAutoRefreshTimeout;
                 timer.Stop();
@@ -404,6 +375,8 @@ internal static partial class CombatStatsUI {
     }
 
     public static void Remove(NGlobalUi globalUi) {
+        _panelOpen = false;
+        DevPanelUI.ResetContextPaneToDefault();
         ((Node)globalUi).GetNodeOrNull<Control>(RootName)?.QueueFree();
     }
 
@@ -550,42 +523,8 @@ internal static partial class CombatStatsUI {
         data.OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key).Take(limit)
             .Select(kv => (kv.Key, kv.Value));
 
-    private static Control MakeSectionCard(string title, Action<VBoxContainer> fillBody) {
-        var panel = new PanelContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        var style = new StyleBoxFlat {
-            BgColor = new Color(DevModeTheme.PanelBg.R, DevModeTheme.PanelBg.G, DevModeTheme.PanelBg.B, 0.55f),
-            BorderColor = DevModeTheme.PanelBorder,
-            BorderWidthLeft = 1,
-            BorderWidthRight = 1,
-            BorderWidthTop = 1,
-            BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 8,
-            CornerRadiusTopRight = 8,
-            CornerRadiusBottomLeft = 8,
-            CornerRadiusBottomRight = 8,
-            ContentMarginLeft = 14,
-            ContentMarginRight = 14,
-            ContentMarginTop = 12,
-            ContentMarginBottom = 14,
-        };
-        panel.AddThemeStyleboxOverride("panel", style);
-
-        var outer = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        outer.AddThemeConstantOverride("separation", 8);
-
-        var head = new Label { Text = title };
-        head.AddThemeFontSizeOverride("font_size", 13);
-        head.AddThemeColorOverride("font_color", DevModeTheme.Accent);
-        outer.AddChild(head);
-
-        var body = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        body.AddThemeConstantOverride("separation", 6);
-        fillBody(body);
-        outer.AddChild(body);
-
-        panel.AddChild(outer);
-        return panel;
-    }
+    private static Control MakeSectionCard(string title, Action<VBoxContainer> fillBody) =>
+        DevPanelUI.MakeSectionCard(title, fillBody);
 
     private static StatValueRow MakeValueRow(string id, string label, int value, bool animate) {
         var row = new StatValueRow(label, value, animate) { Name = id };

@@ -75,8 +75,11 @@ internal static partial class DevPanelUI {
     }
 
     private static void ReconcileBrowserRail(NGlobalUi globalUi) {
-        bool joined = (_browserOverlayCount + _browserRailHoldCount) > 0;
-        SpliceRail(globalUi, joined);
+        bool browserOpen = (_browserOverlayCount + _browserRailHoldCount) > 0;
+        SpliceRail(globalUi, browserOpen);
+        if (!browserOpen)
+            UnwireBrowserPanelMergeTracking();
+        ScheduleBrowserContextMerge(globalUi);
     }
 
     // ── Colour palette — delegates to active theme ──
@@ -108,6 +111,7 @@ internal static partial class DevPanelUI {
             _peekTabBtn.Icon = MdiIcon.ChevronRight.Texture(12, ColIconNormal);
 
         RefreshRailIconTints();
+        ApplyContextPaneTheme();
     }
 
     private static void RefreshRailIconTints() {
@@ -356,6 +360,7 @@ internal static partial class DevPanelUI {
 
         peekTab.Pressed += () => SlideRail(true);
 
+        AttachContextPane(globalUi);
         ((Node)globalUi).AddChild(root);
     }
 
@@ -376,12 +381,13 @@ internal static partial class DevPanelUI {
         _railIndicator = null;
         _moveRailIndicator = null;
         ((Node)globalUi).GetNodeOrNull<Control>(RootName)?.QueueFree();
+        DetachContextPane(globalUi);
         RemoveTopBar(globalUi);
         _onRefreshPanel = null;
     }
 
     // ──────── Close all known overlays (internal + external UIs) ────────
-    private static readonly HashSet<string> _keepNodes = new() { RootName, TopBarName };
+    private static readonly HashSet<string> _keepNodes = new() { RootName, TopBarName, ContextPaneRootName };
 
     /// <summary>
     /// Close the internal overlay (cheats/save/ai) and remove all DevMode external

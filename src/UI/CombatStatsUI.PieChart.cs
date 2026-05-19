@@ -9,8 +9,6 @@ namespace DevMode.UI;
 internal static partial class CombatStatsUI {
     private const int PieChartSize = 168;
 
-    private static CardPieSidebar MakePieSidebar() => new("stats.pie.sidebar");
-
     private static List<(string Name, int Amount, Color Color)> BuildPieSlices(
         Dictionary<string, int> data,
         int totalForPct,
@@ -61,63 +59,83 @@ internal static partial class CombatStatsUI {
         return Color.FromHsv(hue, 0.58f, 0.92f);
     }
 
-    /// <summary>Right pane: category chips + pie + legend (no separate panel chrome).</summary>
-    private sealed partial class CardPieSidebar : VBoxContainer {
+    /// <summary>Pie breakdown panel shown for card/source/turn/timeline views.</summary>
+    private sealed partial class CategoryPieSidebarPanel : IDevPanelSidebarProvider {
         private CombatPieCategory _category = CombatPieCategory.Overview;
+        private readonly VBoxContainer _root;
         private readonly CombatStatsPieChart _chart;
         private readonly VBoxContainer _legend;
         private readonly Label _emptyLabel;
-        private readonly Label _categoryHint;
+        private readonly GridContainer _categoryGrid;
         private readonly Dictionary<CombatPieCategory, Button> _chips = new();
+        private readonly Action? _onCategoryChanged;
+        private PlayerCombatStats? _selectedPlayer;
+        private readonly bool _railCompact;
+        private readonly VerticalScoreStack? _compactStack;
+        private bool _hasContent;
 
-        public CardPieSidebar(string name) {
-            Name = name;
-            SizeFlagsVertical = SizeFlags.ExpandFill;
-            SizeFlagsHorizontal = SizeFlags.ExpandFill;
-            CustomMinimumSize = new Vector2(PieSplitMinRight, 0);
-            AddThemeConstantOverride("separation", 8);
+        public CategoryPieSidebarPanel(string name, Action? onCategoryChanged = null, bool railCompact = false) {
+            _onCategoryChanged = onCategoryChanged;
+            _railCompact = railCompact;
+            _root = new VBoxContainer { Name = name };
+            _root.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+            _root.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            _root.AddThemeConstantOverride("separation", railCompact ? 2 : 8);
 
-            var title = new Label {
-                Text = I18N.T("combatStats.pie.title", "Breakdown"),
-            };
-            title.AddThemeFontSizeOverride("font_size", 12);
-            title.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
-            AddChild(title);
-
-            AddChild(BuildCategoryGrid());
-
-            _categoryHint = new Label {
-                AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            };
-            _categoryHint.AddThemeFontSizeOverride("font_size", 10);
-            _categoryHint.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
-            AddChild(_categoryHint);
+            _categoryGrid = BuildCategoryGrid();
+            _root.AddChild(_categoryGrid);
+            _categoryGrid.Visible = !railCompact;
 
             _chart = new CombatStatsPieChart("stats.pie.chart");
-            AddChild(_chart);
+            _root.AddChild(_chart);
+            _chart.Visible = !railCompact;
 
             _legend = new VBoxContainer {
-                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             };
             _legend.AddThemeConstantOverride("separation", 4);
-            AddChild(_legend);
+            _root.AddChild(_legend);
+            _legend.Visible = !railCompact;
+
+            if (railCompact) {
+                _compactStack = new VerticalScoreStack { BarWidth = 10f };
+                _compactStack.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+                _compactStack.CustomMinimumSize = new Vector2(0, 120);
+                _root.AddChild(_compactStack);
+            }
 
             _emptyLabel = new Label {
                 Text = I18N.T("combatStats.noData", "No entries yet."),
                 Visible = false,
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
             };
-            _emptyLabel.AddThemeFontSizeOverride("font_size", 10);
+            _emptyLabel.AddThemeFontSizeOverride("font_size", railCompact ? 8 : 10);
             _emptyLabel.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
-            AddChild(_emptyLabel);
+            if (!railCompact)
+                _root.AddChild(_emptyLabel);
 
             SetCategory(CombatPieCategory.Overview);
         }
 
-        private Control BuildCategoryGrid() {
+        public Control Root => _root;
+        public bool HasContent => _hasContent;
+        public string Title => I18N.T("combatStats.pie.title", "Breakdown");
+        public string Hint => CategoryHint(_category);
+
+        public void SetContext(PlayerCombatStats? selectedPlayer) => _selectedPlayer = selectedPlayer;
+
+        public void PrepareForViewMode(ViewMode mode) {
+            SetCategory(PieCategoryForView(mode));
+        }
+
+        public void Refresh() {
+            RefreshPlayer(_selectedPlayer);
+        }
+
+        private GridContainer BuildCategoryGrid() {
             var grid = new GridContainer {
                 Columns = 2,
-                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             };
             grid.AddThemeConstantOverride("h_separation", 6);
             grid.AddThemeConstantOverride("v_separation", 6);
@@ -138,7 +156,7 @@ internal static partial class CombatStatsUI {
 
         private void AddCategoryChip(GridContainer grid, CombatPieCategory category, string label) {
             var chip = DevPanelUI.CreateFilterChip(label, active: category == _category);
-            chip.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            chip.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             grid.AddChild(chip);
             _chips[category] = chip;
             chip.Pressed += () => SetCategory(category);
@@ -147,13 +165,15 @@ internal static partial class CombatStatsUI {
         private PlayerCombatStats? _lastPlayer;
         private string? _lastPieFingerprint;
 
-        public void Refresh(PlayerCombatStats? player) {
+        private void RefreshPlayer(PlayerCombatStats? player) {
             _lastPlayer = player;
             if (player == null) {
-                _chart.Visible = false;
-                _legend.Visible = false;
-                _emptyLabel.Visible = true;
-                _emptyLabel.Text = I18N.T("combatStats.noData", "No entries yet.");
+                _hasContent = false;
+                SetPieVisible(false);
+                if (!_railCompact) {
+                    _emptyLabel.Visible = true;
+                    _emptyLabel.Text = I18N.T("combatStats.noData", "No entries yet.");
+                }
                 _lastPieFingerprint = null;
                 return;
             }
@@ -163,14 +183,22 @@ internal static partial class CombatStatsUI {
                 data = LocalizeOverviewData(data);
 
             bool hasData = data.Count > 0 && total > 0;
-            _chart.Visible = hasData;
-            _legend.Visible = hasData;
-            _emptyLabel.Visible = !hasData;
+            _hasContent = hasData;
+            SetPieVisible(hasData);
+            if (!_railCompact)
+                _emptyLabel.Visible = !hasData;
 
             if (!hasData) {
                 _chart.SetSlices(Array.Empty<(string, int, Color)>(), 1);
                 ClearLegend();
-                _emptyLabel.Text = I18N.T("combatStats.noData", "No entries yet.");
+                _compactStack?.SetSegments(Array.Empty<(string, int, Color)>(), 1);
+                if (_railCompact) {
+                    ApplyBarTooltip(_compactStack!, "");
+                    ApplyBarTooltip(_root, "");
+                }
+                else {
+                    _emptyLabel.Text = I18N.T("combatStats.noData", "No entries yet.");
+                }
                 _lastPieFingerprint = null;
                 return;
             }
@@ -182,8 +210,29 @@ internal static partial class CombatStatsUI {
                 return;
 
             _lastPieFingerprint = fingerprint;
+            if (_railCompact && _compactStack != null) {
+                var segments = new List<(string, int, Color)>(slices.Count);
+                foreach (var (name, amount, color) in slices)
+                    segments.Add((name, amount, color));
+                _compactStack.SetSegments(segments, total);
+                string tooltip = FormatPieTooltip(CategoryHint(_category), slices, total);
+                ApplyBarTooltip(_compactStack, tooltip);
+                ApplyBarTooltip(_root, tooltip);
+                return;
+            }
+
             _chart.SetSlices(slices, total);
             UpdateLegend(slices, total);
+        }
+
+        private void SetPieVisible(bool visible) {
+            if (_railCompact) {
+                if (_compactStack != null)
+                    _compactStack.Visible = visible;
+                return;
+            }
+            _chart.Visible = visible;
+            _legend.Visible = visible;
         }
 
         private void SetCategory(CombatPieCategory category) {
@@ -191,8 +240,8 @@ internal static partial class CombatStatsUI {
             _lastPieFingerprint = null;
             foreach (var (cat, chip) in _chips)
                 chip.SetPressedNoSignal(cat == category);
-            _categoryHint.Text = CategoryHint(category);
-            Refresh(_lastPlayer);
+            RefreshPlayer(_lastPlayer);
+            _onCategoryChanged?.Invoke();
         }
 
         private void ClearLegend() {
@@ -244,17 +293,17 @@ internal static partial class CombatStatsUI {
         private static Control MakeLegendRow(string name, int amount, float pct, Color color) {
             var row = new HBoxContainer();
             row.AddThemeConstantOverride("separation", 6);
-            row.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            row.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
 
             var swatch = new ColorRect {
                 Color = color,
                 CustomMinimumSize = new Vector2(8, 8),
-                SizeFlagsVertical = SizeFlags.ShrinkCenter,
+                SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
             };
 
             var label = new Label {
                 Text = name,
-                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
                 ClipText = true,
                 TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
             };
@@ -272,6 +321,29 @@ internal static partial class CombatStatsUI {
             row.AddChild(label);
             row.AddChild(value);
             return row;
+        }
+
+        private static string FormatPieTooltip(
+            string categoryHint,
+            IReadOnlyList<(string Name, int Amount, Color Color)> slices,
+            int total) {
+            var sb = new System.Text.StringBuilder(128);
+            sb.Append(categoryHint);
+            sb.Append('\n');
+            sb.Append(I18N.T("combatStats.sidebar.total", "Total {0}", total));
+            foreach (var (name, amount, _) in slices) {
+                if (amount <= 0)
+                    continue;
+                float pct = total > 0 ? 100f * amount / total : 0f;
+                sb.Append('\n')
+                    .Append(name)
+                    .Append(' ')
+                    .Append(amount)
+                    .Append(" (")
+                    .Append(pct.ToString("0.#"))
+                    .Append("%)");
+            }
+            return sb.ToString().TrimEnd();
         }
 
         private static string CategoryHint(CombatPieCategory category) => category switch {
@@ -297,7 +369,7 @@ internal static partial class CombatStatsUI {
         public CombatStatsPieChart(string name) {
             Name = name;
             CustomMinimumSize = new Vector2(PieChartSize, PieChartSize);
-            SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
+            SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter;
             MouseFilter = MouseFilterEnum.Ignore;
         }
 
