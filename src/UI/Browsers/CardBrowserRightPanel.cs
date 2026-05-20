@@ -26,18 +26,22 @@ namespace DevMode.UI;
 internal static class CardBrowserRightPanel {
     private static Color ColSubtle => DevModeTheme.Subtle;
 
-    /// <summary>Base cost to apply on <see cref="CardActions.AddCardBuilder.BaseCost"/> (canonical library cards are not mutable in-place).</summary>
-    private sealed class LibraryAddCostStaging {
-        public int BaseCost { get; set; }
+    /// <summary>Staged edits applied when adding from the library (canonical cards are not mutated in-place in MP).</summary>
+    private sealed class LibraryAddStaging {
+        public CardEditTemplate Template { get; } = new();
     }
 
     internal static void Build(VBoxContainer container, Label statusLabel,
-        CardModel card, RunState state, Player player, NGlobalUi globalUi, Action onGridRefresh,
-        bool isLibrary, CardTarget? browseTarget, bool libraryUpgradeDetailPreview = false) {
+        CardModel card, RunState state, Player player, NGlobalUi globalUi, Action onCardEdited,
+        Action onCardListChanged, bool isLibrary, CardTarget? browseTarget, bool libraryUpgradeDetailPreview = false) {
         var displayCard = ResolveLibraryDisplayCard(card, isLibrary, libraryUpgradeDetailPreview);
-        LibraryAddCostStaging? libraryAddCost = null;
-        if (isLibrary)
-            libraryAddCost = new LibraryAddCostStaging { BaseCost = CardEditActions.GetBaseCost(card) ?? 0 };
+        LibraryAddStaging? libraryAddStaging = null;
+        if (isLibrary) {
+            libraryAddStaging = new LibraryAddStaging();
+            var initialCost = CardEditActions.GetBaseCost(card);
+            if (initialCost.HasValue)
+                libraryAddStaging.Template.BaseCost = initialCost.Value;
+        }
 
         var cardName = CardEditActions.GetCardDisplayName(displayCard);
 
@@ -75,11 +79,11 @@ internal static class CardBrowserRightPanel {
         string desc;
         if (ReferenceEquals(displayCard, card) == false) {
             try { desc = displayCard.GetDescriptionForUpgradePreview(); }
-            catch { desc = CardEditActions.GetDescriptionText(displayCard); }
+            catch { desc = ""; }
         }
         else {
             try { desc = card.GetDescriptionForPile(PileType.None); }
-            catch { desc = CardEditActions.GetDescriptionText(card); }
+            catch { desc = ""; }
         }
         if (!string.IsNullOrWhiteSpace(desc)) {
             var descLabel = DevModeTheme.CreateGameBbcodeLabel();
@@ -93,15 +97,15 @@ internal static class CardBrowserRightPanel {
 
         if (isLibrary) {
             BuildAddSection(container, statusLabel, card, displayCard, state, player, libraryUpgradeDetailPreview,
-                libraryAddCost!);
+                libraryAddStaging!, onCardListChanged);
         }
         else {
-            BuildOwnedCardActions(container, statusLabel, card, state, player, globalUi, onGridRefresh, browseTarget);
+            BuildOwnedCardActions(container, statusLabel, card, state, player, globalUi, onCardListChanged, browseTarget);
         }
 
         container.AddChild(new HSeparator());
         // Inline editors apply to the pile instance, or stage values for Add when browsing the library.
-        BuildEditSection(container, statusLabel, card, state, player, onGridRefresh, libraryAddCost,
+        BuildEditSection(container, statusLabel, card, state, player, onCardEdited, libraryAddStaging,
             isLibrary ? null : browseTarget);
     }
 
@@ -125,7 +129,7 @@ internal static class CardBrowserRightPanel {
 
     private static void BuildAddSection(VBoxContainer container, Label statusLabel,
         CardModel card, CardModel displayCard, RunState state, Player player, bool libraryUpgradeDetailPreview,
-        LibraryAddCostStaging addCostStaging) {
+        LibraryAddStaging addStaging, Action onCardListChanged) {
         var upgradeLevelsToApply = 0;
         if (libraryUpgradeDetailPreview && !ReferenceEquals(displayCard, card)) {
             try {
@@ -247,7 +251,7 @@ internal static class CardBrowserRightPanel {
                 Target = DevModeState.CardTarget,
                 Duration = DevModeState.EffectDuration,
                 UpgradeLevelsToApply = upgradeLevelsToApply,
-                CustomBaseCost = addCostStaging.BaseCost,
+                StagedTemplate = addStaging.Template,
             };
             var result = MpCheatSession.IsHost
                 ? await MpCheatCardAddCoordinator.TryHostAddCardAsync(
@@ -255,6 +259,7 @@ internal static class CardBrowserRightPanel {
                 : await MpCheatCardAddCoordinator.TryClientRequestAddCardAsync(
                     state, addTargetPlayer, card, addRequest, CardPreviewStyle.HorizontalLayout);
             statusLabel.Text = result;
+            onCardListChanged();
         }
 
         addBtn.Pressed += () => {
@@ -269,12 +274,17 @@ internal static class CardBrowserRightPanel {
                 TaskHelper.RunSafely(SyncAddCardInMultiplayerAsync());
                 return;
             }
-            TaskHelper.RunSafely(CardActions.Add(state, addTargetPlayer, card)
-                .BaseCost(addCostStaging.BaseCost)
-                .UpgradeLevels(upgradeLevelsToApply)
-                .UpgradePreviewStyle(CardPreviewStyle.HorizontalLayout)
-                .RunAsync());
+            TaskHelper.RunSafely(AddCardThenRefreshGridAsync());
             statusLabel.Text = string.Format(I18N.T("cardBrowser.addedCard", "Added: {0}"), nameAfterAdd);
+
+            async Task AddCardThenRefreshGridAsync() {
+                await CardActions.Add(state, addTargetPlayer, card)
+                    .StagedTemplate(addStaging.Template)
+                    .UpgradeLevels(upgradeLevelsToApply)
+                    .UpgradePreviewStyle(CardPreviewStyle.HorizontalLayout)
+                    .RunAsync();
+                onCardListChanged();
+            }
         };
         container.AddChild(addBtn);
 
@@ -304,7 +314,7 @@ internal static class CardBrowserRightPanel {
     // ── Owned card actions (Upgrade + Remove) ──
 
     private static void BuildOwnedCardActions(VBoxContainer container, Label statusLabel,
-        CardModel card, RunState state, Player player, NGlobalUi globalUi, Action onGridRefresh,
+        CardModel card, RunState state, Player player, NGlobalUi globalUi, Action onCardListChanged,
         CardTarget? browseTarget) {
         int upgradeLevel = 0, maxUpgrade = 0;
         try { upgradeLevel = card.CurrentUpgradeLevel; maxUpgrade = card.MaxUpgradeLevel; } catch { }
@@ -331,7 +341,7 @@ internal static class CardBrowserRightPanel {
                 CardCmd.Upgrade(new[] { card }, CardPreviewStyle.HorizontalLayout);
                 statusLabel.Text = string.Format(I18N.T("cardBrowser.upgraded", "Upgraded: {0}"),
                     CardEditActions.GetCardDisplayName(card));
-                onGridRefresh();
+                onCardListChanged();
             }
             catch (Exception ex) {
                 statusLabel.Text = $"Upgrade failed: {ex.Message}";
@@ -372,7 +382,7 @@ internal static class CardBrowserRightPanel {
                 : await MpCheatCardRemoveCoordinator.TryClientRequestRemoveCardAsync(
                     state, player, card, target, removeFromRunState);
             statusLabel.Text = result;
-            onGridRefresh();
+            onCardListChanged();
         }
 
         removeBtn.Pressed += () => {
@@ -401,7 +411,7 @@ internal static class CardBrowserRightPanel {
 
                 statusLabel.Text = string.Format(I18N.T("cardBrowser.deleted", "Removed: {0}"),
                     CardEditActions.GetCardDisplayName(card));
-                onGridRefresh();
+                onCardListChanged();
             }
             catch (Exception ex) {
                 statusLabel.Text = $"Remove failed: {ex.Message}";
@@ -413,10 +423,11 @@ internal static class CardBrowserRightPanel {
     // ── Edit section (inline property editor) ──
 
     private static void BuildEditSection(VBoxContainer container, Label statusLabel, CardModel card,
-        RunState state, Player player, Action? onGridRefresh, LibraryAddCostStaging? libraryAddCost = null,
+        RunState state, Player player, Action? onCardEdited, LibraryAddStaging? libraryAddStaging = null,
         CardTarget? browseTarget = null) {
-        var mpOwnedPile = libraryAddCost == null && MpCheatSession.InMultiplayerRun && browseTarget.HasValue;
-        var mpBlocked = libraryAddCost == null && MpCheatSession.InMultiplayerRun && !browseTarget.HasValue;
+        var mpLibrary = libraryAddStaging != null && MpCheatSession.InMultiplayerRun;
+        var mpOwnedPile = libraryAddStaging == null && MpCheatSession.InMultiplayerRun && browseTarget.HasValue;
+        var mpBlocked = libraryAddStaging == null && MpCheatSession.InMultiplayerRun && !browseTarget.HasValue;
 
         if (MpCheatSession.InMultiplayerRun) {
             var mpWarn = new Label {
@@ -424,23 +435,42 @@ internal static class CardBrowserRightPanel {
                     ? I18N.T(
                         "cardBrowser.editMpSync",
                         "Multiplayer: edits below sync to all players (Hand/Deck tabs).")
-                    : mpBlocked
+                    : mpLibrary
                         ? I18N.T(
-                            "cardBrowser.editMpLibraryBlocked",
-                            "Multiplayer: open Hand/Deck (or another pile tab) to sync edits. All Cards library edits are local-only.")
-                        : I18N.T(
-                            "cardBrowser.costAppliesOnAdd",
-                            "Base cost applies when you add this card."),
+                            "cardBrowser.editMpLibrarySync",
+                            "Multiplayer: edits below sync when you add this card (all players).")
+                        : mpBlocked
+                            ? I18N.T(
+                                "cardBrowser.editMpLibraryBlocked",
+                                "Multiplayer: open Hand/Deck (or another pile tab) to sync edits. All Cards library edits are local-only.")
+                            : I18N.T(
+                                "cardBrowser.costAppliesOnAdd",
+                                "Base cost applies when you add this card."),
             };
             mpWarn.AddThemeFontSizeOverride("font_size", 11);
             mpWarn.AddThemeColorOverride(
                 "font_color",
-                mpOwnedPile ? new Color(0.55f, 0.85f, 0.55f) : new Color(0.95f, 0.75f, 0.35f));
+                mpOwnedPile || mpLibrary ? new Color(0.55f, 0.85f, 0.55f) : new Color(0.95f, 0.75f, 0.35f));
             mpWarn.AutowrapMode = TextServer.AutowrapMode.WordSmart;
             container.AddChild(mpWarn);
         }
 
         void ApplyPatch(CardEditTemplate patch, string singlePlayerOk, string? singlePlayerFail = null) {
+            if (libraryAddStaging != null) {
+                libraryAddStaging.Template.MergePatch(patch);
+                if (!MpCheatSession.InMultiplayerRun)
+                    CardEditActions.ApplyTemplate(card, patch);
+                statusLabel.Text = MpCheatSession.InMultiplayerRun
+                    ? I18N.T(
+                        "cardBrowser.editMpLibraryStaged",
+                        "Staged for add — will sync to all players when you add this card.")
+                    : singlePlayerFail != null && !patch.HasAnyPatch()
+                        ? singlePlayerFail
+                        : singlePlayerOk;
+                if (!MpCheatSession.InMultiplayerRun)
+                    onCardEdited?.Invoke();
+                return;
+            }
             if (mpBlocked) {
                 statusLabel.Text = I18N.T(
                     "mpcheat.cardEdit.libraryBlocked",
@@ -448,22 +478,22 @@ internal static class CardBrowserRightPanel {
                 return;
             }
             if (mpOwnedPile) {
-                RunSyncedCardEdit(statusLabel, card, state, player, browseTarget!.Value, onGridRefresh, patch);
+                RunSyncedCardEdit(statusLabel, card, state, player, browseTarget!.Value, onCardEdited, patch);
                 return;
             }
             CardEditActions.ApplyTemplate(card, patch);
             statusLabel.Text = singlePlayerFail != null && !patch.HasAnyPatch()
                 ? singlePlayerFail
                 : singlePlayerOk;
-            onGridRefresh?.Invoke();
+            onCardEdited?.Invoke();
         }
 
-        if (libraryAddCost != null) {
-            AddIntEditor(container, I18N.T("cardEdit.cost", "Base Cost"), libraryAddCost.BaseCost,
-                v => {
-                    libraryAddCost.BaseCost = v;
-                    statusLabel.Text = I18N.T("cardBrowser.costAppliesOnAdd", "Base cost applies when you add this card.");
-                });
+        if (libraryAddStaging != null) {
+            var stagedCost = libraryAddStaging.Template.BaseCost ?? CardEditActions.GetBaseCost(card) ?? 0;
+            AddIntEditor(container, I18N.T("cardEdit.cost", "Base Cost"), stagedCost,
+                v => ApplyPatch(
+                    new CardEditTemplate { BaseCost = v },
+                    I18N.T("cardBrowser.costAppliesOnAdd", "Base cost applies when you add this card.")));
         }
         else {
             AddIntEditor(container, I18N.T("cardEdit.cost", "Base Cost"),
@@ -531,33 +561,6 @@ internal static class CardBrowserRightPanel {
             }
         }
 
-        container.AddChild(new HSeparator());
-
-        AddTextEditor(container, I18N.T("cardEdit.titleText", "Name Override"),
-            CardEditActions.GetTitleText(card),
-            v => {
-                if (string.IsNullOrWhiteSpace(v)) {
-                    statusLabel.Text = I18N.T("cardBrowser.nameOverrideFailed", "Could not set name override.");
-                    return;
-                }
-                ApplyPatch(
-                    new CardEditTemplate { NameOverride = v.Trim() },
-                    I18N.T("cardBrowser.nameOverrideSet", "Name override set."),
-                    I18N.T("cardBrowser.nameOverrideFailed", "Could not set name override."));
-            });
-        AddTextEditor(container, I18N.T("cardEdit.descText", "Description Override"),
-            CardEditActions.GetDescriptionText(card),
-            v => {
-                if (string.IsNullOrWhiteSpace(v)) {
-                    statusLabel.Text = I18N.T("cardBrowser.descOverrideFailed", "Could not set description override.");
-                    return;
-                }
-                ApplyPatch(
-                    new CardEditTemplate { DescriptionOverride = v.Trim() },
-                    I18N.T("cardBrowser.descOverrideSet", "Description override set."),
-                    I18N.T("cardBrowser.descOverrideFailed", "Could not set description override."));
-            });
-
         var enchantTypes = CardEditActions.GetEnchantmentTypes();
         if (enchantTypes.Count > 0) {
             container.AddChild(new HSeparator());
@@ -611,7 +614,7 @@ internal static class CardBrowserRightPanel {
         }
 
         container.AddChild(new HSeparator());
-        BuildPresetRow(container, statusLabel, card, state, player, browseTarget, onGridRefresh, libraryAddCost != null);
+        BuildPresetRow(container, statusLabel, card, state, player, browseTarget, onCardEdited, libraryAddStaging);
     }
 
     private static void RunSyncedCardEdit(
@@ -620,7 +623,7 @@ internal static class CardBrowserRightPanel {
         RunState state,
         Player player,
         CardTarget browseTarget,
-        Action? onGridRefresh,
+        Action? onCardEdited,
         CardEditTemplate patch) {
         if (!MpCheatSession.CanUseMultiplayerCheats) {
             statusLabel.Text = I18N.T(
@@ -643,7 +646,7 @@ internal static class CardBrowserRightPanel {
                 ? await MpCheatCardEditCoordinator.TryHostEditCardAsync(state, player, card, browseTarget, patch)
                 : await MpCheatCardEditCoordinator.TryClientRequestEditCardAsync(state, player, card, browseTarget, patch);
             statusLabel.Text = result;
-            onGridRefresh?.Invoke();
+            onCardEdited?.Invoke();
         }
 
         TaskHelper.RunSafely(SyncAsync());
@@ -652,7 +655,7 @@ internal static class CardBrowserRightPanel {
     // ──────── Preset Row ────────
 
     private static void BuildPresetRow(VBoxContainer container, Label statusLabel, CardModel card,
-        RunState state, Player player, CardTarget? browseTarget, Action? onGridRefresh, bool isLibrary) {
+        RunState state, Player player, CardTarget? browseTarget, Action? onCardEdited, LibraryAddStaging? libraryAddStaging) {
         var presetRow = new HBoxContainer();
         presetRow.AddThemeConstantOverride("separation", 4);
 
@@ -688,13 +691,26 @@ internal static class CardBrowserRightPanel {
             if (presetPicker.ItemCount == 0) { statusLabel.Text = "No preset."; return; }
             var pName = presetPicker.GetItemText(presetPicker.Selected);
             if (!CardEditPresetManager.Store.TryGet(pName, out var preset)) { statusLabel.Text = "Preset not found."; return; }
-            if (!isLibrary && MpCheatSession.InMultiplayerRun && browseTarget.HasValue) {
-                RunSyncedCardEdit(statusLabel, card, state, player, browseTarget.Value, onGridRefresh, preset.Template);
+            if (libraryAddStaging != null) {
+                libraryAddStaging.Template.MergePatch(preset.Template);
+                if (!MpCheatSession.InMultiplayerRun)
+                    CardEditActions.ApplyTemplate(card, preset.Template);
+                statusLabel.Text = MpCheatSession.InMultiplayerRun
+                    ? I18N.T(
+                        "cardBrowser.editMpLibraryStaged",
+                        "Staged for add — will sync to all players when you add this card.")
+                    : $"Preset applied: {pName}";
+                if (!MpCheatSession.InMultiplayerRun)
+                    onCardEdited?.Invoke();
+                return;
+            }
+            if (MpCheatSession.InMultiplayerRun && browseTarget.HasValue) {
+                RunSyncedCardEdit(statusLabel, card, state, player, browseTarget.Value, onCardEdited, preset.Template);
                 return;
             }
             CardEditActions.ApplyTemplate(card, preset.Template);
             statusLabel.Text = $"Preset applied: {pName}";
-            onGridRefresh?.Invoke();
+            onCardEdited?.Invoke();
         };
 
         delBtn.Pressed += () => {
@@ -753,18 +769,6 @@ internal static class CardBrowserRightPanel {
         var check = new CheckBox { Text = label, ButtonPressed = currentValue };
         check.Toggled += v => onToggle(v);
         row.AddChild(check);
-        parent.AddChild(row);
-    }
-
-    private static void AddTextEditor(VBoxContainer parent, string label, string currentValue, Action<string> onApply) {
-        var row = new HBoxContainer();
-        row.AddThemeConstantOverride("separation", 4);
-        row.AddChild(new Label { Text = label, CustomMinimumSize = new Vector2(80, 0) });
-        var input = new LineEdit { Text = currentValue ?? string.Empty, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        void Apply() => onApply(input.Text ?? string.Empty);
-        input.TextSubmitted += _ => Apply();
-        input.FocusExited += () => Apply();
-        row.AddChild(input);
         parent.AddChild(row);
     }
 

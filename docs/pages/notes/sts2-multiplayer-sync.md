@@ -82,7 +82,7 @@ DevMode 在合作模式使用 **分层同步**，不每帧发包：
 | 1 | `INetMessage` 配置快照 | 经 `ZzzMpCheatEnvelopeNetMessage`（channel=Config，JSON + magic） |
 | 2 | `INetMessage` 命令 | 同一 envelope（channel=Command：击杀、加牌 prepare/execute） |
 | 2b | 加牌 ACK | 同一 envelope（channel=AddCardAck，客机 → 主机） |
-| 2c | 客机加牌请求 | channel=AddCardRequest（客机 → 主机）；主机跑 prepare/ACK/execute 后 channel=AddCardRequestResult 回传 |
+| 2c | 客机加牌请求 | channel=AddCardRequest（客机 → 主机）；主机跑 prepare/ACK/execute 后 channel=AddCardRequestResult 回传；payload 含 `TemplateJson`（`CardEditTemplate`：费/格挡/伤害/关键词等，库页暂存后加牌时全员应用） |
 | 2d | 删牌 | Command：RemoveCardPrepare / RemoveCardExecute（按牌堆索引定位实例）；ACK 复用 AddCardAck |
 | 2e | 客机删牌请求 | channel=RemoveCardRequest / RemoveCardRequestResult（与加牌相同主机权威流程） |
 | 2f | 改牌 | Command：EditCardPrepare / EditCardExecute（牌堆索引定位 + `CardEditTemplate` JSON）；ACK 复用 AddCardAck |
@@ -110,6 +110,7 @@ DevMode 在合作模式使用 **分层同步**，不每帧发包：
 - [ ] 主机开无限血/冻怪/伤害倍率，客机无 StateDivergence，跑 3+ 场战斗
 - [ ] 主机点「击杀全部（同步）」，双方敌人同时死亡
 - [ ] 主机卡牌浏览器加牌：侧栏 **Player** 选客机角色后再加；客机牌组出现相同卡牌（无 8s 超时）
+- [ ] 全部卡牌库页：改格挡/伤害/费后加牌；双方实例数值一致，打牌无 StateDivergence
 - [ ] 客机卡牌浏览器加牌：点添加后日志有 `AddCard client request` / `AddCard host start`（target=客机 netId）；牌出现在客机角色
 - [ ] 客机在 Hand/Deck 等分页删牌：日志 `RemoveCard client request` → `RemoveCard host start`；各方牌堆一致
 - [ ] 手牌/牌组分页改费、改名：日志 `EditCard host start` / `EditCard execute`；双方卡牌属性一致

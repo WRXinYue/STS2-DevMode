@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using DevMode.Actions;
+using DevMode.Presets;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -382,7 +383,7 @@ internal static class MpCheatCardAddCoordinator {
             Target = (CardTarget)payload.Target,
             Duration = (EffectDuration)payload.Duration,
             UpgradeLevelsToApply = payload.UpgradeLevels,
-            CustomBaseCost = payload.CustomBaseCost,
+            StagedTemplate = ResolveStagedTemplateFromPayload(payload),
         };
         CardPreviewStyle? style = payload.UseUpgradePreviewStyle
             ? CardPreviewStyle.HorizontalLayout
@@ -394,16 +395,31 @@ internal static class MpCheatCardAddCoordinator {
         ulong targetNetId,
         AddCardRequest request,
         bool usePreviewStyle,
-        string cardId) =>
-        new() {
+        string cardId) {
+        var template = CardActions.ResolveStagedTemplate(request);
+        var templateJson = template?.HasAnyPatch() == true
+            ? MpCheatNetJson.SerializeEditTemplate(template)
+            : "";
+        return new MpCheatAddCardPayload {
             CardId = cardId,
             TargetPlayerNetId = targetNetId,
             Target = (int)request.Target,
             Duration = (int)request.Duration,
             UpgradeLevels = request.UpgradeLevelsToApply,
-            CustomBaseCost = request.CustomBaseCost,
+            CustomBaseCost = template?.BaseCost,
+            TemplateJson = templateJson,
             UseUpgradePreviewStyle = usePreviewStyle,
         };
+    }
+
+    private static CardEditTemplate? ResolveStagedTemplateFromPayload(MpCheatAddCardPayload payload) {
+        var template = MpCheatNetJson.DeserializeEditTemplate(payload.TemplateJson);
+        if (template?.HasAnyPatch() == true)
+            return template;
+        if (payload.CustomBaseCost.HasValue)
+            return new CardEditTemplate { BaseCost = payload.CustomBaseCost };
+        return null;
+    }
 
     private static void BroadcastCommand(MpCheatCommandKind kind, ulong commandId, MpCheatAddCardPayload payload) {
         var netId = RunManager.Instance?.NetService?.NetId ?? 0;

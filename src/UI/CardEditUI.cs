@@ -197,12 +197,6 @@ internal static class CardEditUI {
                 }
             }
 
-            editorContent.AddChild(new HSeparator());
-            AddTextEditor(editorContent, I18N.T("cardEdit.titleText", "Name Override"), CardEditActions.GetTitleText(card),
-                v => { CardEditActions.TrySetTitleText(card, v); statusLabel.Text = "Name override set."; });
-            AddTextEditor(editorContent, I18N.T("cardEdit.descText", "Description Override"), CardEditActions.GetDescriptionText(card),
-                v => { CardEditActions.TrySetDescriptionText(card, v); statusLabel.Text = "Description override set."; });
-
             // Enchantment
             var enchantTypes = CardEditActions.GetEnchantmentTypes();
             if (enchantTypes.Count > 0) {
@@ -338,10 +332,6 @@ internal static class CardEditUI {
                 v => { CardEditActions.TrySetDynamicVar(card, key, v); statusLabel.Text = $"{displayKey} set."; });
         }
 
-        AddTextEditor(editorContent, I18N.T("cardEdit.titleText", "Name Override"), CardEditActions.GetTitleText(card),
-            v => { CardEditActions.TrySetTitleText(card, v); statusLabel.Text = "Name override set."; });
-        AddTextEditor(editorContent, I18N.T("cardEdit.descText", "Description Override"), CardEditActions.GetDescriptionText(card),
-            v => { CardEditActions.TrySetDescriptionText(card, v); statusLabel.Text = "Description override set."; });
     }
 
     private static void AddIntEditor(VBoxContainer parent, string label, int currentValue, Action<int> onApply) {
@@ -370,15 +360,4 @@ internal static class CardEditUI {
         parent.AddChild(row);
     }
 
-    private static void AddTextEditor(VBoxContainer parent, string label, string currentValue, Action<string> onApply) {
-        var row = new HBoxContainer();
-        row.AddThemeConstantOverride("separation", 4);
-        row.AddChild(new Label { Text = label, CustomMinimumSize = new Vector2(140, 0) });
-        var input = new LineEdit { Text = currentValue ?? string.Empty, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        void Apply() => onApply(input.Text ?? string.Empty);
-        input.TextSubmitted += _ => Apply();
-        input.FocusExited += () => Apply();
-        row.AddChild(input);
-        parent.AddChild(row);
-    }
 }

@@ -8,5 +8,7 @@ public sealed class MpCheatAddCardPayload {
     public int Duration { get; set; }
     public int UpgradeLevels { get; set; }
     public int? CustomBaseCost { get; set; }
+    /// <summary>Partial <see cref="DevMode.Presets.CardEditTemplate"/> JSON applied after create on all peers.</summary>
+    public string TemplateJson { get; set; } = "";
     public bool UseUpgradePreviewStyle { get; set; }
 }

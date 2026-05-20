@@ -495,8 +495,11 @@ internal static partial class CardBrowserUI {
     private static void ShowRightPanel(State s, CardModel card) {
         s.SelectedCard = card;
         foreach (var child in s.RightContent.GetChildren()) ((Node)child).QueueFree();
+        var search = () => s.SearchInput.Text ?? "";
         CardBrowserRightPanel.Build(s.RightContent, s.StatusLabel, card, s.RunState, s.Player, s.GlobalUi,
-            () => RebuildGrid(s, s.SearchInput.Text ?? ""), IsLibrarySource, BrowseSourceToTarget(_browseSource),
+            () => RebuildGrid(s, search(), GridRebuildOptions.ForCardEdit(card)),
+            () => RebuildGrid(s, search(), GridRebuildOptions.ForCardListChange),
+            IsLibrarySource, BrowseSourceToTarget(_browseSource),
             IsLibrarySource && s.LibraryShowUpgradePreview);
     }
 

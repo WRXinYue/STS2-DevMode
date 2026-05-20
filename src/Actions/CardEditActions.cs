@@ -6,7 +6,6 @@ using DevMode.Presets;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Players;
-using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Models;
 
 namespace DevMode.Actions;
@@ -204,85 +203,6 @@ internal static class CardEditActions {
         catch { return false; }
     }
 
-    public static string GetTitleText(CardModel card) {
-        object? value = TryGetObject(card, "TitleLocString", "_titleLocString");
-        if (value is LocString loc) {
-            var text = GetLocText(loc);
-            if (!string.IsNullOrWhiteSpace(text)) return text;
-        }
-        return GetTitlePropertyText(card);
-    }
-
-    private static string GetTitlePropertyText(CardModel card) {
-        try {
-            return card.Title ?? string.Empty;
-        }
-        catch {
-            return string.Empty;
-        }
-    }
-
-    public static string GetDescriptionText(CardModel card) {
-        object? value = TryGetObject(card, "Description", "_descriptionLocString", "_description");
-        return value switch {
-            LocString loc => GetLocText(loc),
-            string s => s,
-            _ => string.Empty
-        };
-    }
-
-    public static bool TrySetTitleText(CardModel card, string text) {
-        if (string.IsNullOrWhiteSpace(text)) return false;
-        var loc = CreateOverrideLocString(text.Trim());
-        if (loc == null) return false;
-        var trimmed = text.Trim();
-        var ok = TrySetObject(card, loc, "TitleLocString", "_titleLocString");
-        ok |= TrySetProperty(card, "Title", trimmed);
-        return ok;
-    }
-
-    public static bool TrySetDescriptionText(CardModel card, string text) {
-        if (string.IsNullOrWhiteSpace(text)) return false;
-        var loc = CreateOverrideLocString(text.Trim());
-        if (loc == null) return false;
-        var ok = TrySetObject(card, loc, "Description", "_descriptionLocString", "_description");
-        return ok;
-    }
-
-    /// <summary>LocString the game can render without a loc table entry (raw override text).</summary>
-    private static LocString? CreateOverrideLocString(string text) {
-        if (string.IsNullOrWhiteSpace(text)) return null;
-        try {
-            var loc = new LocString("devmode", "card_override");
-            if (TrySetLocRawText(loc, text)) return loc;
-        }
-        catch { }
-        try {
-            var loc = new LocString("!", text);
-            if (TrySetLocRawText(loc, text)) return loc;
-        }
-        catch { }
-        return null;
-    }
-
-    private static bool TrySetLocRawText(LocString loc, string text) {
-        foreach (var name in new[] { "RawText", "rawText", "_rawText", "_overrideText", "_text" }) {
-            if (TrySetProperty(loc, name, text) || TrySetField(loc, name, text))
-                return true;
-        }
-        try {
-            var getRaw = loc.GetType().GetMethod("GetRawText", ReflFlags);
-            var setRaw = loc.GetType().GetMethod("SetRawText", ReflFlags)
-                ?? loc.GetType().GetMethod("SetRaw", ReflFlags);
-            if (setRaw != null) {
-                setRaw.Invoke(loc, new object[] { text });
-                return true;
-            }
-        }
-        catch { }
-        return !string.IsNullOrWhiteSpace(GetLocText(loc));
-    }
-
     public static CardEditTemplate CaptureTemplate(CardModel card) {
         var template = new CardEditTemplate {
             BaseCost = GetBaseCost(card),
@@ -295,8 +215,6 @@ internal static class CardEditActions {
             ExhaustOnNextPlay = GetExhaustOnNextPlay(card),
             SingleTurnRetain = GetSingleTurnRetain(card),
             SingleTurnSly = GetSingleTurnSly(card),
-            NameOverride = GetTitleText(card),
-            DescriptionOverride = GetDescriptionText(card)
         };
 
         var vars = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -325,9 +243,6 @@ internal static class CardEditActions {
         if (template.ExhaustOnNextPlay.HasValue) TrySetExhaustOnNextPlay(card, template.ExhaustOnNextPlay.Value);
         if (template.SingleTurnRetain.HasValue) TrySetSingleTurnRetain(card, template.SingleTurnRetain.Value);
         if (template.SingleTurnSly.HasValue) TrySetSingleTurnSly(card, template.SingleTurnSly.Value);
-
-        if (!string.IsNullOrWhiteSpace(template.NameOverride)) TrySetTitleText(card, template.NameOverride);
-        if (!string.IsNullOrWhiteSpace(template.DescriptionOverride)) TrySetDescriptionText(card, template.DescriptionOverride);
     }
 
     /// <summary>Get all enchantment types available in the game.</summary>
@@ -399,10 +314,11 @@ internal static class CardEditActions {
     }
 
     public static string GetCardDisplayName(CardModel card) {
-        var overrideTitle = GetTitleText(card);
-        if (!string.IsNullOrWhiteSpace(overrideTitle)) return overrideTitle;
-        var fromTitle = GetTitlePropertyText(card);
-        if (!string.IsNullOrWhiteSpace(fromTitle)) return fromTitle;
+        try {
+            var title = card.Title;
+            if (!string.IsNullOrWhiteSpace(title)) return title;
+        }
+        catch { }
         try { return ((AbstractModel)card).Id.Entry ?? "?"; }
         catch { return "?"; }
     }
@@ -491,24 +407,6 @@ internal static class CardEditActions {
             catch { }
         }
         return false;
-    }
-
-    private static string GetLocText(LocString? value) {
-        if (value == null || value.IsEmpty) return string.Empty;
-        try {
-            // DevMode UI frequently reads card text outside full gameplay context.
-            // Prefer raw text to avoid triggering localization formatter errors when
-            // dynamic placeholders (e.g. {StaminaDamage:diff()}) lack variables.
-            var raw = value.GetRawText();
-            if (!string.IsNullOrWhiteSpace(raw)) return raw.Trim();
-        }
-        catch { }
-        try {
-            var text = value.GetFormattedText();
-            if (!string.IsNullOrWhiteSpace(text)) return text.Trim();
-        }
-        catch { }
-        return value.LocEntryKey ?? string.Empty;
     }
 
     private static bool TryGetDynamicVar(CardModel card, string key, out MegaCrit.Sts2.Core.Localization.DynamicVars.DynamicVar? dynamicVar) {

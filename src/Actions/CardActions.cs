@@ -33,14 +33,17 @@ internal struct AddCardRequest {
     public CardTarget Target;
     public EffectDuration Duration;
     public int UpgradeLevelsToApply;
-    /// <summary>When set, applied to each new instance via <see cref="CardModel.EnergyCost.SetCustomBaseCost"/> after create.</summary>
+    /// <summary>Legacy cost-only field; prefer <see cref="StagedTemplate"/>.</summary>
     public int? CustomBaseCost;
+    /// <summary>Applied to each new instance after upgrade steps (<see cref="CardEditActions.ApplyTemplate"/>).</summary>
+    public CardEditTemplate? StagedTemplate;
 
     public static AddCardRequest FromDevPanelState(int upgradeLevelsToApply = 0) => new() {
         Target = DevModeState.CardTarget,
         Duration = DevModeState.EffectDuration,
         UpgradeLevelsToApply = upgradeLevelsToApply,
         CustomBaseCost = null,
+        StagedTemplate = null,
     };
 }
 
@@ -109,10 +112,13 @@ internal static class CardActions {
             return new(_state, _player, _canonical, r, _upgradePreviewStyle);
         }
 
-        /// <summary>Sets energy cost on each spawned instance (after <c>CreateCard</c>, before upgrade steps).</summary>
+        /// <summary>Stages energy cost on each spawned instance (applied after upgrade steps).</summary>
         public AddCardBuilder BaseCost(int cost) {
             var r = _request;
-            r.CustomBaseCost = cost;
+            r.CustomBaseCost = null;
+            var template = r.StagedTemplate ?? new CardEditTemplate();
+            template.BaseCost = cost;
+            r.StagedTemplate = template;
             return new(_state, _player, _canonical, r, _upgradePreviewStyle);
         }
 
@@ -125,6 +131,14 @@ internal static class CardActions {
         /// <summary>Each post-create upgrade step uses <c>CardCmd.Upgrade(new[] { card }, style)</c>.</summary>
         public AddCardBuilder UpgradePreviewStyle(CardPreviewStyle style) =>
             new(_state, _player, _canonical, _request, style);
+
+        /// <summary>Stats/keywords to apply on each spawned instance after upgrade steps.</summary>
+        public AddCardBuilder StagedTemplate(CardEditTemplate template) {
+            var r = _request;
+            r.StagedTemplate = template;
+            r.CustomBaseCost = null;
+            return new(_state, _player, _canonical, r, _upgradePreviewStyle);
+        }
 
         public Task RunAsync() => ExecuteAddAsync(_state, _player, _canonical, _request, _upgradePreviewStyle, mpSync: false);
     }
@@ -502,8 +516,8 @@ internal static class CardActions {
 
         if (target == CardTarget.Deck) {
             var card = state.CreateCard(canonicalCard.CanonicalInstance, player);
-            ApplyCustomBaseCostIfAny(card, request.CustomBaseCost);
             ApplyUpgradeSteps(card, upgradeLevelsToApply, upgradePreviewStyle);
+            ApplyStagedTemplateIfAny(card, request);
             var result = await CardPileCmd.Add(card, PileType.Deck);
             CardCmd.PreviewCardPileAdd(result);
         }
@@ -523,8 +537,8 @@ internal static class CardActions {
             };
 
             var combatCard = combatState.CreateCard(canonicalCard.CanonicalInstance, player);
-            ApplyCustomBaseCostIfAny(combatCard, request.CustomBaseCost);
             ApplyUpgradeSteps(combatCard, upgradeLevelsToApply, upgradePreviewStyle);
+            ApplyStagedTemplateIfAny(combatCard, request);
 #if STS2_BETA
             await CardPileCmd.AddGeneratedCardToCombat(combatCard, pileType, player);
 #else
@@ -541,8 +555,8 @@ internal static class CardActions {
             if (duration == EffectDuration.Permanent) {
                 // Separate deck instance from combat instance (same as vanilla “also write to deck” semantics).
                 var deckCard = state.CreateCard(canonicalCard.CanonicalInstance, player);
-                ApplyCustomBaseCostIfAny(deckCard, request.CustomBaseCost);
                 ApplyUpgradeSteps(deckCard, upgradeLevelsToApply, upgradePreviewStyle);
+                ApplyStagedTemplateIfAny(deckCard, request);
                 await CardPileCmd.Add(deckCard, PileType.Deck, skipVisuals: true);
             }
         }
@@ -552,10 +566,18 @@ internal static class CardActions {
             $"CardActions: Added {canonicalCard.Id.Entry} for {who} to {target} ({duration})");
     }
 
-    private static void ApplyCustomBaseCostIfAny(CardModel instance, int? customBaseCost) {
-        if (!customBaseCost.HasValue) return;
-        if (!CardEditActions.TrySetBaseCost(instance, customBaseCost.Value))
-            MainFile.Logger.Warn($"CardActions: SetCustomBaseCost({customBaseCost.Value}) failed (immutable or invalid).");
+    internal static CardEditTemplate? ResolveStagedTemplate(AddCardRequest request) {
+        if (request.StagedTemplate?.HasAnyPatch() == true)
+            return request.StagedTemplate;
+        if (request.CustomBaseCost.HasValue)
+            return new CardEditTemplate { BaseCost = request.CustomBaseCost };
+        return null;
+    }
+
+    private static void ApplyStagedTemplateIfAny(CardModel instance, AddCardRequest request) {
+        var template = ResolveStagedTemplate(request);
+        if (template == null) return;
+        CardEditActions.ApplyTemplate(instance, template);
     }
 
     private static void ApplyUpgradeSteps(CardModel instance, int count, CardPreviewStyle? previewStyle = null) {

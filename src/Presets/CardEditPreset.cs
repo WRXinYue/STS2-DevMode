@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json.Serialization;
@@ -38,12 +39,6 @@ public sealed class CardEditTemplate {
     [JsonPropertyName("singleTurnSly")]
     public bool? SingleTurnSly { get; set; }
 
-    [JsonPropertyName("nameOverride")]
-    public string? NameOverride { get; set; }
-
-    [JsonPropertyName("descriptionOverride")]
-    public string? DescriptionOverride { get; set; }
-
     public bool HasAnyPatch() =>
         BaseCost.HasValue
         || ReplayCount.HasValue
@@ -55,9 +50,25 @@ public sealed class CardEditTemplate {
         || ExhaustOnNextPlay.HasValue
         || SingleTurnRetain.HasValue
         || SingleTurnSly.HasValue
-        || !string.IsNullOrWhiteSpace(NameOverride)
-        || !string.IsNullOrWhiteSpace(DescriptionOverride)
         || DynamicVars is { Count: > 0 };
+
+    /// <summary>Merges non-null fields from <paramref name="patch"/> into this template.</summary>
+    public void MergePatch(CardEditTemplate patch) {
+        if (patch.BaseCost.HasValue) BaseCost = patch.BaseCost;
+        if (patch.ReplayCount.HasValue) ReplayCount = patch.ReplayCount;
+        if (patch.Damage.HasValue) Damage = patch.Damage;
+        if (patch.Block.HasValue) Block = patch.Block;
+        if (patch.Exhaust.HasValue) Exhaust = patch.Exhaust;
+        if (patch.Ethereal.HasValue) Ethereal = patch.Ethereal;
+        if (patch.Unplayable.HasValue) Unplayable = patch.Unplayable;
+        if (patch.ExhaustOnNextPlay.HasValue) ExhaustOnNextPlay = patch.ExhaustOnNextPlay;
+        if (patch.SingleTurnRetain.HasValue) SingleTurnRetain = patch.SingleTurnRetain;
+        if (patch.SingleTurnSly.HasValue) SingleTurnSly = patch.SingleTurnSly;
+        if (patch.DynamicVars is not { Count: > 0 }) return;
+        DynamicVars ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kv in patch.DynamicVars)
+            DynamicVars[kv.Key] = kv.Value;
+    }
 }
 
 public sealed class CardEditNamedPreset {

@@ -72,6 +72,7 @@ internal static class MpCheatEnvelopeCodec {
         writer.WriteBool(add.CustomBaseCost.HasValue);
         writer.WriteInt(add.CustomBaseCost ?? 0);
         writer.WriteBool(add.UseUpgradePreviewStyle);
+        MpCheatPacketIO.WriteBoundedString(writer, add.TemplateJson);
     }
 
     internal static MpCheatAddCardPayload ReadAddCardPayload(PacketReader reader) {
@@ -85,6 +86,7 @@ internal static class MpCheatEnvelopeCodec {
         var hasCost = reader.ReadBool();
         add.CustomBaseCost = hasCost ? reader.ReadInt() : null;
         add.UseUpgradePreviewStyle = reader.ReadBool();
+        add.TemplateJson = MpCheatPacketIO.ReadBoundedString(reader);
         return add;
     }
 

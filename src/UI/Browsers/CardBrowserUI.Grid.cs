@@ -133,6 +133,45 @@ internal static partial class CardBrowserUI {
             : new List<CardModel>();
     }
 
+    private readonly struct GridRebuildOptions {
+        public bool RefreshCardList { get; init; }
+        public CardModel? InvalidateCard { get; init; }
+        public bool InvalidateAllVisuals { get; init; }
+        public static GridRebuildOptions LayoutOnly => default;
+        public static GridRebuildOptions ForCardEdit(CardModel card) => new() { InvalidateCard = card };
+        public static GridRebuildOptions ForCardListChange => new() { RefreshCardList = true };
+    }
+
+    private static void ClearHostVisuals(Control host) {
+        foreach (var child in host.GetChildren()) {
+            if (child is Node node)
+                node.QueueFreeSafely();
+        }
+    }
+
+    private static void InvalidateHostVisual(State s, CardModel card) {
+        if (!s.HostCache.TryGetValue(card, out var entry)) return;
+        ClearHostVisuals(entry.host);
+        s.HostCache[card] = (entry.host, null, false);
+    }
+
+    private static void InvalidateAllHostVisuals(State s) {
+        foreach (var card in s.HostCache.Keys.ToArray())
+            InvalidateHostVisual(s, card);
+    }
+
+    private static void RefreshCachedCardList(State s) {
+        s.CachedAllCards = GetCards(s);
+        var valid = new HashSet<CardModel>(s.CachedAllCards);
+        foreach (var card in s.HostCache.Keys.ToArray()) {
+            if (valid.Contains(card)) continue;
+            var entry = s.HostCache[card];
+            ClearHostVisuals(entry.host);
+            entry.host.QueueFree();
+            s.HostCache.Remove(card);
+        }
+    }
+
     private static void InvalidateCardCache(State s) {
         foreach (var child in s.CardGrid.GetChildren())
             s.CardGrid.RemoveChild((Node)child);
@@ -189,8 +228,19 @@ internal static partial class CardBrowserUI {
             s.CardGrid.Columns = cols;
     }
 
-    private static void RebuildGrid(State s, string searchText) {
-        s.SelectedPickHost = null;
+    private static void RebuildGrid(State s, string searchText, GridRebuildOptions options = default) {
+        var preserveSelection = !options.InvalidateAllVisuals && !options.RefreshCardList;
+        var selectedCard = preserveSelection ? s.SelectedCard : null;
+
+        if (options.RefreshCardList)
+            RefreshCachedCardList(s);
+        if (options.InvalidateCard != null)
+            InvalidateHostVisual(s, options.InvalidateCard);
+        else if (options.InvalidateAllVisuals)
+            InvalidateAllHostVisuals(s);
+
+        if (!preserveSelection)
+            s.SelectedPickHost = null;
 
         s.FilteredCards = s.CachedAllCards.Where(c => {
             if (!MatchesTypeSet(c, s.ActiveTypeFilters)) return false;
@@ -221,6 +271,8 @@ internal static partial class CardBrowserUI {
 
         Callable.From(() => UpdateCardGridColumns(s)).CallDeferred();
         Callable.From(() => PopulateVisibleHosts(s)).CallDeferred();
+        if (selectedCard != null)
+            Callable.From(() => TryHighlightCardHost(s, selectedCard)).CallDeferred();
 
         s.StatusLabel.Text = string.Format(I18N.T("cardBrowser.count", "{0} / {1} cards"),
             s.FilteredCards.Count, s.CachedAllCards.Count);
