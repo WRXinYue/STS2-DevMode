@@ -23,26 +23,58 @@ public static class GlobalUiReadyPatch {
 
     public static void Postfix(NGlobalUi __instance) {
         if (!DevModeState.IsActive) return;
-        if (_attached == __instance) return;
-        _attached = __instance;
-        DevPanel.Attach(__instance);
+        if (DevModeState.PseudoCoopLaunchPending) return;
+        if (DevModeState.PseudoCoopDeferHeavyUi) {
+            EnsureProcessNodeOnly(__instance);
+            return;
+        }
+        TryAttachDeferred(__instance);
+    }
 
-        // Initialize RuntimeStatModifiers
+    /// <summary>Lightweight process hook without DevPanel (pseudo-coop embark).</summary>
+    public static void EnsureProcessNodeOnly(NGlobalUi? globalUi) {
+        if (!DevModeState.IsActive || globalUi == null) return;
+        var parent = (Node)globalUi;
+        if (parent.GetNodeOrNull<Node>("DevModeProcessNode") != null) return;
+        parent.AddChild(new DevModeProcessNode { Name = "DevModeProcessNode" });
+    }
+
+    /// <summary>Attach DevPanel and warmup after pseudo-coop scene transition stabilizes.</summary>
+    /// <param name="deferWarmupBuild">When true, warmup job list builds on next Process tick instead of synchronously.</param>
+    /// <param name="skipWarmup">When true, DevPanel only; call <see cref="StartWarmupIfAttached"/> later.</param>
+    public static void TryAttachDeferred(NGlobalUi? globalUi, bool deferWarmupBuild = false, bool skipWarmup = false) {
+        if (!DevModeState.IsActive) return;
+        if (DevModeState.PseudoCoopDeferHeavyUi) {
+            EnsureProcessNodeOnly(globalUi);
+            return;
+        }
+        if (globalUi == null) return;
+        if (_attached == globalUi) return;
+        _attached = globalUi;
+        DevPanel.Attach(globalUi);
+
         if (DevModeState.StatModifiers == null)
             DevModeState.StatModifiers = new RuntimeStatModifiers();
 
-        // Initialize AssetWarmupService
-        if (_warmup == null) {
-            _warmup = new AssetWarmupService();
-            _warmup.Ready();
+        if (!skipWarmup) {
+            if (_warmup == null)
+                _warmup = new AssetWarmupService();
+
+            if (deferWarmupBuild)
+                _warmup.DeferBuildToProcess();
+            else
+                _warmup.Ready();
         }
 
-        // Hook into _Process via a helper node
-        var processNode = ((Node)__instance).GetNodeOrNull<Node>("DevModeProcessNode");
-        if (processNode == null) {
-            processNode = new DevModeProcessNode { Name = "DevModeProcessNode" };
-            ((Node)__instance).AddChild(processNode);
-        }
+        EnsureProcessNodeOnly(globalUi);
+    }
+
+    /// <summary>Start asset warmup after pseudo-coop late init (DevPanel already attached).</summary>
+    public static void StartWarmupIfAttached() {
+        if (_attached == null) return;
+        if (_warmup == null)
+            _warmup = new AssetWarmupService();
+        _warmup.DeferBuildToProcess();
     }
 
     internal static void Process(double delta) {

@@ -1,3 +1,4 @@
+using DevMode;
 using DevMode.Settings;
 
 namespace DevMode.Multiplayer.Cheat;
@@ -9,15 +10,14 @@ public static class MpCheatSync {
     }
 
     public static void OnRunStarted() {
+        if (DevModeState.PseudoCoopDeferHeavyUi) return;
         if (!MpCheatSession.InMultiplayerRun) return;
 
         MpCheatSession.TryArmSession("run_started");
         if (!MpCheatSession.SessionArmed) return;
 
         MpCheatNetBus.TryRegisterHandlers();
-
-        if (MpCheatSession.IsHost)
-            TryPublishInitialHostConfig("run_start");
+        // Initial config publish runs from NRun._Ready (nrun_ready) to keep Launch→SetCurrentScene light.
     }
 
     public static void OnRunEnded() {
@@ -37,6 +37,7 @@ public static class MpCheatSync {
     }
 
     internal static void TryPublishInitialHostConfig(string reason) {
+        if (DevModeState.PseudoCoopDeferHeavyUi || DevModeState.PseudoCoopDeferMpCheatPublish) return;
         if (!MpCheatSession.IsHost || !MpCheatSession.SessionArmed) return;
         if (MpCheatState.Revision > 0 && reason != "run_start") return;
         var netId = MpCheatSession.ResolveLocalPlayerNetId();

@@ -87,6 +87,10 @@ internal static class DevMainMenuUI {
                 mpCheatBtn.label.Text = GetMultiplayerCheatOptInLabel();
         });
 
+        AddButton(container, template, I18N.T("devmenu.pseudocoop", "Pseudo Co-op Test (Host)"), () => {
+            DevMainMenuPseudoCoopUI.Show(mainMenu, Hide);
+        });
+
         AddButton(container, template, I18N.T("devmenu.back", "Back"), Hide);
     }
 

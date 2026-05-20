@@ -1,4 +1,5 @@
 using System;
+using DevMode;
 using DevMode.Multiplayer.SyncBot;
 using MegaCrit.Sts2.Core.Multiplayer;
 using MegaCrit.Sts2.Core.Multiplayer.Game;
@@ -21,17 +22,22 @@ internal static class MpCheatNetBus {
         var netService = RunManager.Instance?.NetService;
         if (netService == null) return;
         if (_registeredService == (object)netService) {
-        TryFlushPendingHostPublish();
-        MpCheatSync.TryPublishInitialHostConfig("handlers_ready");
-        return;
-    }
+            TryFlushPendingHostPublish();
+            if (ShouldAutoPublishHostConfig())
+                MpCheatSync.TryPublishInitialHostConfig("handlers_ready");
+            return;
+        }
 
-    netService.RegisterMessageHandler<ZzzMpCheatEnvelopeNetMessage>(OnEnvelopeReceived);
+        netService.RegisterMessageHandler<ZzzMpCheatEnvelopeNetMessage>(OnEnvelopeReceived);
         _registeredService = netService;
         MainFile.Logger.Info("[MpCheat] NetMessage handlers registered (envelope).");
         TryFlushPendingHostPublish();
-        MpCheatSync.TryPublishInitialHostConfig("handlers_ready");
+        if (ShouldAutoPublishHostConfig())
+            MpCheatSync.TryPublishInitialHostConfig("handlers_ready");
     }
+
+    static bool ShouldAutoPublishHostConfig() =>
+        !DevModeState.PseudoCoopDeferHeavyUi && !DevModeState.PseudoCoopDeferMpCheatPublish;
 
     public static void Reset() {
         _registeredService = null;

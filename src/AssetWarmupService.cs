@@ -38,6 +38,7 @@ internal sealed class AssetWarmupService {
     private bool _built;
     private bool _completed;
     private bool _buildPending;
+    private bool _buildOnNextProcess;
     private double _buildRetrySec;
     private int _buildRetryCount;
 
@@ -47,9 +48,21 @@ internal sealed class AssetWarmupService {
         TryBuildWarmupJobs();
     }
 
+    /// <summary>Queue job list build on the next <see cref="Process"/> tick (avoids stack pressure during embark).</summary>
+    public void DeferBuildToProcess() {
+        _buildPending = true;
+        _buildOnNextProcess = true;
+    }
+
     public void Process(double delta) {
         if (!_built) {
             if (_buildPending) {
+                if (_buildOnNextProcess) {
+                    _buildOnNextProcess = false;
+                    TryBuildWarmupJobs();
+                    return;
+                }
+
                 _buildRetrySec += delta;
                 if (_buildRetrySec >= 1.0) {
                     _buildRetrySec = 0;

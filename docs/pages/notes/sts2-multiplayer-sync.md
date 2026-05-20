@@ -107,7 +107,7 @@ DevMode 在合作模式使用 **分层同步**，不每帧发包：
 ### 代码入口
 
 - `src/Multiplayer/Cheat/` — `MpCheatSession`, `MpCheatConfig`, `MpCheatApplier`, `MpCheatNetBus`, `MpCheatNetMessages`
-- Handler 在 `NRun._Ready` 注册（与 LustTravel2 `ArousalSync` 相同模式）
+- Handler 在 `NRun._Ready` 注册（伪联机开跑时推迟到 `EnterAct(0)` 后，见 `PseudoCoopDeferredInit`）
 - `CheatPatches.cs` — 通过 `MpCheatApplier` 查询标志
 
 ---
@@ -135,11 +135,55 @@ DevMode 在合作模式使用 **分层同步**，不每帧发包：
 | ACK 等待集合 | SyncBot ON 时 `MpCheatParticipants` 用 **run 内远端玩家**，不要求 `ConnectedPlayerIds` |
 | 远端选牌 | `PlayerChoiceSynchronizer.WaitForRemoteChoice` 前缀 → `ReceiveReplayChoice`（index 0） |
 | 合作结束回合 | `NRun._Process` 每 0.5s 对模拟玩家 `SetReadyToEndTurn` |
-| 幻影玩家（实验） | `SyncBotSpawnPhantomPlayer`：主机 Launch 且仅 1 人时 `AddPlayerDebug` NetId **1001** |
+| 幻影玩家（实验） | `SyncBotSpawnPhantomPlayer`：主机首次 `AppendToMapPointHistory` 后 `AddPlayerDebug` NetId **1001**（非 Launch） |
 
 **不能替代**：ENet 双实例、StateDivergence、客机 `ConfigRequest` / `AddCardRequest` 回包路径。
 
 **推荐流程（测 ACK）**：`multiplayer test` 建房 → 第二实例 Join+Ready 进跑 → 关客机进程 → 主机开 SyncBot + 联机作弊 → 主机加牌/改牌。
+
+---
+
+## 多人开跑三路径对照（官方源码）
+
+| | 正式多人（主菜单 → 联机） | `NMultiplayerTest`（`multiplayer test`） | DevMode **伪联机** |
+|---|---|---|---|
+| 场景 | `NCharacterSelectScreen` Push + Embark | 独立 debug 场景为 `CurrentScene` | 主菜单隐藏 submenu + Dev 浮层 |
+| Lobby | `StartRunLobby` + FadeOut | 同左 | `InitializeMultiplayerAsHost` → `SetReady`（`PseudoCoopSoloLobbyPatch` 放行 1 人） |
+| 开跑 | `NGame.StartNewMultiplayerRun` → `StartRun` → `Launch` → `SetCurrentScene(NRun)` → `EnterAct(0)` | 同左 | 同左（不经 Push 选人 UI） |
+| 幻影 | 第二真人 ENet | 可选 debug 加人 | **Neow 进图后** `AppendToMapPointHistory` → `PhantomPlayerSpawner` |
+| Neow 同步 | 全员 `WaitForSync` | 同左 | `PseudoCoopCombatSyncPatch` 为模拟 peer 注入 sync 数据 |
+
+官方 `StartRunLobby.IsAboutToBeginGame`：联机且 `Players.Count == 1` 时返回 **false**；伪联机在勾选幻影时由补丁改为可开跑。
+
+---
+
+## DevMode 伪联机（你手打 + AI 队友）
+
+源码：`src/Multiplayer/PseudoCoop/`
+
+| 组件 | 说明 |
+|------|------|
+| `PseudoCoopLobbyHost` | DevMode 面板一键 ENet 建房 → `PseudoCoopLaunchPending` → `SetReady` → 官方 `BeginRun` 链 |
+| `PseudoCoopDeferredInit` | `EnterAct(0)` 完成后挂 DevPanel/warmup + MpCheat（避免 `NRun._Ready` 与场景切换竞态崩溃） |
+| `PseudoCoopSoloLobbyPatch` | 仅主机 + 幻影开跑时允许单人 lobby `SetReady` 触发开跑 |
+| `PseudoCoopBootstrap` | 开跑前预设：关本机 AI托管，开 SyncBot + 幻影 + `MpAiTeammateEnabled` |
+| `SimulatedPeerRegistry` | 统一模拟 roster；**真实 ENet peer** 从模拟列表排除（phantom 1001 仍算模拟） |
+| `MpAiTeammateHost` | 主机战斗轮询：`AiHostContext` + `SimpleStrategy` 仅 `GamePhase.Combat` |
+| `MpChoiceBot` | 队友 AI 开时用启发式 `ReceiveReplayChoice`（否则 index 0） |
+| `PseudoCoopCombatSyncPatch` | `CombatStateSynchronizer.StartSync` 后为模拟 peer 注入 serializable 玩家数据 |
+
+**推荐流程（一个人玩双人感）**：
+
+1. 主菜单 **开发者模式** → **伪联机（主机）**：选角色/种子、SyncBot/幻影/队友 AI/联机作弊，点 **开始**（浮层先隐藏再开跑）
+2. 日志里程碑：`SetCurrentScene complete` → `EnterAct(0) complete` → `[PseudoCoop] Deferred init complete` → 进 Neow 后 `[SyncBot] Phantom player spawned`
+3. 本机手打地图/奖励；战斗见 `[MpAiTeammate]`；Neow 应有 `[PseudoCoop] Injected combat sync for simulated peer netId=1001`
+4. 真客机在线时：不对该 NetId 代打（`ConnectedPeers` 排除）
+
+进跑后可在侧栏 **AI托管** 微调 SyncBot / 队友 AI。`multiplayer test` 仍可用于双开对照。
+
+**与 AI托管 区别**：伪联机默认**不**开本机 AI托管；地图/商店/营火仅主机操作。
+
+**诊断日志**（`godot.log` 搜 `[PseudoCoop]`）：已移除误导性的 `NGame.StartRun finished`（async postfix）；以 `NRun._Ready complete` / `EnterAct(0) complete` 为准。
 
 ### 双人回归测试清单
 
@@ -165,9 +209,13 @@ DevMode 在合作模式使用 **分层同步**，不每帧发包：
 - [ ] 非战斗时点加遭遇：失败且不 execute
 - [ ] 单人模式：遗物/药水/战斗加怪行为与改前一致（不走 coordinator）
 
-### AI托管 / SyncBot（开发辅助）
+### AI托管 / SyncBot / 伪联机（开发辅助）
 
 - [ ] 侧栏有 **AI托管**（`devmode.ai`），作弊面板无 AI/SyncBot 区块
+- [ ] 主菜单开发者模式 → 伪联机（主机）面板可一键建房开跑（不经官方测试场景）
+- [ ] 主机一键伪联机：日志有 `EnterAct(0) complete` + `Deferred init complete`；Neow 后幻影 1001；SyncBot/队友 AI 开；本机 AI托管 关
+- [ ] 战斗：本机手打；日志 `[MpAiTeammate]` 队友出牌或 EndTurn；不长期卡结束回合
+- [ ] 真客机在线：不对客机 NetId 代打/抢选牌
 - [ ] 单机开 AI托管：能自动打牌、选图、领奖
 - [ ] 联机开 AI托管：仅本机角色动；日志有 `[AiHost]`，无 StateDivergence（本机路径）
 - [ ] 双人进跑后关客机、主机开 SyncBot：主机加牌日志 `[SyncBot] Injected … ACK` 且 `AddCard execute` 无 8s 超时

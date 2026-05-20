@@ -1,3 +1,4 @@
+using DevMode;
 using DevMode.Multiplayer.Cheat;
 using DevMode.Multiplayer.SyncBot;
 using HarmonyLib;
@@ -9,17 +10,16 @@ namespace DevMode.Multiplayer.Cheat.Patches;
 [HarmonyPatch(typeof(NRun), "_Ready")]
 internal static class MpCheatNRunReadyPatch {
     static void Postfix() {
+        if (DevModeState.PseudoCoopLaunchPending || DevModeState.PseudoCoopDeferHeavyUi) return;
         if (!MpCheatSession.LocalOptIn) return;
-        MpCheatNetBus.TryRegisterHandlers();
+        MpCheatSync.OnRunStarted();
         MpCheatSync.TryPublishInitialHostConfig("nrun_ready");
     }
 }
 
 [HarmonyPatch(typeof(RunManager))]
 internal static class MpCheatRunLifecyclePatch {
-    [HarmonyPostfix]
-    [HarmonyPatch(nameof(RunManager.Launch))]
-    static void OnLaunch() => MpCheatSync.OnRunStarted();
+    // MpCheat arms on NRun._Ready only — Launch postfixes run during a fragile embark window.
 
     [HarmonyPostfix]
     [HarmonyPatch(nameof(RunManager.OnEnded))]

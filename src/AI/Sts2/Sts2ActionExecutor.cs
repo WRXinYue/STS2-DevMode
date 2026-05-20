@@ -3,9 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
+using DevMode.Multiplayer.Cheat;
+using DevMode.Multiplayer.PseudoCoop;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Context;
+using MegaCrit.Sts2.Core.Entities.Multiplayer;
+using MegaCrit.Sts2.Core.Multiplayer.Game;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -111,6 +115,21 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
                 var idx = targetIndex >= 0 && targetIndex < enemies.Count ? targetIndex : 0;
                 target = enemies[idx];
             }
+        }
+
+        // Simulated MP peers must use the action queue (CardCmd.AutoPlay bypasses sync).
+        if (MpCheatSession.InMultiplayerRun
+            && SimulatedPeerRegistry.IsSimulatedPeer(player.NetId)
+            && RunManager.Instance?.NetService?.Type == NetGameType.Host) {
+            PseudoCoopActionQueue.EnsureQueueForPlayer(player);
+            // card.Owner may still reference host; bind action to the simulated player explicitly.
+            var playAction = new MegaCrit.Sts2.Core.GameActions.PlayCardAction(
+                player,
+                NetCombatCard.FromModel(card),
+                card.Id,
+                target?.CombatId);
+            RunManager.Instance.ActionQueueSynchronizer.RequestEnqueue(playAction);
+            return ActionResult.Ok($"Queued play [{card.Title}] netId={player.NetId}");
         }
 
         await CardCmd.AutoPlay(new BlockingPlayerChoiceContext(), card, target);

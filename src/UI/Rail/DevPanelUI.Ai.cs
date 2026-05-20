@@ -1,7 +1,9 @@
 using DevMode;
 using DevMode.AI.AutoPlay;
 using DevMode.Panels;
+using DevMode.Icons;
 using DevMode.Multiplayer.Cheat;
+using DevMode.Multiplayer.PseudoCoop;
 using DevMode.Multiplayer.SyncBot;
 using DevMode.Settings;
 using Godot;
@@ -43,6 +45,8 @@ internal static partial class DevPanelUI {
             v => {
                 SettingsStore.Current.AutoPlayEnabled = v;
                 SettingsStore.Save();
+                if (v && MpCheatSession.InMultiplayerRun && SettingsStore.Current.MpAiTeammateEnabled)
+                    MainFile.Logger.Warn(I18N.T("pseudocoop.autoplayConflict", "Pseudo-coop: play locally yourself; disable AI Host or teammate AI."));
                 if (v && RunManager.Instance?.IsInProgress == true) {
                     if (MpCheatSession.InMultiplayerRun)
                         MainFile.Logger.Warn(I18N.T("autoplay.mpWarn", "AI Host in multiplayer only controls your character; remote choices may block progress."));
@@ -73,6 +77,40 @@ internal static partial class DevPanelUI {
 
         // ── SyncBot ──
         if (MpCheatSession.InMultiplayerRun && MpCheatSession.IsHost) {
+            inner.AddChild(CreateSectionHeader(I18N.T("pseudocoop.section", "Pseudo Co-op (Dev)")));
+            var presetBtn = CreatePlainButton(I18N.T("pseudocoop.applyPreset", "Apply Hand-Play + AI Teammate Preset"), MdiIcon.Robot);
+            presetBtn.Pressed += () => {
+                PseudoCoopBootstrap.ApplyPreset();
+                AiPlayModule.Instance.StopLoop();
+            };
+            inner.AddChild(presetBtn);
+            inner.AddChild(CreateCheatToggle(
+                I18N.T("pseudocoop.teammate", "Host AI Teammate"),
+                I18N.T("pseudocoop.teammate.desc", "SimpleStrategy plays combat for simulated remote players; you play locally."),
+                () => SettingsStore.Current.MpAiTeammateEnabled,
+                v => {
+                    SettingsStore.Current.MpAiTeammateEnabled = v;
+                    SettingsStore.Save();
+                    SimulatedPeerRegistry.Refresh();
+                    MpCheatSyncBot.RefreshSimulatedPeers();
+                }));
+            inner.AddChild(CreateCheatToggle(
+                I18N.T("pseudocoop.autoPreset", "Auto Preset on Host Launch"),
+                I18N.T("pseudocoop.autoPreset.desc", "Apply preset when a host run starts."),
+                () => SettingsStore.Current.PseudoCoopAutoPresetOnLaunch,
+                v => {
+                    SettingsStore.Current.PseudoCoopAutoPresetOnLaunch = v;
+                    SettingsStore.Save();
+                }));
+            var pseudoHint = new Label {
+                Text = I18N.T("pseudocoop.hint", "Main menu Developer Mode → Pseudo Co-op (Host): options, character, one-click start. Map/rewards: host only."),
+                AutowrapMode = TextServer.AutowrapMode.WordSmart,
+                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            };
+            pseudoHint.AddThemeFontSizeOverride("font_size", 12);
+            pseudoHint.AddThemeColorOverride("font_color", DevModeTheme.TextSecondary);
+            inner.AddChild(pseudoHint);
+
             inner.AddChild(CreateSectionHeader(I18N.T("syncbot.section", "SyncBot (Dev)")));
             inner.AddChild(CreateCheatToggle(
                 I18N.T("syncbot.enabled", "Simulate Remote Peers"),

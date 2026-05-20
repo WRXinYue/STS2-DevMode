@@ -48,6 +48,11 @@ public static class MpCheatSession {
 
     public static void TryArmSession(string reason) {
         LastBlockReason = null;
+        if (DevModeState.PseudoCoopDeferHeavyUi) {
+            LastBlockReason = "pseudo_coop_deferred";
+            return;
+        }
+
         if (!InMultiplayerRun) {
             Disarm("not_multiplayer");
             return;

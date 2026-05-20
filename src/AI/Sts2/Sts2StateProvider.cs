@@ -13,6 +13,7 @@ using MegaCrit.Sts2.Core.Nodes.Screens.Map;
 using MegaCrit.Sts2.Core.Nodes.Screens.Overlays;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
+using DevMode.AI;
 using DevMode.AI.Core;
 using DevMode.AI.Core.Schema;
 using DevMode.AI.Sts2.Helpers;
@@ -100,6 +101,9 @@ public sealed class Sts2StateProvider : IGameStateProvider
             player = null!;
             return false;
         }
+        if (AiHostContext.TryGetControlledPlayer(state, out player))
+            return true;
+
         player = LocalContext.GetMe((IEnumerable<Player>)state.Players)
             ?? state.Players.FirstOrDefault();
         return player != null;

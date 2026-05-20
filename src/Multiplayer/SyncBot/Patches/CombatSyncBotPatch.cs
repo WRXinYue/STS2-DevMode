@@ -1,3 +1,4 @@
+using System.Linq;
 using DevMode.Multiplayer.Cheat;
 using DevMode.Multiplayer.SyncBot;
 using DevMode.Settings;
@@ -35,7 +36,15 @@ internal static class CombatSyncBotPatch {
             if (cm.IsPlayerReadyToEndTurn(player)) continue;
             if (player.PlayerCombatState == null || player.Creature.IsDead) continue;
 
+            if (SettingsStore.Current.MpAiTeammateEnabled && HasPlayableCard(player))
+                continue;
+
             cm.SetReadyToEndTurn(player, canBackOut: false);
         }
+    }
+
+    static bool HasPlayableCard(MegaCrit.Sts2.Core.Entities.Players.Player player) {
+        var hand = player.PlayerCombatState?.Hand?.Cards;
+        return hand != null && hand.Any(c => c.CanPlay(out _, out _));
     }
 }

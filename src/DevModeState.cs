@@ -107,6 +107,22 @@ public static class DevModeState {
     /// </summary>
     public static bool CheatsInRun => InDevRun || NormalRunMode == NormalRunMode.Cheat;
 
+    /// <summary>
+    /// Pseudo-coop embark in progress: defer DevPanel/warmup and MpCheat until <c>EnterAct(0)</c> completes.
+    /// </summary>
+    public static bool PseudoCoopLaunchPending { get; set; }
+
+    /// <summary>
+    /// Pseudo-coop run: skip DevPanel + asset warmup on embark (attached later via <see cref="PseudoCoop.PseudoCoopMapFinishNode"/>).
+    /// </summary>
+    public static bool PseudoCoopDeferHeavyUi { get; set; }
+
+    /// <summary>Pseudo-coop: block MpCheat config publish until map opens (avoids stack overflow during Neow).</summary>
+    public static bool PseudoCoopDeferMpCheatPublish { get; set; }
+
+    /// <summary>Pseudo-coop: DevPanel + config publish run when <see cref="NMapScreen"/> opens.</summary>
+    public static bool PseudoCoopAwaitingMapFinish { get; set; }
+
     public static bool InMenuPreview { get; set; }
 
     public static Action? OnMenuPreviewClosed { get; set; }
@@ -243,6 +259,10 @@ public static class DevModeState {
     }
 
     public static void OnRunEnded() {
+        PseudoCoopLaunchPending = false;
+        PseudoCoopDeferHeavyUi = false;
+        PseudoCoopDeferMpCheatPublish = false;
+        PseudoCoopAwaitingMapFinish = false;
         InDevRun = false;
         ClearEnemyOverrides();
         ResetAllCheats();

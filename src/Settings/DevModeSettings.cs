@@ -51,6 +51,12 @@ public sealed class DevModeSettings {
     /// <summary>Auto ready-to-end-turn for non-local players when SyncBot is on.</summary>
     public bool SyncBotAutoEndTurn { get; set; } = true;
 
+    /// <summary>Host-only: SimpleStrategy drives simulated remote players in co-op combat.</summary>
+    public bool MpAiTeammateEnabled { get; set; }
+
+    /// <summary>Apply pseudo-coop preset automatically on host RunManager.Launch.</summary>
+    public bool PseudoCoopAutoPresetOnLaunch { get; set; }
+
     /// <summary>Whether the draggable top-right multiplayer combat score panel is shown.</summary>
     public bool CombatStatsMpOverlayEnabled { get; set; } = true;
 

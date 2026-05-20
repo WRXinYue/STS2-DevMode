@@ -1,6 +1,6 @@
 using System.Collections.Generic;
-using System.Linq;
 using DevMode.Multiplayer.Cheat;
+using DevMode.Multiplayer.PseudoCoop;
 using DevMode.Settings;
 using MegaCrit.Sts2.Core.Entities.Models;
 using MegaCrit.Sts2.Core.Entities.Multiplayer;
@@ -13,36 +13,27 @@ namespace DevMode.Multiplayer.SyncBot;
 internal static class MpCheatSyncBot {
     internal const ulong PhantomPlayerNetId = 1001;
 
-    static HashSet<ulong> _simulatedPeerNetIds = [];
-
     public static bool IsEnabled =>
         SettingsStore.Current.SyncBotEnabled
         && MpCheatSession.IsHost
         && MpCheatSession.CanUseMultiplayerCheats;
 
-    public static void RefreshSimulatedPeers() {
-        _simulatedPeerNetIds.Clear();
-        if (!IsEnabled) return;
+    public static void RefreshSimulatedPeers() => SimulatedPeerRegistry.Refresh();
 
-        var run = RunManager.Instance;
-        var hostNetId = run?.NetService?.NetId ?? 0;
-        var state = run?.DebugOnlyGetState();
-        if (state == null || hostNetId == 0) return;
-
-        foreach (var id in state.Players.Select(p => p.NetId).Where(id => id != hostNetId))
-            _simulatedPeerNetIds.Add(id);
-    }
-
-    public static bool IsSimulatedPeer(ulong netId) =>
-        IsEnabled && _simulatedPeerNetIds.Contains(netId);
+    public static bool IsSimulatedPeer(ulong netId) => SimulatedPeerRegistry.IsSimulatedPeer(netId);
 
     public static bool ShouldSimulatePlayer(Player player) {
-        if (!IsEnabled || player == null) return false;
+        if (player == null) return false;
+        if (!IsEnabled && !MpAiTeammateHost.IsEnabled) return false;
         var hostNetId = RunManager.Instance?.NetService?.NetId ?? 0;
         return player.NetId != hostNetId && IsSimulatedPeer(player.NetId);
     }
 
-    public static void OnRunEnded() => _simulatedPeerNetIds.Clear();
+    public static void OnRunEnded() {
+        PseudoCoopLobbyRoster.OnRunEnded();
+        SimulatedPeerRegistry.OnRunEnded();
+        MpAiTeammateHost.OnRunEnded();
+    }
 
     public static NetPlayerChoiceResult DefaultIndexChoice() => new() {
         type = PlayerChoiceType.Index,
@@ -53,7 +44,8 @@ internal static class MpCheatSyncBot {
         if (!IsEnabled || !IsPrepareKind(message.Kind)) return;
 
         RefreshSimulatedPeers();
-        foreach (var peerId in _simulatedPeerNetIds) {
+        var ackPeers = SimulatedPeerRegistry.GetAckPeerNetIds();
+        foreach (var peerId in ackPeers) {
             var ack = new MpCheatAddCardAckMessage {
                 CommandId = message.CommandId,
                 PeerNetId = peerId,
@@ -65,9 +57,9 @@ internal static class MpCheatSyncBot {
                 MpCheatItemSyncCore.TryHandleAck(ack);
         }
 
-        if (_simulatedPeerNetIds.Count > 0)
+        if (ackPeers.Count > 0)
             MainFile.Logger.Debug(
-                $"[SyncBot] Injected {_simulatedPeerNetIds.Count} ACK(s) for command {message.CommandId} kind={message.Kind}.");
+                $"[SyncBot] Injected {ackPeers.Count} ACK(s) for command {message.CommandId} kind={message.Kind}.");
     }
 
     static bool IsPrepareKind(MpCheatCommandKind kind) => kind switch {

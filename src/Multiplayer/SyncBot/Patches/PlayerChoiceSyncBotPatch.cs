@@ -1,3 +1,5 @@
+using DevMode.Multiplayer.PseudoCoop;
+using DevMode.Settings;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.GameActions.Multiplayer;
@@ -14,8 +16,12 @@ internal static class PlayerChoiceSyncBotPatch {
         var sync = RunManager.Instance?.PlayerChoiceSynchronizer;
         if (sync == null) return;
 
-        sync.ReceiveReplayChoice(player, choiceId, MpCheatSyncBot.DefaultIndexChoice());
+        var choice = SettingsStore.Current.MpAiTeammateEnabled
+            ? MpChoiceBot.Decide(player)
+            : MpCheatSyncBot.DefaultIndexChoice();
+
+        sync.ReceiveReplayChoice(player, choiceId, choice);
         MainFile.Logger.Debug(
-            $"[SyncBot] Pre-filled choice id={choiceId} for player {player.NetId} (index 0).");
+            $"[SyncBot] Pre-filled choice id={choiceId} for player {player.NetId}.");
     }
 }
