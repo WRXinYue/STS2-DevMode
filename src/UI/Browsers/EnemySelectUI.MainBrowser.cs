@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using DevMode.Actions;
 using Godot;
+using MegaCrit.Sts2.Core.Runs;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
@@ -56,6 +57,9 @@ internal static partial class EnemySelectUI {
     }
 
     private static EnemyNavTab ResolveInitialTab() {
+        if (RunManager.Instance?.DebugOnlyGetState()?.Map != null && DevModeState.InDevRun)
+            return EnemyNavTab.ByFloor;
+
         if (DevModeState.FloorOverrides.Count > 0)
             return EnemyNavTab.ByFloor;
 
@@ -82,7 +86,7 @@ internal static partial class EnemySelectUI {
 
         AddNavChip(row, state, EnemyNavTab.Global, I18N.T("topbar.enemy.global", "Global"));
         AddNavChip(row, state, EnemyNavTab.ByType, I18N.T("topbar.enemy.byType", "By Type"));
-        AddNavChip(row, state, EnemyNavTab.ByFloor, I18N.T("topbar.enemy.byFloor", "By Floor"));
+        AddNavChip(row, state, EnemyNavTab.ByFloor, I18N.T("enemy.navMap", "Map"));
 
         if (CombatEnemyActions.GetCombatState() != null) {
             row.AddChild(new Control { CustomMinimumSize = new Vector2(8, 0) });
@@ -128,11 +132,10 @@ internal static partial class EnemySelectUI {
                 BuildByTypeTab(state);
                 break;
             case EnemyNavTab.ByFloor:
-                BuildFloorPicker(state.ContentHost, state.GlobalUi, embedded: true,
-                    onStatusChanged: text => state.StatusLabel.Text = text);
+                BuildMapTab(state);
                 state.StatusLabel.Text = I18N.T(
                     "enemy.byFloorHint",
-                    "Floor overrides apply on top of global / per-type settings.");
+                    "Floor overrides apply on top of global / per-type settings. Click combat nodes on the map to edit.");
                 break;
             case EnemyNavTab.Kill:
                 BuildKillTab(state);
