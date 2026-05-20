@@ -39,6 +39,7 @@ internal static class MpCheatNetBus {
         MpCheatCardRemoveCoordinator.Reset();
         MpCheatCardEditCoordinator.Reset();
         MpCheatItemSyncCore.Reset();
+        MpCheatConfigCoordinator.Reset();
     }
 
     public static void HostPublishConfig(MpCheatConfig config, string reason) {
@@ -164,6 +165,25 @@ internal static class MpCheatNetBus {
         host.SendMessage(ZzzMpCheatEnvelopeNetMessage.FromItemRequestResult(result), peerNetId);
     }
 
+    public static void ClientSendConfigRequest(MpCheatConfigClientRequestMessage request) {
+        if (MpCheatSession.IsHost) return;
+        TryRegisterHandlers();
+        var netService = RunManager.Instance?.NetService;
+        if (netService == null || !CanSendNetMessages(netService)) return;
+
+        SendEnvelope(netService, ZzzMpCheatEnvelopeNetMessage.FromConfigRequest(request));
+        MainFile.Logger.Debug($"[MpCheat] Config request sent to host id={request.ClientRequestId}.");
+    }
+
+    public static void HostSendConfigRequestResult(ulong peerNetId, MpCheatAddCardClientResultMessage result) {
+        if (!MpCheatSession.IsHost || peerNetId == 0) return;
+        TryRegisterHandlers();
+        var netService = RunManager.Instance?.NetService;
+        if (netService is not NetHostGameService host || !host.IsConnected) return;
+
+        host.SendMessage(ZzzMpCheatEnvelopeNetMessage.FromConfigRequestResult(result), peerNetId);
+    }
+
     private static void SendEnvelope(INetGameService netService, ZzzMpCheatEnvelopeNetMessage envelope) {
         netService.SendMessage(envelope);
     }
@@ -227,6 +247,12 @@ internal static class MpCheatNetBus {
                     break;
                 case MpCheatWireChannel.ItemRequestResult:
                     MpCheatItemSyncCore.OnClientItemResultReceived(msg.AddCardRequestResult);
+                    break;
+                case MpCheatWireChannel.ConfigRequest:
+                    MpCheatConfigCoordinator.OnClientConfigRequestReceived(msg.ConfigRequest, senderId);
+                    break;
+                case MpCheatWireChannel.ConfigRequestResult:
+                    MpCheatConfigCoordinator.OnClientConfigResultReceived(msg.AddCardRequestResult);
                     break;
                 default:
                     MainFile.Logger.Warn($"[MpCheat] Unknown envelope channel: {msg.Channel}");

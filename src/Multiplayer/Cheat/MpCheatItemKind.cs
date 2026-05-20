@@ -7,4 +7,9 @@ public enum MpCheatItemKind {
     RemovePotion = 4,
     AddMonster = 5,
     AddEncounter = 6,
+    KillEnemy = 7,
+    KillAllEnemies = 8,
+    AddPower = 9,
+    RemovePower = 10,
+    ClearPowers = 11,
 }

@@ -22,6 +22,7 @@ public struct ZzzMpCheatEnvelopeNetMessage : INetMessage {
     public MpCheatRemoveCardClientRequestMessage RemoveCardRequest;
     public MpCheatEditCardClientRequestMessage EditCardRequest;
     public MpCheatItemClientRequestMessage ItemRequest;
+    public MpCheatConfigClientRequestMessage ConfigRequest;
 
     public readonly bool ShouldBroadcast =>
         Channel is MpCheatWireChannel.Config or MpCheatWireChannel.Command;
@@ -34,6 +35,7 @@ public struct ZzzMpCheatEnvelopeNetMessage : INetMessage {
             or MpCheatWireChannel.RemoveCardRequestResult
             or MpCheatWireChannel.EditCardRequestResult
             or MpCheatWireChannel.ItemRequestResult
+            or MpCheatWireChannel.ConfigRequestResult
             ? LogLevel.Debug
             : LogLevel.Info;
 
@@ -61,6 +63,12 @@ public struct ZzzMpCheatEnvelopeNetMessage : INetMessage {
                 break;
             case MpCheatWireChannel.ItemRequest:
                 MpCheatEnvelopeCodec.WriteItemRequest(writer, ItemRequest);
+                break;
+            case MpCheatWireChannel.ConfigRequest:
+                MpCheatEnvelopeCodec.WriteConfigRequest(writer, ConfigRequest);
+                break;
+            case MpCheatWireChannel.ConfigRequestResult:
+                MpCheatEnvelopeCodec.WriteAddCardRequestResult(writer, AddCardRequestResult);
                 break;
             case MpCheatWireChannel.RemoveCardRequest:
                 MpCheatEnvelopeCodec.WriteRemoveCardRequest(writer, RemoveCardRequest);
@@ -100,6 +108,12 @@ public struct ZzzMpCheatEnvelopeNetMessage : INetMessage {
                 break;
             case MpCheatWireChannel.ItemRequest:
                 ItemRequest = MpCheatEnvelopeCodec.ReadItemRequest(reader);
+                break;
+            case MpCheatWireChannel.ConfigRequest:
+                ConfigRequest = MpCheatEnvelopeCodec.ReadConfigRequest(reader);
+                break;
+            case MpCheatWireChannel.ConfigRequestResult:
+                AddCardRequestResult = MpCheatEnvelopeCodec.ReadAddCardRequestResult(reader);
                 break;
             case MpCheatWireChannel.RemoveCardRequest:
                 RemoveCardRequest = MpCheatEnvelopeCodec.ReadRemoveCardRequest(reader);
@@ -176,6 +190,18 @@ public struct ZzzMpCheatEnvelopeNetMessage : INetMessage {
     public static ZzzMpCheatEnvelopeNetMessage FromItemRequestResult(MpCheatAddCardClientResultMessage result) =>
         new() {
             Channel = MpCheatWireChannel.ItemRequestResult,
+            AddCardRequestResult = result,
+        };
+
+    public static ZzzMpCheatEnvelopeNetMessage FromConfigRequest(MpCheatConfigClientRequestMessage request) =>
+        new() {
+            Channel = MpCheatWireChannel.ConfigRequest,
+            ConfigRequest = request,
+        };
+
+    public static ZzzMpCheatEnvelopeNetMessage FromConfigRequestResult(MpCheatAddCardClientResultMessage result) =>
+        new() {
+            Channel = MpCheatWireChannel.ConfigRequestResult,
             AddCardRequestResult = result,
         };
 }

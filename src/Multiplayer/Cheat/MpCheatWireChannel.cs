@@ -21,4 +21,8 @@ public enum MpCheatWireChannel : byte {
     ItemRequest = 9,
     /// <summary>Host → client: outcome of <see cref="ItemRequest" />.</summary>
     ItemRequestResult = 10,
+    /// <summary>Client → host: request host publish cheat config snapshot.</summary>
+    ConfigRequest = 11,
+    /// <summary>Host → client: outcome of <see cref="ConfigRequest" />.</summary>
+    ConfigRequestResult = 12,
 }

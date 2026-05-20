@@ -3,6 +3,7 @@ using System.Linq;
 using DevMode.Settings;
 using DevMode.UI;
 using Godot;
+using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Runs;
 
@@ -15,7 +16,12 @@ internal sealed class MpCheatTargetPlayerRef {
 }
 
 internal static class MpCheatUi {
-    internal static bool CanEditCheats =>
+    /// <summary>Synced config toggles/sliders (host publishes; client sends ConfigRequest).</summary>
+    internal static bool CanEditSyncedConfig =>
+        !MpCheatSession.InMultiplayerRun || MpCheatSession.CanUseMultiplayerCheats;
+
+    /// <summary>Host-only commands (kill-all command publish, item host flows).</summary>
+    internal static bool CanEditHostCommands =>
         !MpCheatSession.InMultiplayerRun || MpCheatSession.CanEditMultiplayerCheats;
 
     internal static void AddSessionBanner(VBoxContainer parent) {
@@ -38,7 +44,7 @@ internal static class MpCheatUi {
         if (MpCheatSession.CanUseMultiplayerCheats) {
             label.Text = MpCheatSession.IsHost
                 ? I18N.T("mpcheat.host.active", "Multiplayer cheat: host — changes sync to all players.")
-                : I18N.T("mpcheat.client.active", "Multiplayer cheat: client — host controls cheat toggles.");
+                : I18N.T("mpcheat.client.active", "Multiplayer cheat: client — cheat toggles sync via host.");
             label.AddThemeColorOverride("font_color", DevModeTheme.Accent);
         }
         else {
@@ -52,23 +58,53 @@ internal static class MpCheatUi {
     }
 
     internal static Action<bool> WrapBoolSetter(Action<bool> setter) => v => {
-        if (!CanEditCheats) return;
+        if (!CanEditSyncedConfig) return;
         setter(v);
         AfterCheatChanged();
     };
 
     internal static Action<float> WrapFloatSetter(Action<float> setter) => v => {
-        if (!CanEditCheats) return;
+        if (!CanEditSyncedConfig) return;
         setter(v);
         AfterCheatChanged();
     };
 
     internal static void AfterCheatChanged() {
-        if (MpCheatSession.InMultiplayerRun && MpCheatSession.IsHost)
+        if (!MpCheatSession.InMultiplayerRun) return;
+        if (MpCheatSession.IsHost)
             MpCheatSync.HostPublishFromDevModeState("ui");
+        else
+            TaskHelper.RunSafely(MpCheatConfigCoordinator.TryClientPublishConfigAsync());
     }
 
     internal static bool IsFrameCheatAllowed => MpCheatApplier.FrameCheatsAllowed;
+
+    internal static void ApplyMultiplayerUnsupported(Control row, string tooltipI18nKey, string tooltipFallback) {
+        if (!MpCheatSession.InMultiplayerRun) return;
+        DisableInteractiveDescendants(row);
+        row.Modulate = new Color(0.55f, 0.55f, 0.55f, 0.85f);
+        row.TooltipText = I18N.T(tooltipI18nKey, tooltipFallback);
+    }
+
+    private static void DisableInteractiveDescendants(Node node) {
+        switch (node) {
+            case BaseButton button:
+                button.Disabled = true;
+                break;
+            case SpinBox spinBox:
+                spinBox.Editable = false;
+                break;
+            case Slider slider:
+                slider.Editable = false;
+                break;
+            case LineEdit lineEdit:
+                lineEdit.Editable = false;
+                break;
+        }
+
+        foreach (var child in node.GetChildren())
+            DisableInteractiveDescendants(child);
+    }
 
     /// <summary>Host MP run with 2+ players: player picker row. Returns mutable ref or null.</summary>
     internal static MpCheatTargetPlayerRef? TryBuildTargetPlayerPicker(

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using DevMode.EnemyIntent;
 using DevMode.Multiplayer.Cheat;
 using Godot;
 using MegaCrit.Sts2.Core.Combat;
@@ -208,14 +209,61 @@ internal static class CombatEnemyActions {
     }
 
     /// <summary>Kill a specific enemy creature.</summary>
-    public static async Task KillEnemy(Creature creature) {
+    public static Task KillEnemy(Creature creature) => KillEnemyInternal(creature, mpSync: false);
+
+    /// <summary>Kill all current enemies.</summary>
+    public static Task KillAllEnemies() => KillAllEnemiesInternal(mpSync: false);
+
+    internal static Creature? FindEnemyByKey(string enemyKey) {
+        if (string.IsNullOrEmpty(enemyKey)) return null;
+        return GetCurrentEnemies().FirstOrDefault(e => !e.IsDead && MonsterIntentOverrides.BuildEnemyKey(e) == enemyKey);
+    }
+
+    internal static bool TryValidateKillEnemy(MpCheatItemPayload payload, out string? error) {
+        error = null;
+        if (!IsCombatReadyForAdd(out error))
+            return false;
+        if (FindEnemyByKey(payload.ItemId) == null) {
+            error = "enemy not found";
+            return false;
+        }
+        return true;
+    }
+
+    internal static bool TryValidateKillAll(MpCheatItemPayload payload, out string? error) {
+        error = null;
+        if (!IsCombatReadyForAdd(out error))
+            return false;
+        if (!GetCurrentEnemies().Any(e => !e.IsDead)) {
+            error = "no enemies to kill";
+            return false;
+        }
+        return true;
+    }
+
+    internal static Task ExecuteKillEnemyFromMpSync(MpCheatItemPayload payload) {
+        var enemy = FindEnemyByKey(payload.ItemId);
+        return enemy == null ? Task.CompletedTask : KillEnemyInternal(enemy, mpSync: true);
+    }
+
+    internal static Task ExecuteKillAllFromMpSync(MpCheatItemPayload payload) =>
+        KillAllEnemiesInternal(mpSync: true);
+
+    private static async Task KillEnemyInternal(Creature creature, bool mpSync) {
+        if (MpCheatSession.InMultiplayerRun && !mpSync) {
+            MainFile.Logger.Warn("CombatEnemyActions: Cannot kill enemy locally in multiplayer — use host combat sync.");
+            return;
+        }
         if (creature.IsDead) return;
         await CreatureCmd.Kill(creature, force: true);
         MainFile.Logger.Info($"CombatEnemyActions: Killed {creature.Monster?.Title?.GetFormattedText() ?? "enemy"}");
     }
 
-    /// <summary>Kill all current enemies.</summary>
-    public static async Task KillAllEnemies() {
+    private static async Task KillAllEnemiesInternal(bool mpSync) {
+        if (MpCheatSession.InMultiplayerRun && !mpSync) {
+            MainFile.Logger.Warn("CombatEnemyActions: Cannot kill all locally in multiplayer — use host combat sync.");
+            return;
+        }
         var enemies = GetCurrentEnemies().Where(e => !e.IsDead).ToList();
         if (enemies.Count == 0) return;
         await CreatureCmd.Kill((IReadOnlyCollection<Creature>)enemies, force: true);

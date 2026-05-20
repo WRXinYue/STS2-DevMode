@@ -74,7 +74,7 @@ internal static partial class EnemySelectUI {
                 killActions.Add(new ContextRailAction(
                     MdiIcon.Skull,
                     I18N.T("enemy.combatSidebar.killOne", "Kill {0} ({1} HP)", name, hp),
-                    () => DevPanelUI.RunCombatAction(() => CombatEnemyActions.KillEnemy(captured)),
+                    () => RunSyncedKillEnemy(captured),
                     KillTint));
             }
 
@@ -82,7 +82,7 @@ internal static partial class EnemySelectUI {
                 killActions.Add(new ContextRailAction(
                     MdiIcon.Skull,
                     I18N.T("enemy.combatSidebar.killAll", "Kill all enemies"),
-                    () => DevPanelUI.RunCombatAction(CombatEnemyActions.KillAllEnemies),
+                    RunSyncedKillAll,
                     KillAllTint));
             }
 
@@ -157,6 +157,38 @@ internal static partial class EnemySelectUI {
 
             backdrop.AddChild(panel);
             ((Node)globalUi).AddChild(backdrop);
+        }
+
+        private static void RunSyncedKillEnemy(MegaCrit.Sts2.Core.Entities.Creatures.Creature enemy) {
+            if (!MpCheatSession.InMultiplayerRun) {
+                DevPanelUI.RunCombatAction(() => CombatEnemyActions.KillEnemy(enemy));
+                return;
+            }
+            if (!MpCheatSession.CanUseMultiplayerCheats) return;
+            TaskHelper.RunSafely(SyncKillEnemyAsync());
+
+            async System.Threading.Tasks.Task SyncKillEnemyAsync() {
+                var result = MpCheatSession.IsHost
+                    ? await MpCheatCombatEnemyCoordinator.TryHostKillEnemyAsync(enemy)
+                    : await MpCheatCombatEnemyCoordinator.TryClientRequestKillEnemyAsync(enemy);
+                MainFile.Logger.Info($"[MpCheat] Combat kill result: {result}");
+                RefreshCombatContext();
+            }
+        }
+
+        private static void RunSyncedKillAll() {
+            if (!MpCheatSession.InMultiplayerRun) {
+                DevPanelUI.RunCombatAction(CombatEnemyActions.KillAllEnemies);
+                return;
+            }
+            if (!MpCheatSession.CanUseMultiplayerCheats) return;
+            TaskHelper.RunSafely(SyncKillAllAsync());
+
+            async System.Threading.Tasks.Task SyncKillAllAsync() {
+                var result = await MpCheatCombatEnemyCoordinator.TryHostKillAllAsync();
+                MainFile.Logger.Info($"[MpCheat] Combat kill all result: {result}");
+                RefreshCombatContext();
+            }
         }
 
         private static void RunSyncedCombatAdd(EncounterModel? encounter, MonsterModel? monster) {

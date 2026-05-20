@@ -91,6 +91,9 @@ DevMode 在合作模式使用 **分层同步**，不每帧发包：
 | 2j | 药水 | Command：AddPotionPrepare/Execute、RemovePotionPrepare/Execute；丢弃用 **slot index** 定位 |
 | 2k | 战斗加怪 | Command：AddMonsterPrepare/Execute、AddEncounterPrepare/Execute；须在战斗内且 `CombatManager.IsInProgress` |
 | 2l | 客机物品请求 | channel=ItemRequest (9) / ItemRequestResult (10)；遗物/药水仅可改**自己角色**；加怪/遭遇客机可请求主机代执行 |
+| 2m | 客机配置请求 | channel=ConfigRequest (11) / ConfigRequestResult (12)；客机改 `MpCheatConfig` 内开关 → 主机 `HostPublishConfig` 广播 |
+| 2n | 战斗击杀 | Command：KillEnemyPrepare/Execute（`ItemId` = `monsterId:slot`）；KillAll 用 kind=1 或 ItemRequest `KillAllEnemies` |
+| 2o | Power | Command：AddPower/RemovePower/ClearPowers prepare/execute；payload 含 `Amount`、`PowerTarget`；客机 Apply/移除/清空仅**自己角色**；Auto-Apply 联机禁用 |
 | — | **单槽位** | 仅注册 **1** 个 mod `INetMessage` 类型，降低与其他 mod 的 id 冲突 |
 | — | **多人 ACK** | 主机等待「Run 内远端玩家 ∩ 大厅已连接」全部 ACK；超时随人数递增（8s + 1.5s×(n−1)，上限 20s）；`commandId` 多路复用，支持并发多笔加牌 |
 | — | **禁用** | `RuntimeStatModifiers` 帧循环；战斗中改 gold/HP 等本地直写；联机下遗物/药水/战斗加怪的**本地直写**（须走 coordinator） |
@@ -99,7 +102,7 @@ DevMode 在合作模式使用 **分层同步**，不每帧发包：
 
 1. 全员安装 **相同版本 DevMode**（**不依赖** RitsuLib；消息 id 按类型名排序，`Zzz*` 前缀避免与 `PeerInputMessage` 等冲突）
 2. 开发者模式菜单 → **联机作弊：ON**（仅本地 opt-in，**不会**写入原版 mod 握手列表）
-3. 主机在跑档中打开 Cheats 面板修改；客机只读，状态与主机一致
+3. 跑档中主机/客机均可改 **已纳入 `MpCheatConfig` 的开关**（客机经 ConfigRequest）；金币/能量上限/药栏位等未同步项在联机下面板变灰
 
 ### 代码入口
 
@@ -119,7 +122,9 @@ DevMode 在合作模式使用 **分层同步**，不每帧发包：
 - [ ] 客机在 Hand/Deck 等分页删牌：日志 `RemoveCard client request` → `RemoveCard host start`；各方牌堆一致
 - [ ] 手牌/牌组分页改费、改名：日志 `EditCard host start` / `EditCard execute`；双方卡牌属性一致
 - [ ] 客机改自己手牌：日志 `EditCard client request` → 主机执行；无 StateDivergence
-- [ ] 客机 Cheats 面板只读，改开关不生效
+- [ ] 客机开/关无限血等 Config 项：日志 `ConfigRequest` → 双方 `Applied config rev=…`；灰显项（金币/能量/药栏）不可点
+- [ ] 战斗侧栏：主机/客机击杀单怪、击杀全部，双方敌人列表一致
+- [ ] Power：主机给客机加 Buff；客机对自己 Apply；Clear All 同步；Auto-Apply 按钮灰显
 - [ ] 一方关闭联机作弊 opt-in 时，会话不 arm（面板提示原因）
 - [ ] 主机遗物/药水浏览器：侧栏 **Player** 选客机后添加；客机栏位与主机一致
 - [ ] 客机请求给自己加药水：日志 `Item request` → prepare/execute；药栏一致

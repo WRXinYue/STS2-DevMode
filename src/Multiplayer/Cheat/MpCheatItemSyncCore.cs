@@ -232,7 +232,8 @@ internal static class MpCheatItemSyncCore {
 
         var payload = request.Payload;
         var requireSelf = payload.Kind is MpCheatItemKind.AddRelic or MpCheatItemKind.RemoveRelic
-            or MpCheatItemKind.AddPotion or MpCheatItemKind.RemovePotion;
+            or MpCheatItemKind.AddPotion or MpCheatItemKind.RemovePotion
+            or MpCheatItemKind.AddPower or MpCheatItemKind.RemovePower or MpCheatItemKind.ClearPowers;
         if (requireSelf && payload.TargetPlayerNetId != 0 && payload.TargetPlayerNetId != senderId) {
             Reply(false, I18N.T(
                 "mpcheat.item.clientSelfOnly",
@@ -252,6 +253,11 @@ internal static class MpCheatItemSyncCore {
             MpCheatItemKind.RemovePotion => MpCheatPotionCoordinator.TryHostFromPayloadCoreAsync(payload),
             MpCheatItemKind.AddMonster => MpCheatCombatEnemyCoordinator.TryHostFromPayloadCoreAsync(payload),
             MpCheatItemKind.AddEncounter => MpCheatCombatEnemyCoordinator.TryHostFromPayloadCoreAsync(payload),
+            MpCheatItemKind.KillEnemy => MpCheatCombatEnemyCoordinator.TryHostFromPayloadCoreAsync(payload),
+            MpCheatItemKind.KillAllEnemies => MpCheatCombatEnemyCoordinator.TryHostFromPayloadCoreAsync(payload),
+            MpCheatItemKind.AddPower => MpCheatPowerCoordinator.TryHostFromPayloadCoreAsync(payload),
+            MpCheatItemKind.RemovePower => MpCheatPowerCoordinator.TryHostFromPayloadCoreAsync(payload),
+            MpCheatItemKind.ClearPowers => MpCheatPowerCoordinator.TryHostFromPayloadCoreAsync(payload),
             _ => Task.FromResult((false, FormatError("unknown item kind"))),
         };
 

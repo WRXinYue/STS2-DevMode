@@ -11,7 +11,7 @@ public static class MpCheatCommandExecutor {
 
         switch (message.Kind) {
             case MpCheatCommandKind.KillAllEnemies:
-                TaskHelper.RunSafely(CombatEnemyActions.KillAllEnemies());
+                TaskHelper.RunSafely(CombatEnemyActions.ExecuteKillAllFromMpSync(new MpCheatItemPayload()));
                 break;
             case MpCheatCommandKind.AddCardPrepare:
                 MpCheatCardAddCoordinator.OnPrepareReceived(message);
@@ -55,11 +55,28 @@ public static class MpCheatCommandExecutor {
             case MpCheatCommandKind.AddEncounterExecute:
                 MpCheatCombatEnemyCoordinator.OnExecuteReceived(message);
                 break;
+            case MpCheatCommandKind.KillEnemyPrepare:
+                MpCheatCombatEnemyCoordinator.OnPrepareReceived(message);
+                break;
+            case MpCheatCommandKind.KillEnemyExecute:
+                MpCheatCombatEnemyCoordinator.OnExecuteReceived(message);
+                break;
+            case MpCheatCommandKind.AddPowerPrepare:
+            case MpCheatCommandKind.RemovePowerPrepare:
+            case MpCheatCommandKind.ClearPowersPrepare:
+                MpCheatPowerCoordinator.OnPrepareReceived(message);
+                break;
+            case MpCheatCommandKind.AddPowerExecute:
+            case MpCheatCommandKind.RemovePowerExecute:
+            case MpCheatCommandKind.ClearPowersExecute:
+                MpCheatPowerCoordinator.OnExecuteReceived(message);
+                break;
         }
     }
 
     public static bool TryPublishHostCommand(MpCheatCommandKind kind) {
-        if (!MpCheatSession.CanEditMultiplayerCheats) return false;
+        if (!MpCheatSession.CanUseMultiplayerCheats) return false;
+        if (!MpCheatSession.IsHost) return false;
 
         var netId = RunManager.Instance?.NetService?.NetId ?? 0;
         var msg = new MpCheatCommandMessage { Kind = kind, IssuedByNetId = netId };

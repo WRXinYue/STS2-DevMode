@@ -27,6 +27,14 @@ public enum MpCheatCommandKind {
     AddMonsterExecute = 18,
     AddEncounterPrepare = 19,
     AddEncounterExecute = 20,
+    KillEnemyPrepare = 21,
+    KillEnemyExecute = 22,
+    AddPowerPrepare = 23,
+    AddPowerExecute = 24,
+    RemovePowerPrepare = 25,
+    RemovePowerExecute = 26,
+    ClearPowersPrepare = 27,
+    ClearPowersExecute = 28,
 }
 
 public sealed class MpCheatCommandMessage {

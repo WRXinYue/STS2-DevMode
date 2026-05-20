@@ -59,6 +59,8 @@ internal static class MpCheatEnvelopeCodec {
         writer.WriteULong(payload.TargetPlayerNetId);
         MpCheatPacketIO.WriteBoundedString(writer, payload.ItemId);
         writer.WriteInt(payload.SlotIndex);
+        writer.WriteInt(payload.Amount);
+        writer.WriteInt(payload.PowerTarget);
     }
 
     internal static MpCheatItemPayload ReadItemPayload(PacketReader reader) =>
@@ -67,6 +69,21 @@ internal static class MpCheatEnvelopeCodec {
             TargetPlayerNetId = reader.ReadULong(),
             ItemId = MpCheatPacketIO.ReadBoundedString(reader),
             SlotIndex = reader.ReadInt(),
+            Amount = reader.ReadInt(),
+            PowerTarget = reader.ReadInt(),
+        };
+
+    internal static void WriteConfigRequest(PacketWriter writer, MpCheatConfigClientRequestMessage msg) {
+        writer.WriteULong(msg.ClientRequestId);
+        writer.WriteULong(msg.RequesterNetId);
+        MpCheatPacketIO.WriteBoundedString(writer, msg.ConfigJson);
+    }
+
+    internal static MpCheatConfigClientRequestMessage ReadConfigRequest(PacketReader reader) =>
+        new() {
+            ClientRequestId = reader.ReadULong(),
+            RequesterNetId = reader.ReadULong(),
+            ConfigJson = MpCheatPacketIO.ReadBoundedString(reader),
         };
 
     internal static void WriteItemRequest(PacketWriter writer, MpCheatItemClientRequestMessage msg) {

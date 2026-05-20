@@ -1,14 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DevMode;
 using DevMode.Actions;
 using DevMode.Hooks;
+using DevMode.Multiplayer.Cheat;
 using DevMode.Settings;
 using Godot;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Entities.Powers;
 using MegaCrit.Sts2.Core.Helpers;
+using MegaCrit.Sts2.Core.Runs;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
@@ -68,7 +71,11 @@ internal static class PowerSelectUI {
         public VBoxContainer CurrentPowersList = null!;
         public VBoxContainer AutoApplyList = null!;
         public Label CombatWarningLabel = null!;
+        public MpCheatTargetPlayerRef? TargetRef;
+        public bool MpItemSync;
     }
+
+    private static Player EffectivePlayer(State s) => s.TargetRef?.Value ?? s.Player;
 
     // ─────────────────────────────── Public API ───────────────────────────────
 
@@ -78,7 +85,7 @@ internal static class PowerSelectUI {
         var (root, _, vbox) = DevPanelUI.CreateBrowserOverlayShell(
             globalUi, RootName, PanelW, () => Remove(globalUi), contentSeparation: 8);
 
-        var s = new State { Player = player };
+        var s = new State { Player = player, MpItemSync = MpCheatSession.InMultiplayerRun };
         s.AllPowers = PowerActions.GetAllPowers()
             .OrderBy(p => p.Type)
             .ThenBy(p => PowerActions.GetPowerDisplayName(p))
@@ -95,7 +102,7 @@ internal static class PowerSelectUI {
         vbox.AddChild(body);
 
         BuildLeftPane(body, s);
-        BuildRightPane(body, s, player);
+        BuildRightPane(body, s, player, globalUi);
 
         // ── Wire filter chips ──
         WireFilterChips(filterChips, s);
@@ -214,7 +221,7 @@ internal static class PowerSelectUI {
 
     // ─────────────────────────────── Right detail pane ───────────────────────────────
 
-    private static void BuildRightPane(HBoxContainer body, State s, Player player) {
+    private static void BuildRightPane(HBoxContainer body, State s, Player player, NGlobalUi globalUi) {
         var pane = new PanelContainer {
             CustomMinimumSize = new Vector2(280f, 0),
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
@@ -241,6 +248,15 @@ internal static class PowerSelectUI {
 
         var inner = new VBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill };
         inner.AddThemeConstantOverride("separation", 10);
+
+        if (s.MpItemSync)
+            MpCheatUi.AddSessionBanner(inner);
+
+        var runState = RunManager.Instance?.DebugOnlyGetState();
+        if (runState != null)
+            s.TargetRef = MpCheatUi.TryBuildTargetPlayerPicker(inner, runState, player);
+
+        Player TargetPlayer() => EffectivePlayer(s);
 
         // ── Icon + name header ──
         var iconRow = new HBoxContainer();
@@ -366,9 +382,27 @@ internal static class PowerSelectUI {
         ApplyBtnStyle(s.ApplyBtn);
         s.ApplyBtn.Pressed += () => {
             if (s.Selected == null) return;
-            TaskHelper.RunSafely(PowerActions.AddPower(player, s.Selected, s.Amount, s.Target));
-            RefreshCurrentPowers(s, player);
+            if (s.MpItemSync && !MpCheatSession.CanUseMultiplayerCheats) return;
+            var target = TargetPlayer();
+            if (s.MpItemSync) {
+                TaskHelper.RunSafely(SyncApplyAsync());
+                return;
+            }
+            TaskHelper.RunSafely(PowerActions.AddPower(target, s.Selected, s.Amount, s.Target));
+            RefreshCurrentPowers(s);
+
+            async System.Threading.Tasks.Task SyncApplyAsync() {
+                var result = MpCheatSession.IsHost
+                    ? await MpCheatPowerCoordinator.TryHostAddPowerAsync(target, s.Selected!, s.Amount, s.Target)
+                    : await MpCheatPowerCoordinator.TryClientRequestAddPowerAsync(target, s.Selected!, s.Amount, s.Target);
+                MainFile.Logger.Info($"[MpCheat] Power apply: {result}");
+                RefreshCurrentPowers(s);
+            }
         };
+        if (s.MpItemSync && !MpCheatSession.IsHost)
+            s.ApplyBtn.TooltipText = I18N.T(
+                "mpcheat.powerAdd.clientTooltip",
+                "Requests host to sync apply power to your character.");
         inner.AddChild(s.ApplyBtn);
 
         // ── Add to Auto-Apply button ──
@@ -379,6 +413,11 @@ internal static class PowerSelectUI {
             CustomMinimumSize = new Vector2(0, 30),
         };
         AutoApplyBtnStyle(s.AutoApplyBtn);
+        if (s.MpItemSync)
+            MpCheatUi.ApplyMultiplayerUnsupported(
+                s.AutoApplyBtn,
+                "mpcheat.power.autoApply.mpDisabled",
+                "Auto-Apply is not synced in multiplayer.");
         s.AutoApplyBtn.Pressed += () => {
             if (s.Selected == null) return;
             var powerId = ((AbstractModel)s.Selected).Id.Entry;
@@ -420,9 +459,23 @@ internal static class PowerSelectUI {
         var clearBtn = new Button { Text = I18N.T("power.clear_all", "Clear All"), FocusMode = Control.FocusModeEnum.None };
         clearBtn.AddThemeFontSizeOverride("font_size", 10);
         clearBtn.Pressed += () => {
-            if (player.Creature != null)
-                PowerActions.RemoveAllPowers(player.Creature);
-            RefreshCurrentPowers(s, player);
+            if (s.MpItemSync && !MpCheatSession.CanUseMultiplayerCheats) return;
+            var target = TargetPlayer();
+            if (target.Creature == null) return;
+            if (s.MpItemSync) {
+                TaskHelper.RunSafely(SyncClearAsync());
+                return;
+            }
+            PowerActions.RemoveAllPowers(target.Creature);
+            RefreshCurrentPowers(s);
+
+            async System.Threading.Tasks.Task SyncClearAsync() {
+                var result = MpCheatSession.IsHost
+                    ? await MpCheatPowerCoordinator.TryHostClearPowersAsync(target)
+                    : await MpCheatPowerCoordinator.TryClientRequestClearPowersAsync(target);
+                MainFile.Logger.Info($"[MpCheat] Power clear: {result}");
+                RefreshCurrentPowers(s);
+            }
         };
         curHdr.AddChild(clearBtn);
         inner.AddChild(curHdr);
@@ -477,7 +530,7 @@ internal static class PowerSelectUI {
         pane.AddChild(margin);
         body.AddChild(pane);
 
-        RefreshCurrentPowers(s, player);
+        RefreshCurrentPowers(s);
         RefreshAutoApplyList(s);
     }
 
@@ -679,10 +732,11 @@ internal static class PowerSelectUI {
         var inCombat = CombatManager.Instance?.IsInProgress ?? false;
         s.CombatWarningLabel.Visible = !inCombat;
 
-        RefreshCurrentPowers(s, s.Player);
+        RefreshCurrentPowers(s);
     }
 
-    private static void RefreshCurrentPowers(State s, Player player) {
+    private static void RefreshCurrentPowers(State s) {
+        var player = EffectivePlayer(s);
         foreach (var child in s.CurrentPowersList.GetChildren())
             ((Node)child).QueueFree();
 
@@ -730,8 +784,22 @@ internal static class PowerSelectUI {
             removeBtn.AddThemeFontSizeOverride("font_size", 13);
             var captured = p;
             removeBtn.Pressed += () => {
+                if (s.MpItemSync && !MpCheatSession.CanUseMultiplayerCheats) return;
+                var powerId = ((AbstractModel)captured).Id.Entry ?? "";
+                if (s.MpItemSync) {
+                    TaskHelper.RunSafely(SyncRemoveAsync());
+                    return;
+                }
                 PowerActions.RemovePower(player.Creature!, captured);
-                RefreshCurrentPowers(s, player);
+                RefreshCurrentPowers(s);
+
+                async System.Threading.Tasks.Task SyncRemoveAsync() {
+                    var result = MpCheatSession.IsHost
+                        ? await MpCheatPowerCoordinator.TryHostRemovePowerAsync(player, powerId)
+                        : await MpCheatPowerCoordinator.TryClientRequestRemovePowerAsync(player, powerId);
+                    MainFile.Logger.Info($"[MpCheat] Power remove: {result}");
+                    RefreshCurrentPowers(s);
+                }
             };
             row.AddChild(removeBtn);
 
