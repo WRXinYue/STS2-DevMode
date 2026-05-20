@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using Godot;
 using MegaCrit.Sts2.Core.Logging;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
 namespace DevMode;
 
@@ -12,6 +14,7 @@ namespace DevMode;
 internal static class LogCollector {
     public const int MaxLiveEntries = 2000;
     public const int MaxMergedEntries = 4000;
+    internal const string LogViewerRootName = "DevModeLogViewer";
 
     /// <summary>Injected at init; splits pre-DevMode file history from live callback capture.</summary>
     public const string SessionBoundaryMarker = "── DevMode log capture started ──";
@@ -27,9 +30,19 @@ internal static class LogCollector {
     private static List<Entry> _fileEntries = [];
     private static readonly object _lock = new();
     private static volatile bool _dirty;
+    private static LogLevel? _unseenAlertSeverity;
+    private static bool _logViewerOpen;
 
     /// <summary>True when new entries have arrived since the last <see cref="MarkClean"/> call.</summary>
     public static bool IsDirty => _dirty;
+
+    /// <summary>Highest unseen Warn/Error since last acknowledge, or null when none.</summary>
+    public static LogLevel? UnseenAlertSeverity {
+        get {
+            lock (_lock)
+                return _unseenAlertSeverity;
+        }
+    }
 
     public static bool IsSessionBoundary(in Entry entry)
         => entry.Text.Contains(SessionBoundaryMarker, StringComparison.Ordinal);
@@ -55,9 +68,28 @@ internal static class LogCollector {
             _liveEntries.Add(new Entry(level, text, DateTime.Now));
             if (_liveEntries.Count > MaxLiveEntries)
                 _liveEntries.RemoveAt(0);
+
+            if (level >= LogLevel.Warn && !IsAlertsSuppressed())
+                _unseenAlertSeverity = MaxSeverity(_unseenAlertSeverity, level);
         }
         _dirty = true;
     }
+
+    /// <summary>Clears unseen Warn/Error alert state (e.g. when opening the log viewer).</summary>
+    public static void AcknowledgeAlerts() {
+        lock (_lock)
+            _unseenAlertSeverity = null;
+    }
+
+    /// <summary>Syncs whether the log viewer browser overlay is currently on screen.</summary>
+    public static void SyncLogViewerOpen(NGlobalUi globalUi) {
+        _logViewerOpen = globalUi.GetNodeOrNull<Control>(LogViewerRootName) != null;
+    }
+
+    private static bool IsAlertsSuppressed() => _logViewerOpen;
+
+    private static LogLevel MaxSeverity(LogLevel? current, LogLevel incoming)
+        => current == null || incoming > current ? incoming : current.Value;
 
     /// <summary>Returns a merged snapshot of file-hydrated and live entries (thread-safe copy).</summary>
     public static List<Entry> GetSnapshot() {
@@ -69,6 +101,7 @@ internal static class LogCollector {
         lock (_lock) {
             _liveEntries.Clear();
             _fileEntries.Clear();
+            _unseenAlertSeverity = null;
         }
         _dirty = true;
     }

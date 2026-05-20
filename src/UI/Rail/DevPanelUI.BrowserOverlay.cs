@@ -156,7 +156,13 @@ internal static partial class DevPanelUI {
             UnpinRail();
             ReconcileBrowserRail(globalUi);
             CombatStatsUI.SyncMultiplayerOverlayState(globalUi);
-        MonsterIntentOverlayUI.SyncState(globalUi);
+            MonsterIntentOverlayUI.SyncState(globalUi);
+            if (root.Name == LogCollector.LogViewerRootName) {
+                Callable.From(() => {
+                    LogCollector.SyncLogViewerOpen(globalUi);
+                    RefreshRailHintPresentation();
+                }).CallDeferred();
+            }
         };
     }
 

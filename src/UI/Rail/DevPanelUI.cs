@@ -37,8 +37,6 @@ internal static partial class DevPanelUI {
     private static StyleBoxFlat? _railStyle;
     private static StyleBoxFlat? _railIndicatorStyle;
     private static StyleBoxFlat? _railSepStyle;
-    private static StyleBoxFlat? _peekTabStyle;
-    private static Button? _peekTabBtn;
     private static int _activeRailBtnIdx = -1;
     private static readonly List<(Button btn, MdiIcon icon)> _railIconButtons = new();
 
@@ -104,19 +102,23 @@ internal static partial class DevPanelUI {
             _railIndicatorStyle.BgColor = ColIconActiveBg;
         if (_railSepStyle != null)
             _railSepStyle.BgColor = ColSeparator;
-        if (_peekTabStyle != null)
-            _peekTabStyle.BgColor = new Color(ColRailBg.R, ColRailBg.G, ColRailBg.B, 0.6f);
-        if (_peekTabBtn != null)
-            _peekTabBtn.Icon = MdiIcon.ChevronRight.Texture(12, ColIconNormal);
+        ApplyPeekTabTheme();
 
         RefreshRailIconTints();
         ApplyContextPaneTheme();
-        RefreshRailIntroHints();
+        RefreshRailHintPresentation();
+    }
+
+    internal static void RefreshRailHintPresentation() {
+        RefreshPeekTabPresentation();
+        RefreshLogAlertHints();
     }
 
     private static void RefreshRailIconTints() {
         for (int i = 0; i < _railIconButtons.Count; i++) {
             var (btn, icon) = _railIconButtons[i];
+            if (IsLogAlertBlinking(btn))
+                continue;
             bool active = i == _activeRailBtnIdx;
             btn.Icon = icon.Texture(20, active ? ColIconActive : ColIconNormal);
         }
@@ -152,8 +154,6 @@ internal static partial class DevPanelUI {
         _railStyle = null;
         _railIndicatorStyle = null;
         _railSepStyle = null;
-        _peekTabStyle = null;
-        _peekTabBtn = null;
         _activeRailBtnIdx = -1;
         _railIconButtons.Clear();
 
@@ -263,41 +263,7 @@ internal static partial class DevPanelUI {
 
         root.AddChild(rail);
 
-        // ── Peek tab (small arrow visible when rail is hidden) ──
-        var peekTab = new Button {
-            Name = "RailPeekTab",
-            CustomMinimumSize = new Vector2(14, 48),
-            AnchorLeft = 0,
-            AnchorRight = 0,
-            AnchorTop = 0.5f,
-            AnchorBottom = 0.5f,
-            OffsetLeft = 0,
-            OffsetRight = 14,
-            OffsetTop = -24,
-            OffsetBottom = 24,
-            FocusMode = Control.FocusModeEnum.None,
-            MouseFilter = Control.MouseFilterEnum.Stop,
-            IconAlignment = HorizontalAlignment.Center,
-            Icon = MdiIcon.ChevronRight.Texture(12, ColIconNormal)
-        };
-        _peekTabStyle = new StyleBoxFlat {
-            BgColor = new Color(ColRailBg.R, ColRailBg.G, ColRailBg.B, 0.6f),
-            CornerRadiusTopLeft = 0,
-            CornerRadiusBottomLeft = 0,
-            CornerRadiusTopRight = 8,
-            CornerRadiusBottomRight = 8,
-            ContentMarginLeft = 0,
-            ContentMarginRight = 0,
-            ContentMarginTop = 0,
-            ContentMarginBottom = 0
-        };
-        peekTab.AddThemeStyleboxOverride("normal", _peekTabStyle);
-        peekTab.AddThemeStyleboxOverride("hover", _peekTabStyle);
-        peekTab.AddThemeStyleboxOverride("pressed", _peekTabStyle);
-        peekTab.AddThemeStyleboxOverride("focus", _peekTabStyle);
-        _peekTabBtn = peekTab;
-        peekTab.Visible = true;
-        root.AddChild(peekTab);
+        CreatePeekTab(root);
 
         // ── Auto-hide: timer-based mouse position polling ──
         float hiddenX = -(24 + RailW);
@@ -314,7 +280,7 @@ internal static partial class DevPanelUI {
 
             if (show && userTriggered && SettingsStore.ShouldShowRailIntroHint()) {
                 SettingsStore.MarkRailIntroDismissed();
-                StopAllRailBlinkHints();
+                RefreshPeekTabPresentation();
             }
 
             railShown = show;
@@ -335,11 +301,8 @@ internal static partial class DevPanelUI {
                      .TweenProperty(rail, "modulate:a", targetAlpha, 0.15f)
                      .SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
 
-            peekTab.Visible = !show;
-            if (show)
-                StopAllRailBlinkHints();
-            else
-                RefreshRailIntroHints();
+            SetPeekTabVisible(!show);
+            RefreshRailHintPresentation();
         }
 
         var pollTimer = new Timer {
@@ -352,8 +315,9 @@ internal static partial class DevPanelUI {
         pollTimer.Timeout += () => {
             if (_activeOverlayId != null || _pinRailCount > 0) {
                 if (!railShown) SlideRail(true);
-                peekTab.Visible = false;
-                StopAllRailBlinkHints();
+                SetPeekTabVisible(false);
+                StopPeekTabPresentation();
+                RefreshLogAlertHints();
                 return;
             }
 
@@ -369,13 +333,13 @@ internal static partial class DevPanelUI {
             else if (railShown)
                 SlideRail(false);
 
-            RefreshRailIntroHints();
+            RefreshRailHintPresentation();
         };
         root.AddChild(pollTimer);
 
-        peekTab.Pressed += () => SlideRail(true, userTriggered: true);
+        WirePeekTabPressed(() => SlideRail(true, userTriggered: true));
 
-        RefreshRailIntroHints();
+        RefreshRailHintPresentation();
 
         AttachContextPane(globalUi);
         ((Node)globalUi).AddChild(root);
@@ -389,12 +353,11 @@ internal static partial class DevPanelUI {
         _browserRailHoldCount = 0;
         _pinRailCount = 0;
         ThemeManager.OnThemeChanged -= ApplyRailTheme;
-        StopAllRailBlinkHints();
+        TeardownPeekTab();
+        StopLogAlertBlink();
         _railStyle = null;
         _railIndicatorStyle = null;
         _railSepStyle = null;
-        _peekTabStyle = null;
-        _peekTabBtn = null;
         _railIconButtons.Clear();
         _railButtons.Clear();
         _railVBox = null;

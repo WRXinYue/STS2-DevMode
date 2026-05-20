@@ -42,6 +42,7 @@ internal static partial class DevPanelUI {
 
         RefreshRailIconTints();
         ReconcileBrowserRail(globalUi);
+        RefreshRailHintPresentation();
     }
 
     private static bool IsTabShownOnRail(string tabId) {

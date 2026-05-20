@@ -257,7 +257,10 @@ internal static class DevPanel {
         TryDismissCurrent();
         DevModeState.ActivePanel = ActivePanel.Logs;
 
+        LogCollector.AcknowledgeAlerts();
         LogViewerUI.Show(_globalUi);
+        LogCollector.SyncLogViewerOpen(_globalUi);
+        DevPanelUI.RefreshRailHintPresentation();
     }
 
     private static void OpenCombatStats() {
