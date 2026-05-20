@@ -1,0 +1,59 @@
+using System.Linq;
+using HarmonyLib;
+using MegaCrit.Sts2.Core.Combat;
+using MegaCrit.Sts2.Core.Context;
+using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.GameActions;
+using MegaCrit.Sts2.Core.Multiplayer.Game;
+using MegaCrit.Sts2.Core.Runs;
+
+namespace DevMode.Multiplayer.PseudoCoop.Patches;
+
+/// <summary>Simulated peers must ready end-turn and enemy-turn phases (no ENet client to enqueue actions).</summary>
+[HarmonyPatch(typeof(EndPlayerTurnAction), "ExecuteAction")]
+internal static class PseudoCoopEndPlayerTurnPatch {
+    [HarmonyPostfix]
+    static void Postfix(EndPlayerTurnAction __instance) {
+        if (RunManager.Instance?.NetService?.Type != NetGameType.Host) return;
+
+        var host = Traverse.Create(__instance).Field<Player>("_player").Value;
+        if (host == null || !LocalContext.IsMe(host)) return;
+
+        PseudoCoopCombatReady.ReadySimulatedPeersToEndTurn();
+    }
+}
+
+[HarmonyPatch(typeof(ReadyToBeginEnemyTurnAction), "ExecuteAction")]
+internal static class PseudoCoopReadyEnemyTurnPatch {
+    [HarmonyPostfix]
+    static void Postfix() {
+        if (RunManager.Instance?.NetService?.Type != NetGameType.Host) return;
+        PseudoCoopCombatReady.ReadySimulatedPeersToBeginEnemyTurn();
+    }
+}
+
+internal static class PseudoCoopCombatReady {
+    internal static void ReadySimulatedPeersToEndTurn() {
+        var cm = CombatManager.Instance;
+        if (cm is not { IsInProgress: true, IsPlayPhase: true }) return;
+
+        foreach (var peer in SimulatedPeerRegistry.GetPeersNeedingSimulation()) {
+            if (peer.Creature.IsDead) continue;
+            if (cm.IsPlayerReadyToEndTurn(peer)) continue;
+
+            cm.SetReadyToEndTurn(peer, canBackOut: false);
+            MainFile.Logger.Info($"[PseudoCoop] Auto ready-to-end-turn netId={peer.NetId}.");
+        }
+    }
+
+    internal static void ReadySimulatedPeersToBeginEnemyTurn() {
+        var cm = CombatManager.Instance;
+        if (cm is not { IsInProgress: true }) return;
+
+        foreach (var peer in SimulatedPeerRegistry.GetPeersNeedingSimulation()) {
+            if (peer.Creature.IsDead) continue;
+            cm.SetReadyToBeginEnemyTurn(peer);
+            MainFile.Logger.Info($"[PseudoCoop] Auto ready-to-begin-enemy-turn netId={peer.NetId}.");
+        }
+    }
+}

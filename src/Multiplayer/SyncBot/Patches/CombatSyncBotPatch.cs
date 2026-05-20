@@ -1,5 +1,6 @@
 using System.Linq;
 using DevMode.Multiplayer.Cheat;
+using DevMode.Multiplayer.PseudoCoop;
 using DevMode.Multiplayer.SyncBot;
 using DevMode.Settings;
 using HarmonyLib;
@@ -16,9 +17,9 @@ internal static class CombatSyncBotPatch {
 
     [HarmonyPostfix]
     static void Postfix(double delta) {
-        if (!SettingsStore.Current.SyncBotEnabled
-            || !SettingsStore.Current.SyncBotAutoEndTurn
-            || !MpCheatSession.IsHost) return;
+        if (!SettingsStore.Current.SyncBotAutoEndTurn || !MpCheatSession.IsHost) return;
+        if (!SettingsStore.Current.SyncBotEnabled && !SettingsStore.Current.MpAiTeammateEnabled)
+            return;
 
         _accum += delta;
         if (_accum < 0.5) return;
@@ -30,21 +31,17 @@ internal static class CombatSyncBotPatch {
         var state = RunManager.Instance?.DebugOnlyGetState();
         if (state == null) return;
 
-        foreach (var player in state.Players) {
-            if (LocalContext.IsMe(player)) continue;
-            if (!MpCheatSyncBot.ShouldSimulatePlayer(player)) continue;
+        SimulatedPeerRegistry.Refresh();
+
+        foreach (var player in SimulatedPeerRegistry.GetPeersNeedingSimulation()) {
             if (cm.IsPlayerReadyToEndTurn(player)) continue;
             if (player.PlayerCombatState == null || player.Creature.IsDead) continue;
 
-            if (SettingsStore.Current.MpAiTeammateEnabled && HasPlayableCard(player))
+            if (SettingsStore.Current.MpAiTeammateEnabled
+                && player.PlayerCombatState.Hand?.Cards.Any(c => c.CanPlay(out _, out _)) == true)
                 continue;
 
             cm.SetReadyToEndTurn(player, canBackOut: false);
         }
-    }
-
-    static bool HasPlayableCard(MegaCrit.Sts2.Core.Entities.Players.Player player) {
-        var hand = player.PlayerCombatState?.Hand?.Cards;
-        return hand != null && hand.Any(c => c.CanPlay(out _, out _));
     }
 }

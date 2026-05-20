@@ -52,6 +52,12 @@ internal static class MpAiTeammateHost {
             if (!SimulatedPeerRegistry.IsSimulatedPeer(player.NetId)) continue;
             if (player.Creature.IsDead) continue;
             if (cm.IsPlayerReadyToEndTurn(player)) continue;
+
+            if (!HasPlayableCard(player)) {
+                cm.SetReadyToEndTurn(player, canBackOut: false);
+                continue;
+            }
+
             if (!ShouldActForPlayer(player, cm)) continue;
 
             _tickRunning = true;
@@ -60,15 +66,12 @@ internal static class MpAiTeammateHost {
         }
     }
 
-    static bool ShouldActForPlayer(Player player, CombatManager cm) {
+    static bool HasPlayableCard(Player player) {
         var hand = player.PlayerCombatState?.Hand?.Cards;
-        if (hand == null) return true;
-
-        var cards = hand.ToList();
-        if (cards.Count == 0) return true;
-
-        return cards.Any(c => c.CanPlay(out _, out _));
+        return hand != null && hand.Any(c => c.CanPlay(out _, out _));
     }
+
+    static bool ShouldActForPlayer(Player player, CombatManager cm) => HasPlayableCard(player);
 
     static async Task RunCombatDecisionAsync(Player player) {
         try {
