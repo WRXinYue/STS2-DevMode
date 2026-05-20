@@ -80,6 +80,13 @@ internal static class DevMainMenuUI {
                 persistNormalRunBtn.label.Text = GetPersistNormalRunModeLabel();
         });
 
+        NMainMenuTextButton? mpCheatBtn = null;
+        mpCheatBtn = AddButton(container, template, GetMultiplayerCheatOptInLabel(), () => {
+            SettingsStore.SetMultiplayerCheatOptIn(!SettingsStore.Current.MultiplayerCheatOptIn);
+            if (mpCheatBtn?.label != null)
+                mpCheatBtn.label.Text = GetMultiplayerCheatOptInLabel();
+        });
+
         AddButton(container, template, I18N.T("devmenu.back", "Back"), Hide);
     }
 
@@ -245,6 +252,11 @@ internal static class DevMainMenuUI {
         };
         SettingsStore.SetNormalRunMode(next);
     }
+
+    private static string GetMultiplayerCheatOptInLabel() =>
+        SettingsStore.Current.MultiplayerCheatOptIn
+            ? I18N.T("devmenu.mpCheat.on", "Multiplayer cheat: ON")
+            : I18N.T("devmenu.mpCheat.off", "Multiplayer cheat: OFF");
 
     private static string GetPersistNormalRunModeLabel() {
         return DevModeState.NormalRunMode switch {

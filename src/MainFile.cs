@@ -1,4 +1,5 @@
 using DevMode.CombatStats;
+using DevMode.Multiplayer.Cheat;
 using DevMode.EnemyIntent;
 using DevMode.Interop;
 using DevMode.Patches;
@@ -32,6 +33,7 @@ public class MainFile {
         ScriptBridge.Start();
 
         FrameworkBridge.Initialize();
+        MpCheatSync.Initialize();
 
         CombatStatsTracker.Initialize();
         MonsterIntentOverlayTracker.Initialize();

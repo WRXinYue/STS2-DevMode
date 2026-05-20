@@ -10,6 +10,7 @@ using MegaCrit.Sts2.Core.Models.Acts;
 using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardLibrary;
+using DevMode.Multiplayer.Cheat;
 using MegaCrit.Sts2.Core.Nodes.Screens.RelicCollection;
 
 namespace DevMode.Patches;
@@ -45,7 +46,8 @@ public static class GlobalUiReadyPatch {
     }
 
     internal static void Process(double delta) {
-        DevModeState.StatModifiers?.Update(delta);
+        if (MpCheatApplier.FrameCheatsAllowed)
+            DevModeState.StatModifiers?.Update(delta);
         _warmup?.Process(delta);
     }
 }

@@ -15,6 +15,7 @@ using MegaCrit.Sts2.Core.Nodes.Screens.Map;
 using MegaCrit.Sts2.Core.Nodes.Potions;
 using MegaCrit.Sts2.Core.Odds;
 using MegaCrit.Sts2.Core.Rooms;
+using DevMode.Multiplayer.Cheat;
 using MegaCrit.Sts2.Core.ValueProps;
 
 namespace DevMode.Patches;
@@ -23,7 +24,7 @@ namespace DevMode.Patches;
 [HarmonyPatch(typeof(Creature), nameof(Creature.LoseHpInternal))]
 public static class InfiniteHpPatch {
     public static bool Prefix(Creature __instance, ref DamageResult __result, decimal amount, ValueProp props) {
-        if (!DevModeState.CheatsInRun || !DevModeState.PlayerCheats.InfiniteHp) return true;
+        if (!MpCheatApplier.InfiniteHp(__instance)) return true;
         if (__instance.Player == null) return true;
         __result = new DamageResult(__instance, props) {
             UnblockedDamage = 0,
@@ -38,7 +39,7 @@ public static class InfiniteHpPatch {
 [HarmonyPatch(typeof(Creature), nameof(Creature.LoseBlockInternal))]
 public static class InfiniteBlockPatch {
     public static void Postfix(Creature __instance) {
-        if (!DevModeState.CheatsInRun || !DevModeState.PlayerCheats.InfiniteBlock) return;
+        if (!MpCheatApplier.InfiniteBlock(__instance)) return;
         if (__instance.Player == null) return;
         __instance.GainBlockInternal(999 - __instance.Block);
     }
@@ -49,7 +50,7 @@ public static class InfiniteBlockPatch {
 [HarmonyPriority(Priority.High)]
 public static class InfiniteBlockDamagePatch {
     public static bool Prefix(Creature __instance, decimal amount, ValueProp props, ref decimal __result) {
-        if (!DevModeState.CheatsInRun || !DevModeState.PlayerCheats.InfiniteBlock) return true;
+        if (!MpCheatApplier.InfiniteBlock(__instance)) return true;
         if (__instance.Player == null) return true;
         // Report that all damage was blocked, but don't actually reduce block
         __result = props.HasFlag(ValueProp.Unblockable) ? 0m : Math.Min(__instance.Block, amount);
@@ -63,7 +64,7 @@ public static class InfiniteBlockDamagePatch {
 [HarmonyPatch(typeof(Hook), nameof(Hook.ShouldClearBlock))]
 public static class InfiniteBlockClearPatch {
     public static bool Prefix(Creature creature, ref bool __result, ref AbstractModel? preventer) {
-        if (!DevModeState.CheatsInRun || !DevModeState.PlayerCheats.InfiniteBlock) return true;
+        if (!MpCheatApplier.InfiniteBlock(creature)) return true;
         if (creature.Player == null) return true;
         __result = false;
         preventer = null;
@@ -75,7 +76,7 @@ public static class InfiniteBlockClearPatch {
 [HarmonyPatch(typeof(PlayerCombatState), nameof(PlayerCombatState.LoseEnergy))]
 public static class InfiniteEnergyPatch {
     public static void Postfix(PlayerCombatState __instance) {
-        if (!DevModeState.CheatsInRun || !DevModeState.PlayerCheats.InfiniteEnergy) return;
+        if (!MpCheatApplier.InfiniteEnergy(__instance)) return;
         __instance.Energy = 999;
     }
 }
@@ -84,7 +85,7 @@ public static class InfiniteEnergyPatch {
 [HarmonyPatch(typeof(PlayerCombatState), nameof(PlayerCombatState.LoseStars))]
 public static class InfiniteStarsPatch {
     public static void Postfix(PlayerCombatState __instance) {
-        if (!DevModeState.CheatsInRun || !DevModeState.PlayerCheats.InfiniteStars) return;
+        if (!MpCheatApplier.InfiniteStars(__instance)) return;
         __instance.Stars = 999;
     }
 }
@@ -93,7 +94,7 @@ public static class InfiniteStarsPatch {
 [HarmonyPatch(typeof(PotionRewardOdds), nameof(PotionRewardOdds.Roll))]
 public static class AlwaysPotionRewardPatch {
     public static void Postfix(ref bool __result) {
-        if (!DevModeState.CheatsInRun || !DevModeState.PlayerCheats.AlwaysRewardPotion) return;
+        if (!MpCheatApplier.AlwaysRewardPotion) return;
         __result = true;
     }
 }
@@ -103,7 +104,7 @@ public static class AlwaysPotionRewardPatch {
     [typeof(Player), typeof(MegaCrit.Sts2.Core.Models.CardModel), typeof(decimal), typeof(MegaCrit.Sts2.Core.Random.Rng)])]
 public static class AlwaysUpgradeRewardPatch {
     public static void Prefix(ref decimal baseChance) {
-        if (!DevModeState.CheatsInRun || !DevModeState.PlayerCheats.AlwaysUpgradeCardReward) return;
+        if (!MpCheatApplier.AlwaysUpgradeCardReward) return;
         baseChance = 999m;
     }
 }
@@ -112,7 +113,7 @@ public static class AlwaysUpgradeRewardPatch {
 [HarmonyPatch(typeof(CardRarityOdds), nameof(CardRarityOdds.Roll))]
 public static class MaxCardRarityPatch {
     public static void Postfix(ref CardRarity __result) {
-        if (!DevModeState.CheatsInRun || !DevModeState.PlayerCheats.MaxCardRewardRarity) return;
+        if (!MpCheatApplier.MaxCardRewardRarity) return;
         __result = CardRarity.Rare;
     }
 }
@@ -121,9 +122,10 @@ public static class MaxCardRarityPatch {
 [HarmonyPatch(typeof(Creature), nameof(Creature.GainBlockInternal))]
 public static class DefenseMultiplierPatch {
     public static void Prefix(Creature __instance, ref decimal amount) {
-        if (!DevModeState.CheatsInRun || DevModeState.PlayerCheats.DefenseMultiplier == 1.0f) return;
         if (__instance.Player == null) return;
-        amount = Math.Round(amount * (decimal)DevModeState.PlayerCheats.DefenseMultiplier);
+        var mult = MpCheatApplier.DefenseMultiplier(__instance.Player);
+        if (mult == 1.0f) return;
+        amount = Math.Round(amount * (decimal)mult);
     }
 }
 
@@ -131,8 +133,9 @@ public static class DefenseMultiplierPatch {
 [HarmonyPatch(typeof(MegaCrit.Sts2.Core.Commands.PlayerCmd), nameof(MegaCrit.Sts2.Core.Commands.PlayerCmd.GainGold))]
 public static class GoldMultiplierPatch {
     public static void Prefix(ref decimal amount) {
-        if (!DevModeState.CheatsInRun || DevModeState.GameplayModifiers.GoldMultiplier == 1.0f) return;
-        amount = Math.Round(amount * (decimal)DevModeState.GameplayModifiers.GoldMultiplier);
+        var mult = MpCheatApplier.GoldMultiplier;
+        if (mult == 1.0f) return;
+        amount = Math.Round(amount * (decimal)mult);
     }
 }
 
@@ -140,7 +143,7 @@ public static class GoldMultiplierPatch {
 [HarmonyPatch(typeof(MerchantEntry), nameof(MerchantEntry.OnTryPurchaseWrapper))]
 public static class FreeShopPatch {
     public static void Prefix(ref bool ignoreCost) {
-        if (!DevModeState.CheatsInRun || !DevModeState.GameplayModifiers.FreeShop) return;
+        if (!MpCheatApplier.FreeShop) return;
         ignoreCost = true;
     }
 }
@@ -149,7 +152,7 @@ public static class FreeShopPatch {
 [HarmonyPatch(typeof(Creature), nameof(Creature.TakeTurn))]
 public static class FreezeEnemiesPatch {
     public static bool Prefix(Creature __instance, ref Task __result) {
-        if (!DevModeState.CheatsInRun || !DevModeState.EnemyCheats.FreezeEnemies) return true;
+        if (!MpCheatApplier.FreezeEnemies) return true;
         if (__instance.Player != null) return true;
         __result = Task.CompletedTask;
         return false;
@@ -161,7 +164,7 @@ public static class FreezeEnemiesPatch {
 [HarmonyPriority(Priority.High)]
 public static class OneHitKillPatch {
     public static void Prefix(Creature __instance, ref decimal amount) {
-        if (!DevModeState.CheatsInRun || !DevModeState.EnemyCheats.OneHitKill) return;
+        if (!MpCheatApplier.OneHitKill) return;
         if (__instance.Player != null) return;
         amount = 999999m;
     }
@@ -171,9 +174,10 @@ public static class OneHitKillPatch {
 [HarmonyPatch(typeof(Creature), nameof(Creature.DamageBlockInternal))]
 public static class DamageMultiplierPatch {
     public static void Prefix(Creature __instance, ref decimal amount) {
-        if (!DevModeState.CheatsInRun || DevModeState.EnemyCheats.DamageMultiplier == 1.0f) return;
         if (__instance.Player != null) return;
-        amount = Math.Round(amount * (decimal)DevModeState.EnemyCheats.DamageMultiplier);
+        var mult = MpCheatApplier.EnemyDamageMultiplier;
+        if (mult == 1.0f) return;
+        amount = Math.Round(amount * (decimal)mult);
     }
 }
 
@@ -181,7 +185,7 @@ public static class DamageMultiplierPatch {
 [HarmonyPatch(typeof(UnknownMapPointOdds), nameof(UnknownMapPointOdds.Roll))]
 public static class UnknownMapTreasurePatch {
     public static void Postfix(ref RoomType __result) {
-        if (!DevModeState.CheatsInRun || !DevModeState.MapCheats.UnknownMapAlwaysTreasure) return;
+        if (!MpCheatApplier.UnknownMapAlwaysTreasure) return;
         __result = RoomType.Treasure;
     }
 }
@@ -193,7 +197,7 @@ public static class UnknownMapTreasurePatch {
 [HarmonyPatch(typeof(Hook), nameof(Hook.ShouldAllowFreeTravel))]
 public static class MapFreeTravelPatch {
     public static bool Prefix(ref bool __result) {
-        if (!DevModeState.CheatsInRun || !DevModeState.MapCheats.FreeTravelFromDevRoomMap) return true;
+        if (!MpCheatApplier.FreeTravelFromDevRoomMap) return true;
         __result = true;
         return false;
     }
@@ -209,7 +213,7 @@ public static class MapTravelabilityRewritePatch {
         AccessTools.FieldRefAccess<NMapScreen, Dictionary<MapCoord, NMapPoint>>("_mapPointDictionary");
 
     public static void Postfix(NMapScreen __instance) {
-        if (!DevModeState.CheatsInRun || !DevModeState.MapCheats.FreeTravelFromDevRoomMap) return;
+        if (!MpCheatApplier.FreeTravelFromDevRoomMap) return;
 
         Dictionary<MapCoord, NMapPoint>? dict;
         try {

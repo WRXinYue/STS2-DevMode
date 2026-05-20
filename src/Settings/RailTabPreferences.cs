@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DevMode.Icons;
+using DevMode.Multiplayer.Cheat;
 using DevMode.Panels;
 
 namespace DevMode.Settings;
@@ -131,7 +132,7 @@ internal static class RailTabPreferences {
     }
 
     private static bool IsAvailableInCurrentMode(IDevPanelTab tab) {
-        if (DevModeState.CheatsInRun) return true;
+        if (DevModeState.CheatsInRun || MpCheatSession.CanUseMultiplayerCheats) return true;
         return tab.Kind == DevPanelTabKind.Developer;
     }
 }

@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using DevMode.Actions;
 using DevMode.Hooks;
+using DevMode.Multiplayer.Cheat;
 using DevMode.Presets;
 using DevMode.Settings;
 using Godot;
@@ -186,7 +188,40 @@ internal static class CardBrowserRightPanel {
         var addBtn = CreateActionButton(
             I18N.T("cardBrowser.addCard", "Add Card"),
             new Color(0.25f, 0.55f, 0.35f, 0.9f));
+        if (MpCheatSession.InMultiplayerRun && !MpCheatSession.IsHost) {
+            addBtn.Disabled = true;
+            addBtn.TooltipText = I18N.T(
+                "mpcheat.cardAdd.hostOnly",
+                "Only the host can add cards in multiplayer.");
+        }
+        else if (MpCheatSession.InMultiplayerRun && !MpCheatSession.CanEditMultiplayerCheats) {
+            addBtn.Disabled = true;
+            addBtn.TooltipText = I18N.T(
+                "mpcheat.blocked",
+                "Multiplayer cheat inactive: {0}",
+                MpCheatSession.LastBlockReason ?? "unknown");
+        }
+        async Task SyncAddCardInMultiplayerAsync() {
+            var result = await MpCheatCardAddCoordinator.TryHostAddCardAsync(
+                state,
+                player,
+                card,
+                new AddCardRequest {
+                    Target = DevModeState.CardTarget,
+                    Duration = DevModeState.EffectDuration,
+                    UpgradeLevelsToApply = upgradeLevelsToApply,
+                    CustomBaseCost = addCostStaging.BaseCost,
+                },
+                CardPreviewStyle.HorizontalLayout);
+            statusLabel.Text = result;
+        }
+
         addBtn.Pressed += () => {
+            if (MpCheatSession.InMultiplayerRun) {
+                statusLabel.Text = I18N.T("mpcheat.cardAdd.pending", "Syncing add card to all players…");
+                TaskHelper.RunSafely(SyncAddCardInMultiplayerAsync());
+                return;
+            }
             TaskHelper.RunSafely(CardActions.Add(state, player, card)
                 .BaseCost(addCostStaging.BaseCost)
                 .UpgradeLevels(upgradeLevelsToApply)

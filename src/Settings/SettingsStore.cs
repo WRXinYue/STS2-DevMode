@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DevMode.Multiplayer.Cheat;
 
 namespace DevMode.Settings;
 
@@ -36,6 +37,12 @@ public static class SettingsStore {
             Current = new();
             ApplyNormalRunModeFromSettings();
         }
+    }
+
+    public static void SetMultiplayerCheatOptIn(bool enabled) {
+        Current.MultiplayerCheatOptIn = enabled;
+        MpCheatSession.SetLocalOptIn(enabled);
+        Save();
     }
 
     public static void SetNormalRunMode(NormalRunMode mode) {

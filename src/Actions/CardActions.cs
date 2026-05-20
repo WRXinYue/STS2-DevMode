@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -123,8 +124,41 @@ internal static class CardActions {
         public AddCardBuilder UpgradePreviewStyle(CardPreviewStyle style) =>
             new(_state, _player, _canonical, _request, style);
 
-        public Task RunAsync() => ExecuteAddAsync(_state, _player, _canonical, _request, _upgradePreviewStyle);
+        public Task RunAsync() => ExecuteAddAsync(_state, _player, _canonical, _request, _upgradePreviewStyle, mpSync: false);
     }
+
+    /// <summary>Validates whether an add-card operation can run (no state mutation).</summary>
+    internal static bool TryValidateAdd(RunState state, Player player, CardModel canonicalCard, AddCardRequest request,
+        out string error) {
+        error = "";
+        if (canonicalCard == null) {
+            error = "card not found";
+            return false;
+        }
+        if (player == null) {
+            error = "player not found";
+            return false;
+        }
+        if (request.Target != CardTarget.Deck && player.Creature?.CombatState == null) {
+            error = "not in combat";
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>Executes add-card from multiplayer sync (all peers must call with identical parameters).</summary>
+    internal static Task ExecuteAddFromMpSync(RunState state, Player player, CardModel canonicalCard,
+        AddCardRequest request, CardPreviewStyle? upgradePreviewStyle = null) =>
+        ExecuteAddAsync(state, player, canonicalCard, request, upgradePreviewStyle, mpSync: true);
+
+    internal static CardModel? FindCardById(string cardId) {
+        if (string.IsNullOrEmpty(cardId)) return null;
+        return ModelDb.AllCards
+            .FirstOrDefault(c => string.Equals(((AbstractModel)c).Id.Entry, cardId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    internal static Player? FindPlayerByNetId(ulong netId) =>
+        RunManager.Instance?.DebugOnlyGetState()?.Players.FirstOrDefault(p => p.NetId == netId);
 
     public static async Task RemoveCards(RunState state, Player player) {
         await Task.Yield();
@@ -235,7 +269,13 @@ internal static class CardActions {
     /// <param name="request">Where to add, temp vs permanent deck mirror, and post-create upgrade steps.</param>
     /// <param name="upgradePreviewStyle">When set, each upgrade step uses <c>CardCmd.Upgrade(new[] { instance }, style)</c>; otherwise the single-card overload.</param>
     private static async Task ExecuteAddAsync(RunState state, Player player, CardModel canonicalCard, AddCardRequest request,
-        CardPreviewStyle? upgradePreviewStyle = null) {
+        CardPreviewStyle? upgradePreviewStyle = null, bool mpSync = false) {
+        if (Multiplayer.Cheat.MpCheatSession.InMultiplayerRun && !mpSync) {
+            MainFile.Logger.Warn(
+                $"CardActions: Cannot add {canonicalCard.Id.Entry} locally in multiplayer — use host add-card sync.");
+            return;
+        }
+
         var target = request.Target;
         var duration = request.Duration;
         var upgradeLevelsToApply = request.UpgradeLevelsToApply;

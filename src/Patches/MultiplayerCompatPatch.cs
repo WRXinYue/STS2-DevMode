@@ -18,6 +18,8 @@ namespace DevMode.Patches;
 /// so the mod doesn't break multiplayer handshakes.
 /// </summary>
 internal static class MultiplayerCompatRules {
+    public const string MpCheatCapabilitySignature = "DevMode:MpCheat";
+
     private static readonly string[] IgnoredPrefixes = ["DevMode"];
     private static bool? _hasCustomModelTypes;
     private static bool _loggedModelTypeCheck;
@@ -35,6 +37,9 @@ internal static class MultiplayerCompatRules {
 
     public static bool ShouldIgnore(string? sig) {
         if (string.IsNullOrWhiteSpace(sig)) return false;
+        // MpCheat opt-in must not enter vanilla mod diff (causes "host has DevMode:MpCheat" kick).
+        if (sig.Equals(MpCheatCapabilitySignature, StringComparison.OrdinalIgnoreCase))
+            return true;
         return IgnoredPrefixes.Any(p => sig.StartsWith(p, StringComparison.OrdinalIgnoreCase));
     }
 

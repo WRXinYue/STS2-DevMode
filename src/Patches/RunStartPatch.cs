@@ -59,8 +59,6 @@ public static class RunStartPatch {
         DevModeState.ClearPendingRestart();
     }
 
-    [HarmonyPostfix]
-    [HarmonyPatch(nameof(RunManager.OnEnded))]
     public static void OnRunEnded() {
         DevModeState.OnRunEnded();
     }

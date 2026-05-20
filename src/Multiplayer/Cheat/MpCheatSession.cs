@@ -1,0 +1,78 @@
+using DevMode.Interop;
+using MegaCrit.Sts2.Core.Multiplayer.Game;
+using MegaCrit.Sts2.Core.Runs;
+
+namespace DevMode.Multiplayer.Cheat;
+
+/// <summary>Runtime multiplayer cheat session (lobby + run scope).</summary>
+public static class MpCheatSession {
+    public static bool LocalOptIn { get; private set; }
+
+    public static bool SessionArmed { get; private set; }
+
+    public static string? LastBlockReason { get; private set; }
+
+    public static bool InMultiplayerRun {
+        get {
+            var run = RunManager.Instance;
+            if (run?.IsInProgress != true) return false;
+            var type = run.NetService?.Type ?? NetGameType.None;
+            return type is NetGameType.Host or NetGameType.Client;
+        }
+    }
+
+    public static bool IsHost =>
+        RunManager.Instance?.NetService?.Type == NetGameType.Host;
+
+    public static bool CanUseMultiplayerCheats =>
+        InMultiplayerRun && SessionArmed && MpCheatState.IsActive;
+
+    public static bool CanEditMultiplayerCheats =>
+        CanUseMultiplayerCheats && IsHost;
+
+    public static void SetLocalOptIn(bool enabled) {
+        LocalOptIn = enabled;
+        if (!enabled)
+            Disarm("local_opt_out");
+    }
+
+    public static void TryArmSession(string reason) {
+        LastBlockReason = null;
+        if (!InMultiplayerRun) {
+            Disarm("not_multiplayer");
+            return;
+        }
+
+        if (!LocalOptIn) {
+            Disarm("local_opt_in_required");
+            return;
+        }
+
+        if (!FrameworkBridge.IsRitsuLibPresentForMpCheat()) {
+            Disarm("ritsulib_required");
+            return;
+        }
+
+        MpCheatSidecarBridge.EnsureBootstrapped();
+        if (!MpCheatSidecarBridge.IsBootstrapReady) {
+            Disarm("sidecar_bootstrap_failed");
+            MainFile.Logger.Warn("[MpCheat] Sidecar bootstrap failed; config/command sync disabled.");
+            return;
+        }
+
+        SessionArmed = true;
+        MainFile.Logger.Info($"[MpCheat] Session armed ({reason}).");
+    }
+
+    public static void Disarm(string reason) {
+        if (SessionArmed)
+            MainFile.Logger.Info($"[MpCheat] Session disarmed: {reason}");
+        SessionArmed = false;
+        LastBlockReason = reason;
+        MpCheatState.Clear();
+    }
+
+    public static void OnRunEnded() {
+        Disarm("run_ended");
+    }
+}

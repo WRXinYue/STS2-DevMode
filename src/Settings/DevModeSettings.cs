@@ -33,6 +33,9 @@ public sealed class DevModeSettings {
     /// </summary>
     public string NormalRunMode { get; set; } = "DevPanel";
 
+    /// <summary>Opt in to synchronized multiplayer cheat sessions (requires STS2-RitsuLib).</summary>
+    public bool MultiplayerCheatOptIn { get; set; }
+
     /// <summary>Whether the draggable top-right multiplayer combat score panel is shown.</summary>
     public bool CombatStatsMpOverlayEnabled { get; set; } = true;
 
