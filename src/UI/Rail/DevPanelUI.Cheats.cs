@@ -86,7 +86,7 @@ internal static partial class DevPanelUI {
         secPlayer.AddChild(CreateCheatToggle(I18N.T("cheat.infiniteHp", "Infinite HP"), I18N.T("cheat.infiniteHp.desc", "Player cannot lose HP"), () => DevModeState.PlayerCheats.InfiniteHp, MpCheatUi.WrapBoolSetter(v => DevModeState.PlayerCheats.InfiniteHp = v)));
         secPlayer.AddChild(CreateCheatToggle(I18N.T("cheat.infiniteBlock", "Infinite Shield"), I18N.T("cheat.infiniteBlock.desc", "Block refills to 999 after loss"), () => DevModeState.PlayerCheats.InfiniteBlock, MpCheatUi.WrapBoolSetter(v => {
             DevModeState.PlayerCheats.InfiniteBlock = v;
-            if (v && RunContext.TryGetRunAndPlayer(out _, out var bp)) {
+            if (!MpCheatSession.InMultiplayerRun && v && RunContext.TryGetRunAndPlayer(out _, out var bp)) {
                 var c = bp.Creature;
                 if (c.Block < 999) c.GainBlockInternal(999 - c.Block);
             }
@@ -110,7 +110,7 @@ internal static partial class DevPanelUI {
         if (MpCheatSession.InMultiplayerRun) {
             var killBtn = CreatePlainButton(I18N.T("cheat.killAllOnce", "Kill All (sync)"), MdiIcon.Skull);
             killBtn.Pressed += () => TaskHelper.RunSafely(MpCheatCombatEnemyCoordinator.TryHostKillAllAsync());
-            killBtn.Disabled = !MpCheatSession.CanUseMultiplayerCheats;
+            killBtn.Disabled = !MpCheatSession.SessionArmed;
             secEnemy.AddChild(killBtn);
         }
         else {

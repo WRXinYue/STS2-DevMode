@@ -16,9 +16,14 @@ internal sealed class MpCheatTargetPlayerRef {
 }
 
 internal static class MpCheatUi {
+    internal const string HooksTabId = "devmode.hooks";
+
+    internal static bool IsHooksDisabledInMultiplayer =>
+        MpCheatSession.InMultiplayerRun;
+
     /// <summary>Synced config toggles/sliders (host publishes; client sends ConfigRequest).</summary>
     internal static bool CanEditSyncedConfig =>
-        !MpCheatSession.InMultiplayerRun || MpCheatSession.CanUseMultiplayerCheats;
+        !MpCheatSession.InMultiplayerRun || MpCheatSession.SessionArmed;
 
     /// <summary>Host-only commands (kill-all command publish, item host flows).</summary>
     internal static bool CanEditHostCommands =>
@@ -71,6 +76,7 @@ internal static class MpCheatUi {
 
     internal static void AfterCheatChanged() {
         if (!MpCheatSession.InMultiplayerRun) return;
+        MpCheatState.ApplyOptimisticFromDevModeState();
         if (MpCheatSession.IsHost)
             MpCheatSync.HostPublishFromDevModeState("ui");
         else

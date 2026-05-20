@@ -31,11 +31,14 @@ public static class MpCheatApplier {
     public static bool InfiniteStars(PlayerCombatState pcs) =>
         CheatsActive && GetPlayerFlags(TryGetPlayer(pcs)).InfiniteStars;
 
-    public static bool AlwaysRewardPotion => CheatsActive && MpCheatState.Config.GlobalPlayer.AlwaysRewardPotion;
+    public static bool AlwaysRewardPotion =>
+        CheatsActive && GetLocalPlayerFlags().AlwaysRewardPotion;
 
-    public static bool AlwaysUpgradeCardReward => CheatsActive && MpCheatState.Config.GlobalPlayer.AlwaysUpgradeCardReward;
+    public static bool AlwaysUpgradeCardReward(Player player) =>
+        CheatsActive && GetPlayerFlags(player).AlwaysUpgradeCardReward;
 
-    public static bool MaxCardRewardRarity => CheatsActive && MpCheatState.Config.GlobalPlayer.MaxCardRewardRarity;
+    public static bool MaxCardRewardRarity =>
+        CheatsActive && GetLocalPlayerFlags().MaxCardRewardRarity;
 
     public static float DefenseMultiplier(Player player) {
         if (!CheatsActive) return 1f;
@@ -75,29 +78,18 @@ public static class MpCheatApplier {
     private static MpCheatPlayerFlags GetLocalPlayerFlags() {
         if (!MpCheatSession.InMultiplayerRun)
             return MpCheatPlayerFlags.FromDevMode();
-
-        var run = MegaCrit.Sts2.Core.Runs.RunManager.Instance;
-        var netId = run?.NetService?.NetId ?? 0;
-        return GetPlayerFlags(netId);
+        return GetPlayerFlags(MpCheatSession.LocalNetId);
     }
 
     private static MpCheatPlayerFlags GetPlayerFlags(Player player) => GetPlayerFlags(player.NetId);
 
     private static MpCheatPlayerFlags GetPlayerFlags(ulong netId) {
+        if (!MpCheatSession.InMultiplayerRun)
+            return MpCheatPlayerFlags.FromDevMode();
+
         var cfg = MpCheatState.Config;
         if (cfg.PerPlayer.TryGetValue(netId, out var per))
-            return Merge(cfg.GlobalPlayer, per);
-        return cfg.GlobalPlayer;
+            return per;
+        return new MpCheatPlayerFlags();
     }
-
-    private static MpCheatPlayerFlags Merge(MpCheatPlayerFlags global, MpCheatPlayerFlags per) => new() {
-        InfiniteHp = per.InfiniteHp || global.InfiniteHp,
-        InfiniteBlock = per.InfiniteBlock || global.InfiniteBlock,
-        InfiniteEnergy = per.InfiniteEnergy || global.InfiniteEnergy,
-        InfiniteStars = per.InfiniteStars || global.InfiniteStars,
-        AlwaysRewardPotion = per.AlwaysRewardPotion || global.AlwaysRewardPotion,
-        AlwaysUpgradeCardReward = per.AlwaysUpgradeCardReward || global.AlwaysUpgradeCardReward,
-        MaxCardRewardRarity = per.MaxCardRewardRarity || global.MaxCardRewardRarity,
-        DefenseMultiplier = per.DefenseMultiplier != 1f ? per.DefenseMultiplier : global.DefenseMultiplier,
-    };
 }

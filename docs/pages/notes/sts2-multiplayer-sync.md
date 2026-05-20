@@ -78,11 +78,11 @@ DevMode 在合作模式使用 **分层同步**，不每帧发包：
 
 | Tier | 机制 | 内容 |
 |------|------|------|
-| 0 | 对称 Harmony + `MpCheatState` | `CheatPatches`（无限血/能量、倍率、冻怪等）— 战斗内 **零网络包** |
-| 1 | `INetMessage` 配置快照 | 经 `ZzzMpCheatEnvelopeNetMessage`（channel=Config，JSON + magic） |
+| 0 | 对称 Harmony + `MpCheatState` | `CheatPatches`（无限血/能量、倍率等）— 战斗内 **零网络包**；玩家向开关在 **`PerPlayer[netId]`**，只影响对应角色 |
+| 1 | `INetMessage` 配置快照 | 经 `ZzzMpCheatEnvelopeNetMessage`（channel=Config，JSON + magic）；客机 ConfigRequest **仅提交本机 `PerPlayer`**，主机合并广播 |
 | 2 | `INetMessage` 命令 | 同一 envelope（channel=Command：击杀、加牌 prepare/execute） |
 | 2b | 加牌 ACK | 同一 envelope（channel=AddCardAck，客机 → 主机） |
-| 2c | 客机加牌请求 | channel=AddCardRequest（客机 → 主机）；主机跑 prepare/ACK/execute 后 channel=AddCardRequestResult 回传；payload 含 `TemplateJson`（`CardEditTemplate`：费/格挡/伤害/关键词等，库页暂存后加牌时全员应用）；**仅 Temporary**（禁止 Permanent 写入跑团牌组，避免后续战斗改牌数值 desync） |
+| 2c | 客机加牌请求 | channel=AddCardRequest（客机 → 主机）；主机跑 prepare/ACK/execute 后 channel=AddCardRequestResult 回传；payload 含 `TemplateJson`（`CardEditTemplate`：费/格挡/伤害/关键词等，库页暂存后加牌时全员应用）；**Permanent 允许**（未改数值时）；**已改数值则仅 Temporary**（避免永久牌组实例与后续战斗 desync） |
 | 2d | 删牌 | Command：RemoveCardPrepare / RemoveCardExecute（按牌堆索引定位实例）；ACK 复用 AddCardAck |
 | 2e | 客机删牌请求 | channel=RemoveCardRequest / RemoveCardRequestResult（与加牌相同主机权威流程） |
 | 2f | 改牌 | Command：EditCardPrepare / EditCardExecute（牌堆索引定位 + `CardEditTemplate` JSON）；ACK 复用 AddCardAck |
@@ -96,13 +96,13 @@ DevMode 在合作模式使用 **分层同步**，不每帧发包：
 | 2o | Power | Command：AddPower/RemovePower/ClearPowers prepare/execute；payload 含 `Amount`、`PowerTarget`；客机 Apply/移除/清空仅**自己角色**；Auto-Apply 联机禁用 |
 | — | **单槽位** | 仅注册 **1** 个 mod `INetMessage` 类型，降低与其他 mod 的 id 冲突 |
 | — | **多人 ACK** | 主机等待「Run 内远端玩家 ∩ 大厅已连接」全部 ACK；超时随人数递增（8s + 1.5s×(n−1)，上限 20s）；`commandId` 多路复用，支持并发多笔加牌 |
-| — | **禁用** | `RuntimeStatModifiers` 帧循环；战斗中改 gold/HP 等本地直写；联机下遗物/药水/战斗加怪的**本地直写**（须走 coordinator） |
+| — | **禁用** | `RuntimeStatModifiers` 帧循环；战斗中改 gold/HP 等本地直写；联机下遗物/药水/战斗加怪的**本地直写**（须走 coordinator）；**Hooks** 规则（战斗开始加牌等未同步，侧栏图标灰显） |
 
 ### 启用条件
 
 1. 全员安装 **相同版本 DevMode**（**不依赖** RitsuLib；消息 id 按类型名排序，`Zzz*` 前缀避免与 `PeerInputMessage` 等冲突）
 2. 开发者模式菜单 → **联机作弊：ON**（仅本地 opt-in，**不会**写入原版 mod 握手列表）
-3. 跑档中主机/客机均可改 **已纳入 `MpCheatConfig` 的开关**（客机经 ConfigRequest）；金币/能量上限/药栏位等未同步项在联机下面板变灰
+3. 跑档中主机/客机均可改 **玩家向**开关（各自 `PerPlayer`，互不影响无敌/护盾等）；**敌人向**（秒杀、冻怪、伤害倍率）仍由主机写入 `GlobalEnemy` 全队共享；客机 ConfigRequest 只同步本机玩家项；金币/能量上限等未同步项变灰
 
 ### 代码入口
 
@@ -114,7 +114,8 @@ DevMode 在合作模式使用 **分层同步**，不每帧发包：
 
 - [ ] 双方 `联机作弊：ON` + DevMode，能进大厅并进跑
 - [ ] 日志有 `[MpCheat] NetMessage handlers registered.`
-- [ ] 主机开无限血/冻怪/伤害倍率，客机无 StateDivergence，跑 3+ 场战斗
+- [ ] 主机开无限血仅主机角色生效；客机开无限护盾仅客机角色生效；互不影响
+- [ ] 主机开冻怪/伤害倍率，全队敌人行为一致，无 StateDivergence，跑 3+ 场战斗
 - [ ] 主机点「击杀全部（同步）」，双方敌人同时死亡
 - [ ] 主机卡牌浏览器加牌：侧栏 **Player** 选客机角色后再加；客机牌组出现相同卡牌（无 8s 超时）
 - [ ] 全部卡牌库页：改格挡/伤害/费后加牌；双方实例数值一致，打牌无 StateDivergence

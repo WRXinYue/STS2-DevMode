@@ -103,8 +103,8 @@ public static class AlwaysPotionRewardPatch {
 [HarmonyPatch(typeof(MegaCrit.Sts2.Core.Factories.CardFactory), "RollForUpgrade",
     [typeof(Player), typeof(MegaCrit.Sts2.Core.Models.CardModel), typeof(decimal), typeof(MegaCrit.Sts2.Core.Random.Rng)])]
 public static class AlwaysUpgradeRewardPatch {
-    public static void Prefix(ref decimal baseChance) {
-        if (!MpCheatApplier.AlwaysUpgradeCardReward) return;
+    public static void Prefix(Player player, ref decimal baseChance) {
+        if (!MpCheatApplier.AlwaysUpgradeCardReward(player)) return;
         baseChance = 999m;
     }
 }

@@ -52,6 +52,30 @@ public sealed class CardEditTemplate {
         || SingleTurnSly.HasValue
         || DynamicVars is { Count: > 0 };
 
+    /// <summary>True when any staged field differs from <paramref name="baseline"/> (canonical card snapshot).</summary>
+    public bool DiffersFrom(CardEditTemplate baseline) {
+        if (BaseCost.HasValue && BaseCost != baseline.BaseCost) return true;
+        if (ReplayCount.HasValue && ReplayCount != baseline.ReplayCount) return true;
+        if (Damage.HasValue && Damage != baseline.Damage) return true;
+        if (Block.HasValue && Block != baseline.Block) return true;
+        if (Exhaust.HasValue && Exhaust != baseline.Exhaust) return true;
+        if (Ethereal.HasValue && Ethereal != baseline.Ethereal) return true;
+        if (Unplayable.HasValue && Unplayable != baseline.Unplayable) return true;
+        if (ExhaustOnNextPlay.HasValue && ExhaustOnNextPlay != baseline.ExhaustOnNextPlay) return true;
+        if (SingleTurnRetain.HasValue && SingleTurnRetain != baseline.SingleTurnRetain) return true;
+        if (SingleTurnSly.HasValue && SingleTurnSly != baseline.SingleTurnSly) return true;
+        if (DynamicVars is not { Count: > 0 }) return false;
+        foreach (var kv in DynamicVars) {
+            var baseVal = baseline.DynamicVars?.GetValueOrDefault(kv.Key);
+            if (baseVal != kv.Value) return true;
+        }
+        if (baseline.DynamicVars == null) return true;
+        foreach (var key in baseline.DynamicVars.Keys) {
+            if (!DynamicVars.ContainsKey(key)) return true;
+        }
+        return false;
+    }
+
     /// <summary>Merges non-null fields from <paramref name="patch"/> into this template.</summary>
     public void MergePatch(CardEditTemplate patch) {
         if (patch.BaseCost.HasValue) BaseCost = patch.BaseCost;

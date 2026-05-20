@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DevMode.Actions;
 using DevMode.Hooks;
+using DevMode.Multiplayer.Cheat;
 using DevMode.Settings;
 using Godot;
 using MegaCrit.Sts2.Core.Models;
@@ -33,6 +34,8 @@ internal static class HookConfigUI {
     // ─────────────────────────── Public API ───────────────────────────
 
     public static void Show(NGlobalUi globalUi) {
+        if (MpCheatUi.IsHooksDisabledInMultiplayer)
+            return;
         Remove(globalUi);
 
         var (root, _, vbox) = DevPanelUI.CreateBrowserOverlayShell(

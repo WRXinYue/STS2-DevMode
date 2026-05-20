@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using DevMode.Multiplayer.Cheat;
 using DevMode.Settings;
 using MegaCrit.Sts2.Core.Entities.Players;
 
@@ -15,6 +16,7 @@ internal static class HookManager {
     /// </summary>
     public static void Fire(TriggerType trigger, Player? player) {
         if (!DevModeState.IsActive) return;
+        if (MpCheatUi.IsHooksDisabledInMultiplayer) return;
 
         List<HookEntry> hooks;
         try { hooks = SettingsStore.Current.Hooks; }

@@ -25,9 +25,12 @@ internal static class MpCheatConfigCoordinator {
                 "Multiplayer cheat inactive: {0}",
                 MpCheatSession.LastBlockReason ?? "unknown");
 
-        var config = MpCheatConfig.FromDevModeState();
-        config.SessionEnabled = true;
-        var configJson = MpCheatNetJson.SerializeConfig(config);
+        var localNetId = MpCheatSession.LocalNetId;
+        if (localNetId == 0)
+            return I18N.T("mpcheat.config.noNetId", "No local net id for config sync.");
+
+        var patch = MpCheatConfig.BuildClientPlayerPatch(localNetId);
+        var configJson = MpCheatNetJson.SerializeConfig(patch);
 
         var clientRequestId = Interlocked.Increment(ref _nextClientRequestId);
         var completion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -35,7 +38,6 @@ internal static class MpCheatConfigCoordinator {
             ClientCompletions[clientRequestId] = completion;
         }
 
-        var localNetId = RunManager.Instance?.NetService?.NetId ?? 0;
         MpCheatNetBus.ClientSendConfigRequest(new MpCheatConfigClientRequestMessage {
             ClientRequestId = clientRequestId,
             RequesterNetId = localNetId,
@@ -85,9 +87,9 @@ internal static class MpCheatConfigCoordinator {
             return;
         }
 
-        config.SessionEnabled = true;
-        MpCheatNetBus.HostPublishConfig(config, $"client_request:{senderId}");
-        MainFile.Logger.Info($"[MpCheat] Config published from client request {senderId}.");
+        var merged = MpCheatState.Config.MergeClientPlayerPatch(config, senderId);
+        MpCheatNetBus.HostPublishConfig(merged, $"client_request:{senderId}");
+        MainFile.Logger.Info($"[MpCheat] Per-player config merged from client {senderId}.");
         Reply(true, I18N.T("mpcheat.config.published", "Cheat config synced."));
     }
 

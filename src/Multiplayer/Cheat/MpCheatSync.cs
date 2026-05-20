@@ -17,8 +17,8 @@ public static class MpCheatSync {
         MpCheatNetBus.TryRegisterHandlers();
 
         if (MpCheatSession.IsHost) {
-            var config = MpCheatConfig.FromDevModeState();
-            config.SessionEnabled = true;
+            var netId = MpCheatSession.LocalNetId;
+            var config = MpCheatConfig.MergeLocalEdits(new MpCheatConfig(), netId, includeSharedGlobals: true);
             MpCheatNetBus.HostPublishConfig(config, "run_start");
         }
     }
@@ -30,8 +30,9 @@ public static class MpCheatSync {
 
     public static void HostPublishFromDevModeState(string reason) {
         if (!MpCheatSession.CanEditMultiplayerCheats) return;
-        var config = MpCheatConfig.FromDevModeState();
-        config.SessionEnabled = true;
+        var netId = MpCheatSession.LocalNetId;
+        if (netId == 0) return;
+        var config = MpCheatConfig.MergeLocalEdits(MpCheatState.Config, netId, includeSharedGlobals: true);
         MpCheatNetBus.HostPublishConfig(config, reason);
     }
 

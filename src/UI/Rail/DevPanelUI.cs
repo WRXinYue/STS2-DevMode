@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using DevMode;
 using DevMode.Icons;
+using DevMode.Multiplayer.Cheat;
 using DevMode.Panels;
 using DevMode.Settings;
 using Godot;
@@ -39,6 +40,7 @@ internal static partial class DevPanelUI {
     private static StyleBoxFlat? _railSepStyle;
     private static int _activeRailBtnIdx = -1;
     private static readonly List<(Button btn, MdiIcon icon)> _railIconButtons = new();
+    private static NGlobalUi? _railGlobalUi;
 
     /// <summary>Pin the rail visible (e.g. while an external overlay is open). Call Unpin when done.</summary>
     public static void PinRail() => _pinRailCount++;
@@ -85,6 +87,7 @@ internal static partial class DevPanelUI {
     private static Color ColIconNormal => ThemeManager.Current.IconNormal;
     private static Color ColIconHover => ThemeManager.Current.IconHover;
     private static Color ColIconActive => DevModeTheme.Accent;
+    private static Color ColIconDisabled => new(0.55f, 0.55f, 0.55f, 0.85f);
     private static Color ColIconActiveBg => ThemeManager.Current.IconActiveBg;
     private static Color ColOverlayBg => DevModeTheme.PanelBg;
     private static Color ColOverlayBorder => DevModeTheme.PanelBorder;
@@ -112,6 +115,7 @@ internal static partial class DevPanelUI {
     internal static void RefreshRailHintPresentation() {
         RefreshPeekTabPresentation();
         RefreshLogAlertHints();
+        RefreshRailTabAvailability();
     }
 
     private static void RefreshRailIconTints() {
@@ -119,8 +123,9 @@ internal static partial class DevPanelUI {
             var (btn, icon) = _railIconButtons[i];
             if (IsLogAlertBlinking(btn))
                 continue;
-            bool active = i == _activeRailBtnIdx;
-            btn.Icon = icon.Texture(20, active ? ColIconActive : ColIconNormal);
+            bool disabled = btn.Disabled;
+            bool active = !disabled && i == _activeRailBtnIdx;
+            btn.Icon = icon.Texture(20, disabled ? ColIconDisabled : active ? ColIconActive : ColIconNormal);
         }
     }
 
@@ -129,6 +134,7 @@ internal static partial class DevPanelUI {
         if (((Node)globalUi).GetNodeOrNull<Control>(RootName) != null)
             return;
 
+        _railGlobalUi = globalUi;
         _onRefreshPanel = actions.OnRefreshPanel;
         _activeOverlayId = null;
         _controller.Attach(closeAllPanels: () => {
@@ -347,6 +353,7 @@ internal static partial class DevPanelUI {
 
     // ──────── Detach ────────
     public static void Detach(NGlobalUi globalUi) {
+        _railGlobalUi = null;
         _activeOverlayId = null;
         _controller.Detach();
         _browserOverlayCount = 0;

@@ -29,6 +29,59 @@ internal static class CardBrowserRightPanel {
     /// <summary>Staged edits applied when adding from the library (canonical cards are not mutated in-place in MP).</summary>
     private sealed class LibraryAddStaging {
         public CardEditTemplate Template { get; } = new();
+
+        public void ResetToDefault(CardModel card) {
+            var t = Template;
+            t.BaseCost = CardEditActions.GetBaseCost(card);
+            t.ReplayCount = null;
+            t.Damage = null;
+            t.Block = null;
+            t.Exhaust = null;
+            t.Ethereal = null;
+            t.Unplayable = null;
+            t.ExhaustOnNextPlay = null;
+            t.SingleTurnRetain = null;
+            t.SingleTurnSly = null;
+            t.DynamicVars = null;
+        }
+    }
+
+    /// <summary>Locks library stat editors when Duration is Permanent.</summary>
+    private sealed class LibraryAddUiState {
+        public required CardModel Card { get; init; }
+        public required LibraryAddStaging Staging { get; init; }
+        public List<Control> StatEditRows { get; } = [];
+        public Label? MpDurHint;
+        public bool MpAddCard;
+
+        public void Refresh() {
+            var permanent = DevModeState.EffectDuration == EffectDuration.Permanent;
+            if (permanent)
+                Staging.ResetToDefault(Card);
+            var tooltip = I18N.T(
+                "cardBrowser.permLocksEdits",
+                "Card stat edits are disabled in Permanent mode.");
+            foreach (var row in StatEditRows)
+                SetStatEditRowLocked(row, permanent, tooltip);
+            RefreshMpDurHint();
+        }
+
+        public void RefreshMpDurHintOnly() => RefreshMpDurHint();
+
+        private void RefreshMpDurHint() {
+            if (MpDurHint == null) return;
+            MpDurHint.Text = DevModeState.EffectDuration == EffectDuration.Permanent
+                ? I18N.T(
+                    "mpcheat.cardAdd.permLocksEdits",
+                    "Permanent mode: card stat edits are disabled.")
+                : CardActions.HasStagedEdits(Card, new AddCardRequest { StagedTemplate = Staging.Template })
+                    ? I18N.T(
+                        "mpcheat.cardAdd.permEditedHint",
+                        "Multiplayer: switch to Temporary to edit stats before add.")
+                    : I18N.T(
+                        "mpcheat.cardAdd.permAllowedHint",
+                        "Multiplayer: Permanent is allowed for unedited cards.");
+        }
     }
 
     internal static void Build(VBoxContainer container, Label statusLabel,
@@ -95,9 +148,11 @@ internal static class CardBrowserRightPanel {
 
         container.AddChild(new HSeparator());
 
+        LibraryAddUiState? libraryUi = null;
         if (isLibrary) {
-            BuildAddSection(container, statusLabel, card, displayCard, state, player, libraryUpgradeDetailPreview,
-                libraryAddStaging!, onCardListChanged);
+            libraryUi = new LibraryAddUiState { Card = card, Staging = libraryAddStaging! };
+            BuildAddSection(container, statusLabel, card, displayCard, state, player,
+                libraryUpgradeDetailPreview, libraryAddStaging!, onCardListChanged, libraryUi);
         }
         else {
             BuildOwnedCardActions(container, statusLabel, card, state, player, globalUi, onCardListChanged, browseTarget);
@@ -106,7 +161,7 @@ internal static class CardBrowserRightPanel {
         container.AddChild(new HSeparator());
         // Inline editors apply to the pile instance, or stage values for Add when browsing the library.
         BuildEditSection(container, statusLabel, card, state, player, onCardEdited, libraryAddStaging,
-            isLibrary ? null : browseTarget);
+            isLibrary ? null : browseTarget, libraryUi);
     }
 
     /// <summary>When browsing the card library with "view upgrades" on, match grid + NCard: clone and UpgradeInternal for read-only UI.</summary>
@@ -129,7 +184,7 @@ internal static class CardBrowserRightPanel {
 
     private static void BuildAddSection(VBoxContainer container, Label statusLabel,
         CardModel card, CardModel displayCard, RunState state, Player player, bool libraryUpgradeDetailPreview,
-        LibraryAddStaging addStaging, Action onCardListChanged) {
+        LibraryAddStaging addStaging, Action onCardListChanged, LibraryAddUiState libraryUi) {
         var upgradeLevelsToApply = 0;
         if (libraryUpgradeDetailPreview && !ReferenceEquals(displayCard, card)) {
             try {
@@ -221,28 +276,20 @@ internal static class CardBrowserRightPanel {
         durRow.AddChild(durLbl);
         var durPicker = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         durPicker.AddItem(I18N.T("topbar.card.temporary", "Temp"), 0);
-        if (mpAddCard) {
-            DevModeState.EffectDuration = EffectDuration.Temporary;
-            durPicker.Selected = 0;
-        }
-        else {
-            durPicker.AddItem(I18N.T("topbar.card.permanent", "Perm"), 1);
-            durPicker.Selected = DevModeState.EffectDuration == EffectDuration.Permanent ? 1 : 0;
-            durPicker.ItemSelected += idx => {
-                DevModeState.EffectDuration = idx == 1 ? EffectDuration.Permanent : EffectDuration.Temporary;
-            };
-        }
+        durPicker.AddItem(I18N.T("topbar.card.permanent", "Perm"), 1);
+        durPicker.Selected = DevModeState.EffectDuration == EffectDuration.Permanent ? 1 : 0;
+        durPicker.ItemSelected += idx => {
+            DevModeState.EffectDuration = idx == 1 ? EffectDuration.Permanent : EffectDuration.Temporary;
+            libraryUi.Refresh();
+        };
         durRow.AddChild(durPicker);
         container.AddChild(durRow);
+        libraryUi.MpAddCard = mpAddCard;
         if (mpAddCard) {
-            var durHint = new Label {
-                Text = I18N.T(
-                    "mpcheat.cardAdd.tempOnly",
-                    "Multiplayer: only Temporary — Permanent adds to the run deck and edited stats may desync in later combats."),
-                AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            };
+            var durHint = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
             durHint.AddThemeFontSizeOverride("font_size", 11);
             durHint.AddThemeColorOverride("font_color", new Color(0.95f, 0.75f, 0.35f));
+            libraryUi.MpDurHint = durHint;
             container.AddChild(durHint);
         }
 
@@ -267,10 +314,16 @@ internal static class CardBrowserRightPanel {
         async Task SyncAddCardInMultiplayerAsync() {
             var addRequest = new AddCardRequest {
                 Target = DevModeState.CardTarget,
-                Duration = EffectDuration.Temporary,
+                Duration = DevModeState.EffectDuration,
                 UpgradeLevelsToApply = upgradeLevelsToApply,
                 StagedTemplate = addStaging.Template,
             };
+            if (addRequest.Duration == EffectDuration.Permanent && CardActions.HasStagedEdits(card, addRequest)) {
+                statusLabel.Text = I18N.T(
+                    "mpcheat.cardAdd.permanentEditedBlocked",
+                    "Permanent add is disabled while card stats are edited — use Temporary or reset edits.");
+                return;
+            }
             var result = MpCheatSession.IsHost
                 ? await MpCheatCardAddCoordinator.TryHostAddCardAsync(
                     state, addTargetPlayer, card, addRequest, CardPreviewStyle.HorizontalLayout)
@@ -327,6 +380,7 @@ internal static class CardBrowserRightPanel {
                 I18N.T("cardBrowser.autoApplyAdded", "Auto-apply added: {0}"), cardName);
         };
         container.AddChild(autoApplyBtn);
+        libraryUi.Refresh();
     }
 
     // ── Owned card actions (Upgrade + Remove) ──
@@ -442,7 +496,7 @@ internal static class CardBrowserRightPanel {
 
     private static void BuildEditSection(VBoxContainer container, Label statusLabel, CardModel card,
         RunState state, Player player, Action? onCardEdited, LibraryAddStaging? libraryAddStaging = null,
-        CardTarget? browseTarget = null) {
+        CardTarget? browseTarget = null, LibraryAddUiState? libraryUi = null) {
         var mpLibrary = libraryAddStaging != null && MpCheatSession.InMultiplayerRun;
         var mpOwnedPile = libraryAddStaging == null && MpCheatSession.InMultiplayerRun && browseTarget.HasValue;
         var mpBlocked = libraryAddStaging == null && MpCheatSession.InMultiplayerRun && !browseTarget.HasValue;
@@ -475,7 +529,10 @@ internal static class CardBrowserRightPanel {
 
         void ApplyPatch(CardEditTemplate patch, string singlePlayerOk, string? singlePlayerFail = null) {
             if (libraryAddStaging != null) {
+                if (DevModeState.EffectDuration == EffectDuration.Permanent)
+                    return;
                 libraryAddStaging.Template.MergePatch(patch);
+                libraryUi?.RefreshMpDurHintOnly();
                 if (!MpCheatSession.InMultiplayerRun)
                     CardEditActions.ApplyTemplate(card, patch);
                 statusLabel.Text = MpCheatSession.InMultiplayerRun
@@ -506,12 +563,17 @@ internal static class CardBrowserRightPanel {
             onCardEdited?.Invoke();
         }
 
+        void TrackLibraryRow(Control row) {
+            if (libraryUi != null)
+                libraryUi.StatEditRows.Add(row);
+        }
+
         if (libraryAddStaging != null) {
             var stagedCost = libraryAddStaging.Template.BaseCost ?? CardEditActions.GetBaseCost(card) ?? 0;
-            AddIntEditor(container, I18N.T("cardEdit.cost", "Base Cost"), stagedCost,
+            TrackLibraryRow(AddIntEditor(container, I18N.T("cardEdit.cost", "Base Cost"), stagedCost,
                 v => ApplyPatch(
                     new CardEditTemplate { BaseCost = v },
-                    I18N.T("cardBrowser.costAppliesOnAdd", "Base cost applies when you add this card.")));
+                    I18N.T("cardBrowser.costAppliesOnAdd", "Base cost applies when you add this card."))));
         }
         else {
             AddIntEditor(container, I18N.T("cardEdit.cost", "Base Cost"),
@@ -522,48 +584,53 @@ internal static class CardBrowserRightPanel {
                     I18N.T("cardBrowser.costSetFailed", "Could not set cost.")));
         }
 
-        AddIntEditor(container, I18N.T("cardEdit.replay", "Replay Count"),
+        TrackLibraryRow(AddIntEditor(container, I18N.T("cardEdit.replay", "Replay Count"),
             CardEditActions.GetReplayCount(card) ?? 0,
             v => ApplyPatch(
                 new CardEditTemplate { ReplayCount = v },
-                I18N.T("cardBrowser.replaySet", "Replay set.")));
+                I18N.T("cardBrowser.replaySet", "Replay set."))));
 
-        AddIntEditor(container, I18N.T("cardEdit.damage", "Base Damage"),
+        TrackLibraryRow(AddIntEditor(container, I18N.T("cardEdit.damage", "Base Damage"),
             CardEditActions.GetDamage(card) ?? 0,
             v => ApplyPatch(
                 new CardEditTemplate { Damage = v },
-                I18N.T("cardBrowser.damageSet", "Damage set.")));
+                I18N.T("cardBrowser.damageSet", "Damage set."))));
 
-        AddIntEditor(container, I18N.T("cardEdit.block", "Base Block"),
+        TrackLibraryRow(AddIntEditor(container, I18N.T("cardEdit.block", "Base Block"),
             CardEditActions.GetBlock(card) ?? 0,
             v => ApplyPatch(
                 new CardEditTemplate { Block = v },
-                I18N.T("cardBrowser.blockSet", "Block set.")));
+                I18N.T("cardBrowser.blockSet", "Block set."))));
 
-        AddBoolToggle(container, I18N.T("cardEdit.exhaust", "Exhaust"),
+        TrackLibraryRow(AddBoolToggle(container, I18N.T("cardEdit.exhaust", "Exhaust"),
             CardEditActions.GetExhaust(card) ?? false,
             v => ApplyPatch(
                 new CardEditTemplate { Exhaust = v },
-                I18N.T("cardBrowser.exhaustToggled", "Exhaust toggled.")));
-        AddBoolToggle(container, I18N.T("cardEdit.ethereal", "Ethereal"),
+                I18N.T("cardBrowser.exhaustToggled", "Exhaust toggled."))));
+
+        TrackLibraryRow(AddBoolToggle(container, I18N.T("cardEdit.ethereal", "Ethereal"),
             CardEditActions.GetEthereal(card) ?? false,
             v => ApplyPatch(
                 new CardEditTemplate { Ethereal = v },
-                I18N.T("cardBrowser.etherealToggled", "Ethereal toggled.")));
-        AddBoolToggle(container, I18N.T("cardEdit.unplayable", "Unplayable"),
+                I18N.T("cardBrowser.etherealToggled", "Ethereal toggled."))));
+
+        TrackLibraryRow(AddBoolToggle(container, I18N.T("cardEdit.unplayable", "Unplayable"),
             CardEditActions.GetUnplayable(card) ?? false,
             v => ApplyPatch(
                 new CardEditTemplate { Unplayable = v },
-                I18N.T("cardBrowser.unplayableToggled", "Unplayable toggled.")));
-        AddBoolToggle(container, I18N.T("cardEdit.exhaustOnNextPlay", "Exhaust On Next Play"),
+                I18N.T("cardBrowser.unplayableToggled", "Unplayable toggled."))));
+
+        TrackLibraryRow(AddBoolToggle(container, I18N.T("cardEdit.exhaustOnNextPlay", "Exhaust On Next Play"),
             CardEditActions.GetExhaustOnNextPlay(card) ?? false,
-            v => ApplyPatch(new CardEditTemplate { ExhaustOnNextPlay = v }, "Exhaust-on-next-play toggled."));
-        AddBoolToggle(container, I18N.T("cardEdit.singleTurnRetain", "Single-Turn Retain"),
+            v => ApplyPatch(new CardEditTemplate { ExhaustOnNextPlay = v }, "Exhaust-on-next-play toggled.")));
+
+        TrackLibraryRow(AddBoolToggle(container, I18N.T("cardEdit.singleTurnRetain", "Single-Turn Retain"),
             CardEditActions.GetSingleTurnRetain(card) ?? false,
-            v => ApplyPatch(new CardEditTemplate { SingleTurnRetain = v }, "Single-turn retain toggled."));
-        AddBoolToggle(container, I18N.T("cardEdit.singleTurnSly", "Single-Turn Sly"),
+            v => ApplyPatch(new CardEditTemplate { SingleTurnRetain = v }, "Single-turn retain toggled.")));
+
+        TrackLibraryRow(AddBoolToggle(container, I18N.T("cardEdit.singleTurnSly", "Single-Turn Sly"),
             CardEditActions.GetSingleTurnSly(card) ?? false,
-            v => ApplyPatch(new CardEditTemplate { SingleTurnSly = v }, "Single-turn sly toggled."));
+            v => ApplyPatch(new CardEditTemplate { SingleTurnSly = v }, "Single-turn sly toggled.")));
 
         var dynamicKeys = CardEditActions.GetDynamicVarKeys(card);
         if (dynamicKeys.Count > 0) {
@@ -572,10 +639,10 @@ internal static class CardBrowserRightPanel {
             foreach (var key in dynamicKeys) {
                 var displayKey = CardEditActions.GetDynamicVarDisplayName(key);
                 var dynKey = key;
-                AddIntEditor(container, displayKey, CardEditActions.GetDynamicVar(card, key) ?? 0,
+                TrackLibraryRow(AddIntEditor(container, displayKey, CardEditActions.GetDynamicVar(card, key) ?? 0,
                     v => ApplyPatch(
                         new CardEditTemplate { DynamicVars = new Dictionary<string, int> { [dynKey] = v } },
-                        $"{displayKey} set."));
+                        $"{displayKey} set.")));
             }
         }
 
@@ -594,6 +661,8 @@ internal static class CardBrowserRightPanel {
 
             var applyBtn = new Button { Text = I18N.T("cardEdit.applyEnchant", "Apply"), CustomMinimumSize = new Vector2(50, 26) };
             applyBtn.Pressed += () => {
+                if (libraryAddStaging != null && DevModeState.EffectDuration == EffectDuration.Permanent)
+                    return;
                 int idx = enchantDropdown.Selected;
                 if (idx >= 0 && idx < enchantTypes.Count) {
                     bool ok = CardEditActions.TryApplyEnchantment(card, enchantTypes[idx]);
@@ -604,6 +673,8 @@ internal static class CardBrowserRightPanel {
 
             var forceBtn = new Button { Text = I18N.T("cardEdit.forceEnchant", "Force"), CustomMinimumSize = new Vector2(50, 26) };
             forceBtn.Pressed += () => {
+                if (libraryAddStaging != null && DevModeState.EffectDuration == EffectDuration.Permanent)
+                    return;
                 int idx = enchantDropdown.Selected;
                 if (idx >= 0 && idx < enchantTypes.Count) {
                     bool ok = CardEditActions.TryApplyEnchantment(card, enchantTypes[idx], force: true);
@@ -613,13 +684,17 @@ internal static class CardBrowserRightPanel {
             enchantRow.AddChild(forceBtn);
 
             container.AddChild(enchantRow);
+            TrackLibraryRow(enchantRow);
 
             var clearBtn = new Button { Text = I18N.T("cardEdit.clearEnchant", "Clear Enchantment"), CustomMinimumSize = new Vector2(0, 26) };
             clearBtn.Pressed += () => {
+                if (libraryAddStaging != null && DevModeState.EffectDuration == EffectDuration.Permanent)
+                    return;
                 CardEditActions.TryClearEnchantment(card);
                 statusLabel.Text = "Enchantment cleared.";
             };
             container.AddChild(clearBtn);
+            TrackLibraryRow(clearBtn);
         }
 
         if (MpCheatSession.InMultiplayerRun && mpOwnedPile) {
@@ -632,7 +707,8 @@ internal static class CardBrowserRightPanel {
         }
 
         container.AddChild(new HSeparator());
-        BuildPresetRow(container, statusLabel, card, state, player, browseTarget, onCardEdited, libraryAddStaging);
+        BuildPresetRow(container, statusLabel, card, state, player, browseTarget, onCardEdited, libraryAddStaging, libraryUi);
+        libraryUi?.Refresh();
     }
 
     private static void RunSyncedCardEdit(
@@ -673,7 +749,8 @@ internal static class CardBrowserRightPanel {
     // ──────── Preset Row ────────
 
     private static void BuildPresetRow(VBoxContainer container, Label statusLabel, CardModel card,
-        RunState state, Player player, CardTarget? browseTarget, Action? onCardEdited, LibraryAddStaging? libraryAddStaging) {
+        RunState state, Player player, CardTarget? browseTarget, Action? onCardEdited, LibraryAddStaging? libraryAddStaging,
+        LibraryAddUiState? libraryUi = null) {
         var presetRow = new HBoxContainer();
         presetRow.AddThemeConstantOverride("separation", 4);
 
@@ -707,10 +784,13 @@ internal static class CardBrowserRightPanel {
 
         applyBtn.Pressed += () => {
             if (presetPicker.ItemCount == 0) { statusLabel.Text = "No preset."; return; }
+            if (libraryAddStaging != null && DevModeState.EffectDuration == EffectDuration.Permanent)
+                return;
             var pName = presetPicker.GetItemText(presetPicker.Selected);
             if (!CardEditPresetManager.Store.TryGet(pName, out var preset)) { statusLabel.Text = "Preset not found."; return; }
             if (libraryAddStaging != null) {
                 libraryAddStaging.Template.MergePatch(preset.Template);
+                libraryUi?.RefreshMpDurHintOnly();
                 if (!MpCheatSession.InMultiplayerRun)
                     CardEditActions.ApplyTemplate(card, preset.Template);
                 statusLabel.Text = MpCheatSession.InMultiplayerRun
@@ -746,6 +826,8 @@ internal static class CardBrowserRightPanel {
         presetRow.AddChild(applyBtn);
         presetRow.AddChild(delBtn);
         container.AddChild(presetRow);
+        if (libraryUi != null)
+            libraryUi.StatEditRows.Add(presetRow);
 
         RebuildPresets();
     }
@@ -764,7 +846,34 @@ internal static class CardBrowserRightPanel {
         parent.AddChild(row);
     }
 
-    private static void AddIntEditor(VBoxContainer parent, string label, int currentValue, Action<int> onApply) {
+    private static readonly Color StatEditLockedModulate = new(0.55f, 0.55f, 0.55f, 0.85f);
+
+    private static void SetStatEditRowLocked(Control row, bool locked, string tooltip) {
+        SetInteractiveDescendants(row, enabled: !locked);
+        row.Modulate = locked ? StatEditLockedModulate : Colors.White;
+        row.TooltipText = locked ? tooltip : "";
+    }
+
+    private static void SetInteractiveDescendants(Node node, bool enabled) {
+        switch (node) {
+            case BaseButton button:
+                button.Disabled = !enabled;
+                break;
+            case SpinBox spinBox:
+                spinBox.Editable = enabled;
+                break;
+            case Slider slider:
+                slider.Editable = enabled;
+                break;
+            case LineEdit lineEdit:
+                lineEdit.Editable = enabled;
+                break;
+        }
+        foreach (var child in node.GetChildren())
+            SetInteractiveDescendants(child, enabled);
+    }
+
+    private static Control AddIntEditor(VBoxContainer parent, string label, int currentValue, Action<int> onApply) {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 4);
         row.AddChild(new Label { Text = label, CustomMinimumSize = new Vector2(80, 0) });
@@ -779,15 +888,17 @@ internal static class CardBrowserRightPanel {
         spin.ValueChanged += value => onApply((int)value);
         row.AddChild(spin);
         parent.AddChild(row);
+        return row;
     }
 
-    private static void AddBoolToggle(VBoxContainer parent, string label, bool currentValue, Action<bool> onToggle) {
+    private static Control AddBoolToggle(VBoxContainer parent, string label, bool currentValue, Action<bool> onToggle) {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 4);
         var check = new CheckBox { Text = label, ButtonPressed = currentValue };
         check.Toggled += v => onToggle(v);
         row.AddChild(check);
         parent.AddChild(row);
+        return row;
     }
 
     internal static Button CreateActionButton(string text, Color bgColor) {

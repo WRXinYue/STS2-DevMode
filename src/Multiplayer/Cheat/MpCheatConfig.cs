@@ -11,6 +11,7 @@ public sealed class MpCheatConfig {
 
     public bool SessionEnabled { get; set; }
 
+    /// <summary>Legacy / unused in MP runs — player cheats use <see cref="PerPlayer"/> only.</summary>
     public MpCheatPlayerFlags GlobalPlayer { get; set; } = new();
 
     public MpCheatEnemyFlags GlobalEnemy { get; set; } = new();
@@ -19,7 +20,7 @@ public sealed class MpCheatConfig {
 
     public MpCheatMapFlags GlobalMap { get; set; } = new();
 
-    /// <summary>Per-player overrides keyed by net id (empty = use global only).</summary>
+    /// <summary>Per-player cheat flags keyed by net id (MP player toggles).</summary>
     public Dictionary<ulong, MpCheatPlayerFlags> PerPlayer { get; set; } = new();
 
     public static MpCheatConfig FromDevModeState() {
@@ -32,12 +33,78 @@ public sealed class MpCheatConfig {
         };
     }
 
+    public MpCheatConfig Clone() {
+        var copy = new MpCheatConfig {
+            Version = Version,
+            SessionEnabled = SessionEnabled,
+            GlobalPlayer = GlobalPlayer.Clone(),
+            GlobalEnemy = GlobalEnemy.Clone(),
+            GlobalGameplay = GlobalGameplay.Clone(),
+            GlobalMap = GlobalMap.Clone(),
+        };
+        foreach (var (netId, flags) in PerPlayer)
+            copy.PerPlayer[netId] = flags.Clone();
+        return copy;
+    }
+
+    /// <summary>Merge local UI edits into a publish snapshot (player flags → PerPlayer only).</summary>
+    public static MpCheatConfig MergeLocalEdits(MpCheatConfig baseline, ulong localNetId, bool includeSharedGlobals) {
+        var merged = baseline.Clone();
+        merged.SessionEnabled = true;
+        merged.GlobalPlayer = new MpCheatPlayerFlags();
+        merged.PerPlayer[localNetId] = MpCheatPlayerFlags.FromDevMode();
+        if (includeSharedGlobals) {
+            merged.GlobalEnemy = MpCheatEnemyFlags.FromDevMode();
+            merged.GlobalGameplay = MpCheatGameplayFlags.FromDevMode();
+            merged.GlobalMap = MpCheatMapFlags.FromDevMode();
+        }
+        return merged;
+    }
+
+    /// <summary>Client → host: only the requester's player flags (no shared globals).</summary>
+    public static MpCheatConfig BuildClientPlayerPatch(ulong requesterNetId) =>
+        new() {
+            SessionEnabled = true,
+            PerPlayer = { [requesterNetId] = MpCheatPlayerFlags.FromDevMode() },
+        };
+
+    /// <summary>Host merges a client patch without overwriting shared globals.</summary>
+    public MpCheatConfig MergeClientPlayerPatch(MpCheatConfig incoming, ulong requesterNetId) {
+        var merged = Clone();
+        merged.SessionEnabled = true;
+        merged.GlobalPlayer = new MpCheatPlayerFlags();
+
+        if (incoming.PerPlayer.TryGetValue(requesterNetId, out var per))
+            merged.PerPlayer[requesterNetId] = per.Clone();
+        else if (HasAnyPlayerFlag(incoming.GlobalPlayer))
+            merged.PerPlayer[requesterNetId] = incoming.GlobalPlayer.Clone();
+
+        return merged;
+    }
+
     public void ApplyToDevModeState() {
         GlobalPlayer.ApplyToDevMode();
         GlobalEnemy.ApplyToDevMode();
         GlobalGameplay.ApplyToDevMode();
         GlobalMap.ApplyToDevMode();
     }
+
+    /// <summary>Apply synced snapshot to local DevMode UI (MP: only this machine's player flags).</summary>
+    public void ApplyToLocalDevModeState(ulong localNetId) {
+        if (localNetId != 0 && PerPlayer.TryGetValue(localNetId, out var per))
+            per.ApplyToDevMode();
+        else
+            new MpCheatPlayerFlags().ApplyToDevMode();
+
+        GlobalEnemy.ApplyToDevMode();
+        GlobalGameplay.ApplyToDevMode();
+        GlobalMap.ApplyToDevMode();
+    }
+
+    private static bool HasAnyPlayerFlag(MpCheatPlayerFlags flags) =>
+        flags.InfiniteHp || flags.InfiniteBlock || flags.InfiniteEnergy || flags.InfiniteStars
+        || flags.AlwaysRewardPotion || flags.AlwaysUpgradeCardReward || flags.MaxCardRewardRarity
+        || flags.DefenseMultiplier != 1f;
 }
 
 public sealed class MpCheatPlayerFlags {
@@ -49,6 +116,17 @@ public sealed class MpCheatPlayerFlags {
     public bool AlwaysUpgradeCardReward { get; set; }
     public bool MaxCardRewardRarity { get; set; }
     public float DefenseMultiplier { get; set; } = 1f;
+
+    public MpCheatPlayerFlags Clone() => new() {
+        InfiniteHp = InfiniteHp,
+        InfiniteBlock = InfiniteBlock,
+        InfiniteEnergy = InfiniteEnergy,
+        InfiniteStars = InfiniteStars,
+        AlwaysRewardPotion = AlwaysRewardPotion,
+        AlwaysUpgradeCardReward = AlwaysUpgradeCardReward,
+        MaxCardRewardRarity = MaxCardRewardRarity,
+        DefenseMultiplier = DefenseMultiplier,
+    };
 
     public static MpCheatPlayerFlags FromDevMode() => new() {
         InfiniteHp = DevModeState.PlayerCheats.InfiniteHp,
@@ -78,6 +156,12 @@ public sealed class MpCheatEnemyFlags {
     public bool OneHitKill { get; set; }
     public float DamageMultiplier { get; set; } = 1f;
 
+    public MpCheatEnemyFlags Clone() => new() {
+        FreezeEnemies = FreezeEnemies,
+        OneHitKill = OneHitKill,
+        DamageMultiplier = DamageMultiplier,
+    };
+
     public static MpCheatEnemyFlags FromDevMode() => new() {
         FreezeEnemies = DevModeState.EnemyCheats.FreezeEnemies,
         OneHitKill = DevModeState.EnemyCheats.OneHitKill,
@@ -95,6 +179,11 @@ public sealed class MpCheatGameplayFlags {
     public float GoldMultiplier { get; set; } = 1f;
     public bool FreeShop { get; set; }
 
+    public MpCheatGameplayFlags Clone() => new() {
+        GoldMultiplier = GoldMultiplier,
+        FreeShop = FreeShop,
+    };
+
     public static MpCheatGameplayFlags FromDevMode() => new() {
         GoldMultiplier = DevModeState.GameplayModifiers.GoldMultiplier,
         FreeShop = DevModeState.GameplayModifiers.FreeShop,
@@ -109,6 +198,11 @@ public sealed class MpCheatGameplayFlags {
 public sealed class MpCheatMapFlags {
     public bool UnknownMapAlwaysTreasure { get; set; }
     public bool FreeTravelFromDevRoomMap { get; set; }
+
+    public MpCheatMapFlags Clone() => new() {
+        UnknownMapAlwaysTreasure = UnknownMapAlwaysTreasure,
+        FreeTravelFromDevRoomMap = FreeTravelFromDevRoomMap,
+    };
 
     public static MpCheatMapFlags FromDevMode() => new() {
         UnknownMapAlwaysTreasure = DevModeState.MapCheats.UnknownMapAlwaysTreasure,

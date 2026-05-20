@@ -23,6 +23,9 @@ public static class MpCheatSession {
     public static bool IsHost =>
         RunManager.Instance?.NetService?.Type == NetGameType.Host;
 
+    public static ulong LocalNetId =>
+        RunManager.Instance?.NetService?.NetId ?? 0;
+
     public static bool CanUseMultiplayerCheats =>
         InMultiplayerRun && SessionArmed && MpCheatState.IsActive;
 

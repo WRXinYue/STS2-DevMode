@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using DevMode.Multiplayer.Cheat;
 using DevMode.Panels;
 using DevMode.Settings;
 using Godot;
@@ -110,16 +111,48 @@ internal static partial class DevPanelUI {
     private static Button CreateRailButton(NGlobalUi globalUi, IDevPanelTab tab, List<Button> railButtons) {
         var btn = CreateRailIcon(tab.Icon, tab.DisplayName);
         btn.SetMeta("tab_id", tab.Id);
+        btn.SetMeta("tab_label", tab.DisplayName);
+        ApplyRailTabAvailability(btn);
         var t = tab;
-        btn.Pressed += () => _controller.SwitchTo(t.Id, () => {
-            int idx = railButtons.IndexOf(btn);
-            if (idx >= 0)
-                _moveRailIndicator?.Invoke(idx, true);
-            t.OnActivate(globalUi);
-        });
+        btn.Pressed += () => {
+            if (btn.Disabled) return;
+            _controller.SwitchTo(t.Id, () => {
+                int idx = railButtons.IndexOf(btn);
+                if (idx >= 0)
+                    _moveRailIndicator?.Invoke(idx, true);
+                t.OnActivate(globalUi);
+            });
+        };
         railButtons.Add(btn);
         _railIconButtons.Add((btn, tab.Icon));
         return btn;
+    }
+
+    internal static void RefreshRailTabAvailability() {
+        foreach (var btn in _railButtons)
+            ApplyRailTabAvailability(btn);
+
+        if (_railGlobalUi == null || !MpCheatUi.IsHooksDisabledInMultiplayer)
+            return;
+        if (_controller.ActiveTabId != MpCheatUi.HooksTabId)
+            return;
+
+        HookConfigUI.Remove(_railGlobalUi);
+        _controller.Deactivate();
+        _activeRailBtnIdx = -1;
+        if (_railIndicator != null)
+            _railIndicator.Visible = false;
+        RefreshRailIconTints();
+    }
+
+    private static void ApplyRailTabAvailability(Button btn) {
+        string tabId = btn.GetMeta("tab_id").AsString();
+        bool disabled = tabId == MpCheatUi.HooksTabId && MpCheatUi.IsHooksDisabledInMultiplayer;
+        btn.Disabled = disabled;
+        btn.Modulate = disabled ? ColIconDisabled : Colors.White;
+        btn.TooltipText = disabled
+            ? I18N.T("mpcheat.hooks.railDisabled", "Hooks are disabled in multiplayer (not synced).")
+            : btn.GetMeta("tab_label").AsString();
     }
 
     private static void WireRailIndicator(Panel railIndicator, List<Button> railButtons) {

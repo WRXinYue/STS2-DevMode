@@ -159,16 +159,31 @@ internal static class CardActions {
             error = "not in combat";
             return false;
         }
-        if (MpCheatSession.InMultiplayerRun && request.Duration == EffectDuration.Permanent) {
-            error = "permanent add-card is disabled in multiplayer (use temporary)";
+        if (MpCheatSession.InMultiplayerRun
+            && request.Duration == EffectDuration.Permanent
+            && HasStagedEdits(canonicalCard, request)) {
+            error = I18N.T(
+                "mpcheat.cardAdd.permanentEditedBlocked",
+                "Permanent add is disabled while card stats are edited — use Temporary or reset edits.");
             return false;
         }
         return true;
     }
 
-    /// <summary>Multiplayer add-card must not mirror to run deck — edited stats may desync across combats.</summary>
-    internal static EffectDuration ResolveAddDuration(AddCardRequest request) =>
-        MpCheatSession.InMultiplayerRun ? EffectDuration.Temporary : request.Duration;
+    /// <summary>Edited stats must stay temporary in MP; unedited cards may use Permanent.</summary>
+    internal static bool HasStagedEdits(CardModel canonicalCard, AddCardRequest request) {
+        var staged = ResolveStagedTemplate(request);
+        if (staged == null) return false;
+        return staged.DiffersFrom(CardEditActions.CaptureTemplate(canonicalCard));
+    }
+
+    internal static EffectDuration ResolveAddDuration(AddCardRequest request, CardModel canonicalCard) {
+        if (!MpCheatSession.InMultiplayerRun)
+            return request.Duration;
+        if (request.Duration == EffectDuration.Permanent && HasStagedEdits(canonicalCard, request))
+            return EffectDuration.Temporary;
+        return request.Duration;
+    }
 
     /// <summary>Executes add-card from multiplayer sync (all peers must call with identical parameters).</summary>
     internal static Task ExecuteAddFromMpSync(RunState state, Player player, CardModel canonicalCard,
@@ -519,7 +534,7 @@ internal static class CardActions {
         }
 
         var target = request.Target;
-        var duration = ResolveAddDuration(request);
+        var duration = ResolveAddDuration(request, canonicalCard);
         var upgradeLevelsToApply = request.UpgradeLevelsToApply;
 
         if (target == CardTarget.Deck) {

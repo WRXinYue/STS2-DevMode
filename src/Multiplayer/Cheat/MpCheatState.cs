@@ -14,8 +14,20 @@ public static class MpCheatState {
     public static void ApplySnapshot(MpCheatConfig config, long revision, string reason) {
         _config = config;
         _revision = revision;
-        _config.ApplyToDevModeState();
+        if (MpCheatSession.InMultiplayerRun)
+            _config.ApplyToLocalDevModeState(MpCheatSession.LocalNetId);
+        else
+            _config.ApplyToDevModeState();
         MainFile.Logger.Info($"[MpCheat] Applied config rev={revision} ({reason}).");
+    }
+
+    /// <summary>Apply local DevModeState to in-memory config before host round-trip (client UI toggles).</summary>
+    public static void ApplyOptimisticFromDevModeState() {
+        if (!MpCheatSession.InMultiplayerRun) return;
+        var netId = MpCheatSession.LocalNetId;
+        if (netId == 0) return;
+        _config = MpCheatConfig.MergeLocalEdits(_config, netId, MpCheatSession.IsHost);
+        MainFile.Logger.Debug("[MpCheat] Optimistic per-player config applied.");
     }
 
     public static void Clear() {

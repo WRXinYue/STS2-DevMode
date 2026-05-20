@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using DevMode.Actions;
 using DevMode.Actions.CardModes;
 using DevMode.Icons;
+using DevMode.Multiplayer.Cheat;
 using DevMode.Navigation;
 using DevMode.Panels;
 using DevMode.UI;
@@ -238,6 +239,7 @@ internal static class DevPanel {
 
     private static void OpenHooks() {
         if (_globalUi == null) return;
+        if (MpCheatUi.IsHooksDisabledInMultiplayer) return;
         TryDismissCurrent();
         DevModeState.ActivePanel = ActivePanel.Hooks;
 
