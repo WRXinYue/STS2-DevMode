@@ -93,11 +93,8 @@ internal sealed partial class LogSourcePieChart : Control {
         DrawArc(center, radius + 0.5f, 0f, Mathf.Tau, 64, DevModeTheme.PanelBorder, 1f, true);
     }
 
-    private static Color SliceColor(string name, int paletteIndex) {
-        if (name == "Game")
-            return new Color(DevModeTheme.Subtle.R, DevModeTheme.Subtle.G, DevModeTheme.Subtle.B, 0.95f);
-        return LogSourceColors.ModPalette[paletteIndex % LogSourceColors.ModPalette.Length];
-    }
+    private static Color SliceColor(string name, int paletteIndex)
+        => LogSourceColors.GetSliceColor(name, paletteIndex);
 
     private void DrawWedge(Vector2 center, float radius, float fromRad, float toRad, Color color) {
         const int Segments = 40;
@@ -113,7 +110,7 @@ internal sealed partial class LogSourcePieChart : Control {
     }
 }
 
-/// <summary>Stable per-mod colors shared by the log viewer and source pie chart.</summary>
+/// <summary>Log source colors: unified mod-tag highlight and pie-chart palette.</summary>
 internal static class LogSourceColors {
     internal static readonly Color[] ModPalette =
     {
@@ -127,12 +124,17 @@ internal static class LogSourceColors {
         new(0.62f, 0.60f, 0.95f, 1f),
     };
 
+    internal static Color GetSliceColor(string name, int paletteIndex) {
+        if (name == "Game")
+            return new Color(DevModeTheme.Subtle.R, DevModeTheme.Subtle.G, DevModeTheme.Subtle.B, 0.95f);
+        return ModPalette[paletteIndex % ModPalette.Length];
+    }
+
     internal static Color GetModHighlightColor(string canonicalModId) {
         if (string.IsNullOrEmpty(canonicalModId) || canonicalModId == "Game")
             return DevModeTheme.Subtle;
 
-        int idx = Math.Abs(canonicalModId.GetHashCode(StringComparison.Ordinal)) % ModPalette.Length;
-        return ModPalette[idx];
+        return DevModeTheme.Accent;
     }
 
     internal static string ColorToBbHex(Color c) {

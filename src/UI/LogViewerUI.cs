@@ -245,8 +245,10 @@ internal static class LogViewerUI {
                     HideCopyFloat();
             }).CallDeferred();
         };
+        string lastPlainText = "";
+
         copyFloatBtn.Pressed += () => {
-            DisplayServer.ClipboardSet(richText.Text);
+            DisplayServer.ClipboardSet(lastPlainText);
             copyFloatBtn.Icon = MdiIcon.Check.Texture(16, DevModeTheme.Accent);
             var t = copyFloatBtn.GetTree().CreateTimer(1.15);
             t.Timeout += () => {
@@ -364,7 +366,19 @@ internal static class LogViewerUI {
             HashSet<string> loadedModIds,
             Dictionary<string, string> modIdAliases) {
             var sb = new StringBuilder(entries.Count * 96);
+            string boundaryCol = LogSourceColors.ColorToBbHex(DevModeTheme.Accent);
+
             foreach (var (entry, source) in entries) {
+                if (LogCollector.IsSessionBoundary(entry)) {
+                    sb.Append($"[color={boundaryCol}]──── {LogCollector.SessionBoundaryMarker} ────[/color]\n");
+                    continue;
+                }
+
+                if (entry.IsFromFile) {
+                    AppendHistoricalBbCodeLine(sb, entry);
+                    continue;
+                }
+
                 bool dim = source == "Game";
                 string timeCol = dim
                     ? LogSourceColors.DimBbHex(ColTime, GameSourceDimAmount)
@@ -372,10 +386,34 @@ internal static class LogViewerUI {
                 string levelCol = dim
                     ? LogSourceColors.DimBbHex(LevelColor(entry.Level), GameSourceDimAmount)
                     : LevelColor(entry.Level);
-                string time = entry.Time.ToString("HH:mm:ss");
+                string time = entry.HasWallClockTime
+                    ? entry.Time.ToString("HH:mm:ss")
+                    : "--:--:--";
                 sb.Append($"[color={timeCol}]{time}[/color] ");
-                AppendEntryBody(sb, entry, source, levelCol, loadedModIds, modIdAliases);
+                AppendLiveEntryBody(sb, entry, source, levelCol, loadedModIds, modIdAliases);
                 sb.Append('\n');
+            }
+
+            return sb.ToString();
+        }
+
+        static string BuildPlainText(List<FilteredLogEntry> entries) {
+            var sb = new StringBuilder(entries.Count * 80);
+            foreach (var (entry, _) in entries) {
+                if (LogCollector.IsSessionBoundary(entry)) {
+                    sb.Append("──── ").Append(LogCollector.SessionBoundaryMarker).Append(" ────\n");
+                    continue;
+                }
+
+                if (entry.IsFromFile) {
+                    sb.Append("--:--:-- ").AppendLine(entry.Text);
+                    continue;
+                }
+
+                string time = entry.HasWallClockTime
+                    ? entry.Time.ToString("HH:mm:ss")
+                    : "--:--:--";
+                sb.Append(time).Append(' ').Append(LevelBadge(entry.Level)).Append(' ').AppendLine(entry.Text);
             }
 
             return sb.ToString();
@@ -393,6 +431,7 @@ internal static class LogViewerUI {
                 entries, minLevel, textFilter, modVisible, loadedModIds, modIdAliases);
 
             richText.Text = BuildBbCode(filtered, loadedModIds, modIdAliases);
+            lastPlainText = BuildPlainText(filtered);
 
             // Update count label
             countLabel.Text = suppressed > 0
@@ -447,6 +486,7 @@ internal static class LogViewerUI {
         root.AddChild(timer);
 
         globalUi.AddChild(root);
+        LogCollector.RefreshFileSnapshot();
         Repopulate();
     }
 
@@ -471,9 +511,20 @@ internal static class LogViewerUI {
         int suppressed = 0;
 
         foreach (var e in entries) {
+            if (LogCollector.IsSessionBoundary(e)) {
+                result.Add(new FilteredLogEntry(e, "DevMode"));
+                continue;
+            }
+
             if (minLevel != null && e.Level < minLevel.Value) continue;
             if (!string.IsNullOrWhiteSpace(textFilter) &&
                 !e.Text.Contains(textFilter, StringComparison.OrdinalIgnoreCase)) continue;
+
+            // Pre-boundary file history: plain display only — no mod attribution, filters, or stats.
+            if (e.IsFromFile) {
+                result.Add(new FilteredLogEntry(e, ""));
+                continue;
+            }
 
             string source = ParseSource(e.Text, loadedModIds, modIdAliases);
             if (modSourceFilter.TryGetValue(source, out var showMod) && !showMod)
@@ -598,7 +649,17 @@ internal static class LogViewerUI {
     private static string NormalizeModIdKey(string id)
         => id.ToLowerInvariant().Replace('-', '_');
 
-    private static void AppendEntryBody(
+    /// <summary>
+    /// Pre-boundary disk history: dim single-color line, no mod tag highlighting or BBCode splitting.
+    /// </summary>
+    private static void AppendHistoricalBbCodeLine(StringBuilder sb, LogCollector.Entry entry) {
+        string timeCol = LogSourceColors.DimBbHex(ColTime, GameSourceDimAmount);
+        string bodyCol = LogSourceColors.DimBbHex(ColInfo, GameSourceDimAmount);
+        sb.Append($"[color={timeCol}]--:--:--[/color] ");
+        sb.Append($"[color={bodyCol}]{EscapeBbCode(entry.Text)}[/color]\n");
+    }
+
+    private static void AppendLiveEntryBody(
         StringBuilder sb,
         LogCollector.Entry entry,
         string source,
@@ -652,9 +713,12 @@ internal static class LogViewerUI {
             return b.Value.CompareTo(a.Value);
         });
 
+        int paletteIdx = 0;
         foreach (var (source, count) in sorted) {
             var row = new HBoxContainer();
             row.AddThemeConstantOverride("separation", 4);
+
+            Color sliceCol = LogSourceColors.GetSliceColor(source, paletteIdx++);
 
             var nameLabel = new Label {
                 Text = source,
@@ -662,14 +726,13 @@ internal static class LogViewerUI {
                 ClipText = true,
             };
             nameLabel.AddThemeFontSizeOverride("font_size", 11);
-            nameLabel.AddThemeColorOverride("font_color",
-                source == "Game" ? DevModeTheme.Subtle : DevModeTheme.TextPrimary);
+            nameLabel.AddThemeColorOverride("font_color", sliceCol);
             nameLabel.TooltipText = source;
             row.AddChild(nameLabel);
 
             var countLabel = new Label { Text = count.ToString() };
             countLabel.AddThemeFontSizeOverride("font_size", 11);
-            countLabel.AddThemeColorOverride("font_color", DevModeTheme.Accent);
+            countLabel.AddThemeColorOverride("font_color", sliceCol);
             row.AddChild(countLabel);
 
             statsVBox.AddChild(row);
@@ -716,7 +779,7 @@ internal static class LogViewerUI {
         => text.Replace("[", "[lb]");
 
     private static string GetGameLogsDirectory()
-        => Path.Combine(OS.GetUserDataDir(), "logs");
+        => GameLogFileHydrator.LogsDirectory;
 
     private static void OpenGameLogsFolder() {
         var dir = GetGameLogsDirectory();
