@@ -69,6 +69,7 @@ internal static partial class DevPanelUI {
 
         CombatStatsUI.EnsureGameContextPane(_contextHost);
         EnemyIntentUI.EnsureGameContextPane(_contextHost);
+        EnemySelectUI.EnsureGameContextPane(_contextHost);
         CombatStatsUI.AttachMultiplayerOverlay(globalUi);
         MonsterIntentOverlayUI.Attach(globalUi);
 
@@ -166,6 +167,7 @@ internal static partial class DevPanelUI {
         SetContextPaneActiveMany(_defaultContextIds);
         CombatStatsUI.RefreshDefaultGameContext();
         EnemyIntentUI.RefreshDefaultContext();
+        EnemySelectUI.RefreshCombatContext();
         UpdateContextPaneVisibility();
     }
 

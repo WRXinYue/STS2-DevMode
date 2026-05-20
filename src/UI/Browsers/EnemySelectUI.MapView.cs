@@ -4,7 +4,6 @@ using System.Linq;
 using DevMode;
 using DevMode.Actions;
 using Godot;
-using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Map;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
@@ -23,7 +22,6 @@ internal static partial class EnemySelectUI {
         Global,
         RoomType,
         Floor,
-        SpawnCombat,
     }
 
     private sealed class MapEditorSession {
@@ -199,17 +197,6 @@ internal static partial class EnemySelectUI {
                 });
         }
 
-        if (CombatEnemyActions.GetCombatState() != null) {
-            session.DetailHost.AddChild(new HSeparator());
-            var spawnBtn = new Button {
-                Text = I18N.T("enemy.spawnInCombat", "Spawn in current combat"),
-                CustomMinimumSize = new Vector2(0, 34),
-                FocusMode = Control.FocusModeEnum.None,
-            };
-            spawnBtn.Pressed += () => OpenMapPicker(session, MapPickTarget.SpawnCombat, null, null);
-            session.DetailHost.AddChild(spawnBtn);
-        }
-
         session.DetailHost.AddChild(new HSeparator());
         var nodeTitle = new Label {
             Text = I18N.T("enemy.selectedNode", "Selected node"),
@@ -320,7 +307,6 @@ internal static partial class EnemySelectUI {
             MapPickTarget.Global => session.Browser.EncounterFilter,
             MapPickTarget.RoomType => session.PickRoomType,
             MapPickTarget.Floor => session.PickRoomType,
-            MapPickTarget.SpawnCombat => session.Browser.EncounterFilter,
             _ => null,
         };
 
@@ -328,7 +314,6 @@ internal static partial class EnemySelectUI {
             MapPickTarget.Global => I18N.T("enemy.pickGlobalRule", "Set run rule — all combats"),
             MapPickTarget.RoomType => I18N.T("enemy.pickTypeRule", "Set run rule — {0}", RoomTypeLabel(session.PickRoomType!.Value)),
             MapPickTarget.Floor => I18N.T("enemy.pickFloorRule", "Replace node encounter"),
-            MapPickTarget.SpawnCombat => I18N.T("enemy.pickSpawnCombat", "Spawn in current combat"),
             _ => I18N.T("enemy.selectAny", "Select Combat Encounter"),
         };
 
@@ -359,13 +344,6 @@ internal static partial class EnemySelectUI {
                             "enemy.appliedFloor",
                             "Floor {0} set to {1}.",
                             session.PickFloor,
-                            EnemyActions.GetShortName(enc));
-                        break;
-                    case MapPickTarget.SpawnCombat:
-                        TaskHelper.RunSafely(CombatEnemyActions.AddEncounterMonsters(enc));
-                        session.Browser.StatusLabel.Text = I18N.T(
-                            "enemy.spawnedCombat",
-                            "Spawned monsters from {0}.",
                             EnemyActions.GetShortName(enc));
                         break;
                 }

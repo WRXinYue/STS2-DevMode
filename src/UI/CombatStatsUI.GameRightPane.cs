@@ -23,7 +23,10 @@ internal static partial class CombatStatsUI {
         _gamePlayers = new PlayerContributionSidebarPanel(railCompact: true);
         _gamePie = new CategoryPieSidebarPanel("game.stats.pie", railCompact: true);
 
-        DevPanelUI.SetDefaultContextIds(EnemyIntentUI.PanelContextId, DefaultContextId);
+        DevPanelUI.SetDefaultContextIds(
+            EnemyIntentUI.PanelContextId,
+            EnemySelectUI.CombatToolsContextId,
+            DefaultContextId);
         DevPanelUI.RegisterContextProvider(DefaultContextId, _gamePlayers);
         DevPanelUI.RegisterContextProvider(PanelPlayersContextId, _gamePlayers);
         DevPanelUI.RegisterContextProvider(PanelPieContextId, _gamePie);
@@ -46,9 +49,13 @@ internal static partial class CombatStatsUI {
         MonsterIntentOverlayUI.SyncState();
         RefreshDefaultGameStats();
         EnemyIntentUI.RefreshDefaultContext();
+        EnemySelectUI.RefreshCombatContext();
 
         if (!EnemyIntentUI.IsPanelOpen && !IsPanelOpen)
-            DevPanelUI.SetContextPaneActiveMany(EnemyIntentUI.PanelContextId, DefaultContextId);
+            DevPanelUI.SetContextPaneActiveMany(
+                EnemyIntentUI.PanelContextId,
+                EnemySelectUI.CombatToolsContextId,
+                DefaultContextId);
 
         DevPanelUI.RefreshContextPane();
     }
@@ -86,7 +93,10 @@ internal static partial class CombatStatsUI {
         _gamePie.PrepareForViewMode(mode);
 
         if (!_panelOpen) {
-            DevPanelUI.SetContextPaneActiveMany(EnemyIntentUI.PanelContextId, DefaultContextId);
+            DevPanelUI.SetContextPaneActiveMany(
+                EnemyIntentUI.PanelContextId,
+                EnemySelectUI.CombatToolsContextId,
+                DefaultContextId);
             _gamePlayers.Refresh();
         }
         else if (SidebarUsesPie(mode)) {

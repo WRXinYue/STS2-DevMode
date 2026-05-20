@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Combat enemy context rail** — During fights, the game right Context Pane shows compact icons to add encounters/monsters, kill individual enemies, or kill all. Overlays handle search and selection.
 - **Combat Stats** panel — live per-combat damage statistics (dealt, taken, block, cards played, breakdowns by card/source/turn) via the game's `CombatHistory` API. Extended stats (overkill, blocked damage, energy, potions, debuffs, power damage, event timeline), run totals, current-vs-last comparison, JSON export, and `dmstats` console command. See `TODO.md` for remaining backlog (HUD, co-op polish).
 - **Combat Stats game right rail** — During fights, a slim pane on the right edge of the game shows live player contribution bars or a compact score breakdown; it updates in combat without opening the full stats panel. When the stats browser is nearly full width, the panel can merge flush with that rail.
 - **Combat Stats pie breakdown** — The stats panel includes a right sidebar with a category pie chart (overview, cards, offense, support, damage taken) and color legend; the default category follows the active view tab.
@@ -19,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Enemy panel map-centric UI** — Global, By Type, and Map tabs are merged into a single map editor: left side shows the run map with hover previews; right side has **Run rules** (all combats / Normal / Elite / Boss, active for this run only), **Selected node** editing, and an embedded encounter picker. Kill remains a separate chip during combat.
+- **Enemy panel map-centric UI** — Global, By Type, and Map tabs are merged into a single map editor: left side shows the run map with hover previews; right side has **Run rules** (all combats / Normal / Elite / Boss, active for this run only), **Selected node** editing, and an embedded encounter picker. Combat kill/spawn actions live on the game **Context Pane** rail during fights, not in the enemy browser header.
 - **RitsuLib is now optional.** DevMode no longer lists RitsuLib as a required dependency mod — it loads and runs without RitsuLib installed. The Framework Bridge panel shows "—" when RitsuLib is absent instead of preventing DevMode from loading.
 - **Normal run Dev Mode preference** — In the Developer Mode main menu, the **Normal run** cycle (disabled / Dev Mode / Cheat Mode) **defaults to Dev Mode** and is **saved** for the next launch.
 - Opening a dev browser panel no longer hides the **multiplayer combat stats overlay**; it stays visible above the panel.

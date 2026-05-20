@@ -80,6 +80,16 @@ internal static class EnemyActions {
         return ((AbstractModel)encounter).Id.Entry;
     }
 
+    /// <summary>Distinct monsters from all encounters, sorted by id.</summary>
+    public static IReadOnlyList<MonsterModel> GetAllMonsters() {
+        return ModelDb.AllEncounters
+            .SelectMany(e => e.AllPossibleMonsters ?? Enumerable.Empty<MonsterModel>())
+            .GroupBy(m => ((AbstractModel)m).Id.Entry)
+            .Select(g => g.First())
+            .OrderBy(m => ((AbstractModel)m).Id.Entry)
+            .ToList();
+    }
+
     private static void ClearRoomTypeOverrides() {
         DevModeState.RoomTypeOverrides[RoomType.Monster] = null;
         DevModeState.RoomTypeOverrides[RoomType.Elite] = null;

@@ -710,94 +710,98 @@ internal static partial class EnemySelectUI {
         GrabEncounterSearchFocus(vbox);
     }
 
-    // ── Combat mode: pick enemies to kill ──
+    internal static void ShowMonsterSpawnOverlay(NGlobalUi globalUi, Action<MonsterModel> onSelected) {
+        const string overlayName = $"{RootName}MonsterOverlay";
+        ((Node)globalUi).GetNodeOrNull<Control>(overlayName)?.QueueFree();
 
-    public static void ShowEnemyKillPicker(NGlobalUi globalUi) {
-        Hide(globalUi);
-
-        var enemies = CombatEnemyActions.GetCurrentEnemies();
-        if (enemies.Count == 0) {
-            MainFile.Logger.Info("EnemySelectUI: No enemies in combat.");
+        var monsters = EnemyActions.GetAllMonsters();
+        if (monsters.Count == 0)
             return;
-        }
 
-        var (root, _, vbox) = DevPanelUI.CreateBrowserOverlayShell(
-            globalUi, RootName, 520f, () => Hide(globalUi), contentSeparation: 10);
+        var backdrop = new ColorRect {
+            Name = overlayName,
+            Color = new Color(0f, 0f, 0f, 0.45f),
+            MouseFilter = Control.MouseFilterEnum.Stop,
+            AnchorRight = 1,
+            AnchorBottom = 1,
+            ZIndex = 1300,
+        };
+        backdrop.GuiInput += ev => {
+            if (ev is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
+                backdrop.QueueFree();
+        };
 
-        vbox.AddChild(DevPanelUI.CreatePanelTitle(I18N.T("enemy.killTitle", "Select Enemy to Kill")));
+        var panel = new PanelContainer {
+            AnchorLeft = 0.5f,
+            AnchorRight = 0.5f,
+            AnchorTop = 0.5f,
+            AnchorBottom = 0.5f,
+            OffsetLeft = -320,
+            OffsetRight = 320,
+            OffsetTop = -260,
+            OffsetBottom = 260,
+        };
+        panel.AddThemeStyleboxOverride("panel", new StyleBoxFlat {
+            BgColor = DevModeTheme.PanelBg,
+            BorderColor = DevModeTheme.PanelBorder,
+            BorderWidthLeft = 1,
+            BorderWidthRight = 1,
+            BorderWidthTop = 1,
+            BorderWidthBottom = 1,
+            CornerRadiusTopLeft = 10,
+            CornerRadiusTopRight = 10,
+            CornerRadiusBottomLeft = 10,
+            CornerRadiusBottomRight = 10,
+            ContentMarginLeft = 12,
+            ContentMarginRight = 12,
+            ContentMarginTop = 12,
+            ContentMarginBottom = 12,
+        });
+
+        var vbox = new VBoxContainer();
+        vbox.AddThemeConstantOverride("separation", 8);
+        panel.AddChild(vbox);
+        backdrop.AddChild(panel);
+
+        vbox.AddChild(DevPanelUI.CreatePanelTitle(I18N.T("enemy.pickMonster", "Add monster to combat")));
         vbox.AddChild(DevPanelUI.CreateOverlaySeparator());
+
+        var (searchRowCtrl, searchBox) = DevPanelUI.CreateSearchRow(
+            I18N.T("enemy.searchMonsterPlaceholder", "Search monsters..."));
+        vbox.AddChild(searchRowCtrl);
 
         var scroll = new ScrollContainer {
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(0, 200)
         };
         var listBox = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         listBox.AddThemeConstantOverride("separation", 2);
         scroll.AddChild(listBox);
         vbox.AddChild(scroll);
 
-        foreach (var enemy in enemies) {
-            if (enemy.IsDead) continue;
-            var enemyName = enemy.Monster?.Title?.GetFormattedText() ?? I18N.T("enemy.unknownName", "???");
-            var hp = $"{enemy.CurrentHp}/{enemy.MaxHp}";
+        var rows = new List<(Control cell, string searchKey)>();
+        foreach (var monster in monsters) {
+            var id = ((AbstractModel)monster).Id.Entry;
+            var title = monster.Title?.GetFormattedText();
+            var displayName = !string.IsNullOrEmpty(title) ? title : id;
 
-            var btn = DevPanelUI.CreateListItemButton(
-                I18N.T("enemy.killEntry", "{0}  HP: {1}", enemyName, hp));
-
-            // Tint the button with a subtle red accent
-            StyleBoxFlat MakeKillStyle(Color bg) => new() {
-                BgColor = bg,
-                CornerRadiusTopLeft = 6,
-                CornerRadiusTopRight = 6,
-                CornerRadiusBottomLeft = 6,
-                CornerRadiusBottomRight = 6,
-                ContentMarginLeft = 10,
-                ContentMarginRight = 10,
-                ContentMarginTop = 4,
-                ContentMarginBottom = 4,
-                BorderWidthLeft = 1,
-                BorderWidthRight = 1,
-                BorderWidthTop = 1,
-                BorderWidthBottom = 1,
-                BorderColor = new Color(0.8f, 0.25f, 0.25f, 0.20f)
-            };
-            btn.AddThemeStyleboxOverride("normal", MakeKillStyle(new Color(0.35f, 0.10f, 0.10f, 0.30f)));
-            btn.AddThemeStyleboxOverride("hover", MakeKillStyle(new Color(0.50f, 0.15f, 0.15f, 0.45f)));
-            btn.AddThemeStyleboxOverride("pressed", MakeKillStyle(new Color(0.60f, 0.18f, 0.18f, 0.55f)));
-            btn.AddThemeStyleboxOverride("focus", MakeKillStyle(new Color(0.35f, 0.10f, 0.10f, 0.30f)));
-
-            var captured = enemy;
+            var btn = DevPanelUI.CreateListItemButton(displayName);
+            var captured = monster;
             btn.Pressed += () => {
-                TaskHelper.RunSafely(CombatEnemyActions.KillEnemy(captured));
-                Hide(globalUi);
+                onSelected(captured);
+                backdrop.QueueFree();
             };
             listBox.AddChild(btn);
+            rows.Add((btn, $"{displayName} {id}".ToLowerInvariant()));
         }
 
-        // Kill all button
-        var killAllBtn = DevPanelUI.CreateListItemButton(I18N.T("enemy.killAll", "Kill All"));
-        killAllBtn.Alignment = HorizontalAlignment.Center;
-        StyleBoxFlat MakeRedStyle(Color bg) => new() {
-            BgColor = bg,
-            CornerRadiusTopLeft = 6,
-            CornerRadiusTopRight = 6,
-            CornerRadiusBottomLeft = 6,
-            CornerRadiusBottomRight = 6,
-            ContentMarginLeft = 10,
-            ContentMarginRight = 10,
-            ContentMarginTop = 4,
-            ContentMarginBottom = 4
+        searchBox.TextChanged += text => {
+            var query = text.Trim().ToLowerInvariant();
+            foreach (var (cell, key) in rows)
+                cell.Visible = string.IsNullOrEmpty(query) || key.Contains(query);
         };
-        killAllBtn.AddThemeStyleboxOverride("normal", MakeRedStyle(new Color(0.60f, 0.12f, 0.12f, 0.85f)));
-        killAllBtn.AddThemeStyleboxOverride("hover", MakeRedStyle(new Color(0.72f, 0.15f, 0.15f, 0.90f)));
-        killAllBtn.AddThemeStyleboxOverride("pressed", MakeRedStyle(new Color(0.78f, 0.18f, 0.18f, 0.95f)));
-        killAllBtn.Pressed += () => {
-            TaskHelper.RunSafely(CombatEnemyActions.KillAllEnemies());
-            Hide(globalUi);
-        };
-        vbox.AddChild(killAllBtn);
 
-        ((Node)globalUi).AddChild(root);
+        ((Node)globalUi).AddChild(backdrop);
+        searchBox.GrabFocus();
     }
 
 }
