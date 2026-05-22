@@ -6,8 +6,12 @@
 
 DOTNET ?= dotnet
 
-# Read version from DevMode.json
+# Read version from DevMode.json (Windows Store python3 alias is often broken; use python on Windows)
+ifeq ($(OS),Windows_NT)
+PYTHON ?= python
+else
 PYTHON ?= python3
+endif
 VERSION := $(shell $(PYTHON) -c "import json;print(json.load(open('DevMode.json',encoding='utf-8'))['version'])")
 
 MOD_MAIN := DevMode.csproj
@@ -27,7 +31,7 @@ ZIP_NAME_BETA := build/DevMode-v$(VERSION)$(ZIP_BETA_TAG).zip
 help:
 	@echo "DevMode — targets"
 	@echo ""
-	@echo "  init         detect STS2 + Godot, generate local.props + .vscode (PYTHON=python3 to override)"
+	@echo "  init         detect STS2 + Godot, generate local.props + .vscode (PYTHON=... to override)"
 	@echo "  icons        tree-shake MDI (mdi-used.json + MdiIcon.Generated.cs)"
 	@echo "  format       dotnet format DevMode.sln (EditorConfig / pre-commit)"
 	@echo "  deps         dotnet restore (STS2.RitsuLib NuGet; sync to game when Sts2Dir is set)"
