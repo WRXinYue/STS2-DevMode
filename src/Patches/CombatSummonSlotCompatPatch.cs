@@ -1,5 +1,6 @@
 using DevMode.Actions;
 using HarmonyLib;
+using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Nodes.Rooms;
@@ -31,6 +32,7 @@ internal static class CombatSummonSlotRepositionPatch
         if (!string.IsNullOrEmpty(creature.SlotName))
             return;
 
-        CombatEnemyActions.RepositionEnemies(creature.CombatState);
+        if (creature.CombatState is CombatState cs)
+            CombatEnemyActions.RepositionEnemies(cs);
     }
 }

@@ -94,7 +94,7 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
         var combatState = player.PlayerCombatState;
         if (combatState == null) return ActionResult.Fail("Not in combat.");
 
-        if (CombatManager.Instance is not { IsPlayPhase: true, IsInProgress: true })
+        if (!Sts2CombatCompat.IsCombatPlayPhaseActive())
             return ActionResult.Fail("Not in play phase.");
 
         var hand = combatState.Hand?.Cards.ToList();
@@ -141,7 +141,7 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
         var combatState = player.PlayerCombatState;
         if (combatState == null) return ActionResult.Fail("Not in combat.");
 
-        if (CombatManager.Instance is not { IsPlayPhase: true, IsInProgress: true })
+        if (!Sts2CombatCompat.IsCombatPlayPhaseActive())
             return ActionResult.Fail("Not in play phase.");
 
         PlayerCmd.EndTurn(player, canBackOut: false);

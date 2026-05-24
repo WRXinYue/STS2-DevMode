@@ -24,6 +24,7 @@ DEPLOY_COPY   := $(DOTNET) msbuild $(MOD_MAIN) -t:DeployRepoBuildToMods -p:Deplo
 
 # STS2 Steam beta branch game version (update when Megacrit bumps beta; see beta install release_info.json).
 STS2_GAME_BETA_VERSION ?= 0.105.1
+BETA_STS2_VER_ARG := --sts2-beta-version $(STS2_GAME_BETA_VERSION)
 ZIP_BETA_TAG := -sts2beta-v$(STS2_GAME_BETA_VERSION)
 ZIP_NAME_BETA := build/DevMode-v$(VERSION)$(ZIP_BETA_TAG).zip
 
@@ -130,25 +131,25 @@ publish upload-github:
 	$(PYTHON) scripts/publish_release.py $(if $(VERSION),--version $(VERSION),)
 
 publish-beta upload-github-beta:
-	STS2_GAME_BETA_VERSION=$(STS2_GAME_BETA_VERSION) $(PYTHON) scripts/publish_release.py --beta $(if $(VERSION),--version $(VERSION),)
+	$(PYTHON) scripts/publish_release.py --beta $(BETA_STS2_VER_ARG) $(if $(VERSION),--version $(VERSION),)
 
 nexus upload-nexus:
 	$(PYTHON) scripts/publish_nexus.py $(if $(VERSION),--version $(VERSION),)
 
 nexus-beta upload-nexus-beta:
-	STS2_GAME_BETA_VERSION=$(STS2_GAME_BETA_VERSION) $(PYTHON) scripts/publish_nexus.py --beta $(if $(VERSION),--version $(VERSION),)
+	$(PYTHON) scripts/publish_nexus.py --beta $(BETA_STS2_VER_ARG) $(if $(VERSION),--version $(VERSION),)
 
 nuget upload-nuget:
 	$(PYTHON) scripts/publish_nuget.py $(if $(VERSION),--version $(VERSION),)
 
 nuget-beta upload-nuget-beta:
-	STS2_GAME_BETA_VERSION=$(STS2_GAME_BETA_VERSION) $(PYTHON) scripts/publish_nuget.py --beta $(if $(VERSION),--version $(VERSION),)
+	$(PYTHON) scripts/publish_nuget.py --beta $(BETA_STS2_VER_ARG) $(if $(VERSION),--version $(VERSION),)
 
 upload-all: publish nexus nuget
 	$(PYTHON) scripts/publish_nuget.py --skip-build $(if $(VERSION),--version $(VERSION),)
 
 upload-all-beta: publish-beta nexus-beta nuget-beta
-	STS2_GAME_BETA_VERSION=$(STS2_GAME_BETA_VERSION) $(PYTHON) scripts/publish_nuget.py --beta --skip-build $(if $(VERSION),--version $(VERSION),)
+	$(PYTHON) scripts/publish_nuget.py --beta $(BETA_STS2_VER_ARG) --skip-build $(if $(VERSION),--version $(VERSION),)
 
 readme-nexus:
 	$(PYTHON) scripts/readme_to_nexus.py
@@ -168,7 +169,6 @@ zip-beta: build-beta
 	@copy /y build\DevMode\mod_manifest.json build\dist\DevMode\ >nul
 	@xcopy /s /y /q editor\* build\dist\DevMode\editor\ >nul
 	@xcopy /s /y /q manual\* build\dist\DevMode\manual\ >nul
-	@if exist $(ZIP_NAME_BETA) del $(ZIP_NAME_BETA)
 	$(PYTHON) -c "import zipfile,os;z=zipfile.ZipFile('$(ZIP_NAME_BETA)','w',zipfile.ZIP_DEFLATED);[z.write(os.path.join(r,f),os.path.join(os.path.relpath(r,'build/dist'),f)) for r,_,fs in os.walk('build/dist/DevMode') for f in fs];z.close()"
 	@echo.
 	@echo Done: $(ZIP_NAME_BETA)  (STS2 Steam beta v$(STS2_GAME_BETA_VERSION))
@@ -184,8 +184,7 @@ zip: build
 	@copy /y build\DevMode\mod_manifest.json build\dist\DevMode\ >nul
 	@xcopy /s /y /q editor\* build\dist\DevMode\editor\ >nul
 	@xcopy /s /y /q manual\* build\dist\DevMode\manual\ >nul
-	@if exist build\DevMode-v$(VERSION).zip del build\DevMode-v$(VERSION).zip
-	$(PYTHON) -c "import zipfile,os;z=zipfile.ZipFile('build/DevMode-v$(VERSION).zip','w',zipfile.ZIP_DEFLATED);[z.write(os.path.join(r,f),os.path.join(os.path.relpath(r,'build/dist'),f)) for r,_,fs in os.walk('build/dist/DevMode') for f in fs];z.close()"
+	$(PYTHON) -c "import zipfile,os;z=zipfile.ZipFile('$(ZIP_NAME)','w',zipfile.ZIP_DEFLATED);[z.write(os.path.join(r,f),os.path.join(os.path.relpath(r,'build/dist'),f)) for r,_,fs in os.walk('build/dist/DevMode') for f in fs];z.close()"
 	@echo.
 	@echo Done: build\DevMode-v$(VERSION).zip
 	@echo Install: extract into "Slay the Spire 2\mods\"

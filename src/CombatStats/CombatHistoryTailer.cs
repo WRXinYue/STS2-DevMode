@@ -64,27 +64,30 @@ internal sealed class CombatHistoryTailer {
     private void DispatchEntry(CombatHistoryEntry entry) {
         if (_combatState == null) return;
 
+        int roundNumber = Sts2CombatCompat.GetHistoryRoundNumber(entry);
+        CombatSide currentSide = Sts2CombatCompat.GetHistoryCurrentSide(entry);
+
         try {
             switch (entry) {
                 case DamageReceivedEntry dmg:
-                    InferPowerDamageContext(dmg, entry);
+                    InferPowerDamageContext(dmg, currentSide);
                     CombatStatsTracker.RecordDamage(_combatState, dmg.Dealer, dmg.Receiver,
-                        dmg.Result, dmg.CardSource, entry.RoundNumber, entry.CurrentSide);
+                        dmg.Result, dmg.CardSource, roundNumber, currentSide);
                     CombatStatsTracker.PendingPowerDamage = PowerDamageContext.None;
                     _lastCardWasSoul = false;
                     break;
                 case BlockGainedEntry block:
-                    CombatStatsTracker.RecordBlockGained(block.Receiver, block.Amount, block.CardPlay, entry.RoundNumber);
+                    CombatStatsTracker.RecordBlockGained(block.Receiver, block.Amount, block.CardPlay, roundNumber);
                     break;
                 case CardPlayFinishedEntry play:
                     _lastCardWasSoul = play.CardPlay.Card is Soul;
-                    CombatStatsTracker.RecordCardPlay(play.CardPlay, entry.RoundNumber);
+                    CombatStatsTracker.RecordCardPlay(play.CardPlay, roundNumber);
                     break;
                 case EnergySpentEntry energy:
-                    CombatStatsTracker.RecordEnergySpent(energy.Amount, energy.Actor, entry.RoundNumber);
+                    CombatStatsTracker.RecordEnergySpent(energy.Amount, energy.Actor, roundNumber);
                     break;
                 case PotionUsedEntry potion:
-                    CombatStatsTracker.RecordPotionUsed(potion.Potion, entry.RoundNumber);
+                    CombatStatsTracker.RecordPotionUsed(potion.Potion, roundNumber);
                     break;
                 case PowerReceivedEntry power: {
                     int stacks = (int)Math.Round(power.Amount);
@@ -93,16 +96,16 @@ internal sealed class CombatHistoryTailer {
 
                     if (power.Power.Type == PowerType.Debuff) {
                         CombatStatsTracker.RecordDebuffApplied(
-                            power.Power, power.Actor, power.Applier, entry.RoundNumber, stacks);
+                            power.Power, power.Actor, power.Applier, roundNumber, stacks);
                     }
                     else if (power.Power.Type == PowerType.Buff) {
                         CombatStatsTracker.RecordBuffApplied(
-                            power.Power, power.Actor, power.Applier, entry.RoundNumber, stacks);
+                            power.Power, power.Actor, power.Applier, roundNumber, stacks);
                     }
                     break;
                 }
                 case MonsterPerformedMoveEntry move:
-                    CombatStatsTracker.RecordEnemyMove(move.Monster, entry.RoundNumber);
+                    CombatStatsTracker.RecordEnemyMove(move.Monster, roundNumber);
                     break;
             }
         }
@@ -111,13 +114,13 @@ internal sealed class CombatHistoryTailer {
         }
     }
 
-    private void InferPowerDamageContext(DamageReceivedEntry dmg, CombatHistoryEntry entry) {
+    private void InferPowerDamageContext(DamageReceivedEntry dmg, CombatSide currentSide) {
         if (dmg.Dealer != null || !dmg.Receiver.IsEnemy || _combatState == null) {
             CombatStatsTracker.PendingPowerDamage = PowerDamageContext.None;
             return;
         }
 
-        if (entry.CurrentSide == CombatSide.Enemy) {
+        if (currentSide == CombatSide.Enemy) {
             var poison = dmg.Receiver.GetPower<PoisonPower>();
             if (poison != null) {
                 SetPendingPowerDamage(null, poison);
@@ -125,7 +128,7 @@ internal sealed class CombatHistoryTailer {
             }
         }
 
-        if (entry.CurrentSide == CombatSide.Player) {
+        if (currentSide == CombatSide.Player) {
             var strangle = dmg.Receiver.GetPower<StranglePower>();
             if (strangle != null) {
                 SetPendingPowerDamage(null, strangle);

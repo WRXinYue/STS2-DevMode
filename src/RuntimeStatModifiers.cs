@@ -141,7 +141,7 @@ public sealed class RuntimeStatModifiers {
         _forcePlayerTurnCooldown = 0.1;
         combatState.CurrentSide = (CombatSide)1;
         TrySetCombatManagerBool("IsEnemyTurnStarted", false);
-        TrySetCombatManagerBool("IsPlayPhase", true);
+        Sts2CombatCompat.ForcePlayPhase();
         TrySetCombatManagerBool("EndingPlayerTurnPhaseOne", false);
         TrySetCombatManagerBool("EndingPlayerTurnPhaseTwo", false);
         TrySetCombatManagerBool("PlayerActionsDisabled", false);

@@ -26,7 +26,7 @@ internal static class CombatSyncBotPatch {
         _accum = 0;
 
         var cm = CombatManager.Instance;
-        if (cm is not { IsInProgress: true, IsPlayPhase: true }) return;
+        if (cm == null || !Sts2CombatCompat.IsCombatPlayPhase(cm)) return;
 
         var state = RunManager.Instance?.DebugOnlyGetState();
         if (state == null) return;

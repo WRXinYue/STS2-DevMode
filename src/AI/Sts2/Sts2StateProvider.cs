@@ -51,7 +51,7 @@ public sealed class Sts2StateProvider : IGameStateProvider
                 return GamePhase.None;
 
             var cm = CombatManager.Instance;
-            if (cm is { IsInProgress: true, IsPlayPhase: true })
+            if (Sts2CombatCompat.IsCombatPlayPhase(cm))
                 return GamePhase.Combat;
 
             // Post-combat: wait for rewards overlay to appear

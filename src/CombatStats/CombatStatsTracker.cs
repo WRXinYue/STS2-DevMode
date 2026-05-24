@@ -445,7 +445,8 @@ internal static class CombatStatsTracker {
 
     private static bool TryResolveCombatPlayerKey(Creature creature, out string netKey) {
         netKey = "";
-        CombatState? state = creature.CombatState ?? CombatManager.Instance?.DebugOnlyGetState();
+        CombatState? state = Sts2CombatCompat.GetCreatureCombatState(creature)
+            ?? CombatManager.Instance?.DebugOnlyGetState();
         if (state == null)
             return false;
 

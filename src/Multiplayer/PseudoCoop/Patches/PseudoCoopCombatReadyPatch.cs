@@ -35,7 +35,7 @@ internal static class PseudoCoopReadyEnemyTurnPatch {
 internal static class PseudoCoopCombatReady {
     internal static void ReadySimulatedPeersToEndTurn() {
         var cm = CombatManager.Instance;
-        if (cm is not { IsInProgress: true, IsPlayPhase: true }) return;
+        if (cm == null || !Sts2CombatCompat.IsCombatPlayPhase(cm)) return;
 
         foreach (var peer in SimulatedPeerRegistry.GetPeersNeedingSimulation()) {
             if (peer.Creature.IsDead) continue;
