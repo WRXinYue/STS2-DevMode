@@ -3,9 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using DevMode.Presets;
+using Godot;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Cards;
+using MegaCrit.Sts2.Core.Entities.Enchantments;
 using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.Helpers;
+using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Models;
 
 namespace DevMode.Actions;
@@ -223,10 +227,22 @@ internal static class CardEditActions {
             if (v.HasValue) vars[key] = v.Value;
         }
         if (vars.Count > 0) template.DynamicVars = vars;
+        CaptureEnchantmentTemplate(card, template);
         return template;
     }
 
-    public static void ApplyTemplate(CardModel card, CardEditTemplate template) {
+    private static void CaptureEnchantmentTemplate(CardModel card, CardEditTemplate template) {
+        try {
+            var enchantment = card.Enchantment;
+            if (enchantment == null) return;
+            template.EnchantmentTypeName = enchantment.GetType().FullName;
+            template.EnchantmentAmount = Math.Max(1, (int)Math.Round((double)enchantment.Amount));
+            template.ClearEnchantment = false;
+        }
+        catch { /* ignore */ }
+    }
+
+    public static void ApplyTemplate(CardModel card, CardEditTemplate template, bool forceEnchantment = false) {
         if (template.BaseCost.HasValue) TrySetBaseCost(card, template.BaseCost.Value);
         if (template.ReplayCount.HasValue) TrySetReplayCount(card, template.ReplayCount.Value);
         if (template.Damage.HasValue) TrySetDamage(card, template.Damage.Value);
@@ -243,69 +259,325 @@ internal static class CardEditActions {
         if (template.ExhaustOnNextPlay.HasValue) TrySetExhaustOnNextPlay(card, template.ExhaustOnNextPlay.Value);
         if (template.SingleTurnRetain.HasValue) TrySetSingleTurnRetain(card, template.SingleTurnRetain.Value);
         if (template.SingleTurnSly.HasValue) TrySetSingleTurnSly(card, template.SingleTurnSly.Value);
+        ApplyEnchantmentTemplate(card, template, forceEnchantment);
     }
 
-    /// <summary>Get all enchantment types available in the game.</summary>
-    public static IReadOnlyList<Type> GetEnchantmentTypes() {
+    private static void ApplyEnchantmentTemplate(CardModel card, CardEditTemplate template, bool force) {
+        if (template.ClearEnchantment == true) {
+            TryClearEnchantment(card, out _);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(template.EnchantmentTypeName)) return;
+        if (!TryResolveEnchantmentType(template.EnchantmentTypeName, out var enchantmentType)) return;
+        var amount = Math.Clamp(template.EnchantmentAmount.GetValueOrDefault(1), 1, 999);
+        TryApplyEnchantment(card, enchantmentType, amount, force, out _);
+    }
+
+    public readonly record struct EnchantmentEntry(string TypeFullName, string DisplayName);
+
+    /// <summary>Vanilla enchantments from <c>MegaCrit.Sts2.Core.Models.Enchantments</c>.</summary>
+    public static IReadOnlyList<EnchantmentEntry> GetEnchantmentEntries() {
         try {
-            var baseType = AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(a => { try { return a.GetTypes(); } catch { return Array.Empty<Type>(); } })
-                .FirstOrDefault(t => t.Name == "AbstractEnchantment" && !t.IsInterface);
-
-            if (baseType == null) return Array.Empty<Type>();
-
-            return AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(a => { try { return a.GetTypes(); } catch { return Array.Empty<Type>(); } })
-                .Where(t => baseType.IsAssignableFrom(t) && !t.IsAbstract && !t.IsInterface)
-                .OrderBy(t => t.Name)
+            var baseType = typeof(EnchantmentModel);
+            return baseType.Assembly
+                .GetTypes()
+                .Where(t =>
+                    t.IsClass &&
+                    !t.IsAbstract &&
+                    baseType.IsAssignableFrom(t) &&
+                    string.Equals(t.Namespace, "MegaCrit.Sts2.Core.Models.Enchantments", StringComparison.Ordinal) &&
+                    !t.Name.Contains("Deprecated", StringComparison.OrdinalIgnoreCase) &&
+                    !string.IsNullOrWhiteSpace(t.FullName))
+                .Select(t => CreateEnchantmentEntry(t))
+                .Where(e => e.HasValue)
+                .Select(e => e!.Value)
+                .OrderBy(e => e.DisplayName, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
         }
-        catch { return Array.Empty<Type>(); }
+        catch {
+            return Array.Empty<EnchantmentEntry>();
+        }
     }
 
-    /// <summary>Try to apply an enchantment to a card.</summary>
-    public static bool TryApplyEnchantment(CardModel card, Type enchantmentType, bool force = false) {
+    private static EnchantmentEntry? CreateEnchantmentEntry(Type enchantmentType) {
+        if (string.IsNullOrWhiteSpace(enchantmentType.FullName)) return null;
+        return new EnchantmentEntry(enchantmentType.FullName, GetEnchantmentDisplayName(enchantmentType));
+    }
+
+    public static Texture2D? GetEnchantmentIcon(string? typeFullName) {
+        if (string.IsNullOrWhiteSpace(typeFullName)) return null;
+        if (!TryResolveEnchantmentType(typeFullName, out var enchantmentType)) return null;
+        if (!TryGetCanonicalEnchantmentModel(enchantmentType, out var model) || model == null) return null;
+        try { return model.Icon; } catch { return null; }
+    }
+
+    /// <summary>Legacy helper — returns resolved enchantment types.</summary>
+    public static IReadOnlyList<Type> GetEnchantmentTypes() {
+        var entries = GetEnchantmentEntries();
+        var types = new List<Type>(entries.Count);
+        foreach (var entry in entries) {
+            if (TryResolveEnchantmentType(entry.TypeFullName, out var type))
+                types.Add(type);
+        }
+        return types;
+    }
+
+    public static string GetCardEnchantmentDisplayName(CardModel card) {
         try {
-            var enchantment = Activator.CreateInstance(enchantmentType);
-            if (enchantment == null) return false;
+            var enchantment = card.Enchantment;
+            if (enchantment == null)
+                return I18N.T("cardEdit.noEnchant", "None");
+            var title = FormatLocString(enchantment.Title);
+            if (!string.IsNullOrWhiteSpace(title)) return title;
+            if (!string.IsNullOrWhiteSpace(enchantment.Id.Entry))
+                return enchantment.Id.Entry;
+            return GetEnchantmentDisplayName(enchantment.GetType());
+        }
+        catch {
+            return "?";
+        }
+    }
 
-            // Try CardCmd.Enchant or similar
-            var enchantMethod = typeof(CardCmd).GetMethods(BindingFlags.Static | BindingFlags.Public)
-                .FirstOrDefault(m => m.Name.Contains("Enchant", StringComparison.OrdinalIgnoreCase));
+    public static int GetCardEnchantmentAmount(CardModel card) {
+        try {
+            return card.Enchantment == null ? 1 : Math.Max(1, (int)Math.Round((double)card.Enchantment.Amount));
+        }
+        catch {
+            return 1;
+        }
+    }
 
-            if (enchantMethod != null) {
-                var parameters = enchantMethod.GetParameters();
-                var args = new object?[parameters.Length];
-                for (int i = 0; i < parameters.Length; i++) {
-                    var pt = parameters[i].ParameterType;
-                    if (pt == typeof(CardModel) || typeof(CardModel).IsAssignableFrom(pt))
-                        args[i] = card;
-                    else if (enchantmentType.IsAssignableFrom(pt) || pt.IsAssignableFrom(enchantmentType))
-                        args[i] = enchantment;
-                    else if (pt == typeof(bool))
-                        args[i] = force;
-                    else if (parameters[i].HasDefaultValue)
-                        args[i] = parameters[i].DefaultValue;
-                    else
-                        args[i] = null;
-                }
-                enchantMethod.Invoke(null, args);
-                return true;
+    public static string GetEnchantmentDisplayName(Type enchantmentType) {
+        if (TryGetCanonicalEnchantmentModel(enchantmentType, out var canonical) && canonical != null) {
+            var title = FormatLocString(canonical.Title);
+            if (!string.IsNullOrWhiteSpace(title)) return title;
+            if (!string.IsNullOrWhiteSpace(canonical.Id.Entry))
+                return canonical.Id.Entry;
+        }
+        return enchantmentType.Name;
+    }
+
+    public static string FormatLocString(LocString? value) {
+        if (value == null) return "";
+        try {
+            if (value.IsEmpty) return "";
+            var formatted = value.GetFormattedText();
+            if (string.IsNullOrWhiteSpace(formatted)) return "";
+            return formatted.StripBbCode().Trim();
+        }
+        catch {
+            return "";
+        }
+    }
+
+    public static bool TryApplyEnchantment(CardModel card, Type enchantmentType, bool force = false) =>
+        TryApplyEnchantment(card, enchantmentType, 1, force, out _);
+
+    public static bool TryApplyEnchantment(
+        CardModel card,
+        Type enchantmentType,
+        int amount,
+        bool forceWhenIncompatible,
+        out string error) {
+        error = "";
+        var clampedAmount = Math.Clamp(amount, 1, 999);
+        try {
+            if (!typeof(EnchantmentModel).IsAssignableFrom(enchantmentType)) {
+                error = $"Invalid enchantment type: {enchantmentType.FullName}";
+                return false;
+            }
+            if (!TryGetCanonicalEnchantmentModel(enchantmentType, out var canonical) || canonical == null) {
+                error = $"Enchantment model not found: {enchantmentType.Name}";
+                return false;
             }
 
-            // Fallback: set Enchantment property directly
-            return TrySetProperty(card, "Enchantment", enchantment)
-                || TrySetProperty(card, "CurrentEnchantment", enchantment);
+            var enchantmentModel = canonical.ToMutable();
+            if (TryApplyEnchantmentByCardCommand(card, enchantmentType, enchantmentModel, clampedAmount, out var commandError))
+                return true;
+
+            if (forceWhenIncompatible && IsEnchantmentIncompatibleError(commandError)) {
+                if (TryForceApplyEnchantment(card, enchantmentModel, clampedAmount, out var forceError))
+                    return true;
+                error = forceError;
+                return false;
+            }
+
+            error = FormatEnchantmentApplyError(commandError, card, enchantmentModel);
+            return false;
         }
         catch (Exception ex) {
-            MainFile.Logger.Warn($"Apply enchantment failed: {ex.Message}");
+            error = GetInnermostErrorMessage(ex);
+            MainFile.Logger.Warn($"Apply enchantment failed: {error}");
             return false;
         }
     }
 
-    public static bool TryClearEnchantment(CardModel card) {
-        return TrySetProperty(card, "Enchantment", null)
-            || TrySetProperty(card, "CurrentEnchantment", null);
+    public static bool TryClearEnchantment(CardModel card) => TryClearEnchantment(card, out _);
+
+    public static bool TryClearEnchantment(CardModel card, out string error) {
+        error = "";
+        try {
+            CardCmd.ClearEnchantment(card);
+            return true;
+        }
+        catch (Exception ex) {
+            error = GetInnermostErrorMessage(ex);
+            MainFile.Logger.Warn($"Clear enchantment failed: {error}");
+            return false;
+        }
+    }
+
+    public static bool TryResolveEnchantmentType(string typeName, out Type enchantmentType) {
+        enchantmentType = null!;
+        if (string.IsNullOrWhiteSpace(typeName)) return false;
+
+        var resolved = Type.GetType(typeName, throwOnError: false);
+        if (resolved != null && typeof(EnchantmentModel).IsAssignableFrom(resolved)) {
+            enchantmentType = resolved;
+            return true;
+        }
+
+        resolved = typeof(EnchantmentModel).Assembly
+            .GetTypes()
+            .FirstOrDefault(type =>
+                typeof(EnchantmentModel).IsAssignableFrom(type) &&
+                !type.IsAbstract &&
+                (string.Equals(type.FullName, typeName, StringComparison.Ordinal) ||
+                 string.Equals(type.Name, typeName, StringComparison.OrdinalIgnoreCase)));
+        if (resolved == null) return false;
+        enchantmentType = resolved;
+        return true;
+    }
+
+    private static bool TryGetCanonicalEnchantmentModel(Type enchantmentType, out EnchantmentModel? model) {
+        model = null;
+        try {
+            var id = ModelDb.GetId(enchantmentType);
+            model = ModelDb.GetByIdOrNull<EnchantmentModel>(id);
+            if (model != null) return true;
+        }
+        catch { /* fall through */ }
+
+        try {
+            var generic = typeof(ModelDb)
+                .GetMethods(ReflFlags | BindingFlags.Static | BindingFlags.Public)
+                .FirstOrDefault(method =>
+                    method.Name == "Enchantment" &&
+                    method.IsGenericMethodDefinition &&
+                    method.GetParameters().Length == 0);
+            if (generic == null) return false;
+            var value = generic.MakeGenericMethod(enchantmentType).Invoke(null, null);
+            if (value is EnchantmentModel enchantmentModel) {
+                model = enchantmentModel;
+                return true;
+            }
+        }
+        catch { /* ignore */ }
+        return false;
+    }
+
+    private static bool TryApplyEnchantmentByCardCommand(
+        CardModel card,
+        Type enchantmentType,
+        EnchantmentModel enchantmentModel,
+        int amount,
+        out string error) {
+        error = "";
+        try {
+            CardCmd.Enchant(enchantmentModel, card, amount);
+            return true;
+        }
+        catch (Exception ex) {
+            error = GetInnermostErrorMessage(ex);
+        }
+
+        if (TryApplyEnchantmentByGenericTypeCommand(card, enchantmentType, amount, out var genericError))
+            return true;
+
+        if (string.IsNullOrWhiteSpace(error))
+            error = genericError;
+        return false;
+    }
+
+    private static bool TryApplyEnchantmentByGenericTypeCommand(CardModel card, Type enchantmentType, int amount, out string error) {
+        error = "";
+        try {
+            var genericEnchant = typeof(CardCmd)
+                .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                .FirstOrDefault(method =>
+                    method.Name == "Enchant" &&
+                    method.IsGenericMethodDefinition &&
+                    method.GetParameters() is { Length: 2 } parameters &&
+                    parameters[0].ParameterType == typeof(CardModel) &&
+                    parameters[1].ParameterType == typeof(decimal));
+            if (genericEnchant == null) return false;
+
+            genericEnchant.MakeGenericMethod(enchantmentType).Invoke(null, new object?[] { card, (decimal)amount });
+            return true;
+        }
+        catch (Exception ex) {
+            error = GetInnermostErrorMessage(ex);
+            return false;
+        }
+    }
+
+    private static bool TryForceApplyEnchantment(CardModel card, EnchantmentModel enchantmentModel, int amount, out string error) {
+        error = "";
+        try {
+            var mutable = enchantmentModel.IsMutable ? enchantmentModel : enchantmentModel.ToMutable();
+            var clampedAmount = Math.Clamp(amount, 1, 999);
+            mutable.Status = EnchantmentStatus.Normal;
+
+            var current = card.Enchantment;
+            if (current == null) {
+                card.EnchantInternal(mutable, clampedAmount);
+                mutable.ModifyCard();
+            }
+            else if (current.GetType() == mutable.GetType()) {
+                current.Amount += clampedAmount;
+            }
+            else {
+                card.ClearEnchantmentInternal();
+                card.EnchantInternal(mutable, clampedAmount);
+                mutable.ModifyCard();
+            }
+
+            card.FinalizeUpgradeInternal();
+            return true;
+        }
+        catch (Exception ex) {
+            error = GetInnermostErrorMessage(ex);
+            return false;
+        }
+    }
+
+    private static bool IsEnchantmentIncompatibleError(string? error) {
+        if (string.IsNullOrWhiteSpace(error)) return false;
+        return error.Contains("Cannot enchant", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("not compatible", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("incompatible", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string FormatEnchantmentApplyError(string? rawError, CardModel card, EnchantmentModel enchantmentModel) {
+        if (IsEnchantmentIncompatibleError(rawError)) {
+            var cardId = ((AbstractModel)card).Id.Entry ?? card.Id.Entry;
+            var enchantmentId = enchantmentModel.Id.Entry;
+            if (string.IsNullOrWhiteSpace(enchantmentId))
+                enchantmentId = enchantmentModel.GetType().Name;
+            return string.Format(
+                I18N.T("cardEdit.enchantIncompatible", "Enchantment incompatible with this card ({0} x {1})."),
+                cardId,
+                enchantmentId);
+        }
+        return string.IsNullOrWhiteSpace(rawError)
+            ? I18N.T("cardEdit.enchantFailed", "Failed to apply enchantment.")
+            : rawError;
+    }
+
+    private static string GetInnermostErrorMessage(Exception ex) {
+        while (ex.InnerException != null)
+            ex = ex.InnerException;
+        return ex.Message;
     }
 
     /// <summary>Get all cards in the player's deck for editing.</summary>

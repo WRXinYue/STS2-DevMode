@@ -43,6 +43,9 @@ internal static class CardBrowserRightPanel {
             t.SingleTurnRetain = null;
             t.SingleTurnSly = null;
             t.DynamicVars = null;
+            t.ClearEnchantment = null;
+            t.EnchantmentTypeName = null;
+            t.EnchantmentAmount = null;
         }
     }
 
@@ -649,62 +652,102 @@ internal static class CardBrowserRightPanel {
             }
         }
 
-        var enchantTypes = CardEditActions.GetEnchantmentTypes();
-        if (enchantTypes.Count > 0) {
+        var enchantEntries = CardEditActions.GetEnchantmentEntries();
+        if (enchantEntries.Count > 0) {
             container.AddChild(new HSeparator());
-            container.AddChild(new Label { Text = I18N.T("cardEdit.enchantment", "Enchantment") });
+            string? currentEnchantType = null;
+            try { currentEnchantType = card.Enchantment?.GetType().FullName; } catch { /* ignore */ }
 
-            var enchantRow = new HBoxContainer();
-            enchantRow.AddThemeConstantOverride("separation", 4);
+            var enchantPicker = EnchantmentPickerUI.Build(new EnchantmentPickerUI.Options {
+                ShowModePicker = true,
+                ShowForceButton = true,
+                HeaderSubtitle = CardEditActions.GetCardEnchantmentDisplayName(card),
+                InitialTypeFullName = currentEnchantType,
+                InitialAmount = CardEditActions.GetCardEnchantmentAmount(card),
+            });
+            container.AddChild(enchantPicker.Root);
+            TrackLibraryRow(enchantPicker.Root);
 
-            var enchantDropdown = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-            for (int i = 0; i < enchantTypes.Count; i++)
-                enchantDropdown.AddItem(enchantTypes[i].Name, i);
-            enchantRow.AddChild(enchantDropdown);
+            void RefreshEnchantHeader() {
+                enchantPicker.SetHeaderSubtitle(CardEditActions.GetCardEnchantmentDisplayName(card));
+            }
 
-            var applyBtn = new Button { Text = I18N.T("cardEdit.applyEnchant", "Apply"), CustomMinimumSize = new Vector2(50, 26) };
-            applyBtn.Pressed += () => {
+            void ApplyEnchantment(bool force) {
                 if (libraryAddStaging != null && ShouldLockLibraryStatEdits)
                     return;
-                int idx = enchantDropdown.Selected;
-                if (idx >= 0 && idx < enchantTypes.Count) {
-                    bool ok = CardEditActions.TryApplyEnchantment(card, enchantTypes[idx]);
-                    statusLabel.Text = ok ? "Enchantment applied." : "Failed to apply.";
+
+                CardEditTemplate patch;
+                string okMessage;
+                switch (enchantPicker.Mode) {
+                    case 1:
+                        patch = new CardEditTemplate { ClearEnchantment = true };
+                        okMessage = I18N.T("cardBrowser.enchantCleared", "Enchantment cleared.");
+                        break;
+                    case 2:
+                        if (string.IsNullOrWhiteSpace(enchantPicker.SelectedTypeFullName)) {
+                            statusLabel.Text = I18N.T("cardEdit.enchantPickType", "Select an enchantment type.");
+                            return;
+                        }
+                        patch = new CardEditTemplate {
+                            ClearEnchantment = false,
+                            EnchantmentTypeName = enchantPicker.SelectedTypeFullName,
+                            EnchantmentAmount = Math.Clamp((int)enchantPicker.AmountSpin.Value, 1, 999),
+                        };
+                        okMessage = I18N.T("cardBrowser.enchantSet", "Enchantment set.");
+                        break;
+                    default:
+                        statusLabel.Text = I18N.T("cardEdit.enchantModeKeep", "Keep current");
+                        return;
                 }
-            };
-            enchantRow.AddChild(applyBtn);
 
-            var forceBtn = new Button { Text = I18N.T("cardEdit.forceEnchant", "Force"), CustomMinimumSize = new Vector2(50, 26) };
-            forceBtn.Pressed += () => {
-                if (libraryAddStaging != null && ShouldLockLibraryStatEdits)
+                if (libraryAddStaging != null) {
+                    ApplyPatch(patch, okMessage);
+                    if (!MpCheatSession.InMultiplayerRun)
+                        CardEditActions.ApplyTemplate(card, patch, forceEnchantment: force);
+                    RefreshEnchantHeader();
                     return;
-                int idx = enchantDropdown.Selected;
-                if (idx >= 0 && idx < enchantTypes.Count) {
-                    bool ok = CardEditActions.TryApplyEnchantment(card, enchantTypes[idx], force: true);
-                    statusLabel.Text = ok ? "Enchantment force-applied." : "Failed.";
                 }
-            };
-            enchantRow.AddChild(forceBtn);
 
-            container.AddChild(enchantRow);
-            TrackLibraryRow(enchantRow);
-
-            var clearBtn = new Button { Text = I18N.T("cardEdit.clearEnchant", "Clear Enchantment"), CustomMinimumSize = new Vector2(0, 26) };
-            clearBtn.Pressed += () => {
-                if (libraryAddStaging != null && ShouldLockLibraryStatEdits)
+                if (mpOwnedPile) {
+                    ApplyPatch(patch, okMessage);
+                    RefreshEnchantHeader();
                     return;
-                CardEditActions.TryClearEnchantment(card);
-                statusLabel.Text = "Enchantment cleared.";
-            };
-            container.AddChild(clearBtn);
-            TrackLibraryRow(clearBtn);
+                }
+
+                if (patch.ClearEnchantment == true) {
+                    statusLabel.Text = CardEditActions.TryClearEnchantment(card, out var clearErr)
+                        ? okMessage
+                        : clearErr;
+                }
+                else if (!string.IsNullOrWhiteSpace(patch.EnchantmentTypeName) &&
+                         CardEditActions.TryResolveEnchantmentType(patch.EnchantmentTypeName, out var enchantType)) {
+                    var ok = CardEditActions.TryApplyEnchantment(
+                        card,
+                        enchantType,
+                        patch.EnchantmentAmount ?? 1,
+                        force,
+                        out var applyErr);
+                    statusLabel.Text = ok ? okMessage : applyErr;
+                }
+                else {
+                    statusLabel.Text = I18N.T("cardEdit.enchantFailed", "Failed to apply enchantment.");
+                }
+
+                if (statusLabel.Text == okMessage) {
+                    RefreshEnchantHeader();
+                    onCardEdited?.Invoke();
+                }
+            }
+
+            enchantPicker.ApplyButton.Pressed += () => ApplyEnchantment(force: false);
+            enchantPicker.ForceButton!.Pressed += () => ApplyEnchantment(force: true);
         }
 
-        if (MpCheatSession.InMultiplayerRun && mpOwnedPile) {
+        if (MpCheatSession.InMultiplayerRun && mpLibrary) {
             container.AddChild(new Label {
                 Text = I18N.T(
-                    "cardBrowser.editMpEnchantLocal",
-                    "Enchantment apply/clear is not synced yet (local only)."),
+                    "cardBrowser.editMpEnchantLibrary",
+                    "Enchantment below stages for add — syncs to all players when you add this card."),
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
             });
         }

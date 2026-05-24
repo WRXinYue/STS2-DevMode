@@ -39,6 +39,15 @@ public sealed class CardEditTemplate {
     [JsonPropertyName("singleTurnSly")]
     public bool? SingleTurnSly { get; set; }
 
+    [JsonPropertyName("clearEnchantment")]
+    public bool? ClearEnchantment { get; set; }
+
+    [JsonPropertyName("enchantmentTypeName")]
+    public string? EnchantmentTypeName { get; set; }
+
+    [JsonPropertyName("enchantmentAmount")]
+    public int? EnchantmentAmount { get; set; }
+
     public bool HasAnyPatch() =>
         BaseCost.HasValue
         || ReplayCount.HasValue
@@ -50,6 +59,8 @@ public sealed class CardEditTemplate {
         || ExhaustOnNextPlay.HasValue
         || SingleTurnRetain.HasValue
         || SingleTurnSly.HasValue
+        || ClearEnchantment == true
+        || !string.IsNullOrWhiteSpace(EnchantmentTypeName)
         || DynamicVars is { Count: > 0 };
 
     /// <summary>True when any staged field differs from <paramref name="baseline"/> (canonical card snapshot).</summary>
@@ -64,6 +75,12 @@ public sealed class CardEditTemplate {
         if (ExhaustOnNextPlay.HasValue && ExhaustOnNextPlay != baseline.ExhaustOnNextPlay) return true;
         if (SingleTurnRetain.HasValue && SingleTurnRetain != baseline.SingleTurnRetain) return true;
         if (SingleTurnSly.HasValue && SingleTurnSly != baseline.SingleTurnSly) return true;
+        if (ClearEnchantment == true && baseline.ClearEnchantment != true) return true;
+        if (!string.IsNullOrWhiteSpace(EnchantmentTypeName)) {
+            if (!string.Equals(EnchantmentTypeName, baseline.EnchantmentTypeName, StringComparison.Ordinal))
+                return true;
+            if (EnchantmentAmount != baseline.EnchantmentAmount) return true;
+        }
         if (DynamicVars is not { Count: > 0 }) return false;
         foreach (var kv in DynamicVars) {
             var baseVal = baseline.DynamicVars?.GetValueOrDefault(kv.Key);
@@ -88,6 +105,19 @@ public sealed class CardEditTemplate {
         if (patch.ExhaustOnNextPlay.HasValue) ExhaustOnNextPlay = patch.ExhaustOnNextPlay;
         if (patch.SingleTurnRetain.HasValue) SingleTurnRetain = patch.SingleTurnRetain;
         if (patch.SingleTurnSly.HasValue) SingleTurnSly = patch.SingleTurnSly;
+        if (patch.ClearEnchantment == true) {
+            ClearEnchantment = true;
+            EnchantmentTypeName = null;
+            EnchantmentAmount = null;
+        }
+        else if (!string.IsNullOrWhiteSpace(patch.EnchantmentTypeName)) {
+            ClearEnchantment = false;
+            EnchantmentTypeName = patch.EnchantmentTypeName;
+            if (patch.EnchantmentAmount.HasValue) EnchantmentAmount = patch.EnchantmentAmount;
+        }
+        else if (patch.ClearEnchantment == false) {
+            ClearEnchantment = false;
+        }
         if (patch.DynamicVars is not { Count: > 0 }) return;
         DynamicVars ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (var kv in patch.DynamicVars)
