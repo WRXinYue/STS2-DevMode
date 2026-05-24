@@ -51,6 +51,12 @@ internal static partial class DevPanelUI {
         };
         inner.AddChild(skipAnimBtn);
 
+        inner.AddChild(CreateCheatToggle(
+            I18N.T("settings.showHiddenCards", "Show hidden cards"),
+            I18N.T("settings.showHiddenCards.desc", "Include dev-hidden cards in the DevMode card library"),
+            () => SettingsStore.Current.ShowHiddenCards,
+            SettingsStore.SetShowHiddenCards));
+
         scroll.AddChild(inner);
         vbox.AddChild(scroll);
 

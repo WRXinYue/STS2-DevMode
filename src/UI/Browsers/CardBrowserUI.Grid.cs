@@ -44,20 +44,15 @@ internal static partial class CardBrowserUI {
         float slotW = host.CustomMinimumSize.X;
         float slotH = host.CustomMinimumSize.Y;
         try {
-            CardModel modelForNode = card;
-            var useLibraryUpgradePreview = false;
-            if (IsLibrarySource && s.LibraryShowUpgradePreview) {
-                try {
-                    if (card.IsUpgradable) {
-                        var upgraded = (CardModel)card.MutableClone();
-                        upgraded.UpgradeInternal();
-                        modelForNode = upgraded;
-                        useLibraryUpgradePreview = true;
-                    }
-                }
-                catch (Exception ex) {
-                    MainFile.Logger.Warn($"[DevMode] Library upgrade preview clone failed for {card.Id}: {ex.Message}");
-                }
+            var useLibraryUpgradePreview = IsLibrarySource && s.LibraryShowUpgradePreview && card.IsUpgradable;
+            CardModel modelForNode;
+            try {
+                modelForNode = CardPreviewHelper.GetDisplayModel(card, useLibraryUpgradePreview);
+            }
+            catch (Exception ex) {
+                MainFile.Logger.Warn($"[DevMode] Card preview model failed for {card.Id}: {ex.Message}");
+                modelForNode = card;
+                useLibraryUpgradePreview = false;
             }
 
             var nCard = NCard.Create(modelForNode);
@@ -126,7 +121,7 @@ internal static partial class CardBrowserUI {
 
     private static List<CardModel> GetCards(State s) {
         if (IsLibrarySource)
-            return ModelDb.AllCards.Where(c => c.ShouldShowInCardLibrary).ToList();
+            return CardLibraryVisibility.GetLibraryCards();
         var t = BrowseSourceToTarget(_browseSource);
         return t.HasValue
             ? CardActions.GetCardsForTarget(s.Player, t.Value)
@@ -249,9 +244,7 @@ internal static partial class CardBrowserUI {
             if (IsLibrarySource && !MatchesPoolSet(c, s.ActivePoolFilters, s.PoolFilterPredicates)) return false;
             if (!string.IsNullOrWhiteSpace(searchText)) {
                 var name = CardEditActions.GetCardDisplayName(c);
-                string desc;
-                try { desc = c.GetDescriptionForPile(PileType.None)?.StripBbCode() ?? ""; }
-                catch { desc = ""; }
+                var desc = CardPreviewHelper.GetSearchDescription(c);
                 var combined = name + " " + desc;
                 if (!combined.Contains(searchText, StringComparison.OrdinalIgnoreCase))
                     return false;

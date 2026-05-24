@@ -135,15 +135,7 @@ internal static class CardBrowserRightPanel {
             container.AddChild(infoLabel);
         }
 
-        string desc;
-        if (ReferenceEquals(displayCard, card) == false) {
-            try { desc = displayCard.GetDescriptionForUpgradePreview(); }
-            catch { desc = ""; }
-        }
-        else {
-            try { desc = card.GetDescriptionForPile(PileType.None); }
-            catch { desc = ""; }
-        }
+        var desc = CardPreviewHelper.GetDescription(card, forUpgradePreview: !ReferenceEquals(displayCard, card));
         if (!string.IsNullOrWhiteSpace(desc)) {
             var descLabel = DevModeTheme.CreateGameBbcodeLabel();
             descLabel.Text = DevModeTheme.ConvertGameBbcode(desc);
@@ -171,20 +163,8 @@ internal static class CardBrowserRightPanel {
     }
 
     /// <summary>When browsing the card library with "view upgrades" on, match grid + NCard: clone and UpgradeInternal for read-only UI.</summary>
-    private static CardModel ResolveLibraryDisplayCard(CardModel card, bool isLibrary, bool libraryUpgradeDetailPreview) {
-        if (!isLibrary || !libraryUpgradeDetailPreview)
-            return card;
-        try {
-            if (!card.IsUpgradable)
-                return card;
-            var upgraded = (CardModel)card.MutableClone();
-            upgraded.UpgradeInternal();
-            return upgraded;
-        }
-        catch {
-            return card;
-        }
-    }
+    private static CardModel ResolveLibraryDisplayCard(CardModel card, bool isLibrary, bool libraryUpgradeDetailPreview) =>
+        CardPreviewHelper.GetDisplayModel(card, isLibrary && libraryUpgradeDetailPreview);
 
     // ── Add section (for library source) ──
 

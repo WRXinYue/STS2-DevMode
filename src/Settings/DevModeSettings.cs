@@ -54,6 +54,9 @@ public sealed class DevModeSettings {
     /// <summary>Host-only: SimpleStrategy drives simulated remote players in co-op combat.</summary>
     public bool MpAiTeammateEnabled { get; set; }
 
+    /// <summary>Include cards hidden from the official library (<c>ShouldShowInCardLibrary</c> false) in DevMode browsers.</summary>
+    public bool ShowHiddenCards { get; set; }
+
     /// <summary>Apply pseudo-coop preset automatically on host RunManager.Launch.</summary>
     public bool PseudoCoopAutoPresetOnLaunch { get; set; }
 

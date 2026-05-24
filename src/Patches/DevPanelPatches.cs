@@ -11,6 +11,7 @@ using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardLibrary;
 using DevMode.Multiplayer.Cheat;
+using DevMode.Settings;
 using MegaCrit.Sts2.Core.Nodes.Screens.RelicCollection;
 
 namespace DevMode.Patches;
@@ -127,8 +128,31 @@ public static class RelicCollectionClosedPatch {
 [HarmonyPatch(typeof(NCardLibraryGrid), "GetCardVisibility")]
 public static class CardVisibilityPatch {
     public static void Postfix(ref ModelVisibility __result) {
-        if (!DevModeState.InDevRun && !DevModeState.InMenuPreview) return;
-        __result = ModelVisibility.Visible;
+        if (DevModeState.InDevRun || DevModeState.InMenuPreview) {
+            __result = ModelVisibility.Visible;
+            return;
+        }
+        if (DevModeState.IsActive && SettingsStore.Current.ShowHiddenCards)
+            __result = ModelVisibility.Visible;
+    }
+}
+
+/// <summary>Append library-hidden cards when DevMode option is enabled.</summary>
+[HarmonyPatch(typeof(NCardLibraryGrid), "_Ready")]
+public static class CardLibraryIncludeHiddenPatch {
+    private static readonly AccessTools.FieldRef<NCardLibraryGrid, List<CardModel>> AllCardsRef =
+        AccessTools.FieldRefAccess<NCardLibraryGrid, List<CardModel>>("_allCards");
+
+    public static void Postfix(NCardLibraryGrid __instance) {
+        if (!DevModeState.IsActive || !SettingsStore.Current.ShowHiddenCards) return;
+
+        var list = AllCardsRef(__instance);
+        var existing = new HashSet<CardModel>(list);
+        foreach (var card in ModelDb.AllCards) {
+            if (card.ShouldShowInCardLibrary || existing.Contains(card)) continue;
+            list.Add(card);
+            existing.Add(card);
+        }
     }
 }
 

@@ -4,6 +4,7 @@ using System.Linq;
 using DevMode;
 using DevMode.Actions;
 using DevMode.Icons;
+using DevMode.Settings;
 using Godot;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -383,6 +384,23 @@ internal static partial class CardBrowserUI {
                 ClearRightPanel(s);
         };
         s.LibraryUpgradeRow.AddChild(viewUpgradeChip);
+        var showHiddenChip = CreateFilterChip(
+            I18N.T("cardBrowser.showHidden", "Show hidden"),
+            CardLibraryVisibility.ShowHiddenCards);
+        showHiddenChip.Toggled += pressed => {
+            if (CardLibraryVisibility.ShowHiddenCards == pressed) return;
+            SettingsStore.SetShowHiddenCards(pressed);
+            var keepSelection = s.SelectedCard;
+            InvalidateCardCache(s);
+            RebuildGrid(s, s.SearchInput.Text ?? "");
+            if (keepSelection != null && IsLibrarySource) {
+                ShowRightPanel(s, keepSelection);
+                Callable.From(() => TryHighlightCardHost(s, keepSelection)).CallDeferred();
+            }
+            else
+                ClearRightPanel(s);
+        };
+        s.LibraryUpgradeRow.AddChild(showHiddenChip);
         s.LibraryUpgradeRow.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         content.AddChild(s.LibraryUpgradeRow);
 

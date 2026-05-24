@@ -191,6 +191,8 @@
   "panel.load": "Load",
   "panel.newTest": "New Test",
   "panel.settings": "Settings",
+  "settings.showHiddenCards": "Show hidden cards",
+  "settings.showHiddenCards.desc": "Include dev-hidden cards in the DevMode card library",
   "panel.speed": "Speed: {0}",
   "panel.skipAnim": "Skip Anim: {0}",
 
@@ -623,6 +625,7 @@
 
   "cardBrowser.chipLibrary": "Library",
   "cardBrowser.viewUpgrades": "View upgrades",
+  "cardBrowser.showHidden": "Show hidden",
   "cardBrowser.maxUpgrade": "Already at max upgrade level.",
   "cardBrowser.sortType": "Type",
   "cardBrowser.sortRarity": "Rarity",

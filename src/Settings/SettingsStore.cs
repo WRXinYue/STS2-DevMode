@@ -101,6 +101,11 @@ public static class SettingsStore {
         Save();
     }
 
+    public static void SetShowHiddenCards(bool enabled) {
+        Current.ShowHiddenCards = enabled;
+        Save();
+    }
+
     public static void Save() {
         try {
             var dir = Path.GetDirectoryName(FilePath);
