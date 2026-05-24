@@ -69,6 +69,8 @@ internal static class PseudoCoopCombatReady {
 
         foreach (var peer in SimulatedPeerRegistry.GetRemoteCombatAssistTargets()) {
             if (peer.Creature.IsDead) continue;
+            // Live ENet clients enqueue ReadyToBeginEnemyTurnAction(GetMe) once both peers reach phase 1.
+            if (SimulatedPeerRegistry.IsLiveEnetPeer(peer.NetId)) continue;
             cm.SetReadyToBeginEnemyTurn(peer);
             MainFile.Logger.Info($"[PseudoCoop] Auto ready-to-begin-enemy-turn netId={peer.NetId}.");
         }
