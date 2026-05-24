@@ -7,6 +7,8 @@ using DevMode.Settings;
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Helpers;
+using MegaCrit.Sts2.Core.Nodes;
+using MegaCrit.Sts2.Core.Nodes.Debug.Multiplayer;
 using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 using MegaCrit.Sts2.Core.Nodes.Screens.MainMenu;
 
@@ -22,6 +24,9 @@ internal static class DevMainMenuUI {
     private const string ButtonsContainerPath = "%MainMenuTextButtons";
 
     private static NMainMenu? _mainMenu;
+    private static Control? _buttonsContainer;
+    private static NMainMenuTextButton? _buttonTemplate;
+    private static DevMainMenuActions? _actions;
     private static readonly List<NMainMenuTextButton> _addedButtons = new();
     private static readonly List<(Control control, bool wasVisible)> _hiddenControls = new();
 
@@ -33,6 +38,7 @@ internal static class DevMainMenuUI {
 
     public static void Show(NMainMenu mainMenu, DevMainMenuActions actions) {
         _mainMenu = mainMenu;
+        _actions = actions;
 
         var container = mainMenu.GetNodeOrNull<Control>(ButtonsContainerPath);
         if (container == null) {
@@ -46,14 +52,30 @@ internal static class DevMainMenuUI {
             return;
         }
 
-        _hiddenControls.Clear();
-        foreach (var child in container.GetChildren()) {
-            if (child is not Control ctrl) continue;
-            _hiddenControls.Add((ctrl, ctrl.Visible));
-            ctrl.Visible = false;
+        _buttonsContainer = container;
+        _buttonTemplate = template;
+
+        if (_hiddenControls.Count == 0) {
+            foreach (var child in container.GetChildren()) {
+                if (child is not Control ctrl) continue;
+                _hiddenControls.Add((ctrl, ctrl.Visible));
+                ctrl.Visible = false;
+            }
         }
 
-        _addedButtons.Clear();
+        ShowRootMenu();
+    }
+
+    static void ShowRootMenu() {
+        if (_mainMenu == null || _buttonsContainer == null || _buttonTemplate == null || _actions == null)
+            return;
+
+        ClearAddedButtons();
+        var mainMenu = _mainMenu;
+        var actions = _actions;
+        var container = _buttonsContainer;
+        var template = _buttonTemplate;
+
         AddButton(container, template, I18N.T("devmenu.newTest", "New Test"), () => { Hide(); actions.OnNewTest(); });
         AddButton(container, template, I18N.T("devmenu.newTestWithSeed", "New Test (Seed)"), () => {
             ShowSeedInputOverlay(mainMenu, actions.OnNewTest);
@@ -81,6 +103,24 @@ internal static class DevMainMenuUI {
                 persistNormalRunBtn.label.Text = GetPersistNormalRunModeLabel();
         });
 
+        AddButton(container, template, I18N.T("devmenu.multiplayer", "Multiplayer"), ShowMultiplayerMenu);
+
+        AddButton(container, template, I18N.T("devmenu.unlockAll", "Unlock All Progress"), () => {
+            ShowUnlockAllConfirm(mainMenu);
+        });
+
+        AddButton(container, template, I18N.T("devmenu.back", "Back"), Hide);
+    }
+
+    static void ShowMultiplayerMenu() {
+        if (_mainMenu == null || _buttonsContainer == null || _buttonTemplate == null)
+            return;
+
+        ClearAddedButtons();
+        var mainMenu = _mainMenu;
+        var container = _buttonsContainer;
+        var template = _buttonTemplate;
+
         NMainMenuTextButton? mpCheatBtn = null;
         mpCheatBtn = AddButton(container, template, GetMultiplayerCheatOptInLabel(), () => {
             SettingsStore.SetMultiplayerCheatOptIn(!SettingsStore.Current.MultiplayerCheatOptIn);
@@ -92,11 +132,34 @@ internal static class DevMainMenuUI {
             DevMainMenuPseudoCoopUI.Show(mainMenu, Hide);
         });
 
-        AddButton(container, template, I18N.T("devmenu.unlockAll", "Unlock All Progress"), () => {
-            ShowUnlockAllConfirm(mainMenu);
+        AddButton(container, template, I18N.T("devmenu.lanMultiplayer", "LAN Multiplayer"), () => {
+            OpenLanMultiplayer(mainMenu);
         });
 
-        AddButton(container, template, I18N.T("devmenu.back", "Back"), Hide);
+        AddButton(container, template, I18N.T("devmenu.back", "Back"), ShowRootMenu);
+    }
+
+    static void OpenLanMultiplayer(NMainMenu mainMenu) {
+        Hide();
+        var game = mainMenu.GetTree().Root.GetNodeOrNull<NGame>("Game")
+            ?? NGame.Instance;
+        if (game == null) {
+            MainFile.Logger.Warn("DevMode: NGame not found; cannot open LAN multiplayer test scene.");
+            return;
+        }
+
+        var testScene = SceneHelper.Instantiate<NMultiplayerTest>("debug/multiplayer_test");
+        game.RootSceneContainer.SetCurrentScene(testScene);
+        _ = TaskHelper.RunSafely(game.Transition.FadeIn());
+        MainFile.Logger.Info("DevMode: Opened LAN multiplayer test scene (debug/multiplayer_test).");
+    }
+
+    static void ClearAddedButtons() {
+        foreach (var btn in _addedButtons) {
+            if (GodotObject.IsInstanceValid(btn))
+                btn.QueueFree();
+        }
+        _addedButtons.Clear();
     }
 
     private static void WireMainMenuTextButton(NMainMenu mainMenu, NMainMenuTextButton button) {
@@ -130,6 +193,9 @@ internal static class DevMainMenuUI {
 
         RestoreButtons();
         _mainMenu = null;
+        _buttonsContainer = null;
+        _buttonTemplate = null;
+        _actions = null;
     }
 
     public static bool IsVisible => _mainMenu != null && GodotObject.IsInstanceValid(_mainMenu);

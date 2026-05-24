@@ -14,6 +14,8 @@
   "devmenu.persistNormalRun.cheatMode": "普通对局：作弊模式",
   "devmenu.mpCheat.on": "联机作弊：开启",
   "devmenu.mpCheat.off": "联机作弊：关闭",
+  "devmenu.multiplayer": "联机",
+  "devmenu.lanMultiplayer": "局域网联机",
 
   "devmenu.pseudocoop": "伪联机（主机）",
   "devmenu.unlockAll": "解锁全部进度",

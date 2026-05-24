@@ -14,6 +14,8 @@
   "devmenu.persistNormalRun.cheatMode": "Normal run: Cheat Mode",
   "devmenu.mpCheat.on": "Multiplayer cheat: ON",
   "devmenu.mpCheat.off": "Multiplayer cheat: OFF",
+  "devmenu.multiplayer": "Multiplayer",
+  "devmenu.lanMultiplayer": "LAN Multiplayer",
 
   "devmenu.pseudocoop": "Pseudo Co-op (Host)",
   "devmenu.unlockAll": "Unlock All Progress",
