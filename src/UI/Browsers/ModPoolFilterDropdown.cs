@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DevMode.Icons;
 using Godot;
 
 namespace DevMode.UI;
@@ -9,6 +10,8 @@ namespace DevMode.UI;
 /// Collapses mod character pool filters into one chip-style button with a checkable popup list.
 /// </summary>
 internal sealed partial class ModPoolFilterDropdown : Control {
+    private static readonly MdiIcon ChevronDown = MdiIcon.From("chevron-down");
+
     private static readonly Color ColChipOff = DevModeTheme.ButtonBgNormal;
     private static readonly Color ColChipHover = DevModeTheme.ButtonBgHover;
     private static readonly Color ColChipOn = new(0.25f, 0.40f, 0.65f, 0.90f);
@@ -20,9 +23,13 @@ internal sealed partial class ModPoolFilterDropdown : Control {
     private readonly Dictionary<string, CheckBox> _checkboxes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Control> _rows = new(StringComparer.Ordinal);
 
-    private readonly Button _button;
+    private readonly PanelContainer _chip;
+    private readonly Label _label;
+    private readonly TextureRect _icon;
+    private readonly TextureRect _chevron;
     private readonly PopupPanel _popup;
     private readonly LineEdit? _searchInput;
+    private bool _hovered;
 
     public ModPoolFilterDropdown(
         IReadOnlyList<(string key, string label)> modEntries,
@@ -32,9 +39,42 @@ internal sealed partial class ModPoolFilterDropdown : Control {
         _activeFilters = activeFilters;
         _onFiltersChanged = onFiltersChanged;
 
-        _button = CreateChipButton();
-        _button.Pressed += OnButtonPressed;
-        AddChild(_button);
+        SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
+        SizeFlagsVertical = SizeFlags.ShrinkCenter;
+
+        _chip = new PanelContainer {
+            MouseFilter = MouseFilterEnum.Stop,
+            FocusMode = FocusModeEnum.None
+        };
+        _chip.MouseEntered += () => { _hovered = true; RefreshButtonPresentation(); };
+        _chip.MouseExited += () => { _hovered = false; RefreshButtonPresentation(); };
+        _chip.GuiInput += OnChipInput;
+        AddChild(_chip);
+
+        var chipRow = new HBoxContainer();
+        chipRow.AddThemeConstantOverride("separation", 4);
+        _chip.AddChild(chipRow);
+
+        _icon = new TextureRect {
+            CustomMinimumSize = new Vector2(14, 14),
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        chipRow.AddChild(_icon);
+
+        _label = new Label {
+            MouseFilter = MouseFilterEnum.Ignore,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        _label.AddThemeFontSizeOverride("font_size", 11);
+        chipRow.AddChild(_label);
+
+        _chevron = new TextureRect {
+            CustomMinimumSize = new Vector2(12, 12),
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        chipRow.AddChild(_chevron);
 
         _popup = new PopupPanel {
             MinSize = new Vector2I(200, 0)
@@ -104,13 +144,22 @@ internal sealed partial class ModPoolFilterDropdown : Control {
         RefreshButtonPresentation();
     }
 
+    public override Vector2 _GetMinimumSize() => _chip.GetMinimumSize();
+
+    private void OnChipInput(InputEvent @event) {
+        if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left }) {
+            OnButtonPressed();
+            _chip.AcceptEvent();
+        }
+    }
+
     private void OnButtonPressed() {
         if (_searchInput != null)
             _searchInput.Text = "";
         ApplySearchFilter("");
 
-        var pos = _button.GlobalPosition;
-        var size = _button.Size;
+        var pos = _chip.GlobalPosition;
+        var size = _chip.Size;
         _popup.Popup(new Rect2I(
             (int)pos.X,
             (int)(pos.Y + size.Y + 2),
@@ -140,33 +189,25 @@ internal sealed partial class ModPoolFilterDropdown : Control {
     private void RefreshButtonPresentation() {
         var selected = _entries.Where(e => _activeFilters.Contains(e.key)).ToList();
         var active = selected.Count > 0;
+        var iconColor = active || _hovered ? DevModeTheme.TextPrimary : DevModeTheme.Subtle;
 
-        _button.Text = selected.Count switch {
-            0 => I18N.T("cardBrowser.poolMods", "Mods") + " ▾",
-            1 => selected[0].label + " ▾",
-            _ => string.Format(I18N.T("cardBrowser.poolModsCount", "Mods ({0})"), selected.Count) + " ▾"
+        _label.Text = selected.Count switch {
+            0 => I18N.T("cardBrowser.poolMods", "Mods"),
+            1 => selected[0].label,
+            _ => string.Format(I18N.T("cardBrowser.poolModsCount", "Mods ({0})"), selected.Count)
         };
-        _button.TooltipText = selected.Count > 1
+        _label.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        _label.AddThemeColorOverride("font_color", iconColor);
+        _icon.Texture = MdiIcon.PuzzleOutline.Texture(14, iconColor);
+        _chevron.Texture = ChevronDown.Texture(12, iconColor);
+        _chip.TooltipText = selected.Count > 1
             ? string.Join(", ", selected.Select(s => s.label))
             : selected.Count == 1 ? selected[0].label : I18N.T("cardBrowser.poolMods", "Mods");
 
-        ApplyChipStyle(_button, active);
+        ApplyChipStyle(_chip, active, _hovered);
     }
 
-    private static Button CreateChipButton() {
-        var btn = new Button {
-            FocusMode = Control.FocusModeEnum.None,
-            MouseFilter = Control.MouseFilterEnum.Stop,
-            CustomMinimumSize = new Vector2(0, 24)
-        };
-        btn.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
-        btn.AddThemeColorOverride("font_hover_color", DevModeTheme.TextPrimary);
-        btn.AddThemeColorOverride("font_pressed_color", DevModeTheme.TextPrimary);
-        btn.AddThemeFontSizeOverride("font_size", 11);
-        return btn;
-    }
-
-    private static void ApplyChipStyle(Button btn, bool active) {
+    private static void ApplyChipStyle(PanelContainer chip, bool active, bool hovered) {
         StyleBoxFlat MakeChipStyle(Color bg) => new() {
             BgColor = bg,
             CornerRadiusTopLeft = 12,
@@ -175,21 +216,13 @@ internal sealed partial class ModPoolFilterDropdown : Control {
             CornerRadiusBottomRight = 12,
             ContentMarginLeft = 8,
             ContentMarginRight = 8,
-            ContentMarginTop = 1,
-            ContentMarginBottom = 1
+            ContentMarginTop = 4,
+            ContentMarginBottom = 4
         };
 
-        if (active) {
-            btn.AddThemeStyleboxOverride("normal", MakeChipStyle(ColChipOn));
-            btn.AddThemeStyleboxOverride("hover", MakeChipStyle(ColChipOnHover));
-            btn.AddThemeStyleboxOverride("pressed", MakeChipStyle(ColChipOn));
-            btn.AddThemeStyleboxOverride("focus", MakeChipStyle(ColChipOn));
-        }
-        else {
-            btn.AddThemeStyleboxOverride("normal", MakeChipStyle(ColChipOff));
-            btn.AddThemeStyleboxOverride("hover", MakeChipStyle(ColChipHover));
-            btn.AddThemeStyleboxOverride("pressed", MakeChipStyle(ColChipOn));
-            btn.AddThemeStyleboxOverride("focus", MakeChipStyle(ColChipOff));
-        }
+        var bg = active ? ColChipOn : hovered ? ColChipHover : ColChipOff;
+        if (active && hovered)
+            bg = ColChipOnHover;
+        chip.AddThemeStyleboxOverride("panel", MakeChipStyle(bg));
     }
 }
