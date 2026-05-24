@@ -78,6 +78,8 @@ public static class GlobalUiReadyPatch {
     }
 
     internal static void Process(double delta) {
+        if (MpCheatApplier.CheatsActive)
+            PlayerCheatEffects.Update();
         if (MpCheatApplier.FrameCheatsAllowed)
             DevModeState.StatModifiers?.Update(delta);
         _warmup?.Process(delta);

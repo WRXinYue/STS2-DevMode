@@ -90,8 +90,14 @@ internal static partial class DevPanelUI {
                 if (c.Block < 999) c.GainBlockInternal(999 - c.Block);
             }
         })));
-        secPlayer.AddChild(CreateCheatToggle(I18N.T("cheat.infiniteEnergy", "Infinite Energy"), I18N.T("cheat.infiniteEnergy.desc", "Refill energy after spending (Harmony)"), () => DevModeState.PlayerCheats.InfiniteEnergy, MpCheatUi.WrapBoolSetter(v => DevModeState.PlayerCheats.InfiniteEnergy = v)));
-        secPlayer.AddChild(CreateCheatToggle(I18N.T("cheat.infiniteStars", "Infinite Stars"), I18N.T("cheat.infiniteStars.desc", "Stars refill after spending"), () => DevModeState.PlayerCheats.InfiniteStars, MpCheatUi.WrapBoolSetter(v => DevModeState.PlayerCheats.InfiniteStars = v)));
+        secPlayer.AddChild(CreateCheatToggle(I18N.T("cheat.infiniteEnergy", "Infinite Energy"), I18N.T("cheat.infiniteEnergy.desc", "Keep energy at 999+ (immediate + after spend)"), () => DevModeState.PlayerCheats.InfiniteEnergy, MpCheatUi.WrapBoolSetter(v => {
+            DevModeState.PlayerCheats.InfiniteEnergy = v;
+            if (v) PlayerCheatEffects.ApplyImmediateIfEnabled();
+        })));
+        secPlayer.AddChild(CreateCheatToggle(I18N.T("cheat.infiniteStars", "Infinite Stars"), I18N.T("cheat.infiniteStars.desc", "Keep stars at 999+ (immediate + after spend)"), () => DevModeState.PlayerCheats.InfiniteStars, MpCheatUi.WrapBoolSetter(v => {
+            DevModeState.PlayerCheats.InfiniteStars = v;
+            if (v) PlayerCheatEffects.ApplyImmediateIfEnabled();
+        })));
         if (MpCheatUi.IsFrameCheatAllowed) {
             secPlayer.AddChild(CreateCheatToggle(I18N.T("cheat.godMode", "God Mode"), I18N.T("cheat.godMode.desc", "Auto-heal to max HP every frame"), () => DevModeState.StatModifiers?.GodMode ?? false, v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.GodMode = v; }));
             secPlayer.AddChild(CreateCheatToggle(I18N.T("cheat.negateDebuffs", "Negate Debuffs"), I18N.T("cheat.negateDebuffs.desc", "Continuously remove all debuffs"), () => DevModeState.StatModifiers?.NegateDebuffs ?? false, v => { if (DevModeState.StatModifiers != null) DevModeState.StatModifiers.NegateDebuffs = v; }));

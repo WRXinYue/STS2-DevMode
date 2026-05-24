@@ -49,11 +49,13 @@ public class DmCheatConsoleCmd : AbstractConsoleCmd {
             case "infiniteenergy": {
                     var v = flag ?? !DevModeState.PlayerCheats.InfiniteEnergy;
                     DevModeState.PlayerCheats.InfiniteEnergy = v;
+                    if (v) PlayerCheatEffects.ApplyImmediateIfEnabled();
                     return new CmdResult(true, $"Infinite Energy: {OnOff(v)}");
                 }
             case "infinitestars": {
                     var v = flag ?? !DevModeState.PlayerCheats.InfiniteStars;
                     DevModeState.PlayerCheats.InfiniteStars = v;
+                    if (v) PlayerCheatEffects.ApplyImmediateIfEnabled();
                     return new CmdResult(true, $"Infinite Stars: {OnOff(v)}");
                 }
             case "freezeenemies": {

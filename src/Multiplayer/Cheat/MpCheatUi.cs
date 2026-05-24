@@ -81,6 +81,7 @@ internal static class MpCheatUi {
     internal static void AfterCheatChanged() {
         if (!MpCheatSession.InMultiplayerRun) return;
         MpCheatState.ApplyOptimisticFromDevModeState();
+        PlayerCheatEffects.ApplyImmediateIfEnabled();
         if (MpCheatSession.IsHost)
             MpCheatSync.HostPublishFromDevModeState("ui");
         else
