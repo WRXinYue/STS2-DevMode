@@ -1,7 +1,7 @@
 # DevMode — build pipeline
 #
 #   build   → artifacts under repo build/DevMode/  (CI-safe, no game writes)
-#   deploy  → copy those artifacts into the game mods dir
+#   deploy  → copy build/DevMode/ into game mods/DevMode/ (other mods untouched)
 #   sync    → build + deploy (default local dev loop)
 
 DOTNET ?= dotnet
@@ -16,15 +16,18 @@ VERSION := $(shell $(PYTHON) -c "import json;print(json.load(open('DevMode.json'
 
 MOD_MAIN := DevMode.csproj
 
-DEPLOY_TO_GAME := /p:DeployToGame=true
-BETA_FLAG     := /p:Sts2Beta=true
+# Use -p: (not /p:) so Git Bash on Windows does not treat /p:... as a MSYS path.
+DEPLOY_TO_GAME := -p:DeployToGame=true
+BETA_FLAG     := -p:Sts2Beta=true
+# Copy build/DevMode/ into mods/DevMode/ only — never republish into the game tree.
+DEPLOY_COPY   := $(DOTNET) msbuild $(MOD_MAIN) -t:DeployRepoBuildToMods -p:DeployFromRepoBuild=true
 
 # STS2 Steam beta branch game version (update when Megacrit bumps beta; see beta install release_info.json).
 STS2_GAME_BETA_VERSION ?= 0.105.1
 ZIP_BETA_TAG := -sts2beta-v$(STS2_GAME_BETA_VERSION)
 ZIP_NAME_BETA := build/DevMode-v$(VERSION)$(ZIP_BETA_TAG).zip
 
-.PHONY: help init icons format deps build deploy sync compile pck publish nexus readme-nexus zip clean docs docs-build \
+.PHONY: help init icons format deps build deploy sync sync-framework-mods compile pck publish nexus readme-nexus zip clean docs docs-build \
         build-beta deploy-beta sync-beta sync-beta-launch compile-beta pck-beta zip-beta nexus-beta publish-beta \
         launch launch-beta sync-launch sync-beta-run
 
@@ -34,20 +37,21 @@ help:
 	@echo "  init         detect STS2 + Godot, generate local.props + .vscode (PYTHON=... to override)"
 	@echo "  icons        tree-shake MDI (mdi-used.json + MdiIcon.Generated.cs)"
 	@echo "  format       dotnet format DevMode.sln (EditorConfig / pre-commit)"
-	@echo "  deps         dotnet restore (STS2.RitsuLib NuGet; sync to game when Sts2Dir is set)"
+	@echo "  deps         dotnet restore (does not touch game mods/STS2-RitsuLib by default)"
 	@echo ""
-	@echo "  sync         deps + publish twice (repo build, then deploy to game)"
+	@echo "  sync         build to build/DevMode/, then copy into game mods/DevMode/ only"
 	@echo "  sync-launch  sync + launch game"
+	@echo "  sync-framework-mods  copy DevMode NuGet STS2-RitsuLib into game (overwrites other RitsuLib builds)"
 	@echo "  launch       launch via Steam (macOS/Linux) or Sts2Dir exe (Windows)"
-	@echo "  build        deps + publish to build/DevMode/ only (no game)"
-	@echo "  deploy       deps + dotnet publish with DeployToGame=true"
+	@echo "  build        publish to build/DevMode/ only (no game)"
+	@echo "  deploy       copy build/DevMode/ into game mods/DevMode/ (no republish)"
 	@echo "  compile      dotnet build to game mods (no .pck)"
 	@echo "  pck          dotnet publish to game mods + .pck"
 	@echo ""
-	@echo "  sync-beta         deps + publish twice (STS2 Steam beta; Sts2Dir = beta install)"
+	@echo "  sync-beta         build-beta + deploy-beta (STS2 Steam beta; Sts2Dir = beta install)"
 	@echo "  sync-beta-launch  sync-beta + launch game (same as LAUNCH=1 make sync-beta)"
 	@echo "  build-beta        publish to build/DevMode/ only (STS2 Steam beta)"
-	@echo "  deploy-beta  publish with DeployToGame=true (STS2 Steam beta)"
+	@echo "  deploy-beta  copy build/DevMode/ into game mods/DevMode/ (STS2 Steam beta)"
 	@echo "  compile-beta dotnet build to game mods, no .pck (STS2 Steam beta)"
 	@echo "  pck-beta     dotnet publish to game mods + .pck (STS2 Steam beta)"
 	@echo ""
@@ -74,28 +78,27 @@ format:
 deps:
 	$(DOTNET) restore $(MOD_MAIN)
 
-build: deps
+build:
 	$(DOTNET) publish $(MOD_MAIN)
 
-deploy: deps
-	$(DOTNET) publish $(DEPLOY_TO_GAME) $(MOD_MAIN)
+deploy:
+	$(DEPLOY_COPY)
 
-sync: deps
-	$(DOTNET) publish $(MOD_MAIN)
-	$(DOTNET) publish $(DEPLOY_TO_GAME) $(MOD_MAIN)
+sync: build deploy
+
+sync-framework-mods:
+	$(DOTNET) msbuild $(MOD_MAIN) -t:SyncFrameworkModsToGame -p:DisableFrameworkModsAfterRestore=false
 
 compile: deps
 	$(DOTNET) build $(DEPLOY_TO_GAME) $(MOD_MAIN)
 
-build-beta: deps
+build-beta:
 	$(DOTNET) publish $(BETA_FLAG) $(MOD_MAIN)
 
-deploy-beta: deps
-	$(DOTNET) publish $(DEPLOY_TO_GAME) $(BETA_FLAG) $(MOD_MAIN)
+deploy-beta:
+	$(DEPLOY_COPY)
 
-sync-beta: deps
-	$(DOTNET) publish $(BETA_FLAG) $(MOD_MAIN)
-	$(DOTNET) publish $(DEPLOY_TO_GAME) $(BETA_FLAG) $(MOD_MAIN)
+sync-beta: build-beta deploy-beta
 ifneq ($(LAUNCH),)
 	$(PYTHON) scripts/launch_sts2.py
 endif

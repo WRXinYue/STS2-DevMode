@@ -32,7 +32,7 @@ def write_vscode_files(root: Path, sts2_dir: Path) -> None:
             {
                 "label": "compile-dll",
                 "type": "shell",
-                "command": "dotnet build DevMode.sln /p:DeployToGame=true",
+                "command": "dotnet build DevMode.sln -p:DeployToGame=true",
                 "group": {"kind": "build", "isDefault": True},
                 "presentation": {"clear": True, "panel": "shared"},
                 "problemMatcher": "$msCompile",
@@ -41,7 +41,7 @@ def write_vscode_files(root: Path, sts2_dir: Path) -> None:
                 "label": "export-pck",
                 "type": "shell",
                 "command": "dotnet",
-                "args": ["publish", "/p:DeployToGame=true", "DevMode.csproj"],
+                "args": ["publish", "DevMode.csproj"],
                 "group": "build",
                 "presentation": {"clear": True, "panel": "shared"},
                 "problemMatcher": "$msCompile",
