@@ -1,5 +1,4 @@
 using HarmonyLib;
-using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.GameActions;
 
 namespace DevMode.Multiplayer.PseudoCoop.Patches;
@@ -18,4 +17,10 @@ internal static class MpAiTeammateActionFlightPatch {
 internal static class MpAiTeammateAfterActionFinishedPatch {
     [HarmonyPostfix]
     static void Postfix(GameAction action) => MpAiTeammateActionFlightPatch.OnActionEnd(action);
+}
+
+[HarmonyPatch(typeof(GameAction), nameof(GameAction.Cancel))]
+internal static class MpAiTeammateCancelActionPatch {
+    [HarmonyPostfix]
+    static void Postfix(GameAction __instance) => MpAiTeammateActionFlightPatch.OnActionEnd(__instance);
 }

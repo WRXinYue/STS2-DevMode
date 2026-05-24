@@ -102,6 +102,28 @@ internal static class SimulatedPeerRegistry {
     public static bool IsMpAiTeammateTarget(ulong netId) =>
         GetMpAiTeammateTargets().Any(p => p.NetId == netId);
 
+    /// <summary>Remote peers in LAN host-drive or phantom assist (independent of AI poll toggle).</summary>
+    public static IEnumerable<Player> GetHostDrivenCombatPeers() {
+        var state = RunManager.Instance?.DebugOnlyGetState();
+        var hostNetId = RunManager.Instance?.NetService?.NetId ?? 0;
+        if (state == null || hostNetId == 0 || !IsHostMultiplayer) return [];
+
+        return state.Players.Where(p => {
+            if (p.NetId == hostNetId) return false;
+            if (IsLiveEnetPeer(p.NetId)) return DriveLiveEnetEnabled;
+            return !IsLiveEnetPeer(p.NetId);
+        });
+    }
+
+    /// <summary>Owner-routed combat enqueue for LAN live peers (does not require AI poll on).</summary>
+    public static bool ShouldHostRouteCombatEnqueue(Player player) {
+        if (!MpCheatSession.InMultiplayerRun) return false;
+        if (RunManager.Instance?.NetService?.Type != NetGameType.Host) return false;
+        var hostNetId = RunManager.Instance.NetService.NetId;
+        if (player.NetId == hostNetId) return false;
+        return DriveLiveEnetEnabled && IsLiveEnetPeer(player.NetId);
+    }
+
     /// <summary>Host must enqueue combat actions for host-driven peers (never CardCmd.AutoPlay).</summary>
     public static bool ShouldHostEnqueueCombatAction(Player player) {
         if (!MpCheatSession.InMultiplayerRun) return false;

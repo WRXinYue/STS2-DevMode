@@ -129,6 +129,12 @@ internal static class PseudoCoopActionQueue {
     internal static bool HasInFlightAction(ulong netId) =>
         InFlightCounts.TryGetValue(netId, out var count) && count > 0;
 
+    internal static void ClearStaleInFlight(ulong netId) {
+        if (HasQueuedNonEndTurnActions(netId)) return;
+        if (IsRunningPlayerDrivenNonEndTurn(netId)) return;
+        ClearInFlight(netId);
+    }
+
     internal static void ClearInFlightAll() => InFlightCounts.Clear();
 
     /// <summary>PlayCardAction.OwnerId may be the host queue owner; use the action's player net id.</summary>

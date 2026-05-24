@@ -8,11 +8,23 @@ namespace DevMode.Multiplayer.PseudoCoop;
 internal static class MpAiTeammateCombatActions {
     public static void SignalEndTurn(Player player) {
         if (!CanSignalEndTurn(player)) return;
+        EnqueueOrSetReadyForAiTarget(player);
+    }
 
-        if (SimulatedPeerRegistry.ShouldHostEnqueueCombatAction(player))
-            EnqueueEndTurn(player);
-        else
-            CombatManager.Instance!.SetReadyToEndTurn(player, canBackOut: false);
+    public static void SignalEndTurnForHostDrivenPeer(Player player) {
+        if (!CanSignalEndTurn(player)) return;
+        EnqueueOrSetReady(player);
+    }
+
+    /// <summary>After host AI is toggled off: clear stale in-flight, then end turn if the queue is idle.</summary>
+    public static void ForceSignalEndTurnForHostDrivenPeer(Player player) {
+        var cm = CombatManager.Instance;
+        if (cm == null || !Sts2CombatCompat.IsCombatPlayPhase(cm)) return;
+        if (cm.IsPlayerReadyToEndTurn(player)) return;
+        if (PseudoCoopActionQueue.HasQueuedEndTurn(player.NetId)) return;
+        if (PseudoCoopActionQueue.HasPendingCombatActions(player.NetId)) return;
+
+        EnqueueOrSetReady(player);
     }
 
     public static void EnqueueEndTurn(Player player) {
@@ -27,6 +39,20 @@ internal static class MpAiTeammateCombatActions {
         var action = new EndPlayerTurnAction(player, round);
         RunManager.Instance!.ActionQueueSynchronizer.RequestEnqueue(action);
         MainFile.Logger.Info($"[MpAiTeammate] Enqueued end turn netId={player.NetId} round={round}.");
+    }
+
+    static void EnqueueOrSetReady(Player player) {
+        if (SimulatedPeerRegistry.ShouldHostRouteCombatEnqueue(player))
+            EnqueueEndTurn(player);
+        else
+            CombatManager.Instance!.SetReadyToEndTurn(player, canBackOut: false);
+    }
+
+    static void EnqueueOrSetReadyForAiTarget(Player player) {
+        if (SimulatedPeerRegistry.ShouldHostEnqueueCombatAction(player))
+            EnqueueEndTurn(player);
+        else
+            CombatManager.Instance!.SetReadyToEndTurn(player, canBackOut: false);
     }
 
     static bool CanSignalEndTurn(Player player) {

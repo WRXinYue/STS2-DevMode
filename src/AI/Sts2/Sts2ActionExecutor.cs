@@ -106,16 +106,9 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
         if (!card.CanPlay(out var reason, out _))
             return ActionResult.Fail($"Card [{card.Title}] cannot be played: {reason}");
 
-        Creature? target = null;
-        if (card.TargetType == TargetType.AnyEnemy)
-        {
-            var enemies = player.Creature.CombatState?.HittableEnemies.ToList();
-            if (enemies != null && enemies.Count > 0)
-            {
-                var idx = targetIndex >= 0 && targetIndex < enemies.Count ? targetIndex : 0;
-                target = enemies[idx];
-            }
-        }
+        var target = ResolveCardTarget(player, card, targetIndex);
+        if (target == null && card.TargetType.IsSingleTarget())
+            return ActionResult.Fail($"Card [{card.Title}] needs a target but none was resolved.");
 
         if (SimulatedPeerRegistry.ShouldHostEnqueueCombatAction(player)) {
             PseudoCoopActionQueue.EnsureQueueForPlayer(player);
@@ -148,6 +141,29 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
 
         PlayerCmd.EndTurn(player, canBackOut: false);
         return ActionResult.Ok("Turn ended.");
+    }
+
+    static Creature? ResolveCardTarget(Player player, CardModel card, int targetIndex) {
+        var combatState = player.Creature.CombatState;
+        if (combatState == null) return null;
+
+        switch (card.TargetType) {
+            case TargetType.AnyEnemy: {
+                var enemies = combatState.HittableEnemies.ToList();
+                if (enemies.Count == 0) return null;
+                var idx = targetIndex >= 0 && targetIndex < enemies.Count ? targetIndex : 0;
+                return enemies[idx];
+            }
+            case TargetType.AnyAlly:
+                return combatState.PlayerCreatures
+                    .FirstOrDefault(c => c.IsAlive && c != player.Creature)
+                    ?? player.Creature;
+            case TargetType.AnyPlayer:
+            case TargetType.Self:
+                return player.Creature;
+            default:
+                return null;
+        }
     }
 
     // ── Map ──

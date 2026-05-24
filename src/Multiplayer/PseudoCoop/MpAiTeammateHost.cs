@@ -31,6 +31,22 @@ internal static class MpAiTeammateHost {
         PseudoCoopActionQueue.ClearInFlightAll();
     }
 
+    public static void OnSessionDisabled() {
+        AiHostContext.Clear();
+        _tickRunning = false;
+
+        var cm = CombatManager.Instance;
+        if (cm == null || !Sts2CombatCompat.IsCombatPlayPhase(cm)) return;
+
+        foreach (var peer in SimulatedPeerRegistry.GetHostDrivenCombatPeers()) {
+            if (peer.Creature.IsDead) continue;
+            PseudoCoopActionQueue.ClearStaleInFlight(peer.NetId);
+            MpAiTeammateCombatActions.ForceSignalEndTurnForHostDrivenPeer(peer);
+        }
+
+        MainFile.Logger.Info("[MpAiTeammate] Host AI disabled — flushed stale in-flight and signaled end turn for host-driven peers.");
+    }
+
     public static void Poll(double delta, ref double accum) {
         if (!IsEnabled) return;
 
@@ -52,6 +68,7 @@ internal static class MpAiTeammateHost {
             if (player.Creature.IsDead) continue;
             if (cm.IsPlayerReadyToEndTurn(player)) continue;
             if (PseudoCoopActionQueue.HasQueuedEndTurn(player.NetId)) continue;
+            PseudoCoopActionQueue.ClearStaleInFlight(player.NetId);
             if (PseudoCoopActionQueue.HasPendingCombatActions(player.NetId)) continue;
 
             if (!HasPlayableCard(player)) {

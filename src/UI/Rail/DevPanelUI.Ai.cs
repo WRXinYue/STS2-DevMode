@@ -121,6 +121,7 @@ internal static partial class DevPanelUI {
                 I18N.T("pseudocoop.teammate.desc", "SimpleStrategy plays combat for host-driven peers via action queue."),
                 () => SettingsStore.Current.MpAiTeammateEnabled,
                 v => {
+                    if (!v) MpAiTeammateHost.OnSessionDisabled();
                     SettingsStore.Current.MpAiTeammateEnabled = v;
                     SettingsStore.Save();
                     SimulatedPeerRegistry.Refresh();

@@ -37,9 +37,9 @@ internal static class PseudoCoopCombatReady {
         var cm = CombatManager.Instance;
         if (cm == null || !Sts2CombatCompat.IsCombatPlayPhase(cm)) return;
 
-        foreach (var peer in SimulatedPeerRegistry.GetMpAiTeammateTargets()) {
+        foreach (var peer in SimulatedPeerRegistry.GetHostDrivenCombatPeers()) {
             if (peer.Creature.IsDead) continue;
-            MpAiTeammateCombatActions.SignalEndTurn(peer);
+            MpAiTeammateCombatActions.SignalEndTurnForHostDrivenPeer(peer);
         }
     }
 
