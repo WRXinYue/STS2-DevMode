@@ -40,6 +40,10 @@ internal static partial class CardBrowserUI {
         public static readonly HashSet<CardRarity> ActiveRarityFilters = new();
         public static readonly HashSet<int> ActiveCostFilters = new();
         public static readonly HashSet<string> ActivePoolFilters = new();
+        public static readonly HashSet<CardType> ExcludedTypeFilters = new();
+        public static readonly HashSet<CardRarity> ExcludedRarityFilters = new();
+        public static readonly HashSet<int> ExcludedCostFilters = new();
+        public static readonly HashSet<string> ExcludedPoolFilters = new();
         public static readonly List<(SortField field, bool asc)> SortPriority = new() {
             (SortField.Rarity, true), (SortField.Type, true),
             (SortField.Cost, true), (SortField.Alphabet, true)
@@ -127,6 +131,11 @@ internal static partial class CardBrowserUI {
         return false;
     }
 
+    private static bool IsExcludedByTypeSet(CardModel card, HashSet<CardType> excluded) {
+        if (excluded.Count == 0) return false;
+        return MatchesTypeSet(card, excluded);
+    }
+
     private static bool MatchesRaritySet(CardModel card, HashSet<CardRarity> active) {
         if (active.Count == 0) return true;
         var r = GetCardRarity(card);
@@ -136,6 +145,11 @@ internal static partial class CardBrowserUI {
             return !isStandard;
         }
         return false;
+    }
+
+    private static bool IsExcludedByRaritySet(CardModel card, HashSet<CardRarity> excluded) {
+        if (excluded.Count == 0) return false;
+        return MatchesRaritySet(card, excluded);
     }
 
     private static bool MatchesCostSet(CardModel card, HashSet<int> active) {
@@ -151,6 +165,11 @@ internal static partial class CardBrowserUI {
         catch { return true; }
     }
 
+    private static bool IsExcludedByCostSet(CardModel card, HashSet<int> excluded) {
+        if (excluded.Count == 0) return false;
+        return MatchesCostSet(card, excluded);
+    }
+
     private static bool MatchesPoolSet(
         CardModel card,
         HashSet<string> active,
@@ -164,6 +183,14 @@ internal static partial class CardBrowserUI {
             return false;
         }
         catch { return true; }
+    }
+
+    private static bool IsExcludedByPoolSet(
+        CardModel card,
+        HashSet<string> excluded,
+        Dictionary<string, Func<CardModel, bool>> predicates) {
+        if (excluded.Count == 0) return false;
+        return MatchesPoolSet(card, excluded, predicates);
     }
 
     // ── Sorting ──

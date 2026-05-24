@@ -8,6 +8,7 @@ namespace DevMode.UI;
 
 /// <summary>
 /// Collapses mod character pool filters into one chip-style button with a checkable popup list.
+/// Left-click toggles include; right-click toggles exclude.
 /// </summary>
 internal sealed partial class ModPoolFilterDropdown : Control {
     private static readonly MdiIcon ChevronDown = MdiIcon.From("chevron-down");
@@ -16,12 +17,19 @@ internal sealed partial class ModPoolFilterDropdown : Control {
     private static readonly Color ColChipHover = DevModeTheme.ButtonBgHover;
     private static readonly Color ColChipOn = new(0.25f, 0.40f, 0.65f, 0.90f);
     private static readonly Color ColChipOnHover = new(0.30f, 0.48f, 0.75f, 0.95f);
+    private static readonly Color ColChipExclude = new(0.65f, 0.22f, 0.22f, 0.92f);
+    private static readonly Color ColChipExcludeHover = new(0.75f, 0.28f, 0.28f, 0.95f);
+    private static readonly Color ColRowExclude = new(0.85f, 0.45f, 0.45f, 1f);
+
+    private enum EntryMode { Off, Include, Exclude }
 
     private readonly IReadOnlyList<(string key, string label)> _entries;
     private readonly HashSet<string> _activeFilters;
+    private readonly HashSet<string> _excludedFilters;
     private readonly Action _onFiltersChanged;
     private readonly Dictionary<string, CheckBox> _checkboxes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Control> _rows = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, EntryMode> _entryModes = new(StringComparer.Ordinal);
 
     private readonly PanelContainer _chip;
     private readonly Label _label;
@@ -34,9 +42,11 @@ internal sealed partial class ModPoolFilterDropdown : Control {
     public ModPoolFilterDropdown(
         IReadOnlyList<(string key, string label)> modEntries,
         HashSet<string> activeFilters,
+        HashSet<string> excludedFilters,
         Action onFiltersChanged) {
         _entries = modEntries;
         _activeFilters = activeFilters;
+        _excludedFilters = excludedFilters;
         _onFiltersChanged = onFiltersChanged;
 
         SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
@@ -128,23 +138,71 @@ internal sealed partial class ModPoolFilterDropdown : Control {
             var row = new MarginContainer();
             var checkbox = new CheckBox {
                 Text = label,
-                ButtonPressed = _activeFilters.Contains(key),
                 FocusMode = Control.FocusModeEnum.None
             };
             checkbox.AddThemeFontSizeOverride("font_size", 11);
             checkbox.TooltipText = label;
             var capturedKey = key;
-            checkbox.Toggled += on => OnCheckboxToggled(capturedKey, on);
+            checkbox.Toggled += on => {
+                SetEntryMode(capturedKey, on ? EntryMode.Include : EntryMode.Off);
+                RefreshButtonPresentation();
+                _onFiltersChanged();
+            };
+            checkbox.GuiInput += evt => {
+                if (evt is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right })
+                    return;
+                var next = _entryModes.GetValueOrDefault(capturedKey) == EntryMode.Exclude
+                    ? EntryMode.Off
+                    : EntryMode.Exclude;
+                SetEntryMode(capturedKey, next);
+                RefreshButtonPresentation();
+                _onFiltersChanged();
+                checkbox.AcceptEvent();
+            };
             row.AddChild(checkbox);
             list.AddChild(row);
             _checkboxes[key] = checkbox;
             _rows[key] = row;
+
+            var initial = ResolveEntryMode(key);
+            SetEntryMode(key, initial);
         }
 
         RefreshButtonPresentation();
     }
 
     public override Vector2 _GetMinimumSize() => _chip.GetMinimumSize();
+
+    private EntryMode ResolveEntryMode(string key) {
+        if (_activeFilters.Contains(key)) return EntryMode.Include;
+        if (_excludedFilters.Contains(key)) return EntryMode.Exclude;
+        return EntryMode.Off;
+    }
+
+    private void SetEntryMode(string key, EntryMode mode) {
+        _entryModes[key] = mode;
+        if (!_checkboxes.TryGetValue(key, out var checkbox)) return;
+
+        switch (mode) {
+            case EntryMode.Include:
+                _activeFilters.Add(key);
+                _excludedFilters.Remove(key);
+                checkbox.Modulate = Colors.White;
+                break;
+            case EntryMode.Exclude:
+                _activeFilters.Remove(key);
+                _excludedFilters.Add(key);
+                checkbox.Modulate = ColRowExclude;
+                break;
+            default:
+                _activeFilters.Remove(key);
+                _excludedFilters.Remove(key);
+                checkbox.Modulate = Colors.White;
+                break;
+        }
+
+        checkbox.SetPressedNoSignal(mode == EntryMode.Include);
+    }
 
     private void OnChipInput(InputEvent @event) {
         if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left }) {
@@ -167,15 +225,6 @@ internal sealed partial class ModPoolFilterDropdown : Control {
             0));
     }
 
-    private void OnCheckboxToggled(string key, bool on) {
-        if (on)
-            _activeFilters.Add(key);
-        else
-            _activeFilters.Remove(key);
-        RefreshButtonPresentation();
-        _onFiltersChanged();
-    }
-
     private void ApplySearchFilter(string query) {
         var normalized = query.Trim();
         foreach (var (key, label) in _entries) {
@@ -187,27 +236,34 @@ internal sealed partial class ModPoolFilterDropdown : Control {
     }
 
     private void RefreshButtonPresentation() {
-        var selected = _entries.Where(e => _activeFilters.Contains(e.key)).ToList();
-        var active = selected.Count > 0;
-        var iconColor = active || _hovered ? DevModeTheme.TextPrimary : DevModeTheme.Subtle;
+        var included = _entries.Where(e => _activeFilters.Contains(e.key)).ToList();
+        var excluded = _entries.Where(e => _excludedFilters.Contains(e.key)).ToList();
+        var includeActive = included.Count > 0;
+        var excludeActive = excluded.Count > 0;
+        var chipActive = includeActive || excludeActive;
+        var iconColor = chipActive || _hovered ? DevModeTheme.TextPrimary : DevModeTheme.Subtle;
 
-        _label.Text = selected.Count switch {
-            0 => I18N.T("cardBrowser.poolMods", "Mods"),
-            1 => selected[0].label,
-            _ => string.Format(I18N.T("cardBrowser.poolModsCount", "Mods ({0})"), selected.Count)
+        _label.Text = includeActive switch {
+            true when included.Count == 1 => included[0].label,
+            true => string.Format(I18N.T("cardBrowser.poolModsCount", "Mods ({0})"), included.Count),
+            false when excludeActive => string.Format(
+                I18N.T("cardBrowser.poolModsExcludedCount", "Mods (−{0})"), excluded.Count),
+            _ => I18N.T("cardBrowser.poolMods", "Mods")
         };
         _label.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         _label.AddThemeColorOverride("font_color", iconColor);
         _icon.Texture = MdiIcon.PuzzleOutline.Texture(14, iconColor);
         _chevron.Texture = ChevronDown.Texture(12, iconColor);
-        _chip.TooltipText = selected.Count > 1
-            ? string.Join(", ", selected.Select(s => s.label))
-            : selected.Count == 1 ? selected[0].label : I18N.T("cardBrowser.poolMods", "Mods");
+        _chip.TooltipText = includeActive
+            ? string.Join(", ", included.Select(s => s.label))
+            : excludeActive
+                ? string.Join(", ", excluded.Select(s => "−" + s.label))
+                : I18N.T("cardBrowser.poolMods", "Mods");
 
-        ApplyChipStyle(_chip, active, _hovered);
+        ApplyChipStyle(_chip, includeActive, excludeActive, _hovered);
     }
 
-    private static void ApplyChipStyle(PanelContainer chip, bool active, bool hovered) {
+    private static void ApplyChipStyle(PanelContainer chip, bool includeActive, bool excludeActive, bool hovered) {
         StyleBoxFlat MakeChipStyle(Color bg) => new() {
             BgColor = bg,
             CornerRadiusTopLeft = 12,
@@ -220,9 +276,17 @@ internal sealed partial class ModPoolFilterDropdown : Control {
             ContentMarginBottom = 4
         };
 
-        var bg = active ? ColChipOn : hovered ? ColChipHover : ColChipOff;
-        if (active && hovered)
-            bg = ColChipOnHover;
+        Color bg;
+        if (includeActive) {
+            bg = hovered ? ColChipOnHover : ColChipOn;
+        }
+        else if (excludeActive) {
+            bg = hovered ? ColChipExcludeHover : ColChipExclude;
+        }
+        else {
+            bg = hovered ? ColChipHover : ColChipOff;
+        }
+
         chip.AddThemeStyleboxOverride("panel", MakeChipStyle(bg));
     }
 }

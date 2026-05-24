@@ -678,6 +678,7 @@
   "cardBrowser.poolNecrobinder": "亡灵契约师",
   "cardBrowser.poolMods": "Mod 角色",
   "cardBrowser.poolModsCount": "Mod 角色 ({0})",
+  "cardBrowser.poolModsExcludedCount": "Mod 角色 (−{0})",
   "cardBrowser.poolModsSearch": "搜索…",
   "cardBrowser.poolColorless": "无色",
   "cardBrowser.poolAncients": "先古之民",

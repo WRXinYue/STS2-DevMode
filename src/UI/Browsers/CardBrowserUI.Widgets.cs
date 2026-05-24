@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Godot;
 
@@ -85,6 +86,27 @@ internal static partial class CardBrowserUI {
     private static Color ColChipHover => DevModeTheme.ButtonBgHover;
     private static readonly Color ColChipOn = new(0.25f, 0.40f, 0.65f, 0.90f);
     private static readonly Color ColChipOnHover = new(0.30f, 0.48f, 0.75f, 0.95f);
+    private static readonly Color ColChipExclude = new(0.65f, 0.22f, 0.22f, 0.92f);
+    private static readonly Color ColChipExcludeHover = new(0.75f, 0.28f, 0.28f, 0.95f);
+
+    private static void ToggleSet<T>(HashSet<T> set, T value, bool on) {
+        if (on) set.Add(value);
+        else set.Remove(value);
+    }
+
+    private enum FilterChipMode { Off, Include, Exclude }
+
+    private static StyleBoxFlat MakeChipStyleBox(Color bg) => new() {
+        BgColor = bg,
+        CornerRadiusTopLeft = 12,
+        CornerRadiusTopRight = 12,
+        CornerRadiusBottomLeft = 12,
+        CornerRadiusBottomRight = 12,
+        ContentMarginLeft = 8,
+        ContentMarginRight = 8,
+        ContentMarginTop = 1,
+        ContentMarginBottom = 1
+    };
 
     private static Button CreateFilterChip(string text, bool buttonPressed = false) {
         var btn = new Button {
@@ -96,23 +118,7 @@ internal static partial class CardBrowserUI {
             CustomMinimumSize = new Vector2(0, 24)
         };
 
-        StyleBoxFlat MakeChipStyle(Color bg) => new() {
-            BgColor = bg,
-            CornerRadiusTopLeft = 12,
-            CornerRadiusTopRight = 12,
-            CornerRadiusBottomLeft = 12,
-            CornerRadiusBottomRight = 12,
-            ContentMarginLeft = 8,
-            ContentMarginRight = 8,
-            ContentMarginTop = 1,
-            ContentMarginBottom = 1
-        };
-
-        btn.AddThemeStyleboxOverride("normal", MakeChipStyle(ColChipOff));
-        btn.AddThemeStyleboxOverride("hover", MakeChipStyle(ColChipHover));
-        btn.AddThemeStyleboxOverride("pressed", MakeChipStyle(ColChipOn));
-        btn.AddThemeStyleboxOverride("hover_pressed", MakeChipStyle(ColChipOnHover));
-        btn.AddThemeStyleboxOverride("focus", MakeChipStyle(ColChipOff));
+        ApplyFilterChipVisual(btn, buttonPressed ? FilterChipMode.Include : FilterChipMode.Off);
 
         btn.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
         btn.AddThemeColorOverride("font_hover_color", DevModeTheme.TextPrimary);
@@ -122,9 +128,87 @@ internal static partial class CardBrowserUI {
         return btn;
     }
 
-    private static void ToggleSet<T>(HashSet<T> set, T value, bool on) {
-        if (on) set.Add(value);
-        else set.Remove(value);
+    private static void ApplyFilterChipVisual(Button chip, FilterChipMode mode) {
+        switch (mode) {
+            case FilterChipMode.Include:
+                chip.AddThemeStyleboxOverride("normal", MakeChipStyleBox(ColChipOn));
+                chip.AddThemeStyleboxOverride("hover", MakeChipStyleBox(ColChipOnHover));
+                chip.AddThemeStyleboxOverride("pressed", MakeChipStyleBox(ColChipOn));
+                chip.AddThemeStyleboxOverride("hover_pressed", MakeChipStyleBox(ColChipOnHover));
+                chip.AddThemeStyleboxOverride("focus", MakeChipStyleBox(ColChipOn));
+                break;
+            case FilterChipMode.Exclude:
+                chip.AddThemeStyleboxOverride("normal", MakeChipStyleBox(ColChipExclude));
+                chip.AddThemeStyleboxOverride("hover", MakeChipStyleBox(ColChipExcludeHover));
+                chip.AddThemeStyleboxOverride("pressed", MakeChipStyleBox(ColChipExclude));
+                chip.AddThemeStyleboxOverride("hover_pressed", MakeChipStyleBox(ColChipExcludeHover));
+                chip.AddThemeStyleboxOverride("focus", MakeChipStyleBox(ColChipExclude));
+                break;
+            default:
+                chip.AddThemeStyleboxOverride("normal", MakeChipStyleBox(ColChipOff));
+                chip.AddThemeStyleboxOverride("hover", MakeChipStyleBox(ColChipHover));
+                chip.AddThemeStyleboxOverride("pressed", MakeChipStyleBox(ColChipOn));
+                chip.AddThemeStyleboxOverride("hover_pressed", MakeChipStyleBox(ColChipOnHover));
+                chip.AddThemeStyleboxOverride("focus", MakeChipStyleBox(ColChipOff));
+                break;
+        }
+    }
+
+    private static FilterChipMode ResolveFilterChipMode(bool included, bool excluded) {
+        if (included) return FilterChipMode.Include;
+        if (excluded) return FilterChipMode.Exclude;
+        return FilterChipMode.Off;
+    }
+
+    private static void WireTriStateFilterChip(
+        Button chip,
+        Action<bool> setInclude,
+        Action<bool> setExclude,
+        FilterChipMode initialMode,
+        Action refresh) {
+        var mode = initialMode;
+        var suppressToggle = false;
+
+        void SetMode(FilterChipMode next) {
+            mode = next;
+            suppressToggle = true;
+            switch (next) {
+                case FilterChipMode.Include:
+                    chip.SetPressedNoSignal(true);
+                    setInclude(true);
+                    setExclude(false);
+                    break;
+                case FilterChipMode.Exclude:
+                    chip.SetPressedNoSignal(false);
+                    setInclude(false);
+                    setExclude(true);
+                    break;
+                default:
+                    chip.SetPressedNoSignal(false);
+                    setInclude(false);
+                    setExclude(false);
+                    break;
+            }
+            ApplyFilterChipVisual(chip, mode);
+            suppressToggle = false;
+        }
+
+        chip.SetPressedNoSignal(mode == FilterChipMode.Include);
+        SetMode(mode);
+
+        chip.Toggled += on => {
+            if (suppressToggle) return;
+            SetMode(on ? FilterChipMode.Include : FilterChipMode.Off);
+            refresh();
+        };
+
+        chip.GuiInput += evt => {
+            if (evt is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right })
+                return;
+            SetMode(mode == FilterChipMode.Exclude ? FilterChipMode.Off : FilterChipMode.Exclude);
+            refresh();
+            chip.AcceptEvent();
+        };
     }
 
     // ── Panel colors ──

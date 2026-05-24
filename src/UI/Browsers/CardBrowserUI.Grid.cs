@@ -239,9 +239,15 @@ internal static partial class CardBrowserUI {
 
         s.FilteredCards = s.CachedAllCards.Where(c => {
             if (!MatchesTypeSet(c, s.ActiveTypeFilters)) return false;
+            if (IsExcludedByTypeSet(c, s.ExcludedTypeFilters)) return false;
             if (!MatchesRaritySet(c, s.ActiveRarityFilters)) return false;
+            if (IsExcludedByRaritySet(c, s.ExcludedRarityFilters)) return false;
             if (!MatchesCostSet(c, s.ActiveCostFilters)) return false;
-            if (IsLibrarySource && !MatchesPoolSet(c, s.ActivePoolFilters, s.PoolFilterPredicates)) return false;
+            if (IsExcludedByCostSet(c, s.ExcludedCostFilters)) return false;
+            if (IsLibrarySource) {
+                if (!MatchesPoolSet(c, s.ActivePoolFilters, s.PoolFilterPredicates)) return false;
+                if (IsExcludedByPoolSet(c, s.ExcludedPoolFilters, s.PoolFilterPredicates)) return false;
+            }
             if (!string.IsNullOrWhiteSpace(searchText)) {
                 var name = CardEditActions.GetCardDisplayName(c);
                 var desc = CardPreviewHelper.GetSearchDescription(c);

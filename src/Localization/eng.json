@@ -647,6 +647,7 @@
   "cardBrowser.poolNecrobinder": "Necrobinder",
   "cardBrowser.poolMods": "Mods",
   "cardBrowser.poolModsCount": "Mods ({0})",
+  "cardBrowser.poolModsExcludedCount": "Mods (−{0})",
   "cardBrowser.poolModsSearch": "Search…",
   "cardBrowser.poolColorless": "Colorless",
   "cardBrowser.poolAncients": "Ancients",
