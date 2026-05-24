@@ -119,6 +119,7 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
                 target?.CombatId);
             RunManager.Instance!.ActionQueueSynchronizer.RequestEnqueue(playAction);
             PseudoCoopActionQueue.MarkInFlight(player.NetId);
+            MpAiTeammateHost.NotifyCardQueued(player.NetId, card.Id);
             return ActionResult.Ok($"Queued play [{card.Title}] netId={player.NetId}");
         }
 
@@ -151,16 +152,19 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
             case TargetType.AnyEnemy: {
                 var enemies = combatState.HittableEnemies.ToList();
                 if (enemies.Count == 0) return null;
-                var idx = targetIndex >= 0 && targetIndex < enemies.Count ? targetIndex : 0;
-                return enemies[idx];
+                if (targetIndex >= 0 && targetIndex < enemies.Count) {
+                    var preferred = enemies[targetIndex];
+                    if (card.IsValidTarget(preferred)) return preferred;
+                }
+                return enemies.FirstOrDefault(card.IsValidTarget);
             }
-            case TargetType.AnyAlly:
-                return combatState.PlayerCreatures
-                    .FirstOrDefault(c => c.IsAlive && c != player.Creature)
-                    ?? player.Creature;
+            case TargetType.AnyAlly: {
+                var allies = combatState.PlayerCreatures.Where(c => c.IsAlive);
+                return allies.FirstOrDefault(card.IsValidTarget) ?? player.Creature;
+            }
             case TargetType.AnyPlayer:
             case TargetType.Self:
-                return player.Creature;
+                return card.IsValidTarget(player.Creature) ? player.Creature : null;
             default:
                 return null;
         }

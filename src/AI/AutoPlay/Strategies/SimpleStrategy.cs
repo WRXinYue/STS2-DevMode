@@ -84,7 +84,11 @@ internal sealed class SimpleStrategy : IDecisionMaker
             var card = hand[i]!.AsObject();
             var cost = card["cost"]?.GetValue<int>() ?? 99;
             var type = card["cardType"]?.GetValue<string>() ?? "";
-            if (type.Contains("Attack") && cost <= energy && cost > bestCost)
+            var targetType = card["targetType"]?.GetValue<string>() ?? "";
+            if (!type.Contains("Attack") || cost > energy) continue;
+            if (targetType is "AnyAlly" or "AnyPlayer" or "Self") continue;
+
+            if (cost > bestCost)
             {
                 bestIdx = i;
                 bestCost = cost;

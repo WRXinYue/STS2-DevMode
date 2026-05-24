@@ -18,9 +18,3 @@ internal static class MpAiTeammateAfterActionFinishedPatch {
     [HarmonyPostfix]
     static void Postfix(GameAction action) => MpAiTeammateActionFlightPatch.OnActionEnd(action);
 }
-
-[HarmonyPatch(typeof(GameAction), nameof(GameAction.Cancel))]
-internal static class MpAiTeammateCancelActionPatch {
-    [HarmonyPostfix]
-    static void Postfix(GameAction __instance) => MpAiTeammateActionFlightPatch.OnActionEnd(__instance);
-}

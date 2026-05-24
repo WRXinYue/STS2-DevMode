@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using DevMode.AI;
@@ -10,6 +11,7 @@ using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Helpers;
+using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Runs;
 
 namespace DevMode.Multiplayer.PseudoCoop;
@@ -18,7 +20,9 @@ namespace DevMode.Multiplayer.PseudoCoop;
 internal static class MpAiTeammateHost {
     static GameLoop? _loop;
     static bool _tickRunning;
+    static readonly Dictionary<ulong, (ModelId CardId, int Streak)> _enqueueStreak = [];
 
+    const int MaxPlayEnqueueStreak = 3;
     public static bool IsEnabled =>
         SettingsStore.Current.MpAiTeammateEnabled
         && MpCheatSession.IsHost
@@ -28,8 +32,21 @@ internal static class MpAiTeammateHost {
         AiHostContext.Clear();
         _tickRunning = false;
         _loop = null;
+        _enqueueStreak.Clear();
         PseudoCoopActionQueue.ClearInFlightAll();
     }
+
+    internal static void NotifyCardQueued(ulong netId, ModelId cardId) {
+        if (_enqueueStreak.TryGetValue(netId, out var entry) && entry.CardId == cardId)
+            _enqueueStreak[netId] = (cardId, entry.Streak + 1);
+        else
+            _enqueueStreak[netId] = (cardId, 1);
+    }
+
+    static void ResetPlayStreak(ulong netId) => _enqueueStreak.Remove(netId);
+
+    static bool HasExcessiveEnqueueStreak(ulong netId) =>
+        _enqueueStreak.TryGetValue(netId, out var entry) && entry.Streak >= MaxPlayEnqueueStreak;
 
     public static void OnSessionDisabled() {
         AiHostContext.Clear();
@@ -68,8 +85,15 @@ internal static class MpAiTeammateHost {
             if (player.Creature.IsDead) continue;
             if (cm.IsPlayerReadyToEndTurn(player)) continue;
             if (PseudoCoopActionQueue.HasQueuedEndTurn(player.NetId)) continue;
-            PseudoCoopActionQueue.ClearStaleInFlight(player.NetId);
             if (PseudoCoopActionQueue.HasPendingCombatActions(player.NetId)) continue;
+
+            if (HasExcessiveEnqueueStreak(player.NetId)) {
+                MainFile.Logger.Warn(
+                    $"[MpAiTeammate] Repeated play enqueue without progress netId={player.NetId}; ending turn.");
+                ResetPlayStreak(player.NetId);
+                MpAiTeammateCombatActions.SignalEndTurn(player);
+                continue;
+            }
 
             if (!HasPlayableCard(player)) {
                 MpAiTeammateCombatActions.SignalEndTurn(player);
