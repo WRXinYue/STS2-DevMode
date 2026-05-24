@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-05-24
+
 ### Added
 
 - **Main menu DevMod shortcuts** — On the title screen: **Logs (DevMod)** and **Mod Feedback (DevMod)** open the log viewer and feedback ZIP export without entering a run; in **Dev Mode (DevMod)**, **Unlock all progress** (with confirmation) reveals timeline epochs, ascension A10, and compendium entries on your save.

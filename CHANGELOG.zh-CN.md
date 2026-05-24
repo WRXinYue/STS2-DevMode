@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-05-24
+
 ### Added
 
 - **主菜单 DevMod 快捷入口** — 标题画面可直接打开 **日志 (DevMod)** 与 **Mod 反馈 (DevMod)**（无需进 run）；**开发模式 (DevMod)** 子菜单中新增 **解锁全部进度**（二次确认），可解锁存档中的时间线节点、进阶 A10 与图鉴内容。
