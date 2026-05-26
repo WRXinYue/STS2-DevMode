@@ -59,9 +59,7 @@ public static class MpCheatApplier {
         CheatsActive && MpCheatState.Config.GlobalMap.UnknownMapAlwaysTreasure;
 
     public static bool FreeTravelFromDevRoomMap =>
-        CheatsActive && (
-            MpCheatState.Config.GlobalMap.FreeTravelFromDevRoomMap
-            || DevModeState.MapCheats.FreeTravelFromDevRoomMap);
+        CheatsActive && MpCheatState.Config.GlobalMap.FreeTravelFromDevRoomMap;
 
     public static bool FrameCheatsAllowed =>
         CheatsActive && !MpCheatSession.InMultiplayerRun;

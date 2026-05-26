@@ -215,14 +215,15 @@ public static class DevModeState {
     public static class MapCheats {
         public static bool UnknownMapAlwaysTreasure { get; set; }
         public static bool MapRewriteEnabled { get; set; }
-        public static bool FreeTravelFromDevRoomMap { get; set; }
+        /// <summary>When true, vanilla map allows debug-jump to any node while the map screen is open.</summary>
+        public static bool MapDebugJumpEnabled { get; set; }
         public static MapRewriteMode MapRewriteMode { get; set; } = MapRewriteMode.None;
         public static bool MapKeepFinalBoss { get; set; } = true;
 
         public static void Reset() {
             UnknownMapAlwaysTreasure = false;
             MapRewriteEnabled = false;
-            FreeTravelFromDevRoomMap = false;
+            MapDebugJumpEnabled = false;
             MapRewriteMode = MapRewriteMode.None;
             MapKeepFinalBoss = true;
         }

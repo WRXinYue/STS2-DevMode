@@ -228,11 +228,11 @@ public sealed class MpCheatMapFlags {
 
     public static MpCheatMapFlags FromDevMode() => new() {
         UnknownMapAlwaysTreasure = DevModeState.MapCheats.UnknownMapAlwaysTreasure,
-        FreeTravelFromDevRoomMap = DevModeState.MapCheats.FreeTravelFromDevRoomMap,
+        FreeTravelFromDevRoomMap = DevModeState.MapCheats.MapDebugJumpEnabled,
     };
 
     public void ApplyToDevMode() {
         DevModeState.MapCheats.UnknownMapAlwaysTreasure = UnknownMapAlwaysTreasure;
-        DevModeState.MapCheats.FreeTravelFromDevRoomMap = FreeTravelFromDevRoomMap;
+        DevModeState.MapCheats.MapDebugJumpEnabled = FreeTravelFromDevRoomMap;
     }
 }

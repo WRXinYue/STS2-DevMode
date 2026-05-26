@@ -8,9 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Map dev logic** — Reorganized into `src/Map/` and `src/Patches/Map/` (`MapScreenReflection`, `VanillaMapNavigator`, `MapScreenUnlock`). No player-visible behavior change.
+
 ### Fixed
 
 - **Battle reward screen** — Opening a DevMode sidebar panel no longer clears post-combat rewards or other vanilla overlay pickers still on the stack.
+- **Map jump unlock scope** — Full map unlock after a DevMode map click jump applies only while the vanilla map screen is open; closing the map restores normal path travel rules. Dev jumps before unlock are limited to vanilla-travelable nodes; unlock state survives map close until the next open.
+- **Map click handling** — Dev map jumps hook `NMapPoint.OnRelease` (vanilla path) instead of `_GuiInput` on press, which had blocked all map clicks. Map-jump diagnostics log under `[DevMode.MapJump]`.
+- **Map debug jump** — Single cheat toggle (`Map Debug Jump`) controls free map jumps; removed session state, Shift+click arming, and duplicate `FreeTravelFromDevRoomMap` dev flag.
+- **Map debug jump — Ancient rooms** — Map jumps use `EnterMapPointInternal` so starting Ancient nodes call `PullAncient()` instead of a random event from `EnterMapCoordDebug`.
 
 ## [0.11.0] - 2026-05-25
 

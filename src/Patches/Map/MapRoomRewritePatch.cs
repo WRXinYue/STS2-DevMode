@@ -6,7 +6,7 @@ using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
 
-namespace DevMode.Patches;
+namespace DevMode.Patches.Map;
 
 /// <summary>
 /// Rewrites map room types based on QoL settings.
@@ -24,10 +24,8 @@ public static class MapRoomRewritePatch {
     public static void Prefix(ref RoomType __0, ref MapPointType __1, ref AbstractModel? __2) {
         if (!DevModeState.CheatsInRun || !DevModeState.MapCheats.MapRewriteEnabled) return;
 
-        // Optionally keep final boss
         if (DevModeState.MapCheats.MapKeepFinalBoss && __0 == RoomType.Boss) return;
 
-        // Only rewrite combat-related rooms (Monster, Elite, Unknown)
         if (__0 != RoomType.Monster && __0 != RoomType.Elite && (int)__0 != 8) return;
 
         switch (DevModeState.MapCheats.MapRewriteMode) {

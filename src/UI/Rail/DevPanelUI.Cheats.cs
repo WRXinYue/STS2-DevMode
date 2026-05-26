@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using DevMode;
+using DevMode.Map;
 using DevMode.Icons;
 using DevMode.Multiplayer.Cheat;
 using MegaCrit.Sts2.Core.Helpers;
@@ -7,6 +8,7 @@ using DevMode.Panels;
 using DevMode.Presets;
 using Godot;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using MegaCrit.Sts2.Core.Nodes.Screens.Map;
 
 namespace DevMode.UI;
 
@@ -175,6 +177,19 @@ internal static partial class DevPanelUI {
         // Game
         var secGame = NewSection("panel.section.game", "Game");
         secGame.AddChild(CreateCheatToggle(I18N.T("cheat.unknownTreasure", "Unknown → Treasure"), I18N.T("cheat.unknownTreasure.desc", "Unknown map nodes always give treasure"), () => DevModeState.MapCheats.UnknownMapAlwaysTreasure, MpCheatUi.WrapBoolSetter(v => DevModeState.MapCheats.UnknownMapAlwaysTreasure = v)));
+        var mapJumpToggle = CreateCheatToggle(
+            I18N.T("cheat.mapDebugJump", "Map Debug Jump"),
+            I18N.T("cheat.mapDebugJump.desc", "When enabled, click any node on the map to debug-jump. When disabled, vanilla path travel only."),
+            () => DevModeState.MapCheats.MapDebugJumpEnabled,
+            MpCheatUi.WrapBoolSetter(v => {
+                DevModeState.MapCheats.MapDebugJumpEnabled = v;
+                if (NMapScreen.Instance is not { IsOpen: true } openMap) return;
+                if (v)
+                    MapScreenUnlock.ApplyUnlock(openMap);
+                else
+                    MapScreenUnlock.ClearVisuals(openMap);
+            }));
+        secGame.AddChild(mapJumpToggle);
         var mapRewriteToggle = CreateCheatToggle(I18N.T("mapRewrite.enabled", "Enable Map Rewrite"), "", () => DevModeState.MapCheats.MapRewriteEnabled, v => DevModeState.MapCheats.MapRewriteEnabled = v);
         MpCheatUi.ApplyMultiplayerUnsupported(mapRewriteToggle, "mpcheat.unsupported.mp", "Not synced in multiplayer.");
         secGame.AddChild(mapRewriteToggle);

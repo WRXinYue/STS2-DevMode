@@ -13,7 +13,7 @@ using MegaCrit.Sts2.Core.Nodes.Screens.Map;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
 
-namespace DevMode.Patches;
+namespace DevMode.Patches.Map;
 
 /// <summary>
 /// Adds encounter preview tooltip on map node hover.
@@ -193,31 +193,5 @@ public static class MapPointUnhoverPatch {
     public static void Postfix(NMapPoint __instance) {
         if (!DevModeState.InDevRun) return;
         __instance.GetNodeOrNull<Control>("DevModeMapTooltip")?.QueueFree();
-    }
-}
-
-/// <summary>
-/// Left-click free travel when map cheat is enabled.
-/// </summary>
-[HarmonyPatch(typeof(NClickableControl), nameof(NClickableControl._GuiInput))]
-public static class MapPointFreeTravelPatch {
-    public static bool Prefix(NClickableControl __instance, InputEvent inputEvent) {
-        if (__instance is not NMapPoint mapPoint) return true;
-
-        if (!DevModeState.InDevRun) return true;
-
-        if (inputEvent is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } &&
-            DevModeState.CheatsInRun) {
-            var point = mapPoint.Point;
-            if (point == null) return true;
-
-            bool ok = RoomActions.TryEnterMapPoint(point.coord, point.PointType);
-            if (ok) {
-                MainFile.Logger.Info($"MapPreview: Jumped to map point {point.PointType} at floor {point.coord.row + 1}");
-                return false;
-            }
-        }
-
-        return true;
     }
 }

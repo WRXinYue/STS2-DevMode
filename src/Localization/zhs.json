@@ -452,6 +452,8 @@
   "statLock.stars": "锁定星辉",
   "statLock.orbSlots": "锁定宝珠槽位",
 
+  "cheat.mapDebugJump": "地图调试跳转",
+  "cheat.mapDebugJump.desc": "开启后可在地图上点击任意节点进行调试跳转；关闭则仅按原版路径行走。",
   "mapRewrite.enabled": "启用地图改写",
   "mapRewrite.mode": "模式",
   "mapRewrite.none": "无",

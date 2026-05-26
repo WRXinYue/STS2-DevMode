@@ -452,6 +452,8 @@
   "statLock.stars": "Lock Stars",
   "statLock.orbSlots": "Lock Orb Slots",
 
+  "cheat.mapDebugJump": "Map Debug Jump",
+  "cheat.mapDebugJump.desc": "When enabled, click any node on the map to debug-jump. When disabled, vanilla path travel only.",
   "mapRewrite.enabled": "Enable Map Rewrite",
   "mapRewrite.mode": "Mode",
   "mapRewrite.none": "None",
