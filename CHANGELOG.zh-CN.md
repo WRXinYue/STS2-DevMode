@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **战斗奖励界面** — 打开 DevMode 侧边栏面板时，不再清掉战斗结束奖励及其他仍留在 overlay 栈上的原版选择界面。
+
 ## [0.11.0] - 2026-05-25
 
 ### Added

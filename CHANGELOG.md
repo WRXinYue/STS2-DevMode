@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Battle reward screen** — Opening a DevMode sidebar panel no longer clears post-combat rewards or other vanilla overlay pickers still on the stack.
+
 ## [0.11.0] - 2026-05-25
 
 ### Added

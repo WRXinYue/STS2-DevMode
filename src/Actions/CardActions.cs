@@ -503,9 +503,9 @@ internal static class CardActions {
 
         if (selected.Count == 0) return;
 
-        // Close the selection overlay so the upgrade animation is visible
-        NavigationHelper.CloseOverlays();
-        await Task.Yield(); // let scene tree settle
+        // NDeckCardSelectScreen removes itself from NOverlayStack on confirm/cancel before
+        // CardsSelected completes; do not Remove again here (double AfterOverlayClosed crashes).
+        await Task.Yield(); // let scene tree settle after overlay teardown
 
         CardCmd.Upgrade(selected, CardPreviewStyle.HorizontalLayout);
 

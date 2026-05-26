@@ -1,8 +1,10 @@
 using System;
+using Godot;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Nodes.Screens;
 using MegaCrit.Sts2.Core.Nodes.Screens.Capstones;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardLibrary;
+using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 using MegaCrit.Sts2.Core.Nodes.Screens.MainMenu;
 using MegaCrit.Sts2.Core.Nodes.Screens.Overlays;
 using MegaCrit.Sts2.Core.Nodes.Screens.PauseMenu;
@@ -91,11 +93,22 @@ internal static class NavigationHelper {
         catch { }
     }
 
+    /// <summary>
+    /// Pops dismissible overlays from the top of <see cref="NOverlayStack"/> until a
+    /// game-flow screen (rewards, card/relic pick, game over, etc.) is reached.
+    /// DevMode's own <see cref="NDeckCardSelectScreen"/> pushes are removed; vanilla flow screens are kept.
+    /// </summary>
     public static void CloseOverlays() {
         try {
             var overlayStack = NOverlayStack.Instance;
-            if (overlayStack != null && overlayStack.ScreenCount > 0)
-                overlayStack.Clear();
+            if (overlayStack == null) return;
+
+            // Only DevMode-pushed NDeckCardSelectScreen is dismissible; all other overlay types are protected.
+            while (overlayStack.ScreenCount > 0
+                   && overlayStack.Peek() is NDeckCardSelectScreen deckScreen
+                   && GodotObject.IsInstanceValid(deckScreen)) {
+                overlayStack.Remove(deckScreen);
+            }
         }
         catch { }
     }

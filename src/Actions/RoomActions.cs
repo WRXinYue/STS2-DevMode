@@ -69,6 +69,10 @@ internal static class RoomActions {
                 return false;
             }
 
+            if (!DevModeState.MapCheats.FreeTravelFromDevRoomMap) {
+                DevModeState.MapCheats.FreeTravelFromDevRoomMap = true;
+            }
+
             // Use map-coord debug entry to keep map progression/visited coord in sync.
             TaskHelper.RunSafely(rm.EnterMapCoordDebug(coord, roomType, pointType));
             return true;

@@ -207,8 +207,7 @@ public static class MapPointFreeTravelPatch {
         if (!DevModeState.InDevRun) return true;
 
         if (inputEvent is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } &&
-            DevModeState.CheatsInRun &&
-            DevModeState.MapCheats.FreeTravelFromDevRoomMap) {
+            DevModeState.CheatsInRun) {
             var point = mapPoint.Point;
             if (point == null) return true;
 

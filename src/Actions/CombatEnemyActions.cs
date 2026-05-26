@@ -141,13 +141,20 @@ internal static class CombatEnemyActions {
         if (slot == null && cs.Encounter is { HasScene: false })
             LogSlotlessSummonWarning((AbstractModel)canonicalMonster);
 
-        var creature = await CreatureCmd.Add(mutable, cs, CombatSide.Enemy, slot);
-        MainFile.Logger.Info($"CombatEnemyActions: Added {((AbstractModel)canonicalMonster).Id.Entry} to combat");
+        try {
+            var creature = await CreatureCmd.Add(mutable, cs, CombatSide.Enemy, slot);
+            MainFile.Logger.Info($"CombatEnemyActions: Added {((AbstractModel)canonicalMonster).Id.Entry} to combat");
 
-        if (slot == null)
-            RepositionEnemies(cs);
+            if (slot == null)
+                RepositionEnemies(cs);
 
-        return creature;
+            return creature;
+        }
+        catch (Exception ex) {
+            MainFile.Logger.Warn(
+                $"CombatEnemyActions: Failed to add {((AbstractModel)canonicalMonster).Id.Entry}: {ex.Message}");
+            return null;
+        }
     }
 
     private static async Task AddEncounterMonstersInternal(EncounterModel encounter, bool mpSync) {
@@ -180,9 +187,11 @@ internal static class CombatEnemyActions {
 
         float scaling = cs.Encounter?.GetCameraScaling() ?? 1f;
 
-        // Collect enemy creature nodes (non-player, non-pet, alive)
+        // Collect enemy creature nodes (non-player, non-pet, alive, visuals ready for layout)
         var enemies = combatRoom.CreatureNodes
             .Where(n => GodotObject.IsInstanceValid(n)
+                     && n.Visuals != null
+                     && GodotObject.IsInstanceValid(n.Visuals)
                      && !n.Entity.IsPlayer
                      && n.Entity.PetOwner == null
                      && !n.Entity.IsDead)

@@ -231,6 +231,8 @@ public static class MapTravelabilityRewritePatch {
                 point.State = MapPointState.Travelable;
             }
         }
+
+        __instance.SetDebugTravelEnabled(true);
     }
 }
 
