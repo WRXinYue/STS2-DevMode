@@ -24,7 +24,6 @@
     <DevModePython Condition="'$(DevModePython)' == '' and '$(OS)' != 'Windows_NT'">python3</DevModePython>
     <GodotExe Condition="'$(GodotExe)' == '' and '$(GodotPath)' != ''">$(GodotPath)</GodotExe>
     <GodotExportPreset>BasicExport</GodotExportPreset>
-    <ModPckPath>$(PublishDir)\$(ModId).pck</ModPckPath>
     <RunPckExport Condition="'$(RunPckExport)' == ''">true</RunPckExport>
     <!-- Default off during sync/deploy so DevMode does not overwrite mods/STS2-RitsuLib (other mods e.g. LustTravel2 use a different package). -->
     <DisableFrameworkModsAfterRestore Condition="'$(DisableFrameworkModsAfterRestore)' == ''">true</DisableFrameworkModsAfterRestore>
@@ -36,6 +35,10 @@
     <PublishDir>$(RepoBuildDir)</PublishDir>
     <OutputPath>$(RepoBuildDir)\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <ModPckPath>$(PublishDir)\$(ModId).pck</ModPckPath>
   </PropertyGroup>
 
   <Target Name="CheckLocalProps" BeforeTargets="BeforeBuild;BeforePublish" Condition="'$(PackDevMode)' != 'true'">
@@ -68,6 +71,8 @@
   <Target Name="ValidatePackDist" BeforeTargets="GenerateNuspec" Condition="'$(PackDevMode)' == 'true'">
     <Error Condition="!Exists('$(RepoRoot)build\dist\DevMode\DevMode.dll')"
            Text="Run make zip (or make zip-beta) before dotnet pack -p:PackDevMode=true." />
+    <Error Condition="!Exists('$(RepoRoot)build\dist\DevMode\DevMode.pck')"
+           Text="DevMode.pck missing from build/dist/DevMode/. Run make zip with GodotPath set in local.props." />
   </Target>
 
   <Target Name="ExcludeGodotTempFromCompile" BeforeTargets="CoreCompile">

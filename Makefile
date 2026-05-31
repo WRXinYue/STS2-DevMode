@@ -160,10 +160,11 @@ DIST_DIR := build/dist/DevMode
 
 ifeq ($(OS),Windows_NT)
 zip-beta: build-beta
+	@if not exist build\DevMode\DevMode.pck (echo ERROR: DevMode.pck not found. Set GodotPath in local.props ^(make init^) and rebuild. & exit /b 1)
 	@if exist build\dist rmdir /s /q build\dist
 	@mkdir build\dist\DevMode\editor
 	@copy /y build\DevMode\DevMode.dll build\dist\DevMode\ >nul
-	@if exist build\DevMode\DevMode.pck copy /y build\DevMode\DevMode.pck build\dist\DevMode\ >nul
+	@copy /y build\DevMode\DevMode.pck build\dist\DevMode\ >nul
 	@copy /y build\DevMode\mod_manifest.json build\dist\DevMode\ >nul
 	@xcopy /s /y /q editor\* build\dist\DevMode\editor\ >nul
 	$(PYTHON) -c "import zipfile,os;z=zipfile.ZipFile('$(ZIP_NAME_BETA)','w',zipfile.ZIP_DEFLATED);[z.write(os.path.join(r,f),os.path.join(os.path.relpath(r,'build/dist'),f)) for r,_,fs in os.walk('build/dist/DevMode') for f in fs];z.close()"
@@ -172,10 +173,11 @@ zip-beta: build-beta
 	@echo Install: extract into "Slay the Spire 2" beta branch mods folder
 
 zip: build
+	@if not exist build\DevMode\DevMode.pck (echo ERROR: DevMode.pck not found. Set GodotPath in local.props ^(make init^) and rebuild. & exit /b 1)
 	@if exist build\dist rmdir /s /q build\dist
 	@mkdir build\dist\DevMode\editor
 	@copy /y build\DevMode\DevMode.dll build\dist\DevMode\ >nul
-	@if exist build\DevMode\DevMode.pck copy /y build\DevMode\DevMode.pck build\dist\DevMode\ >nul
+	@copy /y build\DevMode\DevMode.pck build\dist\DevMode\ >nul
 	@copy /y build\DevMode\mod_manifest.json build\dist\DevMode\ >nul
 	@xcopy /s /y /q editor\* build\dist\DevMode\editor\ >nul
 	$(PYTHON) -c "import zipfile,os;z=zipfile.ZipFile('$(ZIP_NAME)','w',zipfile.ZIP_DEFLATED);[z.write(os.path.join(r,f),os.path.join(os.path.relpath(r,'build/dist'),f)) for r,_,fs in os.walk('build/dist/DevMode') for f in fs];z.close()"
@@ -188,10 +190,10 @@ clean:
 	$(DOTNET) clean DevMode.sln
 else
 zip-beta: build-beta
+	@test -f build/DevMode/DevMode.pck || (echo "ERROR: DevMode.pck not found. Set GodotPath in local.props (make init) and rebuild." >&2; exit 1)
 	rm -rf build/dist
 	mkdir -p $(DIST_DIR)/editor
-	cp build/DevMode/DevMode.dll build/DevMode/mod_manifest.json $(DIST_DIR)/
-	@[ -f build/DevMode/DevMode.pck ] && cp build/DevMode/DevMode.pck $(DIST_DIR)/ || echo "Warning: DevMode.pck not found (Godot not configured) — skipping"
+	cp build/DevMode/DevMode.dll build/DevMode/mod_manifest.json build/DevMode/DevMode.pck $(DIST_DIR)/
 	cp -R editor/. $(DIST_DIR)/editor/
 	rm -f $(ZIP_NAME_BETA)
 	cd build/dist && zip -qr ../DevMode-v$(VERSION)$(ZIP_BETA_TAG).zip DevMode
@@ -200,10 +202,10 @@ zip-beta: build-beta
 	@echo 'Install: extract into "Slay the Spire 2" beta branch mods/'
 
 zip: build
+	@test -f build/DevMode/DevMode.pck || (echo "ERROR: DevMode.pck not found. Set GodotPath in local.props (make init) and rebuild." >&2; exit 1)
 	rm -rf build/dist
 	mkdir -p $(DIST_DIR)/editor
-	cp build/DevMode/DevMode.dll build/DevMode/mod_manifest.json $(DIST_DIR)/
-	@[ -f build/DevMode/DevMode.pck ] && cp build/DevMode/DevMode.pck $(DIST_DIR)/ || echo "Warning: DevMode.pck not found (Godot not configured) — skipping"
+	cp build/DevMode/DevMode.dll build/DevMode/mod_manifest.json build/DevMode/DevMode.pck $(DIST_DIR)/
 	cp -R editor/. $(DIST_DIR)/editor/
 	rm -f $(ZIP_NAME)
 	cd build/dist && zip -qr ../DevMode-v$(VERSION).zip DevMode
