@@ -21,12 +21,12 @@ Install from [Releases](https://github.com/WRXinYue/STS2-DevMode/releases) or bu
 ### Gameplay & content
 
 - **Cheats** — God mode, infinite energy/block/stars, damage multipliers, enemy freeze, stat locks, map overrides (free travel while map is open), reward tweaks; some options limited in **multiplayer**
-- **Cards** — Full card library; filter by type/rarity/cost/pool/character; **show hidden cards**; right-click a filter chip to **exclude**; edit stats and enchantments; add to any pile; upgrade preview; filters persist across sessions
-- **Relics** — Browse and add relics
-- **Powers** — Apply powers (self, all enemies, specific, allies); one-click Auto-Apply hooks
-- **Potions** — Visual grid; one-click Auto-Apply hooks
+- **Cards** — Full card library; filter by type/rarity/cost/pool/character/**mod source**; **show hidden cards**; right-click a filter chip to **exclude**; edit stats and enchantments; add to any pile; upgrade preview; filters persist across sessions
+- **Relics** — Browse and add relics; **mod source** filter
+- **Powers** — Apply powers (self, all enemies, specific, allies); one-click Auto-Apply hooks; **mod source** filter
+- **Potions** — Visual grid; one-click Auto-Apply hooks; **mod source** filter
 - **Enemies** — Replace encounters by room or map node; preview content; idle animation preview; edit per-turn enemy intents
-- **Events** — Browse and trigger event flows
+- **Events** — Browse and trigger event flows; **mod source** filter
 - **Rooms** — Inspect and jump between room types; teleport to ancient shop locations
 - **Presets** — Save/load combat and run snapshots (hand, deck, relics, etc.)
 
@@ -50,17 +50,15 @@ Install from [Releases](https://github.com/WRXinYue/STS2-DevMode/releases) or bu
 
 - **Save / Load** — Named DevMode snapshot slots (separate from vanilla `progress.save`); carry cards/relics/gold into a new seed; slot detail view
 - **Manual** — In-game documentation browser (one page per tool)
-- **Settings** — Theme (Dark / OLED / Light / Warm), game speed, skip animations, rail layout, combat overlays, **progress protection** toggles
+- **Settings** — Theme (Dark / OLED / Light / Warm), game speed, skip animations, rail layout, combat overlays, **progress protection** and **crash recovery** toggles
 
 ## In-combat overlays
 
 These are optional and mostly **off by default** — turn them on under **Settings → Game** or their panel.
 
-| Feature | What it shows | Default |
-| --- | --- | --- |
-| **In-game right sidebar** | Live contribution bars, enemy intent preview rail, compact combat tools (add encounter/monster, kill enemies) | Off |
-| **Enemy intent overlay** | Draggable float with next-turn intents | Off |
-| **Multiplayer combat stats overlay** | Draggable top-right score bars per player in co-op | On |
+- **In-game right sidebar** — Live contribution bars, enemy intent preview rail, compact combat tools (add encounter/monster, kill enemies). Default: **Off**
+- **Enemy intent overlay** — Draggable float with next-turn intents. Default: **Off**
+- **Multiplayer combat stats overlay** — Draggable top-right score bars per player in co-op. Default: **On**
 
 During fights, intent badges on the right sidebar stack vertically when an enemy has multiple intents. Opening the full **Combat stats** panel can merge flush with the right rail when the browser is nearly full width.
 
@@ -95,29 +93,48 @@ Typical ZIP contents:
 
 Reports are written under `user://devmode-reports/` (account-scoped user data, same tree as `mod_data/DevMode/`).
 
+When DevMode detects an unhandled error or an abnormal exit, it can open a dialog that links here with a **prefilled crash summary** — see **[Crash recovery](#crash-recovery)** below.
+
+## Crash recovery
+
+DevMode can prompt you to export a feedback ZIP after serious failures (without spamming a popup on every log line).
+
+### In-game error dialog
+
+- On an **unhandled .NET exception**, DevMode writes a crash report and tries to show a dialog: **View logs**, **Export feedback ZIP**, or **Close**.
+- The export form is prefilled with an automatic summary (exception type, message, stack excerpt, DevMode version).
+
+### Next-launch prompt
+
+- If the game **exits abnormally** (e.g. kill process) and the previous session did not shut down cleanly, the **main menu** offers the same export flow on next startup.
+- Session markers live under `mod_data/DevMode/instances/{pid}/session.active`; pending reports under `mod_data/DevMode/pending-crash-report.json`.
+
+### Settings
+
+- Toggle: **Settings → Crash recovery → Prompt to export feedback on crash** (on by default).
+- Progress-loss restore prompts take priority if both would show on startup.
+
+Look for log lines prefixed **`[DevMode CrashRecovery]`**.
+
 ## Title screen (DEVMODE)
 
 On the main menu, **DEVMODE** replaces separate dev buttons with one submenu:
 
-| Entry | Description |
-| --- | --- |
-| **New Test** | Start a quick test run |
-| **New Test (Seed)** | Test run with an optional seed |
-| **Load Save** | Load a DevMode snapshot slot (disabled when no slots exist) |
-| **Normal run: …** | Cycle **Disabled** → **Dev Mode** → **Cheat Mode** for non-test runs |
-| **Multiplayer** | Multiplayer dev submenu (see below) |
-| **Unlock All Progress** | Unlock timeline epochs, Ascension 10, and compendium entries (confirmation required) |
-| **Diagnostics** | **Logs** and **Mod feedback** |
-| **Progress protection** | Backup status, restore, per-backup **Details** |
-| **Back** | Return to the stock main menu |
+- **New Test** — Start a quick test run
+- **New Test (Seed)** — Test run with an optional seed
+- **Load Save** — Load a DevMode snapshot slot (disabled when no slots exist)
+- **Normal run: …** — Cycle **Disabled** → **Dev Mode** → **Cheat Mode** for non-test runs
+- **Multiplayer** — Multiplayer dev submenu (see below)
+- **Unlock All Progress** — Unlock timeline epochs, Ascension 10, and compendium entries (confirmation required)
+- **Diagnostics** — **Logs** and **Mod feedback**
+- **Progress protection** — Backup status, restore, per-backup **Details**
+- **Back** — Return to the stock main menu
 
 **Multiplayer** submenu:
 
-| Entry | Description |
-| --- | --- |
-| **Multiplayer cheat: ON/OFF** | Opt in to synced multiplayer cheat sessions |
-| **Pseudo Co-op Test (Host)** | Host with character/seed pickers; optional SyncBot, phantom player (NetId 1001), AI teammate |
-| **LAN Multiplayer** | Open the built-in multiplayer test scene |
+- **Multiplayer cheat: ON/OFF** — Opt in to synced multiplayer cheat sessions
+- **Pseudo Co-op Test (Host)** — Host with character/seed pickers; optional SyncBot, phantom player (NetId 1001), AI teammate
+- **LAN Multiplayer** — Open the built-in multiplayer test scene
 
 Restore from **Progress protection** is title-screen only. Prefer matching the backup’s mod set when possible.
 
@@ -181,12 +198,10 @@ On macOS/Linux, `%AppData%` is the game’s account-scoped user data directory (
 
 These features are **opt-in** from DevPanel → **AI Host**. They do not change vanilla solo hand-play or draw speed unless you enable AI / cheats yourself.
 
-| Mode | What it does | When to use |
-| --- | --- | --- |
-| **AI Host (solo)** | `SimpleStrategy` drives your character locally | Single-player automation |
-| **SyncBot** | Simulates remote peer ACKs and default choices on one machine; optional phantom player (NetId 1001) | Host-only co-op smoke tests without a second client |
-| **Pseudo Co-op preset** | Hand-play host + AI teammate for phantom/offline peers via action queue | Solo host with simulated teammate |
-| **LAN host-drive + AFK** | Host hand-plays local player; AI enqueues combat for connected ENet client; client AFK blocks local combat input; map votes mirrored | Two game instances on one PC (auto preset on dual launch) |
+- **AI Host (solo)** — `SimpleStrategy` drives your character locally. Use for single-player automation.
+- **SyncBot** — Simulates remote peer ACKs and default choices on one machine; optional phantom player (NetId 1001). Use for host-only co-op smoke tests without a second client.
+- **Pseudo Co-op preset** — Hand-play host + AI teammate for phantom/offline peers via action queue. Use for solo host with simulated teammate.
+- **LAN host-drive + AFK** — Host hand-plays local player; AI enqueues combat for connected ENet client; client AFK blocks local combat input; map votes mirrored. Use for two game instances on one PC (auto preset on dual launch).
 
 **Dual-instance LAN (recommended):** launch host + client on the same machine → presets apply automatically; host logs `LAN host preset applied`, client logs `AFK client enabled`.
 
