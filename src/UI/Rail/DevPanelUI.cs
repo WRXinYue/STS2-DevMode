@@ -276,7 +276,6 @@ internal static partial class DevPanelUI {
         // ── Auto-hide: timer-based mouse position polling ──
         float hiddenX = -(24 + RailW);
         float visibleX = 24f;
-        bool railShown = false;
         Tween? railTween = null;
 
         rail.OffsetLeft = hiddenX;
@@ -284,14 +283,14 @@ internal static partial class DevPanelUI {
         rail.Modulate = new Color(1, 1, 1, 0);
 
         void SlideRail(bool show, bool userTriggered = false) {
-            if (railShown == show) return;
+            if (_railShown == show) return;
 
             if (show && userTriggered && SettingsStore.ShouldShowRailIntroHint()) {
                 SettingsStore.MarkRailIntroDismissed();
                 RefreshPeekTabPresentation();
             }
 
-            railShown = show;
+            _railShown = show;
 
             railTween?.Kill();
             railTween = rail.CreateTween();
@@ -313,6 +312,8 @@ internal static partial class DevPanelUI {
             RefreshRailHintPresentation();
         }
 
+        BindRailSlide(SlideRail);
+
         var pollTimer = new Timer {
             Name = "RailPollTimer",
             WaitTime = 0.1f,
@@ -321,8 +322,8 @@ internal static partial class DevPanelUI {
         float hitZoneRight = visibleX + RailW + 16f;
 
         pollTimer.Timeout += () => {
-            if (_activeOverlayId != null || _pinRailCount > 0) {
-                if (!railShown) SlideRail(true);
+            if (_activeOverlayId != null || _pinRailCount > 0 || _keyboardRailPinned) {
+                if (!_railShown) SlideRail(true);
                 SetPeekTabVisible(false);
                 StopPeekTabPresentation();
                 RefreshLogAlertHints();
@@ -334,11 +335,11 @@ internal static partial class DevPanelUI {
             bool inHitZone = mousePos.X < hitZoneRight
                           && mousePos.Y > railRect.Position.Y - 20
                           && mousePos.Y < railRect.End.Y + 20;
-            bool overRail = railShown && railRect.Grow(8).HasPoint(mousePos);
+            bool overRail = _railShown && railRect.Grow(8).HasPoint(mousePos);
 
             if (inHitZone || overRail)
                 SlideRail(true, userTriggered: true);
-            else if (railShown)
+            else if (_railShown)
                 SlideRail(false);
 
             RefreshRailHintPresentation();
@@ -346,6 +347,7 @@ internal static partial class DevPanelUI {
         root.AddChild(pollTimer);
 
         WirePeekTabPressed(() => SlideRail(true, userTriggered: true));
+        RefreshPeekTabHotkeyHint();
 
         RefreshRailHintPresentation();
 
@@ -356,8 +358,10 @@ internal static partial class DevPanelUI {
 
     // ──────── Detach ────────
     public static void Detach(NGlobalUi globalUi) {
+        DevPanelHotkeySettingsUI.CancelCapture();
         _railGlobalUi = null;
         _activeOverlayId = null;
+        ResetRailHotkeyState();
         _controller.Detach();
         _browserOverlayCount = 0;
         _browserRailHoldCount = 0;

@@ -393,7 +393,7 @@ internal static partial class DevPanelUI {
         return btn;
     }
 
-    private static Button CreatePlainButton(string text, MdiIcon? icon = null) {
+    internal static Button CreatePlainButton(string text, MdiIcon? icon = null) {
         var btn = new Button {
             Text = text,
             CustomMinimumSize = new Vector2(0, 36),

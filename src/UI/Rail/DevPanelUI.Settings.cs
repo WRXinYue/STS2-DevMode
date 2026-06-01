@@ -10,6 +10,7 @@ namespace DevMode.UI;
 
 internal static partial class DevPanelUI {
     internal static void ShowSettingsOverlay(NGlobalUi globalUi, DevPanelActions actions) {
+        DevPanelHotkeySettingsUI.CancelCapture();
         var existing = ((Node)globalUi).GetNodeOrNull<Control>(SettingsRootName);
         if (existing != null) {
             ((Node)globalUi).RemoveChild(existing);
@@ -61,6 +62,9 @@ internal static partial class DevPanelUI {
         ProgressGuardPanelBuilder.AddToggleSection(inner, includeSectionHeader: true);
 
         CrashRecoveryPanelBuilder.AddToggleSection(inner, includeSectionHeader: true);
+
+        inner.AddChild(DevPanelHotkeySettingsUI.BuildSection(() =>
+            ShowSettingsOverlay(globalUi, actions)));
 
         inner.AddChild(CreateRailLayoutSection(globalUi, actions));
 

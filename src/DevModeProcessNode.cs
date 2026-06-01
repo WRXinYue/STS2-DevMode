@@ -1,6 +1,8 @@
 using DevMode.Feedback;
+using DevMode.Hotkeys;
 using DevMode.Patches;
 using DevMode.Scripts;
+using DevMode.Settings;
 using Godot;
 
 namespace DevMode;
@@ -11,6 +13,17 @@ namespace DevMode;
 /// </summary>
 internal partial class DevModeProcessNode : Node {
     private double _heartbeatAccum;
+
+    public override void _EnterTree() {
+        ProcessPriority = 128;
+        SetProcessInput(true);
+    }
+
+    public override void _Input(InputEvent @event) {
+        if (HotkeyCapture.TryCapture(@event, GetViewport()))
+            return;
+        DevPanelHotkeys.TryHandle(@event, GetViewport());
+    }
 
     public override void _Process(double delta) {
         _heartbeatAccum += delta;

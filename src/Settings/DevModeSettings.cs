@@ -7,7 +7,7 @@ namespace DevMode.Settings;
 /// <summary>
 /// Persistent user preferences for DevMode appearance. Serialized to settings.json.
 /// </summary>
-public sealed class DevModeSettings {
+public sealed partial class DevModeSettings {
     public bool DarkMode { get; set; } = true;
     public string DarkThemeName { get; set; } = ThemeNames.Dark;
     public string LightThemeName { get; set; } = ThemeNames.Light;
@@ -105,6 +105,12 @@ public sealed class DevModeSettings {
 
     /// <summary>Prompt to export feedback when an unhandled error or abnormal exit is detected.</summary>
     public bool PromptOnCrashFeedback { get; set; } = true;
+
+    /// <summary>Enable in-game keyboard shortcuts for the DevMode sidebar shell.</summary>
+    public bool HotkeysEnabled { get; set; } = true;
+
+    /// <summary>Migrates legacy toggle binding and game-conflicting key assignments.</summary>
+    public int HotkeySettingsVersion { get; set; }
 }
 
 public static class ThemeNames {

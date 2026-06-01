@@ -32,6 +32,8 @@ public static class SettingsStore {
                 Current = JsonSerializer.Deserialize<DevModeSettings>(json, JsonOpts) ?? new();
                 ApplyRailLayoutDefaults();
                 ApplyProgressGuardDefaults();
+                ApplyHotkeyDefaults();
+                ApplyHotkeySettingsMigration();
                 ApplyNormalRunModeFromSettings();
                 return;
             }
@@ -66,6 +68,28 @@ public static class SettingsStore {
 
     public static void SetGameContextPaneEnabled(bool enabled) {
         Current.GameContextPaneEnabled = enabled;
+        Save();
+    }
+
+    public static void SetHotkeysEnabled(bool enabled) {
+        Current.HotkeysEnabled = enabled;
+        Save();
+    }
+
+    public static HotkeyBinding GetHotkeyBinding(string actionId) =>
+        Current.GetHotkey(actionId).Clone();
+
+    public static string? TrySetHotkeyBinding(string actionId, HotkeyBinding binding) {
+        var reason = HotkeyBinding.ValidateForAssign(actionId, binding, Current);
+        if (reason != null)
+            return reason;
+        Current.SetHotkey(actionId, binding);
+        Save();
+        return null;
+    }
+
+    public static void ResetHotkeys() {
+        HotkeyDefaults.ApplyTo(Current);
         Save();
     }
 
@@ -142,6 +166,40 @@ public static class SettingsStore {
             return;
         Current.PromptOnModCharacterProgressLoss = true;
         Current.ProgressGuardSettingsVersion = 1;
+        Save();
+    }
+
+    private static void ApplyHotkeyDefaults() {
+        if (Current.HotkeyToggleRail.KeyCode == 0)
+            Current.HotkeyToggleRail = HotkeyDefaults.ToggleRail.Clone();
+        if (Current.HotkeyClosePanel.KeyCode == 0)
+            Current.HotkeyClosePanel = HotkeyDefaults.ClosePanel.Clone();
+        if (Current.HotkeyNextTab.KeyCode == 0)
+            Current.HotkeyNextTab = HotkeyDefaults.NextTab.Clone();
+        if (Current.HotkeyPrevTab.KeyCode == 0)
+            Current.HotkeyPrevTab = HotkeyDefaults.PrevTab.Clone();
+        if (Current.HotkeyLockRail.KeyCode == 0)
+            Current.HotkeyLockRail = HotkeyDefaults.LockRail.Clone();
+    }
+
+    private static void ApplyHotkeySettingsMigration() {
+        if (Current.HotkeySettingsVersion >= 1)
+            return;
+
+        var legacyToggle = new HotkeyBinding { KeyCode = (int)Godot.Key.D, Ctrl = true, Shift = true };
+        if (Current.HotkeyToggleRail.EqualsBinding(legacyToggle))
+            Current.HotkeyToggleRail = HotkeyDefaults.ToggleRail.Clone();
+
+        foreach (var actionId in HotkeyActionId.All) {
+            var binding = Current.GetHotkey(actionId);
+            if (actionId == HotkeyActionId.ClosePanel && binding.KeyCode == (int)Godot.Key.Escape)
+                continue;
+            if (!HotkeyBinding.UsesGameShortcutKey(binding.Keycode))
+                continue;
+            Current.SetHotkey(actionId, HotkeyDefaults.For(actionId));
+        }
+
+        Current.HotkeySettingsVersion = 1;
         Save();
     }
 
