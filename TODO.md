@@ -1,93 +1,48 @@
-# 战斗统计 — 待办
+# DevMode 待办
 
-DevMode 战斗伤害统计。MVP 基于 `CombatHistory`（公开 API，不对伤害管线打 Harmony patch）。
+## Android / 移动端
 
-## MVP ✅（已完成）
+- [ ] **DevMode 在 v0.103.3 APK 上初始化失败** — Harmony 打 `Creature.LoseHpInternal` 时报 `MissingMethodException: DamageResult.set_UnblockedDamage(int)`。PC Steam 同版本 v0.103.3 的 `sts2.dll` 反射仍为 `int`；Android 运行时找不到 int setter（疑似同版本号、不同平台二进制）。需从 APK 抽出 `sts2.dll` 对照后再改补丁/统计代码；若双端都要支持，可能要条件编译或分构建。**先搁置。**
 
-- [x] **数据层** — `CombatStatsTracker` + `CombatHistoryTailer`
-  - DevMode 激活时订阅 `CombatManager.CombatSetUp` / `CombatEnded`
-  - 增量消费 `CombatHistory.Changed`
-  - 处理：`DamageReceivedEntry`、`BlockGainedEntry`、`CardPlayFinishedEntry`
-- [x] **单场战斗、按玩家聚合**
-  - 总造成伤害（玩家/宠物 → 敌人）
-  - 总承伤（未格挡部分）
-  - 获得格挡
-  - 出牌数
-  - 分组：按卡牌、按伤害来源、按回合（DPT）
-- [x] **UI** — DevPanel 侧栏 **战斗统计**
-  - 概览 + 分类标签 + 排行列表
-  - 面板打开时自动刷新
-  - 战斗结束后保留上一场摘要
-- [x] **i18n** — 英文 + 简体中文
+## 战斗统计（Phase 2 剩余）
 
-## 完整版（Phase 2 — 大部分已完成）
+MVP 与 Phase 2 主体已随 0.10.0+ 发布，见 CHANGELOG。
 
 ### 数据与归因
 
-- [x] 无 dealer 的能力伤害（毒、绞杀、Haunt；Doom 等待补全）
-- [ ] 宠物/召唤物归因边界（Misery、助攻按比例分摊等）
-- [x] 溢出伤害 / 被目标格挡 等列
-- [x] 敌人对玩家造成的伤害（怪物行动 → 时间线事件）
-- [x] 每回合能量消耗
-- [ ] 能量浪费（未使用能量）
-- [x] 药水使用统计
-- [x] 施加 debuff 统计
-- [x] 战斗事件时间线
+- [x] 宠物/召唤物伤害归主人（`ResolveDamageOwner`：宠物 dealer → `PetOwner`）
+- [x] 无 dealer 能力伤害推断（毒、绞杀、Haunt → `CombatHistoryTailer`）
+- [ ] Misery 等多玩家分摊、同目标助攻按比例拆分
 
-### 范围与持久化
-
-- [x] 整局 Run 累计（当前 run 内所有战斗）
-- [x] 导出快照 JSON（反馈 / 调试报告用）
-- [x] Mod Feedback ZIP 附带战斗统计 `combat-stats.json`
+- [x] 能量消耗统计（`EnergySpent` / `EnergySpentByCard`）
+- [ ] 能量浪费（回合末未使用能量）
 
 ### 联机
 
-- [x] 合作模式多玩家切换（按玩家 chip 选择）
-- [ ] 合作模式按玩家分色、显示名称优化
-- [ ] 助攻 / 同目标伤害分摊
+- [x] 合作模式玩家 chip 切换、显示名称（统计面板 `playerRow`）
+- [x] 联机右上角分数 overlay（可拖、位置持久化 `CombatStatsMpOverlayPos*`）
+- [ ] 按玩家固定分色（当前仅 leader 高亮，条形图按贡献类别上色）
+
+- [ ] 助攻 / 同目标伤害分摊（现有 Synergy 加分 ≠ 伤害归属拆分）
 
 ### UI
 
-- [x] 回合条形图（复用简单 bar 组件）
-- [x] 扩展 / 时间线 / 整局累计 标签页
-- [x] 当前场 vs 上一场对比
-- [x] 面板内 Export JSON 按钮
-- [ ] 战斗内迷你 HUD（设置里可选开关）
-- [ ] 设置：战斗开始自动打开、HUD 位置
+- [x] 战斗内贡献展示 — 单人右侧 Context Pane 竖条 + 联机 top-right overlay（见 0.10.0 CHANGELOG）
+- [x] 联机 overlay 开关（统计面板内 `Show top-right score panel`；总开关：**Settings → In-game right sidebar**）
+- [x] 联机 overlay 位置持久化（拖拽保存）
+- [ ] 开战自动打开完整统计面板
+- [ ] 单人 rail 独立开关/位置（可选；现与 enemy intent 等共用 sidebar 设置）
 
 ### 集成
 
-- [ ] Hook 触发：`OnCombatStatsUpdated`（供脚本用，可选）
-- [x] 控制台命令：`dmstats` 输出 dump / export
+- [x] 内部事件 `CombatStatsTracker.Changed` / `NotifyStatsUpdated()`
+- [ ] 脚本 Hook：`OnCombatStatsUpdated`（`ScriptBridge` 对外，可选）
 
-## 参考
+## 无槽位遭遇 mid-combat 召唤 — 版本跟进备忘
 
-- 游戏 API：`CombatManager.Instance.History`，条目在 `MegaCrit.Sts2.Core.Combat.History.Entries`
-- 伤害写入：`CreatureCmd.Damage` → `History.DamageReceived(...)`
-- 参考 mod（仅思路）：DamageMeter 的 `HistoryTailer` + `CombatDataCollector`
+实现：`src/Patches/CombatSummonSlotCompatPatch.cs`（Normalize + Reposition）；`CombatEnemyActions` 加怪路径 `""` → `null`。
 
----
-
-# 无槽位遭遇 mid-combat 召唤 — 版本跟进备忘
-
-DevMode 在 **无槽位遭遇**（如 `BYRDONIS_ELITE`：`HasScene=false`，`Slots` 为空）里 mid-combat 加会召唤的怪（如 Ovicopter），或让原版召唤逻辑在无槽位战里跑起来时，可能触发：
-
-`NCombatRoom.AddCreature` → `creature.SlotName != null`（**空字符串 `""` 也算**）→ `EncounterSlots == null` → 抛异常。
-
-**责任**：DevMode 使用场景触发；LustTravel2 无关（只有 Postfix，不加敌人）。正常地图进 `OVICOPTER_NORMAL` 不受影响。
-
-## 已实现（DevMode 侧）
-
-- [x] **合入** — `src/Patches/CombatSummonSlotCompatPatch.cs`
-  - `CombatSummonSlotNormalizePatch`：`NCombatRoom.AddCreature` **Prefix**，`string.IsNullOrEmpty(SlotName)` → `null`
-  - `CombatSummonSlotRepositionPatch`：`CreatureCmd.Add(Creature)` **Postfix**，无槽位敌人走 `CombatEnemyActions.RepositionEnemies` 自动排版
-- [x] **DevMode 自己加怪** — `CombatEnemyActions.AddMonsterInternal` 已把 `GetNextSlot` 返回的 `""` 归一成 `null`，并打 `LogSlotlessSummonWarning`
-
-Harmony 经 `MainFile` 的 `PatchAll()` 自动注册，无需额外挂接。
-
-## 正式版（stable）更新时怎么改
-
-Megacrit 把 **beta 合入 stable** 或 bump 游戏版本后，按下面 checklist 过一遍（`Slay the Spire 2` 源码 vs `Slay the Spire 2 v0.106.1(beta)` 对照）：
+Megacrit **beta 合入 stable** 或 bump 游戏版本后过一遍：
 
 ### 1. 查 vanilla 是否已修 Ovicopter 下蛋
 
@@ -115,10 +70,8 @@ Megacrit 把 **beta 合入 stable** 或 bump 游戏版本后，按下面 checkli
 - 正常地图 `OVICOPTER_NORMAL` → 有 `EncounterSlots`，不是同一条 crash 链。
 - 群友「产卵 + 打死小苍蝇 + 卡死」且**未**用 DevMode 换怪 → 另查 FoxHime 耐力/async，需 log。
 
-## 相关源码路径（STS2）
+## 参考
 
-- `Core/Models/Encounters/OvicopterNormal.cs` — `HasScene`, `Slots`
-- `Core/Models/Encounters/ByrdonisElite.cs` — 无槽位范例
-- `Core/Models/EncounterModel.cs` — `GetNextSlot` 默认 `string.Empty`
-- `Core/Nodes/Rooms/NCombatRoom.cs` — `AddCreature` / `EncounterSlots`
-- `Core/Models/Monsters/Ovicopter.cs` — `LayEggsMove`
+- 战斗统计：`src/CombatStats/`、`src/UI/CombatStatsUI*.cs`
+- 无槽位召唤：`src/Patches/CombatSummonSlotCompatPatch.cs`
+- STS2：`Core/Models/Monsters/Ovicopter.cs`、`Core/Nodes/Rooms/NCombatRoom.cs`

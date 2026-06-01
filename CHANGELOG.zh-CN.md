@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **DEVMODE 主菜单** — 在 Mod 反馈与读档后再次进入标题画面 DEVMODE 子菜单时，不再出现原版主菜单按钮与开发项叠在一起；退出时会一并清理浮层。（感谢 @Crimson707707 反馈）
+- **添加敌人到战斗** — 遭遇战/怪物列表可在面板内正常滚动到底；切换到 **单体怪物** 时不再出现大片空白滚动区域。
 
 ## [0.11.2] - 2026-06-01
 
