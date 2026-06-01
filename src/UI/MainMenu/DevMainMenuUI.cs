@@ -241,6 +241,7 @@ internal static class DevMainMenuUI {
         FeedbackReportUI.HideAnywhere();
         LogViewerUI.HideAnywhere();
         ProgressGuardUI.HideAnywhere();
+        ProgressLossPromptUI.HideAnywhere();
         DevMainMenuPseudoCoopUI.HideAnywhere();
 
         var root = attachRoot ?? (Engine.GetMainLoop() as SceneTree)?.Root;

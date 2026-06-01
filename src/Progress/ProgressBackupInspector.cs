@@ -207,22 +207,10 @@ internal static class ProgressBackupInspector {
     private static bool HasCharacterActivity(IReadOnlyDictionary<ModelId, CharacterStats> statsById, ModelId id) {
         if (!statsById.TryGetValue(id, out var stats))
             return false;
-        return stats.TotalWins > 0
-               || stats.TotalLosses > 0
-               || stats.Playtime > 0
-               || stats.MaxAscension > 0;
+        return CharacterProgressActivity.HasActivity(stats);
     }
 
-    private static IEnumerable<CharacterModel> EnumerateModCharacters() {
-        return ModelDb.AllAbstractModelSubtypes
-            .Where(t => t.IsSubclassOf(typeof(CharacterModel)) && !t.IsAbstract)
-            .Select(t => ModelDb.GetByIdOrNull<CharacterModel>(ModelDb.GetId(t)))
-            .Where(c => c is not null)
-            .Select(c => c!)
-            .Where(c => c is not RandomCharacter and not DeprecatedCharacter and not Deprived)
-            .Where(c => !ModelDb.AllCharacters.Any(v => v.Id == c.Id))
-            .OrderBy(GetCharacterDisplayName, StringComparer.OrdinalIgnoreCase);
-    }
+    private static IEnumerable<CharacterModel> EnumerateModCharacters() => ModCharacterCatalog.EnumerateModCharacters();
 
     private static ProgressBackupCharacterSummary CreateCharacterSummary(
         ModelId id,
@@ -240,31 +228,10 @@ internal static class ProgressBackupInspector {
         };
     }
 
-    private static string GetCharacterDisplayName(CharacterModel character) {
-        try {
-            return character.Title.GetFormattedText();
-        }
-        catch {
-            return character.Id.Entry;
-        }
-    }
+    private static string GetCharacterDisplayName(CharacterModel character) =>
+        ModCharacterCatalog.GetDisplayName(character);
 
-    private static string ResolveCharacterName(ModelId? id) {
-        if (id is not { } modelId || modelId == ModelId.none)
-            return "?";
-
-        var character = ModelDb.GetByIdOrNull<CharacterModel>(modelId);
-        if (character != null)
-            return GetCharacterDisplayName(character);
-
-        return FormatUnknownCharacterId(modelId);
-    }
-
-    private static string FormatUnknownCharacterId(ModelId modelId) {
-        if (!string.IsNullOrEmpty(modelId.Entry))
-            return modelId.Entry.Replace('_', ' ');
-        return modelId.ToString();
-    }
+    private static string ResolveCharacterName(ModelId? id) => ModCharacterCatalog.ResolveCharacterName(id);
 
     private static bool MatchesAnyMod(string epochId, IReadOnlyList<string> modIds) {
         foreach (var modId in modIds) {

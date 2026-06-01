@@ -31,6 +31,7 @@ public static class SettingsStore {
                 var json = ReadSharedText(FilePath);
                 Current = JsonSerializer.Deserialize<DevModeSettings>(json, JsonOpts) ?? new();
                 ApplyRailLayoutDefaults();
+                ApplyProgressGuardDefaults();
                 ApplyNormalRunModeFromSettings();
                 return;
             }
@@ -136,6 +137,14 @@ public static class SettingsStore {
         Save();
     }
 
+    private static void ApplyProgressGuardDefaults() {
+        if (Current.ProgressGuardSettingsVersion >= 1)
+            return;
+        Current.PromptOnModCharacterProgressLoss = true;
+        Current.ProgressGuardSettingsVersion = 1;
+        Save();
+    }
+
     public static void SetShowHiddenCards(bool enabled) {
         Current.ShowHiddenCards = enabled;
         Save();
@@ -148,6 +157,11 @@ public static class SettingsStore {
 
     public static void SetWarnOnRemovedModProgressResidue(bool enabled) {
         Current.WarnOnRemovedModProgressResidue = enabled;
+        Save();
+    }
+
+    public static void SetPromptOnModCharacterProgressLoss(bool enabled) {
+        Current.PromptOnModCharacterProgressLoss = enabled;
         Save();
     }
 

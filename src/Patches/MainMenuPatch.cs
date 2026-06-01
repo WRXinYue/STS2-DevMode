@@ -43,19 +43,27 @@ public static class MainMenuPatch {
     [HarmonyPostfix]
     [HarmonyPatch("_Ready")]
     public static void AddDevModeButtonPostfix(NMainMenu __instance) {
-        if (__instance != _mainMenuRef || _devModeButton == null || !GodotObject.IsInstanceValid(_devModeButton))
+        if (__instance != _mainMenuRef)
             return;
 
-        var textRow = __instance.GetNodeOrNull<Control>("%MainMenuTextButtons")
-            ?? __instance.GetNodeOrNull<Control>("MainMenuTextButtons");
-        if (textRow != null) {
-            foreach (var child in textRow.GetChildren()) {
-                if (child is NMainMenuTextButton button) {
-                    button.FocusNeighborLeft = new NodePath(".");
-                    button.FocusNeighborRight = new NodePath(".");
+        if (_devModeButton != null && GodotObject.IsInstanceValid(_devModeButton)) {
+            var textRow = __instance.GetNodeOrNull<Control>("%MainMenuTextButtons")
+                ?? __instance.GetNodeOrNull<Control>("MainMenuTextButtons");
+            if (textRow != null) {
+                foreach (var child in textRow.GetChildren()) {
+                    if (child is NMainMenuTextButton button) {
+                        button.FocusNeighborLeft = new NodePath(".");
+                        button.FocusNeighborRight = new NodePath(".");
+                    }
                 }
             }
         }
+
+        if (ProgressLossPromptUI.TryShowStartupPrompt(__instance))
+            return;
+
+        if (_devModeButton == null || !GodotObject.IsInstanceValid(_devModeButton))
+            return;
 
         if (DevModeState.AutoProceedToCharSelect) {
             DevModeState.AutoProceedToCharSelect = false;

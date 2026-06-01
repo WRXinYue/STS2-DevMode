@@ -91,11 +91,17 @@ public sealed class DevModeSettings {
     /// </summary>
     public bool? RailIntroDismissed { get; set; }
 
+    /// <summary>Whether progress-guard defaults have been applied to saved settings.</summary>
+    public int ProgressGuardSettingsVersion { get; set; }
+
     /// <summary>Back up active profile progress when the loaded mod set fingerprint changes.</summary>
     public bool AutoBackupProgressOnModChange { get; set; } = true;
 
     /// <summary>Warn when progress.save still contains data from mods removed since last launch.</summary>
     public bool WarnOnRemovedModProgressResidue { get; set; } = true;
+
+    /// <summary>Prompt to restore from backup when mod character progress is missing after load.</summary>
+    public bool PromptOnModCharacterProgressLoss { get; set; } = true;
 }
 
 public static class ThemeNames {

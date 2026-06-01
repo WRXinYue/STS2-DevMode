@@ -33,7 +33,7 @@ internal static class ProgressGuardUI {
         _mainMenu = null;
     }
 
-    private static void FinishRestore(
+    internal static void FinishRestore(
         NMainMenu mainMenu,
         string backupDir,
         string directoryName,
@@ -47,6 +47,7 @@ internal static class ProgressGuardUI {
             case ProgressRestoreResult.Success:
                 MainFile.Logger.Info(I18N.T("progressGuard.restore.success",
                     "Progress restored from {0}.", directoryName));
+                ModCharacterProgressLossDetector.ClearPending();
                 if (GodotObject.IsInstanceValid(mainMenu))
                     mainMenu.RefreshButtons();
                 HideAnywhere();

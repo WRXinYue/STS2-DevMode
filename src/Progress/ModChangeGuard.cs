@@ -9,6 +9,10 @@ namespace DevMode.Progress;
 internal static class ModChangeGuard {
     internal static bool CompletedForSession { get; private set; }
 
+    internal static bool ModSetChangedThisSession { get; private set; }
+
+    internal static string? LastSessionBackupDir { get; private set; }
+
     public static void TryRun(ModChangeTriggerReason reason) {
         if (CompletedForSession)
             return;
@@ -20,9 +24,12 @@ internal static class ModChangeGuard {
             var stored = ModSetFingerprintStore.Load();
 
             if (stored != null && string.Equals(stored.Hash, hash, StringComparison.Ordinal)) {
+                ModSetChangedThisSession = false;
                 CompletedForSession = true;
                 return;
             }
+
+            ModSetChangedThisSession = true;
 
             var autoBackup = settings.AutoBackupProgressOnModChange;
             var warnResidue = settings.WarnOnRemovedModProgressResidue;
@@ -39,6 +46,8 @@ internal static class ModChangeGuard {
             if (autoBackup) {
                 backupDir = ProfileProgressBackupService.BackupActiveProfile(
                     profileId, reason, hash, mods);
+                if (!string.IsNullOrEmpty(backupDir))
+                    LastSessionBackupDir = backupDir;
             }
 
             if (warnResidue)

@@ -22,5 +22,12 @@ internal static class ProgressGuardPanelBuilder {
                 "Log a warning if progress.save still references mods that are no longer loaded"),
             () => SettingsStore.Current.WarnOnRemovedModProgressResidue,
             SettingsStore.SetWarnOnRemovedModProgressResidue));
+
+        parent.AddChild(DevPanelUI.CreateCheatToggle(
+            I18N.T("settings.promptModCharacterProgressLoss", "Prompt on mod character progress loss"),
+            I18N.T("settings.promptModCharacterProgressLoss.desc",
+                "On startup, offer to restore from backup when mod character stats were filtered on load"),
+            () => SettingsStore.Current.PromptOnModCharacterProgressLoss,
+            SettingsStore.SetPromptOnModCharacterProgressLoss));
     }
 }
