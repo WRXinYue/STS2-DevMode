@@ -28,6 +28,7 @@ internal static class DevMainMenuUI {
     private static DevMainMenuActions? _actions;
     private static readonly List<NMainMenuTextButton> _addedButtons = new();
     private static readonly List<(Control control, bool wasVisible)> _hiddenControls = new();
+    private static Control? _sessionContainer;
 
     // Runtime rows miss NMainMenu._Ready wiring; forward focus to the same handlers as stock buttons.
     private static readonly MethodInfo? MainMenuFocusedMethod =
@@ -54,14 +55,8 @@ internal static class DevMainMenuUI {
         _buttonsContainer = container;
         _buttonTemplate = template;
 
-        if (_hiddenControls.Count == 0) {
-            foreach (var child in container.GetChildren()) {
-                if (child is not Control ctrl) continue;
-                _hiddenControls.Add((ctrl, ctrl.Visible));
-                ctrl.Visible = false;
-            }
-        }
-
+        DismissOverlays(mainMenu.GetTree().Root);
+        TakeOverContainer(container);
         ShowRootMenu();
     }
 
@@ -185,22 +180,14 @@ internal static class DevMainMenuUI {
     }
 
     public static void Hide() {
-        if (_mainMenu == null || !GodotObject.IsInstanceValid(_mainMenu)) return;
+        Node? root = null;
+        if (_mainMenu != null && GodotObject.IsInstanceValid(_mainMenu))
+            root = _mainMenu.GetTree().Root;
 
-        SaveSlotUI.Hide();
-        _mainMenu.GetTree().Root.GetNodeOrNull<Control>(UnlockAllOverlayName)?.QueueFree();
-
-        foreach (var btn in _addedButtons) {
-            if (GodotObject.IsInstanceValid(btn))
-                btn.QueueFree();
-        }
-        _addedButtons.Clear();
-
-        RestoreButtons();
-        _mainMenu = null;
-        _buttonsContainer = null;
-        _buttonTemplate = null;
-        _actions = null;
+        DismissOverlays(root);
+        ClearAddedButtons();
+        RestoreStockButtons();
+        ClearSessionState();
     }
 
     public static bool IsVisible => _mainMenu != null && GodotObject.IsInstanceValid(_mainMenu);
@@ -212,13 +199,53 @@ internal static class DevMainMenuUI {
         }
     }
 
-    private static void RestoreButtons() {
+    private static void TakeOverContainer(Control container) {
+        if (_sessionContainer != null && _sessionContainer != container)
+            RestoreStockButtons();
+
+        if (_sessionContainer == container) {
+            ReapplyHide();
+            return;
+        }
+
+        _sessionContainer = container;
+        _hiddenControls.Clear();
+        foreach (var child in container.GetChildren()) {
+            if (child is not Control ctrl || IsDevMenuAddedButton(ctrl))
+                continue;
+            _hiddenControls.Add((ctrl, ctrl.Visible));
+            ctrl.Visible = false;
+        }
+    }
+
+    private static void DismissOverlays(Node? attachRoot) {
+        SaveSlotUI.Hide();
+        FeedbackReportUI.HideAnywhere();
+        LogViewerUI.HideAnywhere();
+
+        var root = attachRoot ?? (Engine.GetMainLoop() as SceneTree)?.Root;
+        root?.GetNodeOrNull<Control>(SeedOverlayName)?.QueueFree();
+        root?.GetNodeOrNull<Control>(UnlockAllOverlayName)?.QueueFree();
+    }
+
+    private static void RestoreStockButtons() {
         foreach (var (ctrl, wasVisible) in _hiddenControls) {
             if (GodotObject.IsInstanceValid(ctrl))
                 ctrl.Visible = wasVisible;
         }
         _hiddenControls.Clear();
+        _sessionContainer = null;
     }
+
+    private static void ClearSessionState() {
+        _mainMenu = null;
+        _buttonsContainer = null;
+        _buttonTemplate = null;
+        _actions = null;
+    }
+
+    private static bool IsDevMenuAddedButton(Control ctrl) =>
+        ctrl.Name.ToString().StartsWith("DevModeBtn_", StringComparison.Ordinal);
 
     private const string SeedOverlayName = "DevModeSeedInput";
     private const string UnlockAllOverlayName = "DevModeUnlockAllConfirm";

@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **DEVMODE main menu** — Re-entering the title-screen DEVMODE submenu after Mod Feedback and save/load no longer stacks stock menu buttons with dev entries; overlays are torn down on hide. (Thanks @Crimson707707 for the report.)
+
 ## [0.11.2] - 2026-06-01
 
 ### Fixed

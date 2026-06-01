@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **DEVMODE 主菜单** — 在 Mod 反馈与读档后再次进入标题画面 DEVMODE 子菜单时，不再出现原版主菜单按钮与开发项叠在一起；退出时会一并清理浮层。（感谢 @Crimson707707 反馈）
+
 ## [0.11.2] - 2026-06-01
 
 ### Fixed
