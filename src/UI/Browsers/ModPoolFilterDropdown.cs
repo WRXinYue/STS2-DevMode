@@ -27,6 +27,11 @@ internal sealed partial class ModPoolFilterDropdown : Control {
     private readonly HashSet<string> _activeFilters;
     private readonly HashSet<string> _excludedFilters;
     private readonly Action _onFiltersChanged;
+    private readonly string _chipLabelFallback;
+    private readonly string _chipCountFormat;
+    private readonly string _chipExcludedCountFormat;
+    private readonly MdiIcon _chipIcon;
+    private readonly string _chipTooltipFallback;
     private readonly Dictionary<string, CheckBox> _checkboxes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Control> _rows = new(StringComparer.Ordinal);
     private readonly Dictionary<string, EntryMode> _entryModes = new(StringComparer.Ordinal);
@@ -43,11 +48,22 @@ internal sealed partial class ModPoolFilterDropdown : Control {
         IReadOnlyList<(string key, string label)> modEntries,
         HashSet<string> activeFilters,
         HashSet<string> excludedFilters,
-        Action onFiltersChanged) {
+        Action onFiltersChanged,
+        string? chipLabel = null,
+        string? chipCountFormat = null,
+        string? chipExcludedCountFormat = null,
+        MdiIcon? chipIcon = null,
+        string? chipTooltip = null) {
         _entries = modEntries;
         _activeFilters = activeFilters;
         _excludedFilters = excludedFilters;
         _onFiltersChanged = onFiltersChanged;
+        _chipLabelFallback = chipLabel ?? I18N.T("cardBrowser.poolMods", "Mods");
+        _chipCountFormat = chipCountFormat ?? I18N.T("cardBrowser.poolModsCount", "Mods ({0})");
+        _chipExcludedCountFormat = chipExcludedCountFormat
+            ?? I18N.T("cardBrowser.poolModsExcludedCount", "Mods (−{0})");
+        _chipIcon = chipIcon ?? MdiIcon.PuzzleOutline;
+        _chipTooltipFallback = chipTooltip ?? _chipLabelFallback;
 
         SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
         SizeFlagsVertical = SizeFlags.ShrinkCenter;
@@ -245,20 +261,19 @@ internal sealed partial class ModPoolFilterDropdown : Control {
 
         _label.Text = includeActive switch {
             true when included.Count == 1 => included[0].label,
-            true => string.Format(I18N.T("cardBrowser.poolModsCount", "Mods ({0})"), included.Count),
-            false when excludeActive => string.Format(
-                I18N.T("cardBrowser.poolModsExcludedCount", "Mods (−{0})"), excluded.Count),
-            _ => I18N.T("cardBrowser.poolMods", "Mods")
+            true => string.Format(_chipCountFormat, included.Count),
+            false when excludeActive => string.Format(_chipExcludedCountFormat, excluded.Count),
+            _ => _chipLabelFallback
         };
         _label.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         _label.AddThemeColorOverride("font_color", iconColor);
-        _icon.Texture = MdiIcon.PuzzleOutline.Texture(14, iconColor);
+        _icon.Texture = _chipIcon.Texture(14, iconColor);
         _chevron.Texture = ChevronDown.Texture(12, iconColor);
         _chip.TooltipText = includeActive
             ? string.Join(", ", included.Select(s => s.label))
             : excludeActive
                 ? string.Join(", ", excluded.Select(s => "−" + s.label))
-                : I18N.T("cardBrowser.poolMods", "Mods");
+                : _chipTooltipFallback;
 
         ApplyChipStyle(_chip, includeActive, excludeActive, _hovered);
     }

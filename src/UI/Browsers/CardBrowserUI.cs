@@ -4,6 +4,7 @@ using System.Linq;
 using DevMode;
 using DevMode.Actions;
 using DevMode.Icons;
+using DevMode.Modding;
 using DevMode.Settings;
 using Godot;
 using MegaCrit.Sts2.Core.Entities.Cards;
@@ -71,6 +72,8 @@ internal static partial class CardBrowserUI {
         public HashSet<CardRarity> ExcludedRarityFilters => CardBrowserFilterPersistence.ExcludedRarityFilters;
         public HashSet<int> ExcludedCostFilters => CardBrowserFilterPersistence.ExcludedCostFilters;
         public HashSet<string> ExcludedPoolFilters => CardBrowserFilterPersistence.ExcludedPoolFilters;
+        public HashSet<string> ActiveModSourceFilters => CardBrowserFilterPersistence.ActiveModSourceFilters;
+        public HashSet<string> ExcludedModSourceFilters => CardBrowserFilterPersistence.ExcludedModSourceFilters;
         public readonly Dictionary<string, Func<CardModel, bool>> PoolFilterPredicates = new();
 
         // UI refs for conditional visibility
@@ -322,6 +325,15 @@ internal static partial class CardBrowserUI {
                 s.ExcludedCostFilters.Contains(CostFilterX))
         });
         content.AddChild(chipRow);
+
+        var modSourceRow = BrowserDetailHelpers.TryCreateModSourceFilterRow(
+            ContentModResolver.BuildFilterEntries(
+                CardLibraryVisibility.GetLibraryCards().Cast<AbstractModel>()),
+            s.ActiveModSourceFilters,
+            s.ExcludedModSourceFilters,
+            () => RebuildGrid(s, s.SearchInput.Text ?? ""));
+        if (modSourceRow != null)
+            content.AddChild(modSourceRow);
 
         // ── Pool / character filter chips (AllCards tab only) ──
         s.PoolFilterSection = new VBoxContainer();

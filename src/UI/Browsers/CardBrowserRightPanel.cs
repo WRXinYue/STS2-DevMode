@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using DevMode.Actions;
 using DevMode.Hooks;
+using DevMode.Modding;
 using DevMode.Multiplayer.Cheat;
 using DevMode.Presets;
 using DevMode.Settings;
@@ -115,6 +116,8 @@ internal static class CardBrowserRightPanel {
         if (!string.IsNullOrEmpty(cardIdStr))
             container.AddChild(DevModeTheme.CreateCopyableIdRow(cardIdStr,
                 msg => statusLabel.Text = msg));
+
+        container.AddChild(BrowserDetailHelpers.CreateModSourceRow(ContentModResolver.Resolve(card)));
 
         var infoLines = new List<string>();
         var typeName = CardBrowserUI.GetLocalizedTypeName(displayCard);

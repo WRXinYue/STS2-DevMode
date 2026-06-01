@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DevMode.Actions;
+using DevMode.Modding;
 using Godot;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Helpers;
@@ -244,6 +245,11 @@ internal static partial class CardBrowserUI {
             if (IsExcludedByRaritySet(c, s.ExcludedRarityFilters)) return false;
             if (!MatchesCostSet(c, s.ActiveCostFilters)) return false;
             if (IsExcludedByCostSet(c, s.ExcludedCostFilters)) return false;
+            if (!ContentModResolver.MatchesModSourceFilter(
+                    ContentModResolver.Resolve(c),
+                    s.ActiveModSourceFilters,
+                    s.ExcludedModSourceFilters))
+                return false;
             if (IsLibrarySource) {
                 if (!MatchesPoolSet(c, s.ActivePoolFilters, s.PoolFilterPredicates)) return false;
                 if (IsExcludedByPoolSet(c, s.ExcludedPoolFilters, s.PoolFilterPredicates)) return false;

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DevMode.Modding;
 using Godot;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Entities.Relics;
@@ -234,6 +235,11 @@ internal static partial class RelicBrowserUI {
 
         s.FilteredRelics = s.CachedAllRelics.Where(r => {
             if (!MatchesRaritySet(r, s.ActiveRarityFilters)) return false;
+            if (!ContentModResolver.MatchesModSourceFilter(
+                    ContentModResolver.Resolve(r),
+                    s.ActiveModSourceFilters,
+                    s.ExcludedModSourceFilters))
+                return false;
             if (!string.IsNullOrWhiteSpace(searchText)) {
                 var n = GetRelicDisplayName(r);
                 var id = GetRelicId(r);

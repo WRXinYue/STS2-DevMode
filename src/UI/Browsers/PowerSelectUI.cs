@@ -4,6 +4,7 @@ using System.Linq;
 using DevMode;
 using DevMode.Actions;
 using DevMode.Hooks;
+using DevMode.Modding;
 using DevMode.Multiplayer.Cheat;
 using DevMode.Settings;
 using Godot;
@@ -46,6 +47,8 @@ internal static class PowerSelectUI {
         public Panel? SelectedFrame;
         public PowerType? TypeFilter;
         public string SearchText = "";
+        public readonly HashSet<string> ActiveModSourceFilters = new();
+        public readonly HashSet<string> ExcludedModSourceFilters = new();
         public PowerTarget Target = PowerTarget.Self;
         public int Amount = 1;
 
@@ -93,6 +96,14 @@ internal static class PowerSelectUI {
 
         // ── Nav bar (title + type filter chips + search) ──
         var (search, filterChips) = BuildNavBar(vbox, s);
+
+        var powerModSourceRow = BrowserDetailHelpers.TryCreateModSourceFilterRow(
+            ContentModResolver.BuildFilterEntries(s.AllPowers.Cast<AbstractModel>()),
+            s.ActiveModSourceFilters,
+            s.ExcludedModSourceFilters,
+            () => Rebuild(s));
+        if (powerModSourceRow != null)
+            vbox.AddChild(powerModSourceRow);
 
         vbox.AddChild(MakeDivider());
 
@@ -545,6 +556,11 @@ internal static class PowerSelectUI {
         if (s.TypeFilter.HasValue)
             list = list.Where(p => p.Type == s.TypeFilter.Value);
 
+        list = list.Where(p => ContentModResolver.MatchesModSourceFilter(
+            ContentModResolver.Resolve(p),
+            s.ActiveModSourceFilters,
+            s.ExcludedModSourceFilters));
+
         if (!string.IsNullOrWhiteSpace(s.SearchText))
             list = list.Where(p => PowerActions.GetPowerDisplayName(p)
                 .Contains(s.SearchText, StringComparison.OrdinalIgnoreCase));
@@ -699,6 +715,7 @@ internal static class PowerSelectUI {
         var powerId = ((AbstractModel)power).Id.Entry;
         if (!string.IsNullOrEmpty(powerId))
             s.DetailIdContainer.AddChild(DevModeTheme.CreateCopyableIdRow(powerId));
+        s.DetailIdContainer.AddChild(BrowserDetailHelpers.CreateModSourceRow(ContentModResolver.Resolve(power)));
 
         // Icon — try BigIcon first, fall back to atlas Icon
         Texture2D? icon = null;

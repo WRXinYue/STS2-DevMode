@@ -4,6 +4,7 @@ using System.Linq;
 using DevMode.Actions;
 using DevMode.Hooks;
 using DevMode.Icons;
+using DevMode.Modding;
 using DevMode.Multiplayer.Cheat;
 using DevMode.Settings;
 using Godot;
@@ -81,6 +82,8 @@ internal static class PotionSelectUI {
         public int ActiveTabIdx;
 
         public readonly HashSet<PotionRarity> ActiveRarityFilters = new();
+        public readonly HashSet<string> ActiveModSourceFilters = new();
+        public readonly HashSet<string> ExcludedModSourceFilters = new();
         public List<PotionRarity> AvailableRarities = new();
         public List<PotionModel> CachedPotions = new();
 
@@ -200,6 +203,14 @@ internal static class PotionSelectUI {
             }
             content.AddChild(chipRow);
         }
+
+        var potionModSourceRow = BrowserDetailHelpers.TryCreateModSourceFilterRow(
+            ContentModResolver.BuildFilterEntries(ModelDb.AllPotions.Cast<AbstractModel>()),
+            s.ActiveModSourceFilters,
+            s.ExcludedModSourceFilters,
+            () => RebuildGrid(s, s.SearchInput.Text ?? ""));
+        if (potionModSourceRow != null)
+            content.AddChild(potionModSourceRow);
 
         content.AddChild(new Control { CustomMinimumSize = new Vector2(0, 2) });
 
@@ -493,6 +504,10 @@ internal static class PotionSelectUI {
         IEnumerable<PotionModel> items = s.CachedPotions;
         if (s.ActiveRarityFilters.Count > 0)
             items = items.Where(p => s.ActiveRarityFilters.Contains(p.Rarity));
+        items = items.Where(p => ContentModResolver.MatchesModSourceFilter(
+            ContentModResolver.Resolve(p),
+            s.ActiveModSourceFilters,
+            s.ExcludedModSourceFilters));
         if (!string.IsNullOrWhiteSpace(filter))
             items = items.Where(p => PotionActions.GetPotionDisplayName(p)
                 .Contains(filter, StringComparison.OrdinalIgnoreCase));
@@ -583,6 +598,8 @@ internal static class PotionSelectUI {
         if (!string.IsNullOrEmpty(id))
             container.AddChild(DevModeTheme.CreateCopyableIdRow(id,
                 msg => s.StatusLabel.Text = msg));
+
+        container.AddChild(BrowserDetailHelpers.CreateModSourceRow(ContentModResolver.Resolve(potion)));
 
         // Description
         string? desc = PotionActions.GetPotionDescriptionFormatted(potion);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DevMode.Actions;
 using DevMode.Icons;
+using DevMode.Modding;
 using DevMode.Multiplayer.Cheat;
 using Godot;
 using MegaCrit.Sts2.Core.Commands;
@@ -55,6 +56,8 @@ internal static partial class RelicBrowserUI {
 
         // Filters
         public readonly HashSet<RelicRarity> ActiveRarityFilters = new();
+        public readonly HashSet<string> ActiveModSourceFilters = new();
+        public readonly HashSet<string> ExcludedModSourceFilters = new();
         public List<RelicRarity> AvailableRarities = new();
 
         // Data
@@ -198,6 +201,14 @@ internal static partial class RelicBrowserUI {
             }
             content.AddChild(chipRow);
         }
+
+        var relicModSourceRow = BrowserDetailHelpers.TryCreateModSourceFilterRow(
+            ContentModResolver.BuildFilterEntries(ModelDb.AllRelics.Cast<AbstractModel>()),
+            s.ActiveModSourceFilters,
+            s.ExcludedModSourceFilters,
+            () => RebuildGrid(s, s.SearchInput.Text ?? ""));
+        if (relicModSourceRow != null)
+            content.AddChild(relicModSourceRow);
 
         // ── Spacer between controls and content body ──
         content.AddChild(new Control { CustomMinimumSize = new Vector2(0, 2) });
@@ -368,6 +379,8 @@ internal static partial class RelicBrowserUI {
         if (!string.IsNullOrEmpty(id))
             container.AddChild(DevModeTheme.CreateCopyableIdRow(id,
                 msg => s.StatusLabel.Text = msg));
+
+        container.AddChild(BrowserDetailHelpers.CreateModSourceRow(ContentModResolver.Resolve(relic)));
 
         // Description
         if (!string.IsNullOrWhiteSpace(desc)) {
