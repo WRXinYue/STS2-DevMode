@@ -108,6 +108,8 @@ internal static partial class EnemySelectUI {
             OffsetRight = halfW,
             OffsetTop = -halfH,
             OffsetBottom = halfH,
+            CustomMinimumSize = new Vector2(width, height),
+            ClipContents = true,
         };
         panel.AddThemeStyleboxOverride("panel", new StyleBoxFlat {
             BgColor = DevModeTheme.PanelBg,
@@ -138,5 +140,40 @@ internal static partial class EnemySelectUI {
 
         ((Node)globalUi).AddChild(backdrop);
         GrabEncounterSearchFocus(vbox);
+    }
+
+    private static void BindPickerListRegionLayout(VBoxContainer vbox, Control listRegion) {
+        void Refresh() {
+            if (!GodotObject.IsInstanceValid(vbox) || !GodotObject.IsInstanceValid(listRegion))
+                return;
+
+            var total = vbox.Size.Y;
+            if (total <= 1f)
+                return;
+
+            var sep = (float)vbox.GetThemeConstant("separation");
+            var regionIndex = listRegion.GetIndex();
+            var consumed = 0f;
+            for (var i = 0; i < vbox.GetChildCount(); i++) {
+                if (i == regionIndex)
+                    continue;
+                if (vbox.GetChild(i) is not Control sibling || !sibling.Visible)
+                    continue;
+                consumed += Mathf.Max(sibling.Size.Y, sibling.GetCombinedMinimumSize().Y) + sep;
+            }
+
+            listRegion.CustomMinimumSize = new Vector2(0, Mathf.Max(60f, total - consumed));
+        }
+
+        vbox.Resized += Refresh;
+        foreach (var child in vbox.GetChildren()) {
+            if (child is not Control c || child == listRegion)
+                continue;
+            c.Resized += Refresh;
+            c.VisibilityChanged += Refresh;
+        }
+
+        Callable.From(Refresh).CallDeferred();
+        Callable.From(Refresh).CallDeferred();
     }
 }

@@ -31,9 +31,10 @@ internal static partial class EnemySelectUI {
         var preview = BuildPickerPreview(layout.PreviewLayout);
         vbox.AddChild(preview.Root);
 
-        var (scroll, list, statusLabel) = CreatePickerListSection(layout.ListSeparation);
-        vbox.AddChild(scroll);
+        var (listRegion, _, list, statusLabel) = CreatePickerListSection(layout.ListSeparation);
+        vbox.AddChild(listRegion);
         vbox.AddChild(statusLabel);
+        BindPickerListRegionLayout(vbox, listRegion);
 
         var controller = new EncounterPickerListController(
             filter,

@@ -39,16 +39,10 @@ internal static partial class EnemySelectUI {
         var preview = BuildTopBandPreview(bandHeight: 72f);
         vbox.AddChild(preview.Root);
 
-        var listBody = new VBoxContainer {
-            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-        };
-        listBody.AddThemeConstantOverride("separation", 4);
-        vbox.AddChild(listBody);
-
-        var (scroll, list, statusLabel) = CreatePickerListSection(layout.ListSeparation);
-        listBody.AddChild(scroll);
-        listBody.AddChild(statusLabel);
+        var (listRegion, _, list, statusLabel) = CreatePickerListSection(layout.ListSeparation);
+        vbox.AddChild(listRegion);
+        vbox.AddChild(statusLabel);
+        BindPickerListRegionLayout(vbox, listRegion);
 
         var controller = new EncounterPickerListController(
             filter,

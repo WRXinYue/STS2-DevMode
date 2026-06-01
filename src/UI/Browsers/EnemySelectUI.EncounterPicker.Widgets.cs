@@ -63,6 +63,8 @@ internal static partial class EnemySelectUI {
                 _contentTab = tab;
                 if (_roomFilterBar != null)
                     _roomFilterBar.Visible = tab == PickerContentTab.Encounters;
+                if (_list.GetParent() is ScrollContainer scroll)
+                    scroll.ScrollVertical = 0;
                 Rebuild();
             });
         }
@@ -70,8 +72,7 @@ internal static partial class EnemySelectUI {
         internal void Rebuild() {
             _preview.Clear();
             _list.CustomMinimumSize = Vector2.Zero;
-            foreach (var child in _list.GetChildren())
-                ((Node)child).QueueFree();
+            ClearPickerListChildren(_list);
 
             var query = _searchBox.Text.Trim().ToLowerInvariant();
 
@@ -125,35 +126,73 @@ internal static partial class EnemySelectUI {
         }
     }
 
-    private static void RefreshPickerListScrollSize(VBoxContainer list) {
-        Callable.From(() => {
-            if (!GodotObject.IsInstanceValid(list))
-                return;
-
-            list.CustomMinimumSize = Vector2.Zero;
-            if (list.GetChildCount() == 0)
-                return;
-
-            var height = list.GetCombinedMinimumSize().Y;
-            if (height > 0f)
-                list.CustomMinimumSize = new Vector2(0, height);
-        }).CallDeferred();
+    private static void ClearPickerListChildren(VBoxContainer list) {
+        while (list.GetChildCount() > 0) {
+            var child = list.GetChild(0);
+            list.RemoveChild(child);
+            child.QueueFree();
+        }
     }
 
-    private static (ScrollContainer scroll, VBoxContainer list, Label status) CreatePickerListSection(
-        int listSeparation) {
-        var scroll = new ScrollContainer {
+    private static void RefreshPickerListScrollSize(VBoxContainer list) {
+        Callable.From(() => ApplyPickerListScrollSize(list)).CallDeferred();
+    }
+
+    private static void ApplyPickerListScrollSize(VBoxContainer list) {
+        if (!GodotObject.IsInstanceValid(list))
+            return;
+
+        list.CustomMinimumSize = Vector2.Zero;
+        var childCount = list.GetChildCount();
+        if (childCount == 0)
+            return;
+
+        var separation = list.GetThemeConstant("separation");
+        var height = 0f;
+        var activeIndex = 0;
+        for (var i = 0; i < childCount; i++) {
+            if (list.GetChild(i) is not Control child || child.IsQueuedForDeletion())
+                continue;
+
+            height += child.GetCombinedMinimumSize().Y;
+            if (activeIndex > 0)
+                height += separation;
+            activeIndex++;
+        }
+
+        // Extra separation keeps the last row from sitting under the scroll clip edge.
+        height += separation;
+        if (height > 0f)
+            list.CustomMinimumSize = new Vector2(0, height);
+    }
+
+    private static (Control listRegion, ScrollContainer scroll, VBoxContainer list, Label status)
+        CreatePickerListSection(int listSeparation) {
+        var listRegion = new Control {
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            ClipContents = true,
+            CustomMinimumSize = Vector2.Zero,
+        };
+
+        var scroll = new ScrollContainer {
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
             VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
+            ClipContents = true,
         };
+        scroll.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        scroll.OffsetLeft = 0;
+        scroll.OffsetTop = 0;
+        scroll.OffsetRight = 0;
+        scroll.OffsetBottom = 0;
+
         var list = new VBoxContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ShrinkBegin,
         };
         list.AddThemeConstantOverride("separation", listSeparation);
         scroll.AddChild(list);
+        listRegion.AddChild(scroll);
 
         var statusLabel = new Label {
             Text = "",
@@ -162,7 +201,7 @@ internal static partial class EnemySelectUI {
         statusLabel.AddThemeFontSizeOverride("font_size", 11);
         statusLabel.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
 
-        return (scroll, list, statusLabel);
+        return (listRegion, scroll, list, statusLabel);
     }
 
     private static string ResolvePickerTitle(RoomType? filter, EncounterPickerOptions options) {
