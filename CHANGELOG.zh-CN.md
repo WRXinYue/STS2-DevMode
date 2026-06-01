@@ -12,10 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **进度保护** — mod 集指纹变化时，在 vanilla 存档过滤写盘前，将当前 profile 的 `progress.save`（及可选相关存档）备份到 `mod_data/DevMode/profile_backups/`；可选在 progress 仍含已卸载 mod 数据时仅写日志警告。可在 **设置 → 进度保护** 或标题画面 **DEVMODE → 进度保护** 面板中开关、查看状态与最近备份，并一键恢复 progress。每条备份可点 **详情** 查看账号进度、各角色统计、epochs、图鉴数量及备份元数据。
 - **启动时 mod 角色进度丢失提示** — 进入主菜单时，若检测到 mod 角色统计被过滤且存在可恢复备份，弹出 **恢复** / **暂不恢复** 对话框（可在 **进度保护** 设置中关闭）。
+- **内容浏览器（Mod 来源）** — 卡牌、遗物、药水、能力、事件选择器新增 **Mod 来源** 筛选，可按游戏本体或已加载 mod 包含/排除；详情区显示 **来源：**。卡牌浏览器会记住 Mod 来源筛选设置。
 
 ### Changed
 
 - **DEVMODE 主菜单** — **日志** 与 **Mod 反馈** 合并为 **诊断** 子菜单；新增 **进度保护** 主菜单入口。
+- **AI Host（开发侧栏）** — 图标改为机器人，不再与 Scripts 共用拼图图标。
 
 ### Fixed
 

@@ -12,10 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Progress protection** — On mod set fingerprint change, DevMode backs up the active profile's `progress.save` (and optional related saves) under `mod_data/DevMode/profile_backups/` before vanilla save filtering can run. Optional warn-only log when progress still references unloaded mods. Toggle under **Settings → Progress protection** or the title-screen **DEVMODE → Progress protection** panel (status + recent backups + one-click restore). Each backup row has a **Details** button to inspect account progress, per-character stats, epochs, compendium counts, and backup metadata.
 - **Progress protection startup prompt** — On main menu load, if mod character stats were filtered but a recoverable backup exists, DevMode offers a **Restore** / **Not now** dialog (toggle under **Progress protection** settings).
+- **Content browsers (mod source)** — Card, relic, potion, power, and event pickers include a **Mod source** filter to include or exclude game content and loaded mods. Detail views show **Source:** for the selected entry. The card browser remembers your mod-source filter across sessions.
 
 ### Changed
 
 - **DEVMODE main menu** — **Logs** and **Mod Feedback** are grouped under **Diagnostics**; **Progress protection** opens a dedicated panel from the title screen.
+- **AI Host (dev rail)** — Uses a robot icon instead of sharing the Scripts puzzle icon.
 
 ### Fixed
 
