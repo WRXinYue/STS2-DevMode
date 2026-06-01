@@ -6,18 +6,28 @@ All-in-one in-game toolkit for Slay the Spire 2 — test builds, cheat, script, 
 
 ![DevMode](https://raw.githubusercontent.com/WRXinYue/STS2-DevMode/main/assets/devmode.png)
 
+## Getting started
+
+- **During a run** — Hover the left-edge **peek tab** to expand the dev rail, then click a panel icon. Browser panels slide in from the left; combat overlays use the game’s right edge or floating windows.
+- **Title screen** — Click **DEVMODE** for test runs, snapshots, diagnostics, progress protection, and multiplayer dev tools (no run required).
+- **Settings → Sidebar** — Drag to reorder rail tabs and hide panels you do not need. **Harmony analysis**, **Scripts**, and **Frameworks** start hidden; enable them here when needed.
+- **Settings → Game** — **In-game right sidebar** (combat shortcuts + stats rail), game speed, skip animations, overlay toggles.
+- **Normal runs** — From title **DEVMODE**, cycle **Normal run: Disabled / Dev Mode / Cheat Mode** to keep the rail available outside test runs.
+
+Install from [Releases](https://github.com/WRXinYue/STS2-DevMode/releases) or build from source (`python scripts/init.py`, then `make sync`). Steam **beta** builds need the matching beta mod package.
+
 ## Panels
 
 ### Gameplay & content
 
-- **Cheats** — God mode, infinite energy/block, damage multipliers, enemy freeze, stat locks, map overrides, reward tweaks
-- **Cards** — Full card library; filter by type/rarity/cost/pool/character; edit stats; add to any pile; upgrade preview; filters persist across sessions
+- **Cheats** — God mode, infinite energy/block/stars, damage multipliers, enemy freeze, stat locks, map overrides (free travel while map is open), reward tweaks; some options limited in **multiplayer**
+- **Cards** — Full card library; filter by type/rarity/cost/pool/character; **show hidden cards**; right-click a filter chip to **exclude**; edit stats and enchantments; add to any pile; upgrade preview; filters persist across sessions
 - **Relics** — Browse and add relics
 - **Powers** — Apply powers (self, all enemies, specific, allies); one-click Auto-Apply hooks
 - **Potions** — Visual grid; one-click Auto-Apply hooks
-- **Enemies** — Replace encounters by room or map node; preview content; idle animation preview
+- **Enemies** — Replace encounters by room or map node; preview content; idle animation preview; edit per-turn enemy intents
 - **Events** — Browse and trigger event flows
-- **Rooms** — Inspect and jump between room types
+- **Rooms** — Inspect and jump between room types; teleport to ancient shop locations
 - **Presets** — Save/load combat and run snapshots (hand, deck, relics, etc.)
 
 ### Automation & AI
@@ -28,19 +38,144 @@ All-in-one in-game toolkit for Slay the Spire 2 — test builds, cheat, script, 
 
 ### Developer & debug
 
-- **Enemy intents** — Live overlay of enemy move intents
-- **Combat stats** — Per-combat damage/block/heal breakdown by player
+- **Enemy intents** — **Enemy intents** rail tab: next-turn preview; optional **draggable overlay** during fights (off by default); intent badges on the combat sidebar stack when an enemy has multiple intents
+- **Combat stats** — Live damage/block/heal breakdown by card, source, and turn; pie chart sidebar; run totals; JSON export; `dmstats` console command; slim **right-rail bars** in solo; **draggable top-right MP overlay** in co-op
 - **Console** — Searchable reference for native and DevMode commands
-- **Logs** — In-game log stream with noise-filter rules
+- **Logs** — See **[Logs](#logs)** below
 - **Harmony analysis** — Inspect active patches; filter by owner; smart summary
 - **Frameworks** — Loaded mod framework snapshot
-- **Mod feedback** — Export ZIP bug reports (logs, mod list, Harmony dump); privacy mode strips paths
+- **Mod feedback** — See **[Mod feedback](#mod-feedback)** below
 
 ### Utility
 
-- **Save / Load** — Named slots; carry cards/relics/gold into a new seed; slot detail view
-- **Manual** — In-game documentation browser
-- **Settings** — Theme (Dark / OLED / Light / Warm), game speed, skip animations, rail layout
+- **Save / Load** — Named DevMode snapshot slots (separate from vanilla `progress.save`); carry cards/relics/gold into a new seed; slot detail view
+- **Manual** — In-game documentation browser (one page per tool)
+- **Settings** — Theme (Dark / OLED / Light / Warm), game speed, skip animations, rail layout, combat overlays, **progress protection** toggles
+
+## In-combat overlays
+
+These are optional and mostly **off by default** — turn them on under **Settings → Game** or their panel.
+
+| Feature | What it shows | Default |
+| --- | --- | --- |
+| **In-game right sidebar** | Live contribution bars, enemy intent preview rail, compact combat tools (add encounter/monster, kill enemies) | Off |
+| **Enemy intent overlay** | Draggable float with next-turn intents | Off |
+| **Multiplayer combat stats overlay** | Draggable top-right score bars per player in co-op | On |
+
+During fights, intent badges on the right sidebar stack vertically when an enemy has multiple intents. Opening the full **Combat stats** panel can merge flush with the right rail when the browser is nearly full width.
+
+**Multiplayer cheat sync** — When hosting with **Multiplayer cheat** enabled (title **DEVMODE → Multiplayer**), cheats, card/relic/potion edits, combat enemy tools, powers, and per-player cheat flags can sync across clients (all peers need DevMode).
+
+## Logs
+
+Open from the in-run **Logs** rail tab or title screen **DEVMODE → Diagnostics → Logs**.
+
+- **Live + file history** — Streams new log lines and hydrates earlier lines from the session log (`mod_data/DevMode/instances/{pid}/session.log`, with fallback to Godot `user://logs/`).
+- **Filters** — Level chips (All / ≥ Info / ≥ Warn / Error), text search, per-mod source toggles, and toggleable **noise suppression** rules (known benign patterns with hit counts).
+- **Presentation** — Mod vs game source coloring; session boundary markers between DevMode restarts.
+- **Stats sidebar** — Entry counts by level and mod; **source pie chart**.
+- **Copy all** — Copy the currently filtered log text to the clipboard.
+- **Alerts** — The **Logs** rail icon blinks on unseen Warn/Error until you open the viewer. The peek tab blinks until your first rail hover (then stays dismissed).
+
+## Mod feedback
+
+Open from the in-run rail or title screen **DEVMODE → Diagnostics → Mod Feedback**.
+
+Fill in a title and description, optionally attach a game log tail, and export a **ZIP report** for mod authors. **Privacy mode** replaces user-data paths with `<user-data>` in all text files.
+
+Typical ZIP contents:
+
+- `report.txt` — Your description and environment summary
+- `mods.txt` — Loaded mod list
+- `logs-filtered.txt` — DevMode-filtered log excerpt
+- `harmony-patches.txt` — Active Harmony patch dump
+- `framework-bridge.txt` — Framework snapshot
+- `combat-stats.json` — Current combat stats export (if in a fight)
+- `game-logs/` — Optional attached vanilla log tail
+
+Reports are written under `user://devmode-reports/` (account-scoped user data, same tree as `mod_data/DevMode/`).
+
+## Title screen (DEVMODE)
+
+On the main menu, **DEVMODE** replaces separate dev buttons with one submenu:
+
+| Entry | Description |
+| --- | --- |
+| **New Test** | Start a quick test run |
+| **New Test (Seed)** | Test run with an optional seed |
+| **Load Save** | Load a DevMode snapshot slot (disabled when no slots exist) |
+| **Normal run: …** | Cycle **Disabled** → **Dev Mode** → **Cheat Mode** for non-test runs |
+| **Multiplayer** | Multiplayer dev submenu (see below) |
+| **Unlock All Progress** | Unlock timeline epochs, Ascension 10, and compendium entries (confirmation required) |
+| **Diagnostics** | **Logs** and **Mod feedback** |
+| **Progress protection** | Backup status, restore, per-backup **Details** |
+| **Back** | Return to the stock main menu |
+
+**Multiplayer** submenu:
+
+| Entry | Description |
+| --- | --- |
+| **Multiplayer cheat: ON/OFF** | Opt in to synced multiplayer cheat sessions |
+| **Pseudo Co-op Test (Host)** | Host with character/seed pickers; optional SyncBot, phantom player (NetId 1001), AI teammate |
+| **LAN Multiplayer** | Open the built-in multiplayer test scene |
+
+Restore from **Progress protection** is title-screen only. Prefer matching the backup’s mod set when possible.
+
+## Progress protection
+
+Changing the loaded mod set can cause vanilla save filtering to strip or zero mod character stats in `progress.save`. DevMode backs up and helps you recover that progress.
+
+### Automatic backup
+
+- On startup, when the loaded mod fingerprint differs from the last session, DevMode copies the active profile’s `progress.save` (and optional `prefs.save` / `current_run.save`) **before** vanilla filtering runs.
+- Keeps up to **10 backups per profile** (oldest removed).
+- Toggle: **Settings → Progress protection → Auto-backup on mod set change** (on by default).
+
+### Startup restore prompt
+
+- After progress loads on the title screen, DevMode scans recent backups for mod character stats that are missing or degraded in the current save (e.g. Ascension / wins reset to zero while a backup still has progress).
+- If recoverable data exists, a **Restore** / **Not now** dialog appears on the main menu.
+- Toggle: **Settings → Progress protection → Prompt on mod character progress loss** (on by default).
+- You can also restore anytime from **DEVMODE → Progress protection**.
+
+### Manual restore
+
+1. Title screen → **DEVMODE → Progress protection**
+2. Choose a backup → **Restore**, or open **Details** first
+3. Confirm; DevMode writes a `progress.save.pre_restore_{timestamp}` next to the active save before overwriting
+4. Reload the main menu or restart the game so progress reloads from disk
+
+### File locations
+
+**DevMode user data root** (settings, snapshots, backups):
+
+```text
+%AppData%\SlayTheSpire2\steam\{SteamId}\mod_data\DevMode\
+```
+
+**Profile backups** (one folder per backup):
+
+```text
+...\mod_data\DevMode\profile_backups\{yyyyMMdd_HHmmss}_profile{N}\
+  progress.save
+  backup_meta.json    # timestamp, mod fingerprint, copied files
+  prefs.save          # optional
+  current_run.save    # optional
+```
+
+**Active game progress** (path depends on vanilla vs modded profile layout):
+
+```text
+...\steam\{SteamId}\profile{N}\saves\progress.save
+...\steam\{SteamId}\modded\profile{N}\saves\progress.save   # when using modded saves
+```
+
+On macOS/Linux, `%AppData%` is the game’s account-scoped user data directory (see Godot `user://steam/{userId}/`).
+
+### Troubleshooting
+
+- Look for log lines prefixed **`[ProgressGuard]`** (startup scan, restore, prompts) or **`[ModChangeGuard]`** (fingerprint change, backup creation).
+- If you build from source, deploy with **`make sync`** so the game loads the latest DLL.
 
 ## Multiplayer & co-op testing (dev)
 
