@@ -53,10 +53,14 @@ STS2_GAME_BETA_VERSION ?= 0.105.1
 BETA_STS2_VER_ARG := --sts2-beta-version $(STS2_GAME_BETA_VERSION)
 ZIP_BETA_TAG := -sts2beta-v$(STS2_GAME_BETA_VERSION)
 ZIP_NAME_BETA := build/DevMode-v$(VERSION)$(ZIP_BETA_TAG).zip
+ZIP_MCP_NAME := build/DevMode.Mcp-v$(VERSION)-$(TOOLS_RID).zip
+MCP_PUBLISH_EXE := $(TOOLS_PUBLISH_DIR)/DevMode.Mcp.exe
+MCP_PUBLISH_BIN := $(TOOLS_PUBLISH_DIR)/DevMode.Mcp
 
 .PHONY: help init icons format deps build deploy sync sync-framework-mods compile pck publish nexus nuget upload-all readme-nexus zip clean \
         build-beta deploy-beta sync-beta sync-beta-launch compile-beta pck-beta zip-beta nexus-beta nuget-beta publish-beta upload-all-beta \
-        launch launch-beta sync-launch sync-beta-run dev-session compile-tools build-tools deploy-tools sync-tools upload-github upload-nexus upload-nuget
+        launch launch-beta sync-launch sync-beta-run dev-session compile-tools build-tools deploy-tools sync-tools zip-mcp upload-nexus-mcp nexus-mcp \
+        upload-github upload-nexus upload-nuget
 
 help:
 	@echo "DevMode — targets"
@@ -80,6 +84,7 @@ help:
 	@echo "  build-tools  publish DevMode.Mcp self-contained exe to build/tools/ (TOOLS_RID=$(TOOLS_RID))"
 	@echo "  deploy-tools copy MCP exe into game mods/DevMode/tools/ (requires make init)"
 	@echo "  sync-tools   build-tools + deploy-tools"
+	@echo "  zip-mcp      build-tools + package build/DevMode.Mcp-vX.X.X-<rid>.zip (exe only)"
 	@echo ""
 	@echo "  sync-beta         build-beta + deploy-beta (STS2 Steam beta; Sts2Dir = beta install)"
 	@echo "  sync-beta-launch  sync-beta + launch game (same as LAUNCH=1 make sync-beta)"
@@ -93,6 +98,7 @@ help:
 	@echo "  [upload]"
 	@echo "  upload-github  zip + GitHub Release (requires gh CLI; alias: publish)"
 	@echo "  upload-nexus   zip + upload stable build to Nexus Main file (NEXUS_FILE_GROUP_ID; alias: nexus)"
+	@echo "  upload-nexus-mcp  zip-mcp + Nexus Optional MCP proxy (NEXUS_FILE_GROUP_ID_MCP; alias: nexus-mcp)"
 	@echo "  upload-nuget   zip + pack + push to NuGet (NUGET_API_KEY; optional NUGET_SOURCE; alias: nuget)"
 	@echo "  upload-all     upload-github then upload-nexus then upload-nuget (one zip build)"
 	@echo "  readme-nexus   merge READMEs into assets/readme.nexus.txt (Nexus BBCode)"
@@ -185,6 +191,9 @@ nexus upload-nexus:
 nexus-beta upload-nexus-beta:
 	$(PYTHON) scripts/publish_nexus.py --beta $(BETA_STS2_VER_ARG) $(if $(VERSION),--version $(VERSION),)
 
+nexus-mcp upload-nexus-mcp:
+	$(PYTHON) scripts/publish_nexus.py --mcp $(if $(VERSION),--version $(VERSION),) $(if $(TOOLS_RID),--tools-rid $(TOOLS_RID),)
+
 nuget upload-nuget:
 	$(PYTHON) scripts/publish_nuget.py $(if $(VERSION),--version $(VERSION),)
 
@@ -205,6 +214,12 @@ ZIP_NAME := build/DevMode-v$(VERSION).zip
 DIST_DIR := build/dist/DevMode
 
 ifeq ($(OS),Windows_NT)
+zip-mcp: build-tools
+	@if not exist $(MCP_PUBLISH_EXE) (echo ERROR: DevMode.Mcp.exe not found. Run make build-tools first. & exit /b 1)
+	$(PYTHON) -c "import zipfile;z=zipfile.ZipFile('$(ZIP_MCP_NAME)','w',zipfile.ZIP_DEFLATED);z.write(r'$(MCP_PUBLISH_EXE)','DevMode.Mcp.exe');z.close()"
+	@echo.
+	@echo Done: $(ZIP_MCP_NAME)
+
 zip-beta: build-beta
 	@if not exist build\DevMode\DevMode.pck (echo ERROR: DevMode.pck not found. Set GodotPath in local.props ^(make init^) and rebuild. & exit /b 1)
 	@if exist build\dist rmdir /s /q build\dist
@@ -235,6 +250,12 @@ clean:
 	@if exist build rmdir /s /q build
 	$(DOTNET) clean DevMode.sln
 else
+zip-mcp: build-tools
+	@test -f $(MCP_PUBLISH_BIN) || (echo "ERROR: DevMode.Mcp not found. Run make build-tools first." >&2; exit 1)
+	$(PYTHON) -c "import zipfile;z=zipfile.ZipFile('$(ZIP_MCP_NAME)','w',zipfile.ZIP_DEFLATED);z.write('$(MCP_PUBLISH_BIN)','DevMode.Mcp');z.close()"
+	@echo ""
+	@echo "Done: $(ZIP_MCP_NAME)"
+
 zip-beta: build-beta
 	@test -f build/DevMode/DevMode.pck || (echo "ERROR: DevMode.pck not found. Set GodotPath in local.props (make init) and rebuild." >&2; exit 1)
 	rm -rf build/dist

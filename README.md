@@ -210,9 +210,9 @@ Detailed architecture, verification checklist, and desync history: **[docs/lan-h
 
 ## MCP
 
-Connect any [Model Context Protocol](https://modelcontextprotocol.io) client (Claude Desktop, IDE MCP plugins, etc.) to a running STS2 session with DevMode loaded. DevMode starts an in-game HTTP bridge on port **9877**; the stdio proxy in `tools/DevMode.Mcp` forwards MCP messages to that bridge.
+Connect any [Model Context Protocol](https://modelcontextprotocol.io) client (Claude Desktop, IDE MCP plugins, etc.) to a running STS2 session with DevMode loaded. DevMode starts an in-game HTTP bridge on port **9877**; the stdio proxy in `tools/DevMode.Mcp` (built with the official [MCP C# SDK](https://csharp.sdk.modelcontextprotocol.io/)) forwards MCP messages to `http://127.0.0.1:9877/messages`.
 
-**Requires:** Slay the Spire 2 running with **DevMode** loaded (start the game before or keep it running while the client connects).
+**Requires:** Slay the Spire 2 running with **DevMode** loaded for tool execution (start the game before or keep it running while the client connects). Tool listing works without the game.
 
 ### Tools
 
@@ -233,7 +233,7 @@ Connect any [Model Context Protocol](https://modelcontextprotocol.io) client (Cl
 - **`dev_set_cheat`** — Toggle cheats or set multipliers (`freeze_enemies`, `damage_multiplier`, …)
 - **`dev_set_stat`** — Set gold/energy/HP values or enable stat locks
 
-More detail: **[tools/DevMode.Mcp/README.md](./tools/DevMode.Mcp/README.md)**
+Health check: `GET http://127.0.0.1:9877/health`
 
 ### Agent debug loop
 
@@ -260,17 +260,34 @@ Before a debugging session, tag saves with **`dev_tag_save_slot`** so agents can
 
 **Not in this MVP:** auto character select, hang watchdog (kill/restart/reload), or autonomous code fixes.
 
-### Client configuration
+### Build proxy
 
-Add a **`devmode`** entry under `mcpServers` in your MCP client config (stdio transport). This is **one server among many** — keep your existing entries and only add or update the `devmode` block. Exact config file path depends on the client; see its MCP documentation.
-
-Build the proxy once (or let the platform launcher scripts build it for you):
+Local dev (DLL; used by `dotnet exec` config below):
 
 ```bash
 dotnet build tools/DevMode.Mcp/DevMode.Mcp.csproj -c Release
 ```
 
-Paste the `devmode` block below into your existing MCP client config (merge with your other `mcpServers` entries).
+Self-contained executable (repo Makefile; default RID is your host OS):
+
+```bash
+make build-tools
+```
+
+Output: `build/tools/DevMode.Mcp/<rid>/publish/DevMode.Mcp.exe` (Windows) or `DevMode.Mcp` (macOS/Linux).
+
+Cross-compile manually, for example:
+
+```bash
+dotnet publish tools/DevMode.Mcp/DevMode.Mcp.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+dotnet publish tools/DevMode.Mcp/DevMode.Mcp.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true
+```
+
+### Client configuration
+
+Add a **`devmode`** entry under `mcpServers` in your MCP client config (stdio transport). This is **one server among many** — keep your existing entries and only add or update the `devmode` block. Exact config file path depends on the client; see its MCP documentation.
+
+Paste one of the blocks below into your existing MCP client config (merge with your other `mcpServers` entries). Default port is **9877** (must match `McpConfig.Port` in the mod). Override with `--port` on the proxy only if you also change the mod source and rebuild DevMode.
 
 **Cross-platform development** (`dotnet exec`; paths are relative to the repo / workspace root):
 
@@ -302,16 +319,47 @@ Requires **.NET 8** runtime (`dotnet --list-runtimes` should include `Microsoft.
 - Windows: [`.cursor/run-devmode-mcp.bat`](./.cursor/run-devmode-mcp.bat) — `"command": "cmd"`, `"args": ["/c", ".cursor\\run-devmode-mcp.bat"]`
 - macOS / Linux: [`.cursor/run-devmode-mcp.sh`](./.cursor/run-devmode-mcp.sh) — `"command": "bash"`, `"args": [".cursor/run-devmode-mcp.sh"]` (run `chmod +x .cursor/run-devmode-mcp.sh` once)
 
-**Published proxy** (after `dotnet publish`; adjust the path):
+**Published proxy** (after `make build-tools` or `dotnet publish`; adjust the path):
+
+Windows:
 
 ```json
-"devmode": {
-  "command": "C:/path/to/DevMode.Mcp.exe",
-  "args": ["--port", "9877"]
+{
+  "mcpServers": {
+    "devmode": {
+      "command": "C:/path/to/DevMode.Mcp.exe",
+      "args": ["--port", "9877"]
+    }
+  }
 }
 ```
 
-On macOS / Linux, point `command` at the published binary (no `.exe`). Custom port: pass `--port` on the proxy **and** change `McpConfig.Port` in the mod if you rebuild DevMode.
+macOS / Linux:
+
+```json
+{
+  "mcpServers": {
+    "devmode": {
+      "command": "/path/to/DevMode.Mcp",
+      "args": ["--port", "9877"]
+    }
+  }
+}
+```
+
+### HTTP bridge (manual test)
+
+With the game running and DevMode loaded:
+
+```bash
+curl -s http://127.0.0.1:9877/health
+```
+
+```bash
+curl -s -X POST http://127.0.0.1:9877/messages \
+  -H "Content-Type: application/json" \
+  -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"dev_get_session\",\"arguments\":{}}}"
+```
 
 ## Contributing
 

@@ -5,9 +5,10 @@ Environment variables (required):
     NEXUS_API_KEY              - Your personal API key from nexusmods.com/settings/api-keys
     NEXUS_FILE_GROUP_ID        - Main file group ID (stable/public build; Files tab → API Info)
     NEXUS_FILE_GROUP_ID_BETA   - Optional file group ID for STS2 Steam beta builds (separate line)
+    NEXUS_FILE_GROUP_ID_MCP    - Optional file group ID for DevMode.Mcp stdio proxy (separate line)
 
 Usage:
-    python scripts/publish_nexus.py [--version X.Y.Z] [--beta] [--dry-run]
+    python scripts/publish_nexus.py [--version X.Y.Z] [--beta] [--mcp] [--dry-run]
 """
 
 from __future__ import annotations
@@ -38,6 +39,30 @@ def _zip_path(version: str, *, beta: bool, sts2_beta_version: str) -> Path:
     return _REPO_ROOT / "build" / f"DevMode-v{version}.zip"
 
 
+def _tools_rid(cli_value: str) -> str:
+    if cli_value.strip():
+        return cli_value.strip()
+    env = os.environ.get("TOOLS_RID", "").strip()
+    if env:
+        return env
+    return "win-x64" if os.name == "nt" else "linux-x64"
+
+
+def _mcp_zip_path(version: str, tools_rid: str) -> Path:
+    return _REPO_ROOT / "build" / f"DevMode.Mcp-v{version}-{tools_rid}.zip"
+
+
+def _mcp_description_bbcode(tools_rid: str) -> str:
+    exe = "DevMode.Mcp.exe" if tools_rid.startswith("win") else "DevMode.Mcp"
+    return (
+        "[b]DevMode MCP stdio proxy[/b] (optional dev tool)\n\n"
+        "Connect MCP clients (Cursor, Claude Desktop, etc.) to a running Slay the Spire 2 session "
+        "with DevMode loaded.\n\n"
+        f"Extract [code]{exe}[/code] and point your MCP client [code]devmode[/code] entry at it with "
+        "[code]--port 9877[/code]. Full setup: GitHub README → MCP section.\n\n"
+        "Requires the DevMode mod installed and the game running."
+    )
+
 def _beta_notice_bbcode(sts2_beta_version: str) -> str:
     return (
         f"[b]Requires Slay the Spire 2 Steam beta branch v{sts2_beta_version}.[/b] "
@@ -46,21 +71,32 @@ def _beta_notice_bbcode(sts2_beta_version: str) -> str:
     )
 
 
-def _resolve_nexus_group_id(*, beta: bool) -> str:
+def _resolve_nexus_group_id(*, beta: bool, mcp: bool) -> str:
+    if mcp:
+        return os.environ.get("NEXUS_FILE_GROUP_ID_MCP", "").strip()
     if beta:
         return os.environ.get("NEXUS_FILE_GROUP_ID_BETA", "").strip()
     return os.environ.get("NEXUS_FILE_GROUP_ID", "").strip()
 
 
-def _nexus_display_name(version: str, *, beta: bool, sts2_beta_version: str) -> str:
+def _nexus_display_name(
+    version: str,
+    *,
+    beta: bool,
+    mcp: bool,
+    sts2_beta_version: str,
+    tools_rid: str,
+) -> str:
+    if mcp:
+        return f"DevMode.Mcp v{version} ({tools_rid})"
     if beta:
         safe = sts2_beta_version.strip().lstrip("v")
         return f"DevMode.Compat.sts2beta-v{safe}"
     return f"DevMode v{version}"
 
 
-def _nexus_attach_options(*, beta: bool) -> dict[str, object]:
-    if beta:
+def _nexus_attach_options(*, beta: bool, mcp: bool) -> dict[str, object]:
+    if beta or mcp:
         return {
             "file_category": "optional",
             "archive_existing": True,
@@ -325,6 +361,16 @@ def main() -> int:
         help="Build/package/upload the STS2 Steam beta build (make zip-beta).",
     )
     ap.add_argument(
+        "--mcp",
+        action="store_true",
+        help="Build/package/upload the DevMode.Mcp stdio proxy (make zip-mcp).",
+    )
+    ap.add_argument(
+        "--tools-rid",
+        default="",
+        help="Runtime ID for MCP zip (default: TOOLS_RID env or host default).",
+    )
+    ap.add_argument(
         "--sts2-beta-version",
         default="",
         help="STS2 game beta version label, e.g. 0.105.1 (default: STS2_GAME_BETA_VERSION env or 0.105.1).",
@@ -336,6 +382,10 @@ def main() -> int:
     )
     args = ap.parse_args()
 
+    if args.beta and args.mcp:
+        print("ERROR: --beta and --mcp are mutually exclusive.", file=sys.stderr)
+        return 1
+
     # ── resolve version ──────────────────────────────────────────────────────
     version = args.version.strip()
     if not version:
@@ -345,14 +395,19 @@ def main() -> int:
         print(f"Version auto-detected from DevMode.json: {version}")
 
     sts2_beta_version = _resolve_sts2_beta_version(args.sts2_beta_version)
-    zip_path = _zip_path(version, beta=args.beta, sts2_beta_version=sts2_beta_version)
+    tools_rid = _tools_rid(args.tools_rid)
+    if args.mcp:
+        zip_path = _mcp_zip_path(version, tools_rid)
+        print(f"MCP runtime: {tools_rid}")
+    else:
+        zip_path = _zip_path(version, beta=args.beta, sts2_beta_version=sts2_beta_version)
     if args.beta:
         print(f"STS2 Steam beta branch game version: v{sts2_beta_version}")
 
     # ── check credentials ────────────────────────────────────────────────────
     api_key = os.environ.get("NEXUS_API_KEY", "").strip()
-    group_id = _resolve_nexus_group_id(beta=args.beta)
-    attach = _nexus_attach_options(beta=args.beta)
+    group_id = _resolve_nexus_group_id(beta=args.beta, mcp=args.mcp)
+    attach = _nexus_attach_options(beta=args.beta, mcp=args.mcp)
 
     if not args.dry_run:
         if not api_key:
@@ -363,12 +418,20 @@ def main() -> int:
             )
             return 1
         if not group_id:
-            env_name = "NEXUS_FILE_GROUP_ID_BETA" if args.beta else "NEXUS_FILE_GROUP_ID"
-            hint = (
-                "Create an Optional file on your mod page first, then copy its group ID from API Info."
-                if args.beta
-                else "Find it on your mod's Files tab → API Info."
-            )
+            if args.mcp:
+                env_name = "NEXUS_FILE_GROUP_ID_MCP"
+                hint = (
+                    "Create an Optional file for DevMode.Mcp on your mod page first, "
+                    "then copy its group ID from API Info."
+                )
+            elif args.beta:
+                env_name = "NEXUS_FILE_GROUP_ID_BETA"
+                hint = (
+                    "Create an Optional file on your mod page first, then copy its group ID from API Info."
+                )
+            else:
+                env_name = "NEXUS_FILE_GROUP_ID"
+                hint = "Find it on your mod's Files tab → API Info."
             print(
                 f"ERROR: {env_name} environment variable is not set.\n"
                 f"       {hint}",
@@ -378,11 +441,17 @@ def main() -> int:
 
     # ── ensure zip exists ────────────────────────────────────────────────────
     if not zip_path.is_file():
-        make_target = "zip-beta" if args.beta else "zip"
+        if args.mcp:
+            make_target = "zip-mcp"
+        else:
+            make_target = "zip-beta" if args.beta else "zip"
         print(f"Zip not found at {zip_path} — running 'make {make_target}' first…")
         import subprocess
 
-        r = subprocess.run(["make", make_target], cwd=_REPO_ROOT)
+        env = os.environ.copy()
+        if args.mcp:
+            env["TOOLS_RID"] = tools_rid
+        r = subprocess.run(["make", make_target], cwd=_REPO_ROOT, env=env)
         if r.returncode != 0:
             print(f"make {make_target} failed.", file=sys.stderr)
             return 1
@@ -394,6 +463,8 @@ def main() -> int:
     # ── build file description ───────────────────────────────────────────────
     if args.beta:
         description = _beta_notice_bbcode(sts2_beta_version)
+    elif args.mcp:
+        description = _mcp_description_bbcode(tools_rid)
     else:
         from md_to_nexus import convert_markdown  # noqa: PLC0415
 
@@ -406,7 +477,13 @@ def main() -> int:
             parts.append(convert_markdown(notes_zh))
         description = "\n\n[line]\n\n".join(parts)
 
-    display_name = _nexus_display_name(version, beta=args.beta, sts2_beta_version=sts2_beta_version)
+    display_name = _nexus_display_name(
+        version,
+        beta=args.beta,
+        mcp=args.mcp,
+        sts2_beta_version=sts2_beta_version,
+        tools_rid=tools_rid,
+    )
 
     if args.dry_run:
         print(f"\n[dry-run] Would upload: {zip_path}")
@@ -463,7 +540,7 @@ def main() -> int:
     )
 
     print(f"\nDone! File UID: {file_uid}")
-    section = "Optional files" if args.beta else "Main files"
+    section = "Optional files" if (args.beta or args.mcp) else "Main files"
     print(f"      {display_name} is now live on Nexus Mods ({section}).")
     return 0
 
