@@ -13,10 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dev sidebar keyboard shortcuts** — Toggle the sidebar, close the active panel, switch tabs, or lock the rail from the keyboard. Rebind under **Settings → Keyboard shortcuts** (conflicts with in-game shortcuts are rejected).
 - **Quick save / load** — **F5** quick-saves and **F9** quick-loads the current run (slot 0) during a run; rebind in **Settings → Keyboard shortcuts**. The **Save / Load** panel shows a dedicated **Quick Save** row at the top.
 - **Combat checkpoint nodes** — During combat, DevMode auto-saves checkpoints at combat start and each player turn start (with a `.combat.bin` sidecar for in-fight restore of HP, piles, etc., without a full `LoadRun`). **F8** replays from combat start, **F6** from the current turn start (rebind in **Settings → Keyboard shortcuts**). The **Save / Load** panel lists **This combat** nodes separately from quick save.
+- **MCP bridge** — Connect MCP clients (Cursor, Claude Desktop, etc.) to a running session on port **9877** for automated testing and agent workflows: game state, combat/map actions, save slots, cards, monsters, and cheats. See README **MCP**; bootstrap with `make dev-session`.
+- **MCP combat observability** — During combat, MCP `get_game_state` includes your active powers (stack counts and mod power ids), combat phase, and indexed enemies. Playing a card via MCP returns an after-play snapshot for assertions without guessing from HP alone.
 
 ### Fixed
 
 - **Crash recovery prompt** — Exporting a feedback ZIP or dismissing the dialog no longer leaves a stale pending report, so the main-menu prompt does not reappear every launch. Normal game quit now clears the session marker more reliably.
+- **STS2 Steam beta** — Mod dependency metadata loads correctly on the beta game branch again.
 
 ## [0.12.0] - 2026-06-02
 
