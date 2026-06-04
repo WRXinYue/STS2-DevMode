@@ -30,7 +30,10 @@ internal sealed class AiPlayModule {
         StartLoop();
     }
 
-    public void OnRunEnded() => StopLoop();
+    public void OnRunEnded() {
+        StopLoop();
+        AiDecisionLog.Clear();
+    }
 
     public void StartLoop() {
         if (!IsAutoPlayAllowed) {
@@ -40,11 +43,15 @@ internal sealed class AiPlayModule {
 
         StopLoop();
 
+        var strategy = AiPlayServices.StateProvider.TryGetRunAndPlayer(out _, out var me)
+            ? StrategyResolver.Resolve(me)
+            : new SimpleStrategy();
+
         _loop = new GameLoop(
             AiPlayServices.StateProvider,
             AiPlayServices.ActionExecutor,
-            new SimpleStrategy(),
-            msg => MainFile.Logger.Info($"[AutoPlay] {msg}")) {
+            strategy,
+            msg => AiDecisionLog.Record("AutoPlay", msg)) {
             ActionDelayMs = SettingsStore.Current.AutoPlayDelayMs,
         };
 
@@ -52,6 +59,7 @@ internal sealed class AiPlayModule {
         TaskHelper.RunSafely(RunPollLoop(_cts.Token));
         MainFile.Logger.Info(
             $"[AiHost] Started delay={SettingsStore.Current.AutoPlayDelayMs}ms poll={AiPlayConfig.PollIntervalMs}ms");
+        AiDecisionLog.Record("AiHost", "AutoPlay loop started.");
     }
 
     public void StopLoop() {

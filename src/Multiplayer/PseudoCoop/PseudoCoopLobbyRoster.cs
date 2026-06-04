@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using DevMode.Multiplayer.SyncBot;
 using HarmonyLib;
@@ -29,6 +30,12 @@ internal static class PseudoCoopLobbyRoster {
     }
 
     internal static void OnRunEnded() {
-        UnregisterSimulatedPeer(MpCheatSyncBot.PhantomPlayerNetId);
+        var lobby = RunManager.Instance?.RunLobby;
+        if (lobby == null) return;
+        if (ConnectedIdsField.GetValue(lobby) is not HashSet<ulong> ids) return;
+
+        var hostNetId = RunManager.Instance?.NetService?.NetId ?? 0;
+        foreach (var netId in ids.Where(id => id != hostNetId && id >= MpCheatSyncBot.PhantomPlayerNetId).ToList())
+            UnregisterSimulatedPeer(netId);
     }
 }

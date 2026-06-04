@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
+using DevMode.AI.Core;
+using DevMode.AI.Core.Schema;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -15,7 +17,7 @@ namespace DevMode.AI.Sts2.Snapshots;
 /// </summary>
 internal static class GameSnapshot
 {
-    public static JsonObject Capture(RunState state, Player player)
+    public static JsonObject Capture(RunState state, Player player, GamePhase phase = GamePhase.None)
     {
         var obj = new JsonObject
         {
@@ -39,6 +41,7 @@ internal static class GameSnapshot
         if (room != null)
             obj["roomType"] = room.RoomType.ToString();
 
+        AiSnapshotHub.Enrich(obj, player, phase);
         return obj;
     }
 

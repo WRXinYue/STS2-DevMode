@@ -18,9 +18,9 @@ namespace DevMode.Multiplayer.PseudoCoop;
 
 /// <summary>Host-only: rule-based combat for simulated remote players (human plays local).</summary>
 internal static class MpAiTeammateHost {
-    static GameLoop? _loop;
     static bool _tickRunning;
     static readonly Dictionary<ulong, (ModelId CardId, int Streak)> _enqueueStreak = [];
+    static readonly Dictionary<ulong, GameLoop> _loops = [];
 
     const int MaxPlayEnqueueStreak = 3;
     public static bool IsEnabled =>
@@ -31,9 +31,11 @@ internal static class MpAiTeammateHost {
     public static void OnRunEnded() {
         AiHostContext.Clear();
         _tickRunning = false;
-        _loop = null;
+        _loops.Clear();
         _enqueueStreak.Clear();
         PseudoCoopActionQueue.ClearInFlightAll();
+        CompanionDecisionHost.OnRunEnded();
+        AiDecisionLog.Clear();
     }
 
     internal static void NotifyCardQueued(ulong netId, ModelId cardId) {
@@ -117,9 +119,9 @@ internal static class MpAiTeammateHost {
 
     static async Task RunCombatDecisionAsync(Player player) {
         try {
-            EnsureLoop();
             AiHostContext.ActiveNetId = player.NetId;
-            await _loop!.OnDecisionPointAsync(GamePhase.Combat);
+            var loop = GetOrCreateLoop(player.NetId);
+            await loop.OnDecisionPointAsync(GamePhase.Combat);
         }
         catch (System.Exception ex) {
             MainFile.Logger.Warn($"[MpAiTeammate] Decision failed netId={player.NetId}: {ex.Message}");
@@ -130,13 +132,22 @@ internal static class MpAiTeammateHost {
         }
     }
 
-    static void EnsureLoop() {
-        _loop ??= new GameLoop(
+    static GameLoop GetOrCreateLoop(ulong netId) {
+        if (_loops.TryGetValue(netId, out var existing))
+            return existing;
+
+        var runState = RunManager.Instance?.DebugOnlyGetState();
+        var player = runState?.Players.FirstOrDefault(p => p.NetId == netId);
+        var strategy = StrategyResolver.Resolve(netId, player);
+
+        var loop = new GameLoop(
             AiPlayServices.StateProvider,
             AiPlayServices.ActionExecutor,
-            new SimpleStrategy(),
-            msg => MainFile.Logger.Info($"[MpAiTeammate] {msg}")) {
+            strategy,
+            msg => AiDecisionLog.Record("MpAi", $"netId={netId} {msg}")) {
             ActionDelayMs = SettingsStore.Current.AutoPlayDelayMs,
         };
+        _loops[netId] = loop;
+        return loop;
     }
 }

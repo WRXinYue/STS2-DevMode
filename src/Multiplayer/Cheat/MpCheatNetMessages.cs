@@ -39,9 +39,7 @@ public struct ZzzMpCheatEnvelopeNetMessage : INetMessage {
             ? LogLevel.Debug
             : LogLevel.Info;
 
-#if STS2_BETA
     public readonly bool ShouldBuffer => true;
-#endif
 
     public void Serialize(PacketWriter writer) {
         MpCheatPacketIO.WriteMagic(writer);

@@ -90,7 +90,7 @@ public sealed class Sts2StateProvider : IGameStateProvider
     {
         if (!TryGetRunAndPlayer(out var state, out var player))
             return new JsonObject();
-        return GameSnapshot.Capture(state, player);
+        return GameSnapshot.Capture(state, player, CurrentPhase);
     }
 
     public bool TryGetRunAndPlayer(out RunState state, out Player player)

@@ -7,7 +7,11 @@ namespace DevMode.Multiplayer.PseudoCoop.Patches;
 [HarmonyPatch(typeof(NRun), nameof(NRun._Process))]
 internal static class MpAiTeammatePollPatch {
     static double _accum;
+    static double _companionAccum;
 
     [HarmonyPostfix]
-    static void Postfix(double delta) => MpAiTeammateHost.Poll(delta, ref _accum);
+    static void Postfix(double delta) {
+        MpAiTeammateHost.Poll(delta, ref _accum);
+        CompanionDecisionHost.Poll(delta, ref _companionAccum);
+    }
 }

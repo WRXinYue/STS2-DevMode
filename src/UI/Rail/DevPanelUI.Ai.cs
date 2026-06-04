@@ -1,10 +1,10 @@
 using DevMode;
+using DevMode.AI;
 using DevMode.AI.AutoPlay;
 using DevMode.Multiplayer.PseudoCoop;
 using DevMode.Panels;
 using DevMode.Icons;
 using DevMode.Multiplayer.Cheat;
-using DevMode.Multiplayer.PseudoCoop;
 using DevMode.Multiplayer.SyncBot;
 using DevMode.Settings;
 using Godot;
@@ -37,8 +37,64 @@ internal static partial class DevPanelUI {
         var inner = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         inner.AddThemeConstantOverride("separation", 12);
 
-        // ── AI Host ──
-        inner.AddChild(CreateSectionHeader(I18N.T("autoplay.section", "AI Host")));
+        var statusLabel = new Label {
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        statusLabel.AddThemeFontSizeOverride("font_size", 12);
+        statusLabel.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
+
+        var recommendBox = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        recommendBox.AddThemeConstantOverride("separation", 4);
+
+        var terminal = new TextEdit {
+            Editable = false,
+            WrapMode = TextEdit.LineWrappingMode.Boundary,
+            CustomMinimumSize = new Vector2(0, 180),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            ScrollFitContentHeight = false,
+        };
+        terminal.AddThemeFontSizeOverride("font_size", 11);
+
+        void RefreshMonitor() {
+            statusLabel.Text = AiHostPanelModel.BuildStatusText();
+
+            foreach (var child in recommendBox.GetChildren())
+                child.QueueFree();
+            foreach (var tip in AiHostPanelModel.BuildRecommendations()) {
+                var tipLabel = new Label {
+                    Text = "→ " + tip,
+                    AutowrapMode = TextServer.AutowrapMode.WordSmart,
+                    SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+                };
+                tipLabel.AddThemeFontSizeOverride("font_size", 12);
+                tipLabel.AddThemeColorOverride("font_color", DevModeTheme.Accent);
+                recommendBox.AddChild(tipLabel);
+            }
+
+            var text = AiHostPanelModel.BuildTerminalText();
+            if (terminal.Text != text) {
+                terminal.Text = text;
+                terminal.SetCaretLine(terminal.GetLineCount() - 1);
+            }
+        }
+
+        inner.AddChild(CreateSectionHeader(I18N.T("ai.status.section", "AI Status")));
+        inner.AddChild(statusLabel);
+        inner.AddChild(CreateSectionHeader(I18N.T("ai.recommend.section", "Mode hints")));
+        inner.AddChild(recommendBox);
+        inner.AddChild(CreateSectionHeader(I18N.T("ai.terminal.section", "AI Terminal")));
+        inner.AddChild(terminal);
+        RefreshMonitor();
+
+        var refreshTimer = new Timer { WaitTime = 0.5, Autostart = true };
+        refreshTimer.Timeout += RefreshMonitor;
+        root.AddChild(refreshTimer);
+        root.TreeExiting += () => refreshTimer.QueueFree();
+
+        // ── Controls ──
+        inner.AddChild(CreateSectionHeader(I18N.T("ai.controls.section", "Controls")));
         var clientMp = MpCheatSession.InMultiplayerRun && !MpCheatSession.IsHost;
         var mpRun = MpCheatSession.InMultiplayerRun;
         if (clientMp || (mpRun && MpCheatSession.IsHost)) {

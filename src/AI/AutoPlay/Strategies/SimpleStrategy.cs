@@ -19,7 +19,7 @@ namespace DevMode.AI.AutoPlay.Strategies;
 /// Cards: pick in early game, skip in late game.
 /// Rest: rest if HP &lt; 60%, otherwise upgrade.
 /// </summary>
-internal sealed class SimpleStrategy : IDecisionMaker
+public sealed class SimpleStrategy : IDecisionMaker
 {
     public Task<GameAction> DecideAsync(JsonObject snapshot, GamePhase phase)
     {

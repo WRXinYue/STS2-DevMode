@@ -208,6 +208,82 @@ These features are **opt-in** from DevPanel → **AI Host**. They do not change 
 
 Detailed architecture, verification checklist, and desync history: **[docs/lan-host-drive-afk.md](./docs/lan-host-drive-afk.md)** · [docs index](./docs/README.md)
 
+## Mod AI integration
+
+DevMode exposes a **soft-dependency** AI platform for content mods. DevMode owns the loop, snapshot capture, action execution, and vanilla combat scoring; your mod bridge supplies character semantics (snapshot extensions, strategy rules, score tweaks).
+
+**Requires:** DevMode loaded at runtime. Reference `DevMode.dll` at compile time only (do not bundle it in your mod).
+
+### Registration (mod init)
+
+Call from your mod’s `[ModInitializer]` after DevMode is available:
+
+```csharp
+using DevMode.AI.Core;
+using DevMode.Companion;
+
+CompanionBridge.RegisterCharacterStrategy(
+    "YOUR_CHARACTER_MODEL_ID",
+    myStrategy,
+    new CharacterAiProfile(SupportsNonCombat: true));
+
+CompanionBridge.RegisterSnapshotContributor(mySnapshotContributor);
+CompanionBridge.RegisterMoveModifier(myMoveModifier);
+
+// Optional per-spawn override (e.g. custom companion summon):
+CompanionBridge.RegisterStrategy(netId, overrideStrategy);
+```
+
+**Strategy resolution order:** per-`netId` registry → `CharacterAiRegistry` by character model id → `SimpleStrategy` fallback.
+
+### Snapshot extensions
+
+`GameSnapshot` writes mod data under `snapshot["extensions"][yourKey]`. Implement `IAiSnapshotContributor`:
+
+```csharp
+public interface IAiSnapshotContributor {
+    string ExtensionKey { get; }  // e.g. "lusttravel2", "winefox"
+    void Enrich(JsonObject snapshot, Player player, GamePhase phase);
+}
+```
+
+Strategies **must** read `extensions.*`; DevMode does not hard-code mod power types.
+
+### Combat scoring
+
+`CombatScorer.PickBestCombatMove(snapshot)` scores play-card and end-turn moves using vanilla heuristics (threat vs block, lethal, energy efficiency, target selection). Mods adjust scores via `IAiMoveModifier`:
+
+```csharp
+public interface IAiMoveModifier {
+    bool AppliesTo(string? characterId);
+    int ModifyScore(JsonObject snapshot, GameAction move, int baseScore);
+}
+```
+
+Implement `IDecisionMaker` for full control, or delegate non-combat phases to `SimpleStrategy` and use `CombatScorer` inside combat.
+
+### Companion full pipeline
+
+By default, pseudo-coop companions only run AI during **combat**. For map/events/rewards/rest/shop, set `EnableNonCombatAi: true` on `CompanionSpawnRequest`:
+
+```csharp
+CompanionBridge.TrySummon(new CompanionSpawnRequest(
+    character,
+    EnableNonCombatAi: true,
+    MirrorMapVotes: true));
+```
+
+`CompanionDecisionHost` runs `GameLoop` for registered companions in overlay phases when `CharacterAiProfile.SupportsNonCombat` is true. Map votes still mirror the host by default (`MirrorMapVotes`).
+
+### Reference bridges
+
+| Mod | Bridge project | Registers |
+|-----|----------------|-----------|
+| LustTravel2 (FoxHime) | `LustTravel2.DevModeBridge` | stamina snapshot, FoxHime strategy + move modifier |
+| WineFox (CombatMaid) | `STS2_CombatMaid` | craft/stress snapshot, WineFox strategy + move modifier |
+
+Build a bridge DLL against a fresh `DevMode.dll` (`build/DevMode/DevMode.dll` after `dotnet build`). Ship the bridge as a separate mod with `"dependencies": ["YourContentMod"]` (DevMode is runtime-only).
+
 ## MCP
 
 Connect any [Model Context Protocol](https://modelcontextprotocol.io) client (Claude Desktop, IDE MCP plugins, etc.) to a running STS2 session with DevMode loaded. DevMode starts an in-game HTTP bridge on port **9877**; the stdio proxy in `tools/DevMode.Mcp` (built with the official [MCP C# SDK](https://csharp.sdk.modelcontextprotocol.io/)) forwards MCP messages to `http://127.0.0.1:9877/messages`.

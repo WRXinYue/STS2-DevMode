@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DevMode.Companion;
 using DevMode.Multiplayer.Cheat;
 using DevMode.Multiplayer.PseudoCoop;
 using DevMode.Settings;
@@ -33,6 +34,7 @@ internal static class MpCheatSyncBot {
         PseudoCoopLobbyRoster.OnRunEnded();
         SimulatedPeerRegistry.OnRunEnded();
         MpAiTeammateHost.OnRunEnded();
+        CompanionBridge.OnRunEnded();
     }
 
     public static NetPlayerChoiceResult DefaultIndexChoice() => new() {

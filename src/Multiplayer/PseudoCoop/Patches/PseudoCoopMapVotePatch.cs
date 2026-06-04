@@ -22,6 +22,10 @@ internal static class PseudoCoopMapVoteSynchronizerPatch {
         if (map == null) return;
 
         PseudoCoopMapVoteMirror.MirrorHostVote(map, source, destination.Value);
+
+        // LAN / MP embark may never call NMapScreen.Open; first host map vote is a safe fallback.
+        if (DevModeState.PseudoCoopAwaitingMapFinish)
+            PseudoCoopDeferredInit.TryScheduleMapFinish();
     }
 }
 
