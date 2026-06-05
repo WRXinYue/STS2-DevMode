@@ -18,8 +18,9 @@ public sealed record CombatEnemy(
     int SummonerIndex = -1) {
     public int EffectiveHp => CurrentHp + Block;
 
+    /// <summary>HP damage this turn — debuff/summon pressure uses <see cref="NonDamageThreat"/> separately.</summary>
     public int EffectiveIncoming =>
-        IsAlive ? IntentDamage + NonDamageThreat + StrengthBonus() : 0;
+        IsAlive ? IntentDamage + StrengthBonus() : 0;
 
     public CombatEnemy WithHp(int hp, int block, bool alive) =>
         this with { CurrentHp = hp, Block = block, IsAlive = alive };

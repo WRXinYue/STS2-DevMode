@@ -26,7 +26,7 @@ public static class ThreatModel {
         double total = 0;
         foreach (var enemy in state.Enemies.Where(e => e.IsAlive && e.IntentSteps.Length > 1)) {
             var step = enemy.IntentSteps[1];
-            var damage = step.IntentDamage + step.NonDamageThreat;
+            var damage = step.IntentDamage;
             if (step.IsUncertain)
                 damage = (int)Math.Round(damage * EnemyThreatWeights.NextTurnUncertainMultiplier);
             total += damage;
@@ -35,12 +35,15 @@ public static class ThreatModel {
         return (int)Math.Round(total);
     }
 
+    public static int TotalNonDamageThreat(CombatState state) =>
+        state.Enemies.Where(e => e.IsAlive).Sum(e => e.NonDamageThreat);
+
     public static int AliveThreatCount(CombatState state) =>
-        state.Enemies.Count(e => e.IsAlive && e.EffectiveIncoming > 0);
+        state.Enemies.Count(e => e.IsAlive && e.IntentDamage > 0);
 
     public static bool CanEliminateAllThreats(CombatState state, int maxSingleTargetDamage) {
         var threats = state.Enemies
-            .Where(e => e.IsAlive && e.EffectiveIncoming > 0)
+            .Where(e => e.IsAlive && e.IntentDamage > 0)
             .ToList();
         if (threats.Count == 0) return true;
 

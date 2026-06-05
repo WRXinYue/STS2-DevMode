@@ -18,11 +18,13 @@ public static class CombatEvaluator {
         score -= net * netMultiplier;
         score -= state.StatusDamage * 2;
         score -= nextIncoming / 2;
+        score -= ThreatModel.TotalNonDamageThreat(state) / 3;
 
         foreach (var enemy in state.Enemies) {
             if (!enemy.IsAlive) continue;
             score -= enemy.CurrentHp * 2;
             score -= enemy.IntentDamage * 3;
+            score -= enemy.NonDamageThreat;
             if (enemy.Vulnerable > 0)
                 score += Math.Min(16, enemy.Vulnerable * 5);
         }
@@ -43,6 +45,7 @@ public static class CombatEvaluator {
         if (state.AliveEnemyCount == 0)
             return 600 + state.PlayerHp;
 
+        var incoming = ThreatModel.IncomingDamage(state);
         var net = ThreatModel.NetDamageAfterBlock(state);
         var hpAfter = Math.Max(0, state.PlayerHp - net - state.StatusDamage);
 

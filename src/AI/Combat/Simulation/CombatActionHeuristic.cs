@@ -91,6 +91,7 @@ internal static class CombatActionHeuristic {
                 score += 220;
             score += Math.Max(0, 60 - target.EffectiveHp);
             score += target.IntentDamage * 3;
+            score += target.NonDamageThreat / 2;
             if (target.IsMinion)
                 score -= 25;
         }

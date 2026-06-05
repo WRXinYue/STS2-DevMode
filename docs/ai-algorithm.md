@@ -545,7 +545,7 @@ Mod 可通过 `IAiMoveModifier.ModifyScore` 调整任意 move 分数（日志中
 | `PeerSummon`（TwoTailedRat） | 正常 HP/伤害排序 |
 | 高 debuff 威胁爪牙 | −10 ~ +15（按 `nonDamageThreat`） |
 
-`ThreatModel.EffectiveIncoming` = `intentDamage + nonDamageThreat`；`NextTurnIncoming` 在 `isUncertain` 时 ×1.15。`OrderByPriority` 与 `LethalChecker` 使用上述策略。
+`ThreatModel.EffectiveIncoming` = `intentDamage`（挡牌/净伤仅计攻击）；`nonDamageThreat` 单独用于目标偏置与 beam 施压。`NextTurnIncoming` 仅看下一步 `intentDamage`，`isUncertain` 时 ×1.15。`OrderByPriority` 与 `LethalChecker` 使用上述策略。
 
 ### LethalChecker
 
