@@ -62,7 +62,7 @@ internal static class CombatSetupEvaluator {
         return Math.Max(0, ComputeVulnerableSetupSimDelta(state, handIndex, enemyIndex));
     }
 
-    /// <summary>Lexicographic: this-turn incoming, then 3 future enemy rounds, enemy HP, player HP.</summary>
+    /// <summary>Lexicographic: this-turn incoming, then 3 future pressure steps (damage + non-damage), enemy HP, player HP.</summary>
     public readonly record struct CombatLineOutcome(
         int Incoming,
         int FutureIncoming0,
@@ -77,8 +77,16 @@ internal static class CombatSetupEvaluator {
 
     /// <summary>Positive when <paramref name="candidate"/> is better than <paramref name="baseline"/>.</summary>
     public static int CompareLines(CombatLineOutcome baseline, CombatLineOutcome candidate) {
-        if (candidate.Incoming != baseline.Incoming)
-            return baseline.Incoming - candidate.Incoming;
+        if (candidate.Incoming != baseline.Incoming) {
+            int incomingCmp = CompareIncomingTrade(
+                baseline.Incoming, candidate.Incoming,
+                baseline.EnemyHp, candidate.EnemyHp,
+                baseline.FutureIncoming0, candidate.FutureIncoming0,
+                baseline.FutureIncoming1, candidate.FutureIncoming1,
+                baseline.FutureIncoming2, candidate.FutureIncoming2);
+            if (incomingCmp != 0)
+                return incomingCmp;
+        }
 
         int futureCmp = ThreatModel.CompareFutureIncoming(
             candidate.FutureIncoming0, candidate.FutureIncoming1, candidate.FutureIncoming2,
@@ -89,6 +97,32 @@ internal static class CombatSetupEvaluator {
         if (candidate.EnemyHp != baseline.EnemyHp)
             return baseline.EnemyHp - candidate.EnemyHp;
         return candidate.PlayerHpAfterTurn - baseline.PlayerHpAfterTurn;
+    }
+
+    /// <summary>Positive when candidate is better despite possibly higher this-turn incoming.</summary>
+    static int CompareIncomingTrade(
+        int baselineIncoming,
+        int candidateIncoming,
+        int baselineEnemyHp,
+        int candidateEnemyHp,
+        int baselineF0,
+        int candidateF0,
+        int baselineF1,
+        int candidateF1,
+        int baselineF2,
+        int candidateF2) {
+        if (candidateIncoming == baselineIncoming)
+            return 0;
+        if (candidateIncoming < baselineIncoming)
+            return 1;
+
+        int extra = candidateIncoming - baselineIncoming;
+        int futureRelief = (baselineF0 - candidateF0) + (baselineF1 - candidateF1) + (baselineF2 - candidateF2);
+        int hpGain = baselineEnemyHp - candidateEnemyHp;
+        int slack = Math.Clamp(futureRelief / 3 + hpGain / 8, 0, 12);
+        if (extra <= slack && (hpGain > 0 || futureRelief > 0))
+            return 1;
+        return baselineIncoming - candidateIncoming;
     }
 
     public static int LineRankScore(CombatLineOutcome outcome) {
@@ -112,18 +146,18 @@ internal static class CombatSetupEvaluator {
         var afterTurn = CombatTurnResolver.ResolveEndTurn(midTurn);
         return new CombatLineOutcome(
             ThreatModel.IncomingDamage(midTurn),
-            ThreatModel.IncomingAtIntentStep(afterTurn, 0),
-            ThreatModel.IncomingAtIntentStep(afterTurn, 1),
-            ThreatModel.IncomingAtIntentStep(afterTurn, 2),
+            ThreatModel.PressureAtIntentStep(afterTurn, 0),
+            ThreatModel.PressureAtIntentStep(afterTurn, 1),
+            ThreatModel.PressureAtIntentStep(afterTurn, 2),
             afterTurn.Enemies.Where(e => e.IsAlive).Sum(e => e.CurrentHp),
             afterTurn.PlayerHp);
     }
 
     static int ScoreMidTurn(CombatState s) {
         int incoming = ThreatModel.IncomingDamage(s);
-        int future0 = ThreatModel.IncomingAtIntentStep(s, 1);
-        int future1 = ThreatModel.IncomingAtIntentStep(s, 2);
-        int future2 = ThreatModel.IncomingAtIntentStep(s, 3);
+        int future0 = ThreatModel.PressureAtIntentStep(s, 1);
+        int future1 = ThreatModel.PressureAtIntentStep(s, 2);
+        int future2 = ThreatModel.PressureAtIntentStep(s, 3);
         int enemyHp = s.Enemies.Where(e => e.IsAlive).Sum(e => e.EffectiveHp);
         return -incoming * 1000 - future0 * 250 - future1 * 100 - future2 * 40 - enemyHp;
     }
@@ -286,13 +320,15 @@ internal static class CombatSetupEvaluator {
         return debt;
     }
 
-    /// <summary>Threat-ordered enemies for focus fire (non-minion, this-turn intent, next-turn intent, then HP).</summary>
+    /// <summary>Threat-ordered enemies for focus fire (horizon pressure, then this-turn attack, then HP).</summary>
     public static IEnumerable<CombatEnemy> OrderEnemiesByThreat(CombatState state) =>
         state.Enemies
             .Where(e => ThreatModel.IsViableAttackTarget(state, e))
             .OrderByDescending(e => e.IsMinion ? 0 : 1)
-            .ThenByDescending(e => e.IntentDamage)
-            .ThenByDescending(e => ThreatModel.NextTurnAttackOn(e))
+            .ThenByDescending(e => ThreatModel.HorizonThreatForEnemy(
+                e, 0, ThreatModel.LineFutureHorizonTurns + 1))
+            .ThenByDescending(e => e.IntentDamage + e.NonDamageThreat)
+            .ThenByDescending(e => ThreatModel.NextTurnPressureOn(e))
             .ThenByDescending(e => e.CurrentHp)
             .ThenBy(e => e.EffectiveHp);
 
@@ -366,7 +402,18 @@ internal static class CombatSetupEvaluator {
             ? state.Hand[excludeHandIndex].Id
             : null;
 
+        int lockedFocus = PrimaryAttackTargetIndex(state);
+        int incomingSlack = 0;
+
         while (true) {
+            var focusEnemy = s.Enemies.FirstOrDefault(e => e.IsAlive && e.Index == lockedFocus);
+            if (focusEnemy == null) {
+                lockedFocus = PrimaryAttackTargetIndex(s);
+                focusEnemy = s.Enemies.FirstOrDefault(e => e.IsAlive && e.Index == lockedFocus);
+            }
+
+            incomingSlack = focusEnemy != null ? ThreatModel.IncomingTradeSlack(focusEnemy) : 0;
+
             SimCombatAction? bestAction = null;
             int bestScore = int.MinValue;
             int bestIncoming = int.MaxValue;
@@ -374,7 +421,7 @@ internal static class CombatSetupEvaluator {
             int bestFuture1 = int.MaxValue;
             int bestFuture2 = int.MaxValue;
             bool bestHitsPrimary = false;
-            int primary = PrimaryAttackTargetIndex(s);
+            int primary = lockedFocus;
 
             for (int i = 0; i < s.Hand.Count; i++) {
                 var card = s.Hand[i];
@@ -385,14 +432,15 @@ internal static class CombatSetupEvaluator {
 
                 if (card.IsAoe) {
                     var next = CombatSimulator.Apply(s, new SimCombatAction(SimActionKind.PlayCard, i, -1));
-                    var future = FutureIncomingFromMidTurn(next);
+                    var future = FuturePressureFromMidTurn(next);
                     if (IsBetterAttackStep(
                             ThreatModel.IncomingDamage(next),
                             future.f0, future.f1, future.f2,
                             ScoreMidTurn(next),
                             hitsPrimary: false,
                             bestIncoming, bestFuture0, bestFuture1, bestFuture2,
-                            bestScore, bestHitsPrimary)) {
+                            bestScore, bestHitsPrimary,
+                            incomingSlack)) {
                         bestScore = ScoreMidTurn(next);
                         bestIncoming = ThreatModel.IncomingDamage(next);
                         bestFuture0 = future.f0;
@@ -412,14 +460,15 @@ internal static class CombatSetupEvaluator {
                     var next = CombatSimulator.Apply(
                         s, new SimCombatAction(SimActionKind.PlayCard, i, enemy.Index));
                     bool hitsPrimary = enemy.Index == primary;
-                    var future = FutureIncomingFromMidTurn(next);
+                    var future = FuturePressureFromMidTurn(next);
                     if (IsBetterAttackStep(
                             ThreatModel.IncomingDamage(next),
                             future.f0, future.f1, future.f2,
                             ScoreMidTurn(next),
                             hitsPrimary,
                             bestIncoming, bestFuture0, bestFuture1, bestFuture2,
-                            bestScore, bestHitsPrimary)) {
+                            bestScore, bestHitsPrimary,
+                            incomingSlack)) {
                         bestScore = ScoreMidTurn(next);
                         bestIncoming = ThreatModel.IncomingDamage(next);
                         bestFuture0 = future.f0;
@@ -459,10 +508,10 @@ internal static class CombatSetupEvaluator {
         return s;
     }
 
-    static (int f0, int f1, int f2) FutureIncomingFromMidTurn(CombatState state) => (
-        ThreatModel.IncomingAtIntentStep(state, 1),
-        ThreatModel.IncomingAtIntentStep(state, 2),
-        ThreatModel.IncomingAtIntentStep(state, 3));
+    static (int f0, int f1, int f2) FuturePressureFromMidTurn(CombatState state) => (
+        ThreatModel.PressureAtIntentStep(state, 1),
+        ThreatModel.PressureAtIntentStep(state, 2),
+        ThreatModel.PressureAtIntentStep(state, 3));
 
     static bool IsBetterAttackStep(
         int incoming,
@@ -476,9 +525,15 @@ internal static class CombatSetupEvaluator {
         int bestFuture1,
         int bestFuture2,
         int bestScore,
-        bool bestHitsPrimary) {
-        if (incoming != bestIncoming)
-            return incoming < bestIncoming;
+        bool bestHitsPrimary,
+        int incomingSlack) {
+        if (incoming != bestIncoming) {
+            if (incoming < bestIncoming)
+                return true;
+            if (hitsPrimary && !bestHitsPrimary && incoming - bestIncoming <= incomingSlack)
+                return true;
+            return false;
+        }
 
         int futureCmp = ThreatModel.CompareFutureIncoming(
             future0, future1, future2,

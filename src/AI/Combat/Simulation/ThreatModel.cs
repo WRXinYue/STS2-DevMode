@@ -48,6 +48,46 @@ public static class ThreatModel {
         return (int)Math.Round(total);
     }
 
+    /// <summary>Sum non-damage pressure at intentSteps[stepIndex] across alive enemies.</summary>
+    public static int NonDamageAtIntentStep(CombatState state, int stepIndex) {
+        if (stepIndex < 0)
+            return 0;
+
+        int total = 0;
+        foreach (var enemy in state.Enemies.Where(e => e.IsAlive)) {
+            if (stepIndex >= enemy.IntentSteps.Length)
+                continue;
+            total += enemy.IntentSteps[stepIndex].NonDamageThreat;
+        }
+
+        return total;
+    }
+
+    /// <summary>Damage + debuff pressure at one future enemy phase (for line horizon).</summary>
+    public static int PressureAtIntentStep(CombatState state, int stepIndex) =>
+        IncomingAtIntentStep(state, stepIndex) + NonDamageAtIntentStep(state, stepIndex);
+
+    /// <summary>Intent-chain threat for focus fire over the next enemy phases.</summary>
+    public static int HorizonThreatForEnemy(CombatEnemy enemy, int startStep = 0, int stepCount = 3) {
+        if (!enemy.IsAlive || startStep < 0)
+            return 0;
+
+        int total = 0;
+        for (int i = startStep; i < startStep + stepCount && i < enemy.IntentSteps.Length; i++) {
+            var step = enemy.IntentSteps[i];
+            int damage = step.IntentDamage;
+            if (i > startStep && step.IsUncertain)
+                damage = (int)Math.Round(damage * EnemyThreatWeights.NextTurnUncertainMultiplier);
+            total += damage + step.NonDamageThreat;
+        }
+
+        return total;
+    }
+
+    /// <summary>How much extra this-turn incoming is acceptable when hitting the horizon focus target.</summary>
+    public static int IncomingTradeSlack(CombatEnemy focus) =>
+        Math.Clamp(HorizonThreatForEnemy(focus, 0, LineFutureHorizonTurns + 1) / 3, 4, 12);
+
     /// <summary>Positive when horizon A is better (lower incoming) than horizon B.</summary>
     public static int CompareFutureIncoming(
         int a0, int a1, int a2,
@@ -63,6 +103,22 @@ public static class ThreatModel {
 
     public static int NextTurnAttackOn(CombatEnemy enemy) =>
         IncomingAtIntentStepForEnemy(enemy, 1);
+
+    public static int NextTurnPressureOn(CombatEnemy enemy) {
+        if (!enemy.IsAlive)
+            return 0;
+
+        int total = 0;
+        for (int i = 1; i <= LineFutureHorizonTurns && i < enemy.IntentSteps.Length; i++) {
+            var step = enemy.IntentSteps[i];
+            int damage = step.IntentDamage;
+            if (step.IsUncertain)
+                damage = (int)Math.Round(damage * EnemyThreatWeights.NextTurnUncertainMultiplier);
+            total += damage + step.NonDamageThreat;
+        }
+
+        return total;
+    }
 
     static int IncomingAtIntentStepForEnemy(CombatEnemy enemy, int stepIndex) {
         if (!enemy.IsAlive || stepIndex < 0 || stepIndex >= enemy.IntentSteps.Length)
