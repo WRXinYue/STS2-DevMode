@@ -214,7 +214,9 @@ public static class CombatScorer {
         var hp = target["currentHp"]?.GetValue<int>() ?? 0;
         var maxHp = target["maxHp"]?.GetValue<int>() ?? 1;
         var lowEnemy = maxHp > 0 && hp <= maxHp * 0.25;
-        return lowEnemy ? 30 : 5;
+        var bonus = lowEnemy ? 30 : 5;
+        bonus += EnemyTargetPriority.TargetBias(enemies, targetIndex);
+        return bonus;
     }
 
     static bool HasAliveEnemy(JsonObject combat) {

@@ -13,7 +13,7 @@ public static class LethalChecker {
         var enemies = combat?["enemies"]?.AsArray();
         if (hand == null || enemies == null) return false;
 
-        for (int t = 0; t < enemies.Count; t++) {
+        foreach (var t in EnemyTargetPriority.OrderByPriority(enemies)) {
             if (enemies[t] is not JsonObject enemy) continue;
             if (enemy["isAlive"]?.GetValue<bool>() == false) continue;
 
@@ -73,7 +73,7 @@ public static class LethalChecker {
         var skillCost = skill["cost"]?.GetValue<int>() ?? 0;
         var energyAfter = Math.Max(0, energy - skillCost);
 
-        for (var t = 0; t < enemies.Count; t++) {
+        foreach (var t in EnemyTargetPriority.OrderByPriority(enemies)) {
             if (enemies[t] is not JsonObject enemy) continue;
             if (enemy["isAlive"]?.GetValue<bool>() == false) continue;
 

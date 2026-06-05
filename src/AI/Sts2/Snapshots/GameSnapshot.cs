@@ -193,7 +193,22 @@ internal static class GameSnapshot
                 ["maxHp"] = enemy.MaxHp,
                 ["block"] = enemy.Block,
                 ["isAlive"] = enemy.IsAlive,
+                ["isMinion"] = enemy.IsSecondaryEnemy,
             };
+
+            try {
+                var monsterId = enemy.ModelId.Entry;
+                if (!string.IsNullOrWhiteSpace(monsterId))
+                    obj["monsterId"] = monsterId;
+            }
+            catch { }
+
+            try {
+                var title = enemy.Monster?.Title?.GetFormattedText();
+                if (!string.IsNullOrWhiteSpace(title))
+                    obj["name"] = title;
+            }
+            catch { }
 
             if (enemy.Monster?.NextMove != null)
             {
@@ -243,6 +258,8 @@ internal static class GameSnapshot
                 ["currentHp"] = enemy.CurrentHp,
                 ["maxHp"] = enemy.MaxHp,
                 ["block"] = enemy.Block,
+                ["isAlive"] = enemy.IsAlive,
+                ["isMinion"] = enemy.IsSecondaryEnemy,
                 ["powers"] = CapturePowers(enemy.Powers),
             });
         }

@@ -43,9 +43,14 @@ public sealed class Sts2StateProvider : IGameStateProvider
             if (overlay != null)
             {
                 if (overlay is NRewardsScreen rewardsScreen) {
-                    TryGetRunAndPlayer(out _, out var player);
-                    JsonObject? rewardSnap = player is { HasOpenPotionSlots: false } ? TakeSnapshot() : null;
-                    if (OverlayPhaseHelper.RewardsReadyForMap(rewardsScreen, player, rewardSnap))
+                    JsonObject? rewardSnap = null;
+                    Player? rewardPlayer = null;
+                    if (TryGetRunAndPlayer(out var runState, out rewardPlayer)
+                        && rewardPlayer is { HasOpenPotionSlots: false }) {
+                        // Capture with an explicit phase — TakeSnapshot() reads CurrentPhase and would recurse here.
+                        rewardSnap = GameSnapshot.Capture(runState, rewardPlayer, GamePhase.RewardScreen);
+                    }
+                    if (OverlayPhaseHelper.RewardsReadyForMap(rewardsScreen, rewardPlayer, rewardSnap))
                         return GamePhase.MapSelection;
                     return GamePhase.RewardScreen;
                 }

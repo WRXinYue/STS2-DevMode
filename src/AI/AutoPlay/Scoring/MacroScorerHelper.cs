@@ -25,6 +25,7 @@ internal static class MacroScorerHelper {
             var metrics = DeckEvaluator.Evaluate(snapshot, plan);
             score += DeckSurvivability.ScoreTransitionBlockOffer(card, plan, metrics);
             score += DeckSurvivability.ScoreDrawSourceOffer(card, plan, metrics);
+            score += EarlyCardRewardAdjustments.Score(card, snapshot);
         }
         return score;
     }
