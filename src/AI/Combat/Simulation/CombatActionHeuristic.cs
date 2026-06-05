@@ -23,14 +23,14 @@ internal static class CombatActionHeuristic {
         if (CombatTransformSimulator.IsHandAttackTransform(card.Profile))
             return ScoreHandTransform(state, action, card);
 
+        if (AppliesVulnerable(card))
+            return ScoreVulnerableSetup(state, action, card);
+
         if (card.IsAttack && card.Damage > 0)
             return ScoreAttack(state, action, card);
 
         if (card.Block > 0)
             return ScoreBlock(state, card);
-
-        if (card.Profile.AppliedVulnerable > 0)
-            return ScoreVulnerableSetup(state, card);
 
         if (card.Profile.AppliedWeak > 0)
             return 28 + card.Profile.AppliedWeak * 6;
@@ -57,10 +57,35 @@ internal static class CombatActionHeuristic {
         return 40 + delta;
     }
 
+    static int ScoreVulnerableSetup(CombatState state, SimCombatAction action, CombatHandCard card) {
+        if (action.EnemyIndex >= 0) {
+            var value = CombatSetupEvaluator.ComputeVulnerableSetupValue(
+                state, action.HandIndex, action.EnemyIndex);
+            if (value <= 0) return 5;
+            return 90 + value * 4 + card.Damage * 2;
+        }
+
+        int best = 0;
+        foreach (var enemyIndex in OrderedAttackTargets(state)) {
+            var value = CombatSetupEvaluator.ComputeVulnerableSetupValue(
+                state, action.HandIndex, enemyIndex);
+            if (value > best) best = value;
+        }
+
+        if (best <= 0) return 5;
+        return 90 + best * 4 + card.Damage * 2;
+    }
+
     static int ScoreAttack(CombatState state, SimCombatAction action, CombatHandCard card) {
         var score = card.Damage * 3;
         var target = ResolveTarget(state, action.EnemyIndex);
         if (target != null) {
+            if (target.Vulnerable <= 0) {
+                var setupValue = CombatSetupEvaluator.ComputeBestVulnerableDeferValue(
+                    BuildSnapshot(state), state.ToHandJson(), state.Energy, EnemyToJson(target));
+                score -= setupValue;
+            }
+
             var eff = EffectiveDamage(card.Damage, target);
             if (eff >= target.EffectiveHp)
                 score += 220;
@@ -92,12 +117,6 @@ internal static class CombatActionHeuristic {
         return score;
     }
 
-    static int ScoreVulnerableSetup(CombatState state, CombatHandCard card) {
-        var hand = state.ToHandJson();
-        var followup = CombatCardStats.EstimateFollowupAttackDamage(hand, state.Energy) / 2;
-        return 35 + card.Profile.AppliedVulnerable * 10 + followup / 3;
-    }
-
     static int ScoreEndTurn(CombatState state) {
         var playable = state.Hand.Count(c => c.CanPlay && c.Cost <= state.Energy);
         if (playable == 0)
@@ -110,7 +129,8 @@ internal static class CombatActionHeuristic {
         if (net > 0 && state.PlayerBlock < net)
             return 5;
 
-        return 15 - playable * 3;
+        var debt = CombatSetupEvaluator.ComputeSetupDebt(state);
+        return 15 - playable * 3 - debt;
     }
 
     static CombatEnemy? ResolveTarget(CombatState state, int enemyIndex) {
@@ -124,6 +144,41 @@ internal static class CombatActionHeuristic {
         return null;
     }
 
+    static IEnumerable<int> OrderedAttackTargets(CombatState state) =>
+        state.Enemies
+            .Where(e => e.IsAlive)
+            .OrderByDescending(e => e.IsMinion ? 0 : 1)
+            .ThenBy(e => e.EffectiveHp)
+            .ThenByDescending(e => e.IntentDamage)
+            .Take(4)
+            .Select(e => e.Index);
+
     static int EffectiveDamage(int damage, CombatEnemy target) =>
         (int)Math.Round(damage * (target.Vulnerable > 0 ? 1.5f : 1f));
+
+    static bool AppliesVulnerable(CombatHandCard card) =>
+        card.Profile.AppliedVulnerable > 0
+        || card.Profile.Flags.HasFlag(CardMechanicFlags.AppliesVulnerable);
+
+    static JsonObject BuildSnapshot(CombatState state) => new() {
+        ["currentHp"] = state.PlayerHp,
+        ["maxHp"] = state.PlayerMaxHp,
+        ["combat"] = new JsonObject {
+            ["playerBlock"] = state.PlayerBlock,
+            ["currentEnergy"] = state.Energy,
+            ["enemies"] = new JsonArray(state.Enemies.Select(EnemyToJson).ToArray()),
+        },
+    };
+
+    static JsonObject EnemyToJson(CombatEnemy enemy) => new() {
+        ["index"] = enemy.Index,
+        ["currentHp"] = enemy.CurrentHp,
+        ["maxHp"] = enemy.MaxHp,
+        ["block"] = enemy.Block,
+        ["isAlive"] = enemy.IsAlive,
+        ["intentDamage"] = enemy.IntentDamage,
+        ["powers"] = enemy.Vulnerable > 0
+            ? new JsonArray(new JsonObject { ["id"] = "VULNERABLE", ["amount"] = enemy.Vulnerable })
+            : new JsonArray(),
+    };
 }

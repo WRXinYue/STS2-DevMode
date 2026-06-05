@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using DevMode.AI.Combat;
 
 namespace DevMode.AI.Combat.Simulation;
 
@@ -32,6 +33,8 @@ public static class CombatEvaluator {
         if (state.AliveEnemyCount == 0)
             score += 300;
 
+        score -= CombatSetupEvaluator.ComputeSetupDebt(state);
+
         return score;
     }
 
@@ -58,6 +61,7 @@ public static class CombatEvaluator {
         score -= state.AliveEnemyCount * 10;
         score -= ThreatModel.NextTurnIncoming(state);
         score -= state.Energy * 5;
+        score -= CombatSetupEvaluator.ComputeSetupDebt(state);
 
         return score;
     }

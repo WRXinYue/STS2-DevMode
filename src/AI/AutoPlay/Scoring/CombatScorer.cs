@@ -186,9 +186,12 @@ public static class CombatScorer {
         var mechBonus = MechanicCombatBonus.Score(
             snapshot, card, profile, hand, targetEnemy, energy, suppressTransform);
 
-        if (profile.AppliedVulnerable > 0 && CombatPowerReader.GetVulnerable(targetEnemy) <= 0) {
+        if ((profile.AppliedVulnerable > 0 || profile.Flags.HasFlag(CardMechanicFlags.AppliesVulnerable))
+            && CombatPowerReader.GetVulnerable(targetEnemy) <= 0) {
+            var stacks = Math.Max(profile.AppliedVulnerable, 1);
             var deferSetup = CombatSetupEvaluator.ComputeVulnerableDeferValue(
-                snapshot, hand, energy, targetEnemy, profile.AppliedVulnerable, cost);
+                snapshot, hand, energy, targetEnemy, stacks, cost,
+                move.TargetIndex, card);
             if (deferSetup > 0)
                 builder.Add("defer-vuln-setup", deferSetup);
         }
