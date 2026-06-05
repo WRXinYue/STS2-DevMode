@@ -65,10 +65,8 @@ public static class CombatSimulator {
         var result = new List<CombatHandCard>();
 
         for (int i = 0; i < hand.Count; i++) {
-            if (i == skillIndex) {
-                result.Add(hand[i]);
+            if (i == skillIndex)
                 continue;
-            }
 
             var c = hand[i];
             if (!CombatTransformSimulator.IsTransformableAttack(c.ToJson()))

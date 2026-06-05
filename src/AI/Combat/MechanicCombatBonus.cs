@@ -21,26 +21,23 @@ internal static class MechanicCombatBonus {
             if (attacks == 0)
                 return CombatScoreWeights.UnusableTransformPenalty;
 
-            var gain = CombatTransformSimulator.EstimateDamageGain(hand, card);
-            bonus += gain;
-
-            var projected = CombatTransformSimulator.ProjectHandAfterTransform(hand, card);
             var skillCost = card["cost"]?.GetValue<int>() ?? 0;
-            var remainingEnergy = Math.Max(0, energy - skillCost);
-            var followup = CombatCardStats.EstimateFollowupAttackDamage(projected, remainingEnergy) / 2;
+            if (skillCost > energy)
+                return CombatScoreWeights.UnusableTransformPenalty;
 
-            if (suppressTransform)
-                followup = (int)Math.Round(followup * BlockThreatEvaluator.ThreatDiscountScale(snapshot));
+            var turnDelta = CombatTransformSimulator.EstimateTurnDamageDelta(hand, card, energy);
+            if (turnDelta <= 0)
+                return suppressTransform
+                    ? -CombatScoreWeights.TransformThreatDiscountMax
+                    : CombatScoreWeights.NegativeTransformPenalty;
 
-            bonus += followup;
+            bonus += turnDelta;
 
             if (!suppressTransform) {
                 if (profile.CanonicalCost <= 0)
                     bonus += CombatScoreWeights.FreeTransformBonus;
-                if (energy >= 1)
-                    bonus += CombatScoreWeights.EarlyTransformBonus;
                 if (attacks >= 2 && energy >= 2)
-                    bonus += CombatScoreWeights.TurnOpenTransformBonus;
+                    bonus += Math.Min(CombatScoreWeights.TurnOpenTransformBonus, turnDelta);
             }
         }
         else if (profile.Flags.HasFlag(CardMechanicFlags.TransformsCards)) {
@@ -79,9 +76,9 @@ internal static class MechanicCombatBonus {
 
 internal static class CombatScoreWeights {
     public const int FreeTransformBonus = 12;
-    public const int EarlyTransformBonus = 20;
     public const int TurnOpenTransformBonus = 40;
     public const int UnusableTransformPenalty = -200;
+    public const int NegativeTransformPenalty = -80;
     public const int AttackBeforeTransformCap = 50;
     public const int TransformThreatDiscountMax = 20;
     public const int VulnerableSetupBase = 18;

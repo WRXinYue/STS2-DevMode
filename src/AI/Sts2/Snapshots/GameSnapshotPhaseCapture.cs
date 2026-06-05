@@ -275,13 +275,10 @@ internal static class GameSnapshotPhaseCapture
             "/root/Game/RootSceneContainer/Run/RoomContainer/RestSiteRoom");
         if (room == null) return;
 
-        var buttons = UIHelperFindAll<NRestSiteButton>(room)
-            .Where(b => GodotObject.IsInstanceValid(b))
-            .ToList();
-
         var arr = new JsonArray();
-        for (int i = 0; i < buttons.Count; i++) {
-            var opt = buttons[i].Option;
+        var liveOptions = room.Options;
+        for (int i = 0; i < liveOptions.Count; i++) {
+            var opt = liveOptions[i];
             arr.Add(new JsonObject {
                 ["index"] = i,
                 ["optionId"] = opt.OptionId,

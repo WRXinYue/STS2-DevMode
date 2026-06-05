@@ -4,15 +4,12 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text.Json.Nodes;
 using DevMode.AI.AutoPlay.Scoring;
+using DevMode.AI.Combat;
 using DevMode.AI.Core.Schema;
 
 namespace DevMode.AI.Combat.Simulation;
 
 public static class CombatPlanner {
-    const int TimeBudgetMs = 160;
-    const int MaxDepth = 4;
-    const int BeamWidth = 10;
-
     public static GameAction? PickBestMove(JsonObject snapshot) {
         var state = CombatState.FromSnapshot(snapshot);
         if (state.AliveEnemyCount == 0)
@@ -50,63 +47,23 @@ public static class CombatPlanner {
             }
         }
 
+        var playable = state.Hand.Count(c => c.CanPlay && c.Cost <= state.Energy);
+        var config = BeamConfig.ForHand(playable);
         var sw = Stopwatch.StartNew();
-        var beam = new List<(CombatState State, List<SimCombatAction> Path, int Score)> {
-            (state, [], CombatEvaluator.Evaluate(state)),
-        };
 
-        List<SimCombatAction>? bestPath = null;
-        int bestScore = int.MinValue;
+        BeamResult? best = null;
+        for (int depth = 3; depth <= config.MaxDepth; depth += 2) {
+            if (sw.ElapsedMilliseconds >= config.TimeBudgetMs)
+                break;
 
-        for (int depth = 0; depth < MaxDepth && sw.ElapsedMilliseconds < TimeBudgetMs; depth++) {
-            var nextBeam = new List<(CombatState, List<SimCombatAction>, int)>();
-
-            foreach (var (node, path, _) in beam) {
-                if (sw.ElapsedMilliseconds >= TimeBudgetMs) break;
-
-                foreach (var action in LegalActionGenerator.Generate(node)) {
-                    if (action.Kind == SimActionKind.EndTurn) {
-                        int endScore = CombatEvaluator.Evaluate(node);
-                        if (endScore > bestScore) {
-                            bestScore = endScore;
-                            bestPath = path;
-                        }
-                        continue;
-                    }
-
-                    var next = CombatSimulator.Apply(node, action);
-                    var newPath = path.Append(action).ToList();
-                    int score = CombatEvaluator.Evaluate(next) + depth * 2;
-
-                    if (next.AliveEnemyCount == 0) {
-                        if (score > bestScore) {
-                            bestScore = score;
-                            bestPath = newPath;
-                        }
-                        continue;
-                    }
-
-                    nextBeam.Add((next, newPath, score));
-                }
-            }
-
-            if (nextBeam.Count == 0) break;
-
-            beam = nextBeam
-                .OrderByDescending(x => x.Item3)
-                .Take(BeamWidth)
-                .ToList();
-
-            var top = beam[0];
-            if (top.Item3 > bestScore && top.Item2.Count > 0) {
-                bestScore = top.Item3;
-                bestPath = top.Item2;
-            }
+            var result = RunBeam(state, depth, config, sw);
+            if (result.Path is { Count: > 0 })
+                best = result;
         }
 
-        if (bestPath is { Count: > 0 }) {
-            var action = ToGameAction(bestPath[0], state, $"Planner score={bestScore}");
-            LogPick(snapshot, action, $"beam={bestScore}");
+        if (best is { Path: { Count: > 0 } path, Score: var beamScore, Depth: var beamDepth }) {
+            var action = ToGameAction(path[0], state, $"Planner score={beamScore}");
+            LogPick(snapshot, action, $"beam d={beamDepth} s={beamScore}");
             return action;
         }
 
@@ -114,6 +71,79 @@ public static class CombatPlanner {
         if (fallback != null)
             LogPick(snapshot, fallback, "fallback");
         return fallback;
+    }
+
+    static BeamResult RunBeam(CombatState root, int maxDepth, BeamConfig config, Stopwatch sw) {
+        var beam = new List<BeamNode> {
+            new(root, [], CombatEvaluator.EvaluateMidTurn(root)),
+        };
+
+        List<SimCombatAction>? bestPath = null;
+        int bestScore = int.MinValue;
+        int bestDepth = 0;
+
+        for (int depth = 0; depth < maxDepth && sw.ElapsedMilliseconds < config.TimeBudgetMs; depth++) {
+            var nextBeam = new List<BeamNode>();
+
+            foreach (var node in beam) {
+                if (sw.ElapsedMilliseconds >= config.TimeBudgetMs)
+                    break;
+
+                foreach (var action in LegalActionGenerator.GenerateOrdered(node.State, config.MaxActionsPerNode)) {
+                    if (action.Kind == SimActionKind.EndTurn) {
+                        int endScore = CombatEvaluator.EvaluateTerminal(node.State);
+                        if (endScore > bestScore) {
+                            bestScore = endScore;
+                            bestPath = node.Path;
+                            bestDepth = depth;
+                        }
+                        continue;
+                    }
+
+                    var next = CombatSimulator.Apply(node.State, action);
+                    var newPath = node.Path.Append(action).ToList();
+
+                    if (next.AliveEnemyCount == 0) {
+                        int wipeScore = CombatEvaluator.EvaluateTerminal(next);
+                        if (wipeScore > bestScore) {
+                            bestScore = wipeScore;
+                            bestPath = newPath;
+                            bestDepth = depth + 1;
+                        }
+                        continue;
+                    }
+
+                    int score = depth + 1 >= maxDepth
+                        ? CombatEvaluator.EvaluateTerminal(next)
+                        : CombatEvaluator.EvaluateMidTurn(next);
+
+                    if (depth + 1 >= maxDepth && score > bestScore) {
+                        bestScore = score;
+                        bestPath = newPath;
+                        bestDepth = depth + 1;
+                    }
+
+                    nextBeam.Add(new BeamNode(next, newPath, score));
+                }
+            }
+
+            if (nextBeam.Count == 0)
+                break;
+
+            beam = nextBeam
+                .OrderByDescending(n => n.Score)
+                .Take(config.BeamWidth)
+                .ToList();
+
+            var top = beam[0];
+            if (top.Path.Count > 0 && top.Score > bestScore) {
+                bestScore = top.Score;
+                bestPath = top.Path;
+                bestDepth = top.Path.Count;
+            }
+        }
+
+        return new BeamResult(bestPath, bestScore, bestDepth);
     }
 
     public static void LogPick(JsonObject snapshot, GameAction action, string note = "planner") {
@@ -151,4 +181,18 @@ public static class CombatPlanner {
         Type = ActionType.EndTurn,
         Reason = reason,
     };
+
+    readonly record struct BeamNode(CombatState State, List<SimCombatAction> Path, int Score);
+
+    readonly record struct BeamResult(List<SimCombatAction>? Path, int Score, int Depth);
+
+    readonly record struct BeamConfig(int MaxDepth, int BeamWidth, int TimeBudgetMs, int MaxActionsPerNode) {
+        public static BeamConfig ForHand(int playableCards) {
+            int depth = Math.Clamp(playableCards + 1, 6, 10);
+            int width = Math.Clamp(playableCards * 3, 14, 28);
+            int budget = playableCards >= 6 ? 320 : playableCards >= 4 ? 260 : 200;
+            int actions = Math.Clamp(playableCards * 4, 12, 36);
+            return new(depth, width, budget, actions);
+        }
+    }
 }

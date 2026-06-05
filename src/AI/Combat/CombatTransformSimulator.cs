@@ -62,6 +62,19 @@ internal static class CombatTransformSimulator {
         };
     }
 
+    /// <summary>Greedy max attack damage this turn after transform minus before (accounts for energy).</summary>
+    public static int EstimateTurnDamageDelta(JsonArray? hand, JsonObject transformSkill, int energy) {
+        if (hand == null) return int.MinValue;
+
+        var skillCost = transformSkill["cost"]?.GetValue<int>() ?? 0;
+        if (skillCost > energy) return int.MinValue;
+
+        var before = CombatCardStats.EstimateFollowupAttackDamage(hand, energy);
+        var projected = ProjectHandAfterTransform(hand, transformSkill);
+        var after = CombatCardStats.EstimateFollowupAttackDamage(projected, energy - skillCost);
+        return after - before;
+    }
+
     public static int EstimateDamageGain(JsonArray? hand, JsonObject transformSkill) {
         if (hand == null) return 0;
         var upgraded = IsUpgraded(transformSkill);

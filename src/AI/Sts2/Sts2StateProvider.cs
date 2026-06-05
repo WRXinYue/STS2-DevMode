@@ -43,21 +43,29 @@ public sealed class Sts2StateProvider : IGameStateProvider
             if (overlay != null)
             {
                 if (overlay is NRewardsScreen rewardsScreen) {
-                    // Terminal loot screen stays on the overlay stack after Proceed opens the map.
-                    // Once the player enters a room (rest/shop/event/treasure), do not hijack phase.
                     Player? rewardPlayer = null;
-                    if (TryGetRunAndPlayer(out var runState, out rewardPlayer)
-                        && TryGetInRoomPhase(runState.CurrentRoom?.RoomType) is { } inRoomPhase)
-                        return inRoomPhase;
+                    TryGetRunAndPlayer(out var runState, out rewardPlayer);
 
                     JsonObject? rewardSnap = null;
-                    if (rewardPlayer is { HasOpenPotionSlots: false }
-                        && TryGetRunAndPlayer(out runState, out rewardPlayer)) {
+                    if (rewardPlayer is { HasOpenPotionSlots: false }) {
                         // Capture with an explicit phase — TakeSnapshot() reads CurrentPhase and would recurse here.
                         rewardSnap = GameSnapshot.Capture(runState, rewardPlayer, GamePhase.RewardScreen);
                     }
+
+                    var hasCollectable = OverlayPhaseHelper.HasClickableRewards(
+                        rewardsScreen, rewardPlayer?.HasOpenPotionSlots ?? false, rewardSnap);
+
                     if (OverlayPhaseHelper.RewardsReadyForMap(rewardsScreen, rewardPlayer, rewardSnap))
                         return GamePhase.MapSelection;
+
+                    // Rest heal extras (e.g. TinyMailbox potions) must collect before RestScorer proceeds.
+                    if (hasCollectable)
+                        return GamePhase.RewardScreen;
+
+                    // Terminal loot screen stays on the stack after Proceed; prefer room phase when drained.
+                    if (TryGetInRoomPhase(runState.CurrentRoom?.RoomType) is { } inRoomPhase)
+                        return inRoomPhase;
+
                     return GamePhase.RewardScreen;
                 }
 

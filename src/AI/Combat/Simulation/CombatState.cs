@@ -41,6 +41,13 @@ public sealed record CombatState(
     public CombatState WithEnemies(IReadOnlyList<CombatEnemy> enemies) =>
         this with { Enemies = enemies };
 
+    public JsonArray ToHandJson() {
+        var arr = new JsonArray();
+        foreach (var card in Hand)
+            arr.Add(card.ToJson());
+        return arr;
+    }
+
     static List<CombatHandCard> ParseHand(JsonArray? handArr) {
         var hand = new List<CombatHandCard>();
         if (handArr == null) return hand;

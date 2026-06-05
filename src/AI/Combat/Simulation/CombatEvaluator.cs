@@ -4,29 +4,60 @@ using System.Linq;
 namespace DevMode.AI.Combat.Simulation;
 
 public static class CombatEvaluator {
-    public static int Evaluate(CombatState state) {
+    /// <summary>Mid-turn board value while cards remain to play.</summary>
+    public static int Evaluate(CombatState state) => EvaluateMidTurn(state);
+
+    public static int EvaluateMidTurn(CombatState state) {
         var incoming = ThreatModel.IncomingDamage(state);
         var net = ThreatModel.NetDamageAfterBlock(state);
         var nextIncoming = ThreatModel.NextTurnIncoming(state);
         var netMultiplier = incoming > 0 ? 4 : 3;
 
-        int score = state.PlayerHp;
+        int score = state.PlayerHp * 2;
         score -= net * netMultiplier;
         score -= state.StatusDamage * 2;
         score -= nextIncoming / 2;
 
         foreach (var enemy in state.Enemies) {
             if (!enemy.IsAlive) continue;
-            score -= enemy.CurrentHp;
+            score -= enemy.CurrentHp * 2;
+            score -= enemy.IntentDamage * 3;
             if (enemy.Vulnerable > 0)
-                score += Math.Min(12, enemy.Vulnerable * 4);
+                score += Math.Min(16, enemy.Vulnerable * 5);
         }
 
-        score -= state.AliveEnemyCount * 5;
+        score -= state.AliveEnemyCount * 6;
         score -= state.Energy * 2;
 
         if (state.AliveEnemyCount == 0)
-            score += 200;
+            score += 300;
+
+        return score;
+    }
+
+    /// <summary>Player ended turn — apply incoming damage and score survival.</summary>
+    public static int EvaluateTerminal(CombatState state) {
+        if (state.AliveEnemyCount == 0)
+            return 600 + state.PlayerHp;
+
+        var net = ThreatModel.NetDamageAfterBlock(state);
+        var hpAfter = Math.Max(0, state.PlayerHp - net - state.StatusDamage);
+
+        int score = hpAfter * 5;
+        if (hpAfter <= 0)
+            return -1200;
+
+        if (net <= 0 && state.PlayerBlock > 0)
+            score += Math.Min(state.PlayerBlock, 20) * 2;
+
+        foreach (var enemy in state.Enemies.Where(e => e.IsAlive)) {
+            score -= enemy.CurrentHp * 2;
+            score -= enemy.IntentDamage * 4;
+        }
+
+        score -= state.AliveEnemyCount * 10;
+        score -= ThreatModel.NextTurnIncoming(state);
+        score -= state.Energy * 5;
 
         return score;
     }

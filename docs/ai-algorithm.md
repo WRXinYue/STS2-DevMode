@@ -503,7 +503,7 @@ BlockUrgency 0–100 驱动攻击惩罚与 EndTurn 惩罚
 
 | 机制 | 来源 | 效果 |
 | --- | --- | --- |
-| `TransformsHandAttacks` | 原始力量等 | 伤害增益 + 变形后 follow-up/2（威胁时 follow-up 折扣，不清零）；无威胁时 +20/+40 等固定套路分 |
+| `TransformsHandAttacks` | 原始力量等 | `EstimateTurnDamageDelta` 整回合净收益；≤0 给 −80；beam 内负收益变形剪枝 |
 | `AppliesVulnerable` | DynamicVar 探测（痛击等） | 无易伤时：18 + 层数×8 + followup/3 + `CombatSetupEvaluator` defer 动态分；已有易伤 −12 |
 | `AppliesWeak` | DynamicVar | 类似，权重略低 |
 | Setup Skill | 上述机制牌 | **不再**吃「非挡牌 Skill −40」惩罚 |
@@ -576,7 +576,7 @@ flowchart LR
 | AOE 当单体枚举 | `AllEnemy` 按每个 target 重复评分 | `LegalActionGenerator` 单动作 + `CombatSimulator` 群伤一次转移 |
 | 召唤语义缺失 | 打爪牙不打主人 | `MonsterMechanicIndex` + `MinionEngagementPolicy` + 主怪死后 `ThreatModel.OnPrimaryEnemyKilled`（跳过幻象爪牙） |
 | 评分与局面混用 | 一套启发式既评牌又评回合末 | `CombatScorer`（单步/fallback）与 `CombatEvaluator`（叶节点局面）分离 |
-| 浅层搜索 | depth 1–2 或全枚举不剪枝 | `CombatPlanner` beam（160ms / depth 4 / width 10） |
+| 浅层搜索 | depth 1–2 或全枚举不剪枝 | `CombatPlanner` 迭代加深 beam + `CombatActionHeuristic` 走法排序 |
 | 仅本回合 intent | 不看下回合高伤 | 快照 `intentSteps[]` + `CombatEvaluator` 下回合权重 |
 | 非伤害 intent 忽略 | debuff/summon 不计威胁 | `nonDamageThreat` + `EnemyThreatWeights` |
 | 硬编码 / 不透明 | card id 列表、缺什么靠调权重掩盖 | 快照 + `CardMechanicProfile` + `MonsterMechanicProfile`；文档列出「故意不模拟」边界 |
@@ -593,13 +593,16 @@ flowchart LR
 | `CombatEvaluator` | 叶节点多因子效用（HP、netDamage×3/4、下回合 intent、敌 HP、易伤、浪费能量） |
 | `CombatPlanner` | beam search + 时间预算；输出路径首步 |
 
-**CombatPlanner 参数**：
+**CombatPlanner 参数**（按可出牌数自适应，迭代加深 3→6→…→MaxDepth）：
 
-| 参数 | 值 |
+| 参数 | 典型值 |
 | --- | --- |
-| 时间预算 | 160 ms |
-| 最大深度 | 4（玩家出牌，不含敌人回合） |
-| Beam 宽度 | 10 |
+| 时间预算 | 200–320 ms |
+| 最大深度 | 6–10（玩家出牌步，不含敌人回合） |
+| Beam 宽度 | 14–28 |
+| 每节点展开上限 | 12–36（`GenerateOrdered` 启发式截断） |
+
+`CombatActionHeuristic` 为 beam 排序：斩杀目标 > 易伤 setup > 挡牌 > 攻击；负收益变形剪枝。叶节点用 `EvaluateTerminal`（模拟回合结束受伤）区分「先挡后打」与「裸结束」。
 
 **快捷路径**（在 beam 之前）：`SimLethalChecker.CanLethalAfterTransform` → `AoeDamageEstimator` 群杀 → `CanLethal`；**`ShouldSuppressTransform` 为 true 时跳过**（有 incoming 且非安全斩杀时不抢先变形/攻击）。
 

@@ -669,18 +669,30 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
             "/root/Game/RootSceneContainer/Run/RoomContainer/RestSiteRoom");
         if (room == null) return ActionResult.Fail("Rest site not found.");
 
-        var buttons = UIHelper.FindAll<NRestSiteButton>(room).ToList();
-        if (buttons.Count == 0) return ActionResult.Fail("No rest options available.");
+        var options = room.Options;
+        if (options.Count == 0) return ActionResult.Fail("No rest options available.");
 
-        if (optionIndex < 0 || optionIndex >= buttons.Count)
+        if (optionIndex < 0 || optionIndex >= options.Count)
             return ActionResult.Fail($"Invalid rest option index: {optionIndex}.");
 
-        var button = buttons[optionIndex];
-        if (!button.Option.IsEnabled)
+        var option = options[optionIndex];
+        if (!option.IsEnabled)
             return ActionResult.Fail($"Rest option {optionIndex} is disabled.");
 
+        var button = room.GetButtonForOption(option);
+        if (button == null)
+            return ActionResult.Fail($"Rest option {optionIndex} has no button.");
+
         await UIHelper.Click(button);
-        return ActionResult.Ok($"Selected rest option: {button.Option.GetType().Name}");
+
+        // Heal can open reward overlays (e.g. TinyMailbox potions); wait before the next poll.
+        await UIHelper.WaitUntil(() =>
+                NOverlayStack.Instance?.Peek() is NRewardsScreen
+                || !option.IsEnabled
+                || room.ProceedButton is { IsEnabled: true },
+            TimeSpan.FromSeconds(8));
+
+        return ActionResult.Ok($"Selected rest option: {option.GetType().Name}");
     }
 
     // ──────── Potions ────────
