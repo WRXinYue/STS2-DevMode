@@ -431,8 +431,19 @@ DecideCombat:
 | 方法 | 语义 |
 | --- | --- |
 | `ShouldScoreBlock` | `NeedsBlock` 或 `netIncoming ≥` 阈值（floor≤15 用 6，否则 8） |
-| `ShouldSuppressTransform` | `ShouldScoreBlock` 且非安全斩杀（`CanLethal` 且非 fatal） |
+| `ShouldSuppressTransform` | `IsFatalIfUnblocked` **或** `NeedsBlock`（非安全斩杀豁免）；轻度 `ShouldScoreBlock`  alone 不压制 |
+| `ThreatDiscountScale` | 威胁下变形 follow-up 折扣（0.4–1.0，随 `BlockUrgency`） |
+| `HasAffordableHandTransform` | 手牌有能量可出的 `TransformsHandAttacks` 且存在可变形攻击 |
 | `IsStarterDefend` | `DEFEND_*` 或 STARTER 稀有度挡牌 |
+
+### CombatSetupEvaluator
+
+从 snapshot **实时比较** setup vs 立刻攻击（无固定阶段门）：
+
+| 方法 | 语义 |
+| --- | --- |
+| `ComputeVulnerableDeferValue` | 挂易伤+过回合价值：后续攻击×1.5 估算、incoming/urgency、残血可斩则减分 |
+| `ComputeVulnerableDeferOpportunityCost` | 攻击牌机会成本：`max(0, deferValue − attackDamage) / 2` |
 
 ### IntentCalculator
 
@@ -459,7 +470,9 @@ BlockUrgency 0–100 驱动攻击惩罚与 EndTurn 惩罚
 | 一级防 + incoming>0 | +8（`starter-block`） |
 | NeedsBlock 时 Attack | −BlockUrgency/2 − max(0, net−damage)/2；可斩杀但会死 → lethal-risky +8 而非 +25 |
 | !ShouldScoreBlock 时的挡牌 | −40 |
-| 受威胁时 transform（原始力量等） | `suppressTransform`：跳过固定 +20/+40；mechanic×0.25；`transform-unsafe` −40 |
+| 先打可变形攻击（手牌有廉价变形技） | `attack-before-transform` −min(伤害增益, 50) |
+| 受威胁时 transform（原始力量等） | `suppressTransform`：跳过固定 +20/+40；follow-up 按 `ThreatDiscountScale` 折扣；`transform-threat-discount` 最多 −20 |
+| 易伤 setup（痛击等） | `defer-vuln-setup` 动态加分；攻击侧 `defer-vuln` 机会成本 |
 | 低 HP 且 Skill 且 NeedsBlock | +15 |
 | 自损牌（HEMOKINESIS 等）且 HP<65% | −30 |
 | Attack | 20 + cost×5 + damage + 目标加成（残血敌 +30）；CanLethal +25 |
@@ -467,14 +480,14 @@ BlockUrgency 0–100 驱动攻击惩罚与 EndTurn 惩罚
 | AOE / 多敌 Attack | +12 / +15；多敌无谓 Defend −20 |
 | 高费 | −(cost−1)×2 |
 
-**EndTurn** 基础分 −10；NeedsBlock 且 incoming>0 再 −15。
+**EndTurn** 基础分 −10；NeedsBlock 且 incoming>0 再 −15；敌人已挂易伤时略加分（最多 +15）。
 
 **机制驱动加分**（`MechanicCombatBonus`，权重在 `CombatScoreWeights`，非按 card id 写死）：
 
 | 机制 | 来源 | 效果 |
 | --- | --- | --- |
-| `TransformsHandAttacks` | 原始力量等 | 每张可变形攻击的 **实际伤害增益**（→ 巨石 16/20 减原攻击伤）+ 变形后本回合可打出的攻击伤害/2；0 费 +12，有能量 +20 |
-| `AppliesVulnerable` | DynamicVar 探测（痛击等） | 无易伤时：18 + 层数×8 + 后续攻击伤害/3；已有易伤 −12 |
+| `TransformsHandAttacks` | 原始力量等 | 伤害增益 + 变形后 follow-up/2（威胁时 follow-up 折扣，不清零）；无威胁时 +20/+40 等固定套路分 |
+| `AppliesVulnerable` | DynamicVar 探测（痛击等） | 无易伤时：18 + 层数×8 + followup/3 + `CombatSetupEvaluator` defer 动态分；已有易伤 −12 |
 | `AppliesWeak` | DynamicVar | 类似，权重略低 |
 | Setup Skill | 上述机制牌 | **不再**吃「非挡牌 Skill −40」惩罚 |
 
@@ -497,7 +510,7 @@ Mod 可通过 `IAiMoveModifier.ModifyScore` 调整任意 move 分数（日志中
 
 1. 先尝试 `CanLethalAfterTransform` / `CanLethal` 捷径，但 **`ShouldSuppressTransform` 为 true 时跳过**（有 incoming 且非安全斩杀时不抢先变形/攻击）。
 2. 对每个根节点 `PlayCard`：`SimulateAfterPlay`（扣能量、移除手牌、简化伤害/block）→ 再评一手 follow-up → `leafScore = rootScore + max(followUp)/2 + EvaluateLeaf`。
-3. `EvaluateLeaf`：偏向高 HP、低 netDamage/statusDamage、低敌人总 HP；有 incoming 时 netDamage 惩罚 ×4（否则 ×3）；存活敌数 ×5 惩罚。
+3. `EvaluateLeaf`：偏向高 HP、低 netDamage/statusDamage、低敌人总 HP；有 incoming 时 netDamage 惩罚 ×4（否则 ×3）；存活敌数 ×5 惩罚；敌人已挂易伤略加分（支撑 Bash→EndTurn）。
 4. 时间允许时对最优首牌再试第二张 refinement。
 
 `SimulateAfterPlay`：扣能量/移除手牌；伤害用 `ResolveDamage`；**原始力量等变形牌**将手牌攻击替换为巨石（16/20 伤）；**易伤目标伤害 ×1.5**；模拟施加 `AppliedVulnerable/Weak`；仍不模拟抽牌与复杂 powers。

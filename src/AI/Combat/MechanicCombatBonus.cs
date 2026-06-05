@@ -24,12 +24,17 @@ internal static class MechanicCombatBonus {
             var gain = CombatTransformSimulator.EstimateDamageGain(hand, card);
             bonus += gain;
 
-            if (!suppressTransform) {
-                var projected = CombatTransformSimulator.ProjectHandAfterTransform(hand, card);
-                var skillCost = card["cost"]?.GetValue<int>() ?? 0;
-                var remainingEnergy = Math.Max(0, energy - skillCost);
-                bonus += CombatCardStats.EstimateFollowupAttackDamage(projected, remainingEnergy) / 2;
+            var projected = CombatTransformSimulator.ProjectHandAfterTransform(hand, card);
+            var skillCost = card["cost"]?.GetValue<int>() ?? 0;
+            var remainingEnergy = Math.Max(0, energy - skillCost);
+            var followup = CombatCardStats.EstimateFollowupAttackDamage(projected, remainingEnergy) / 2;
 
+            if (suppressTransform)
+                followup = (int)Math.Round(followup * BlockThreatEvaluator.ThreatDiscountScale(snapshot));
+
+            bonus += followup;
+
+            if (!suppressTransform) {
                 if (profile.CanonicalCost <= 0)
                     bonus += CombatScoreWeights.FreeTransformBonus;
                 if (energy >= 1)
@@ -77,6 +82,8 @@ internal static class CombatScoreWeights {
     public const int EarlyTransformBonus = 20;
     public const int TurnOpenTransformBonus = 40;
     public const int UnusableTransformPenalty = -200;
+    public const int AttackBeforeTransformCap = 50;
+    public const int TransformThreatDiscountMax = 20;
     public const int VulnerableSetupBase = 18;
     public const int VulnerablePerStack = 8;
     public const int WeakSetupBase = 10;

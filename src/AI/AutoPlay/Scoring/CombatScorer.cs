@@ -156,6 +156,21 @@ public static class CombatScorer {
             else if (canLethal) {
                 builder.Add("lethal", 25);
             }
+
+            if (CombatTransformSimulator.IsTransformableAttack(card)
+                && BlockThreatEvaluator.HasAffordableHandTransform(hand, energy)) {
+                var (transformCard, _) = BlockThreatEvaluator.FindAffordableHandTransform(hand, energy);
+                if (transformCard != null) {
+                    var gain = BlockThreatEvaluator.TransformDamageGain(hand, transformCard);
+                    builder.Add("attack-before-transform",
+                        -Math.Min(gain, CombatScoreWeights.AttackBeforeTransformCap));
+                }
+            }
+
+            var deferCost = CombatSetupEvaluator.ComputeVulnerableDeferOpportunityCost(
+                snapshot, hand, energy, targetEnemy, damageValue);
+            if (deferCost > 0)
+                builder.Add("defer-vuln", -deferCost);
         }
         else if (isSkill)
             builder.Add("skill", 15 + cost * 2 + (needsBlock ? blockValue : 0));
@@ -170,10 +185,21 @@ public static class CombatScorer {
 
         var mechBonus = MechanicCombatBonus.Score(
             snapshot, card, profile, hand, targetEnemy, energy, suppressTransform);
-        if (suppressTransform && !(canLethal && !fatalIfUnblocked)) {
-            var before = mechBonus;
-            mechBonus = (int)Math.Round(mechBonus * BlockThreatEvaluator.SuppressTransformScale);
-            builder.Add("transform-unsafe", -Math.Min(before, 40));
+
+        if (profile.AppliedVulnerable > 0 && CombatPowerReader.GetVulnerable(targetEnemy) <= 0) {
+            var deferSetup = CombatSetupEvaluator.ComputeVulnerableDeferValue(
+                snapshot, hand, energy, targetEnemy, profile.AppliedVulnerable, cost);
+            if (deferSetup > 0)
+                builder.Add("defer-vuln-setup", deferSetup);
+        }
+
+        if (suppressTransform
+            && profile.Flags.HasFlag(CardMechanicFlags.TransformsHandAttacks)
+            && !(canLethal && !fatalIfUnblocked)) {
+            var discount = (int)Math.Round(
+                CombatScoreWeights.TransformThreatDiscountMax * blockUrgency / 100f);
+            if (discount > 0)
+                builder.Add("transform-threat-discount", -discount);
         }
         else if (needsBlock && blockUrgency >= 40 && (isAttack || MechanicCombatBonus.IsSetupSkill(profile))) {
             mechBonus = mechBonus * 2 / 3;
@@ -194,6 +220,21 @@ public static class CombatScorer {
         var score = EndTurnBaseScore;
         if (needsBlock && incoming > 0)
             score -= 15 + IntentCalculator.BlockUrgency(snapshot) / 4;
+
+        var combat = snapshot["combat"]?.AsObject();
+        var enemies = combat?["enemies"]?.AsArray();
+        if (enemies != null) {
+            foreach (var node in enemies) {
+                if (node is not JsonObject enemy) continue;
+                if (enemy["isAlive"]?.GetValue<bool>() == false) continue;
+                var vuln = CombatPowerReader.GetVulnerable(enemy);
+                if (vuln > 0) {
+                    score += Math.Min(15, vuln * 3);
+                    break;
+                }
+            }
+        }
+
         return score;
     }
 

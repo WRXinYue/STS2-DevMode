@@ -136,6 +136,19 @@ public static class CombatSearch {
         }
 
         score -= aliveCount * 5;
+
+        if (enemies != null) {
+            foreach (var node in enemies) {
+                if (node is not JsonObject e) continue;
+                if (e["isAlive"]?.GetValue<bool>() == false) continue;
+                var vuln = CombatPowerReader.GetVulnerable(e);
+                if (vuln > 0) {
+                    score += Math.Min(12, vuln * 4);
+                    break;
+                }
+            }
+        }
+
         return score;
     }
 
