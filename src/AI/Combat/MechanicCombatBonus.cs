@@ -16,7 +16,8 @@ internal static class MechanicCombatBonus {
         var bonus = 0;
 
         if (profile.Flags.HasFlag(CardMechanicFlags.TransformsHandAttacks)) {
-            if (CombatTransformSimulator.CountTransformableAttacks(hand) == 0)
+            var attacks = CombatTransformSimulator.CountTransformableAttacks(hand);
+            if (attacks == 0)
                 return CombatScoreWeights.UnusableTransformPenalty;
 
             var gain = CombatTransformSimulator.EstimateDamageGain(hand, card);
@@ -31,6 +32,8 @@ internal static class MechanicCombatBonus {
                 bonus += CombatScoreWeights.FreeTransformBonus;
             if (energy >= 1)
                 bonus += CombatScoreWeights.EarlyTransformBonus;
+            if (attacks >= 2 && energy >= 2)
+                bonus += CombatScoreWeights.TurnOpenTransformBonus;
         }
         else if (profile.Flags.HasFlag(CardMechanicFlags.TransformsCards)) {
             bonus += CombatTransformSimulator.EstimateDamageGain(hand, card) / 2;
@@ -69,6 +72,7 @@ internal static class MechanicCombatBonus {
 internal static class CombatScoreWeights {
     public const int FreeTransformBonus = 12;
     public const int EarlyTransformBonus = 20;
+    public const int TurnOpenTransformBonus = 40;
     public const int UnusableTransformPenalty = -200;
     public const int VulnerableSetupBase = 18;
     public const int VulnerablePerStack = 8;

@@ -5,8 +5,10 @@ using DevMode.AI.Planning;
 using DevMode.AI.AutoPlay.Strategies;
 using DevMode.AI.Core;
 using DevMode.AI.Core.Schema;
+using DevMode.AI.Sts2;
 using DevMode.Multiplayer.Cheat;
 using DevMode.Settings;
+using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Helpers;
 
 namespace DevMode.AI.AutoPlay;
@@ -17,6 +19,7 @@ internal sealed class AiPlayModule {
 
     GameLoop? _loop;
     CancellationTokenSource? _cts;
+    IDisposable? _cardSelectorScope;
 
     public bool IsRunning => _cts != null;
 
@@ -45,6 +48,9 @@ internal sealed class AiPlayModule {
 
         StopLoop();
 
+        _cardSelectorScope = CardSelectCmd.UseSelector(
+            new AiCombatCardSelector(AiPlayServices.StateProvider));
+
         var strategy = AiPlayServices.StateProvider.TryGetRunAndPlayer(out _, out var me)
             ? StrategyResolver.Resolve(me)
             : StrategyResolver.Resolve(0, null);
@@ -65,6 +71,8 @@ internal sealed class AiPlayModule {
     }
 
     public void StopLoop() {
+        _cardSelectorScope?.Dispose();
+        _cardSelectorScope = null;
         _loop?.ResetDedupeState();
         _cts?.Cancel();
         _cts?.Dispose();

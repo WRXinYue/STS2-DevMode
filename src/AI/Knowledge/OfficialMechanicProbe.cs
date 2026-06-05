@@ -50,7 +50,12 @@ internal static class OfficialMechanicProbe {
 
         flags |= AnalyzeTokenBlob(CollectTypeTokenBlob(card.GetType()));
         flags |= AnalyzeTokenBlob(CollectInstanceTokenBlob(card));
+        flags |= AnalyzeTokenBlob(card.Id.Entry ?? "");
         flags |= AnalyzeCardLocKeys(CollectLocKeys(card));
+
+        if (string.Equals(card.Id.Entry, "PRIMAL_FORCE", StringComparison.OrdinalIgnoreCase)
+            || card.GetType().Name.Contains("PrimalForce", StringComparison.Ordinal))
+            flags |= CardMechanicFlags.TransformsHandAttacks;
 
         return flags;
     }
