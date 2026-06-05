@@ -124,6 +124,15 @@ public static class CombatScorer {
         var fatalIfUnblocked = IntentCalculator.IsFatalIfUnblocked(snapshot);
 
         var builder = new ScoreBuilder();
+        var isJunkPlay = CombatJunkCard.IsJunkId(cardId, card["rarity"]?.GetValue<string>())
+            || string.Equals(card["cardType"]?.GetValue<string>(), "Status", StringComparison.OrdinalIgnoreCase);
+        if (isJunkPlay) {
+            if (hand != null && MechanicCombatBonus.HandHasEmergencyJunkClearForScorer(hand, card))
+                builder.Add("emergency-junk", HandHasAffordableAttack(hand) ? 8 : 14);
+            else
+                builder.Add("junk-play", -200);
+        }
+
         var shouldScoreBlock = BlockThreatEvaluator.ShouldScoreBlock(snapshot);
         var suppressTransform = BlockThreatEvaluator.ShouldSuppressTransform(snapshot);
 
@@ -140,7 +149,12 @@ public static class CombatScorer {
             }
         }
         else if ((isSkill || isBlockCard) && !shouldScoreBlock && !MechanicCombatBonus.IsSetupSkill(profile)) {
-            builder.Add("skill-no-block-need", -CombatScoreWeights.NonSetupSkillPenalty);
+            var pileDraw = CardPileEffectResolver.DrawCount(cardId);
+            var exhaustHand = CardPileEffectResolver.ExhaustHandCount(cardId);
+            if (pileDraw <= 0 && exhaustHand <= 0
+                && !profile.Flags.HasFlag(CardMechanicFlags.HasDraw)
+                && !profile.Flags.HasFlag(CardMechanicFlags.HasExhaustFromHand))
+                builder.Add("skill-no-block-need", -CombatScoreWeights.NonSetupSkillPenalty);
         }
 
         if (hasBlock && incoming > 0
@@ -342,4 +356,16 @@ public static class CombatScorer {
         SecondaryIndex = targetIndex,
         Reason = card["name"]?.GetValue<string>() ?? card["id"]?.GetValue<string>() ?? "?",
     };
+
+    static bool HandHasAffordableAttack(JsonArray? hand) {
+        if (hand == null) return false;
+        foreach (var node in hand) {
+            if (node is not JsonObject card) continue;
+            if (!CombatCardStats.IsAttackCard(card)) continue;
+            if (CombatCardStats.ResolveDamage(card) <= 0) continue;
+            if (card["canPlay"]?.GetValue<bool>() == false) continue;
+            return true;
+        }
+        return false;
+    }
 }

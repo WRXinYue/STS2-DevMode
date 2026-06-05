@@ -26,7 +26,8 @@ internal static class OfficialMechanicProbe {
         | CardMechanicFlags.HasHeal
         | CardMechanicFlags.HasSummon
         | CardMechanicFlags.HasForge
-        | CardMechanicFlags.HasStarCost;
+        | CardMechanicFlags.HasStarCost
+        | CardMechanicFlags.HasExhaustFromHand;
 
     public static CardMechanicFlags ProbeCard(CardModel card) {
         var flags = CardMechanicFlags.None;
@@ -61,7 +62,32 @@ internal static class OfficialMechanicProbe {
             || card.GetType().Name.Contains("Pillage", StringComparison.Ordinal))
             flags |= CardMechanicFlags.AddsCardsToDeck;
 
+        if (ProbesExhaustFromHand(card))
+            flags |= CardMechanicFlags.HasExhaustFromHand;
+
         return flags;
+    }
+
+    /// <summary>Exhaust hover on a card that does not itself exhaust (Burning Pact, True Grit, Brand).</summary>
+    static bool ProbesExhaustFromHand(CardModel card) {
+        if (card.Keywords.Contains(CardKeyword.Exhaust))
+            return false;
+
+        try {
+            var prop = typeof(CardModel).GetProperty("ExtraHoverTips", MemberFlags);
+            if (prop?.GetValue(card) is not IEnumerable tips)
+                return false;
+
+            foreach (var tip in tips) {
+                if (tip == null) continue;
+                var blob = $"{tip.GetType().Name} {tip}";
+                if (blob.Contains("Exhaust", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+        }
+        catch { /* ignore */ }
+
+        return false;
     }
 
     public static RelicMechanicFlags ProbeRelic(RelicModel relic) {
@@ -293,6 +319,7 @@ internal static class OfficialMechanicProbe {
     public static CardMechanicFlags FlagsFromDynamicVar(string key) {
         var upper = key.ToUpperInvariant();
         if (upper.Contains("DRAW", StringComparison.Ordinal)) return CardMechanicFlags.HasDraw;
+        if (string.Equals(upper, "CARDS", StringComparison.Ordinal)) return CardMechanicFlags.HasDraw;
         if (upper.Contains("DISCARD", StringComparison.Ordinal)) return CardMechanicFlags.HasDiscard;
         if (upper.Contains("SCRY", StringComparison.Ordinal)) return CardMechanicFlags.HasScry;
         if (upper.Contains("HEAL", StringComparison.Ordinal)) return CardMechanicFlags.HasHeal;

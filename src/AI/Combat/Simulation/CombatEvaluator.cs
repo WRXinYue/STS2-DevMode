@@ -50,6 +50,7 @@ public static class CombatEvaluator {
 
         score -= CombatSetupEvaluator.ComputeSetupDebt(state);
         score -= CombatSetupEvaluator.ComputeWastedVulnerablePenalty(state);
+        score -= DeckPollutionEvaluator.HandJunkCount(state) * 15;
 
         return score;
     }

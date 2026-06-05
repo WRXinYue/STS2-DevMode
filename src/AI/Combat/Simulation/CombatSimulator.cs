@@ -30,6 +30,7 @@ public static class CombatSimulator {
         var block = state.PlayerBlock;
         var rngCounter = state.ShuffleRngCounter;
         var pileEffects = CardPileEffectResolver.ResolveAll(card.Id);
+        var exhaustHand = CardPileEffectResolver.ExhaustHandCount(card.Id);
 
         if (CombatTransformSimulator.IsHandAttackTransform(card.Profile)) {
             hand = ApplyHandTransform(hand, action.HandIndex);
@@ -42,10 +43,16 @@ public static class CombatSimulator {
             if (card.IsAoe || CombatTargetTypes.IsAllEnemies(card.TargetType)) {
                 var aoeDamage = CombatDamageCalc.OutgoingDamage(card, state);
                 CombatEffectApplier.ApplyAoeDamage(enemies, aoeDamage);
-            } else if (action.EnemyIndex >= 0) {
-                var target = FindEnemy(enemies, action.EnemyIndex);
-                var damage = CombatDamageCalc.OutgoingDamage(card, state, target?.Vulnerable ?? 0);
-                CombatEffectApplier.ApplySingleDamage(enemies, action.EnemyIndex, damage);
+            } else {
+                var targetIndex = action.EnemyIndex;
+                if (targetIndex < 0)
+                    targetIndex = CombatSetupEvaluator.PrimaryAttackTargetIndex(state);
+
+                if (targetIndex >= 0) {
+                    var target = FindEnemy(enemies, targetIndex);
+                    var damage = CombatDamageCalc.OutgoingDamage(card, state, target?.Vulnerable ?? 0);
+                    CombatEffectApplier.ApplySingleDamage(enemies, targetIndex, damage);
+                }
             }
         }
 
@@ -68,7 +75,9 @@ public static class CombatSimulator {
         else
             discard = CombatPileSimulator.AddToBottom(discard, pileCard);
 
-        if (pileEffects.Discard > 0)
+        if (exhaustHand > 0)
+            (hand, exhaust) = ExhaustFromHand(hand, exhaust, exhaustHand, state);
+        else if (pileEffects.Discard > 0)
             (hand, discard) = DiscardFromHand(hand, discard, pileEffects.Discard, state);
 
         if (pileEffects.Draw > 0) {
@@ -99,6 +108,21 @@ public static class CombatSimulator {
             .WithShuffleRng(state.ShuffleRngSeed, rngCounter);
     }
 
+    static (List<CombatHandCard> hand, List<CombatPileCard> exhaust) ExhaustFromHand(
+        List<CombatHandCard> hand,
+        List<CombatPileCard> exhaust,
+        int count,
+        CombatState state) {
+        for (int i = 0; i < count && hand.Count > 0; i++) {
+            int idx = PickWorstHandIndex(hand, state);
+            if (idx < 0) break;
+            exhaust = CombatPileSimulator.AddToBottom(exhaust, CombatPileSimulator.HandToPile(hand[idx]));
+            hand.RemoveAt(idx);
+        }
+
+        return (ReindexHand(hand), exhaust);
+    }
+
     static (List<CombatHandCard> hand, List<CombatPileCard> discard) DiscardFromHand(
         List<CombatHandCard> hand,
         List<CombatPileCard> discard,
@@ -124,6 +148,8 @@ public static class CombatSimulator {
             if (c.HasRetain) continue;
 
             int score = 0;
+            if (DeckPollutionEvaluator.IsHandJunk(c))
+                score -= 500;
             if (c.IsAttack && c.Damage > 0)
                 score += c.Damage * 2 + (incoming > 0 ? 6 : 0);
             score += c.Block;

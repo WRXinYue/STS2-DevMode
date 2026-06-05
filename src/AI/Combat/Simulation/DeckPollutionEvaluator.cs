@@ -5,8 +5,81 @@ using DevMode.AI.Knowledge;
 namespace DevMode.AI.Combat.Simulation;
 
 public static class DeckPollutionEvaluator {
+    public static bool IsHandJunk(CombatHandCard card) =>
+        CombatJunkCard.IsJunkId(card.Id)
+        || string.Equals(card.CardType, "Status", StringComparison.OrdinalIgnoreCase);
+
+    public static int HandJunkCount(CombatState state) =>
+        state.Hand.Count(IsHandJunk);
+
+    public static bool HasAffordableJunkRelief(CombatState state) {
+        foreach (var card in state.Hand) {
+            if (!CombatCardCost.CanAfford(card, state)) continue;
+            if (card.Profile.Flags.HasFlag(CardMechanicFlags.HasExhaustFromHand))
+                return true;
+            if (CardPileEffectResolver.ExhaustHandCount(card.Id) > 0)
+                return true;
+        }
+
+        return false;
+    }
+
+    public static int JunkReliefScore(CombatState state, CombatHandCard card) {
+        if (HandJunkCount(state) <= 0)
+            return 0;
+
+        if (!card.Profile.Flags.HasFlag(CardMechanicFlags.HasExhaustFromHand)
+            && CardPileEffectResolver.ExhaustHandCount(card.Id) <= 0)
+            return 0;
+
+        int draw = CardPileEffectResolver.DrawCount(card.Id);
+        return 30 + HandJunkCount(state) * CombatJunkCard.DefaultJunkValue + draw * 8;
+    }
+
+    public static bool SelfExhaustsOnPlay(CombatHandCard card) =>
+        card.HasExhaust
+        || card.Profile.Flags.HasFlag(CardMechanicFlags.Exhaust);
+
+    /// <summary>Status with Exhaust (Slimed) — playable to remove when no relief skill in hand.</summary>
+    public static bool HasAffordableEmergencyJunkClear(CombatState state) {
+        if (HasAffordableJunkRelief(state))
+            return false;
+
+        foreach (var card in state.Hand) {
+            if (!CombatCardCost.CanAfford(card, state)) continue;
+            if (!IsHandJunk(card) || !SelfExhaustsOnPlay(card)) continue;
+            return true;
+        }
+
+        return false;
+    }
+
+    public static int EmergencyJunkPlayScore(CombatState state, CombatHandCard card) {
+        if (!IsHandJunk(card) || !SelfExhaustsOnPlay(card))
+            return int.MinValue;
+        if (HasAffordableJunkRelief(state))
+            return int.MinValue;
+
+        // Beam picks by terminal score, not QuickScore — prune while attacks/blocks remain.
+        if (ExpectedPlayableDamage(state) > 0)
+            return int.MinValue;
+        if (ExpectedPlayableBlock(state) > 0 && ThreatModel.IncomingDamage(state) > 0)
+            return int.MinValue;
+
+        int draw = CardPileEffectResolver.DrawCount(card.Id);
+        int score = 14 + draw * 4;
+        if (ThreatModel.NetDamageAfterBlock(state) > 0)
+            score -= 8;
+
+        var peek = DrawPlanner.PeekTop(state, 1);
+        if (peek.Count > 0 && peek[0].IsStatus)
+            score -= 10;
+
+        return score;
+    }
+
     public static int JunkCount(CombatState state) =>
-        state.Hand.Count(c => CombatJunkCard.IsJunkId(c.Id))
+        HandJunkCount(state)
         + state.DrawPile.Count(c => c.IsStatus)
         + state.DiscardPile.Count(c => c.IsStatus);
 

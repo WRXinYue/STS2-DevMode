@@ -23,6 +23,17 @@ internal static class CombatActionHeuristic {
         if (!CombatCardCost.CanAfford(card, state))
             return int.MinValue;
 
+        if (DeckPollutionEvaluator.IsHandJunk(card)) {
+            var emergency = DeckPollutionEvaluator.EmergencyJunkPlayScore(state, card);
+            if (emergency > int.MinValue + 1)
+                return emergency;
+            return int.MinValue;
+        }
+
+        var junkRelief = DeckPollutionEvaluator.JunkReliefScore(state, card);
+        if (junkRelief > 0)
+            return junkRelief + (card.Block > 0 ? ScoreBlock(state, card) / 3 : 0);
+
         if (CombatTransformSimulator.IsHandAttackTransform(card.Profile))
             return ScoreHandTransform(state, action, card);
 
@@ -44,29 +55,92 @@ internal static class CombatActionHeuristic {
         if (MechanicCombatBonus.IsSetupSkill(card.Profile))
             return 22;
 
+        if (ScoresAsPileSkill(card))
+            return ScorePileSkill(state, card);
+
         return 8;
     }
 
-    public static bool ShouldPrune(CombatState state, SimCombatAction action) =>
-        QuickScore(state, action) <= int.MinValue + 1;
+    static bool ScoresAsPileSkill(CombatHandCard card) {
+        if (DeckPollutionEvaluator.IsHandJunk(card))
+            return false;
+
+        if (card.Profile.Flags.HasFlag(CardMechanicFlags.HasDraw))
+            return true;
+        if (card.Profile.Flags.HasFlag(CardMechanicFlags.HasExhaustFromHand))
+            return true;
+        return CardPileEffectResolver.DrawCount(card.Id) > 0
+            || CardPileEffectResolver.ExhaustHandCount(card.Id) > 0;
+    }
+
+    static int ScorePileSkill(CombatState state, CombatHandCard card) {
+        int draw = CardPileEffectResolver.DrawCount(card.Id);
+        int exhaustHand = CardPileEffectResolver.ExhaustHandCount(card.Id);
+        int junk = DeckPollutionEvaluator.HandJunkCount(state);
+
+        int score = 18 + draw * 10;
+        if (exhaustHand > 0) {
+            if (junk > 0)
+                score += junk * CombatJunkCard.DefaultJunkValue;
+            else
+                score -= 12;
+        }
+
+        if (draw > 0 && state.Hand.Count <= 3)
+            score += 8;
+
+        return score;
+    }
+
+    public static bool ShouldPrune(CombatState state, SimCombatAction action) {
+        if (PreservesLethalPotential(state, action))
+            return false;
+        return QuickScore(state, action) <= int.MinValue + 1;
+    }
+
+    static bool PreservesLethalPotential(CombatState state, SimCombatAction action) {
+        if (action.Kind == SimActionKind.UsePotion) {
+            var afterPotion = CombatSimulator.Apply(state, action);
+            return afterPotion.AliveEnemyCount == 0
+                || SimLethalChecker.CanLethal(afterPotion, out _);
+        }
+
+        if (action.Kind != SimActionKind.PlayCard
+            || action.HandIndex < 0
+            || action.HandIndex >= state.Hand.Count)
+            return false;
+
+        if (action.EnemyIndex >= 0
+            && SimLethalChecker.CanKillEnemyThisAction(state, action.HandIndex, action.EnemyIndex))
+            return true;
+
+        var card = state.Hand[action.HandIndex];
+        if (card.IsAoe && card.Damage > 0 && AoeDamageEstimator.CanAoeLethalAll(state))
+            return true;
+
+        var after = CombatSimulator.Apply(state, action);
+        if (after.AliveEnemyCount == 0)
+            return true;
+
+        return SimLethalChecker.CanLethal(after, out _);
+    }
 
     static int ScoreHandTransform(CombatState state, SimCombatAction action, CombatHandCard card) {
+        var after = CombatSimulator.Apply(state, action);
+        if (SimLethalChecker.CanLethal(after, out _))
+            return 200;
+
         var net = ThreatModel.NetDamageAfterBlock(state);
         if (net >= BlockThreatEvaluator.LateBlockThreshold
             && BlockDefensePolicy.NeedsBlock(state)) {
-            var after = CombatSimulator.Apply(state, action);
             if (!SimLethalChecker.CanSecureKillThisTurn(after))
                 return int.MinValue;
         }
 
         var hand = state.ToHandJson();
         var delta = CombatTransformSimulator.EstimateTurnDamageDelta(hand, card.ToJson(), state.Energy);
-        if (delta <= 0) {
-            var after = CombatSimulator.Apply(state, action);
-            if (!SimLethalChecker.CanLethal(after, out _))
-                return int.MinValue;
-            return 120;
-        }
+        if (delta <= 0)
+            return int.MinValue;
 
         return 40 + delta;
     }
@@ -244,6 +318,10 @@ internal static class CombatActionHeuristic {
         var net = ThreatModel.NetDamageAfterBlock(state);
         if (net <= 0) return 5;
 
+        if (SimLethalChecker.CanLethal(state, out _)
+            && BlockDefensePolicy.CanSkipBlockForKill(state))
+            return 4;
+
         var effective = Math.Min(CombatDamageCalc.OutgoingBlock(card, state), net);
         var score = 40 + effective * 5;
         if (ThreatModel.IsFatalIfUnblocked(state))
@@ -276,7 +354,18 @@ internal static class CombatActionHeuristic {
             return 5 - nextPressure / 2;
 
         var debt = CombatSetupEvaluator.ComputeSetupDebt(state);
-        return 15 - playable * 3 - debt;
+        var score = 15 - playable * 3 - debt;
+
+        var junk = DeckPollutionEvaluator.HandJunkCount(state);
+        if (junk > 0) {
+            score -= junk * 25;
+            if (DeckPollutionEvaluator.HasAffordableJunkRelief(state))
+                score = int.MinValue + 2;
+            else if (DeckPollutionEvaluator.HasAffordableEmergencyJunkClear(state))
+                score = int.MinValue + 3;
+        }
+
+        return score;
     }
 
     static bool ShouldPruneIllusionAttack(CombatState state, SimCombatAction action) {

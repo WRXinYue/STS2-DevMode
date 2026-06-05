@@ -76,7 +76,8 @@ public static class CombatPlanner {
                     var newPath = node.Path.Append(action).ToList();
 
                     if (next.AliveEnemyCount == 0) {
-                        int wipeScore = CombatEvaluator.EvaluateTerminal(next);
+                        int wipeScore = CombatEvaluator.EvaluateTerminal(next)
+                            + CombatEvalWeights.CombatWipePriorityBonus;
                         if (wipeScore > bestScore) {
                             bestScore = wipeScore;
                             bestPath = newPath;
@@ -119,7 +120,8 @@ public static class CombatPlanner {
         ref int bestDepth) {
         var afterTurn = CombatTurnResolver.ResolveEndTurn(state);
         if (afterTurn.AliveEnemyCount == 0) {
-            int wipeScore = CombatEvaluator.EvaluateTerminal(afterTurn);
+            int wipeScore = CombatEvaluator.EvaluateTerminal(afterTurn)
+                + CombatEvalWeights.CombatWipePriorityBonus;
             if (wipeScore > bestScore) {
                 bestScore = wipeScore;
                 bestPath = path;
@@ -225,13 +227,34 @@ public static class CombatPlanner {
             }
         }
 
-        if (prioritizeBlock && net > 0) {
-            if (remainingNet > 0)
-                return remainingNet * CombatEvalWeights.UnusedEnergyExposedNetPenalty + attackSetupValue;
-            return attackSetupValue;
+        int junkReliefValue = 0;
+        if (DeckPollutionEvaluator.HandJunkCount(state) > 0) {
+            foreach (var card in state.Hand) {
+                if (!CombatCardCost.CanAfford(card, state)) continue;
+                int relief = DeckPollutionEvaluator.JunkReliefScore(state, card);
+                if (relief > 0) {
+                    int cost = CombatCardCost.EffectiveCost(card, state.Modifiers);
+                    if (cost > energy) continue;
+                    energy -= cost;
+                    junkReliefValue += relief;
+                    continue;
+                }
+                int emergency = DeckPollutionEvaluator.EmergencyJunkPlayScore(state, card);
+                if (emergency <= int.MinValue + 1) continue;
+                int emergencyCost = CombatCardCost.EffectiveCost(card, state.Modifiers);
+                if (emergencyCost > energy) continue;
+                energy -= emergencyCost;
+                junkReliefValue += emergency;
+            }
         }
 
-        return blockValue + attackSetupValue;
+        if (prioritizeBlock && net > 0) {
+            if (remainingNet > 0)
+                return remainingNet * CombatEvalWeights.UnusedEnergyExposedNetPenalty + attackSetupValue + junkReliefValue;
+            return attackSetupValue + junkReliefValue;
+        }
+
+        return blockValue + attackSetupValue + junkReliefValue;
     }
 
     static bool AppliesVulnerable(CombatHandCard card) =>

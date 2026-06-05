@@ -184,7 +184,7 @@ internal static class CombatCardSelectScoring {
     }
 
     internal static bool IsStatusOrCurse(CardModel card, string idUpper) {
-        if (card.Rarity == CardRarity.Curse)
+        if (card.Rarity == CardRarity.Curse || card.Rarity == CardRarity.Status)
             return true;
 
         return idUpper.Contains("BURN", StringComparison.Ordinal)

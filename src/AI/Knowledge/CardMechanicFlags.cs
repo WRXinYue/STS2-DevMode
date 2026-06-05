@@ -24,4 +24,6 @@ public enum CardMechanicFlags : ulong {
     AppliesWeak = 1 << 16,
     /// <summary>Adds random or generated cards into the draw pile (e.g. Pillage).</summary>
     AddsCardsToDeck = 1 << 17,
+    /// <summary>Prompts to exhaust another card from hand (Burning Pact, True Grit+, Brand).</summary>
+    HasExhaustFromHand = 1 << 18,
 }

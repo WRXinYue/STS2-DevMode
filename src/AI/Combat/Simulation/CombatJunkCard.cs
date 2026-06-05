@@ -9,9 +9,11 @@ public static class CombatJunkCard {
         if (string.IsNullOrWhiteSpace(cardId))
             return false;
 
-        if (!string.IsNullOrWhiteSpace(rarity)
-            && rarity.Contains("CURSE", StringComparison.OrdinalIgnoreCase))
-            return true;
+        if (!string.IsNullOrWhiteSpace(rarity)) {
+            if (rarity.Contains("CURSE", StringComparison.OrdinalIgnoreCase)
+                || rarity.Contains("STATUS", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
 
         var upper = cardId.ToUpperInvariant();
         return upper.Contains("BURN", StringComparison.Ordinal)

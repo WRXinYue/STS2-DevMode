@@ -1,5 +1,7 @@
 using System;
+using System.Linq;
 using System.Text.Json.Nodes;
+using DevMode.AI.Combat.Simulation;
 using DevMode.AI.Knowledge;
 
 namespace DevMode.AI.Combat;
@@ -14,6 +16,14 @@ internal static class MechanicCombatBonus {
         JsonObject? targetEnemy,
         int energy,
         bool suppressTransform = false) {
+        var cardId = card["id"]?.GetValue<string>();
+        if (CombatJunkCard.IsJunkId(cardId, card["rarity"]?.GetValue<string>())
+            || string.Equals(card["cardType"]?.GetValue<string>(), "Status", StringComparison.OrdinalIgnoreCase)) {
+            if (hand != null && HandHasEmergencyJunkClear(hand) && CardSelfExhausts(card))
+                return HandHasAffordableAttack(hand) ? 8 : 14;
+            return -200;
+        }
+
         var bonus = 0;
 
         if (profile.Flags.HasFlag(CardMechanicFlags.TransformsHandAttacks)) {
@@ -64,7 +74,81 @@ internal static class MechanicCombatBonus {
                 : -CombatScoreWeights.RedundantDebuffPenalty / 2;
         }
 
+        bonus += ScorePileSkillBonus(profile, hand);
+
         return bonus;
+    }
+
+    static int ScorePileSkillBonus(CardMechanicProfile profile, JsonArray? hand) {
+        int draw = CardPileEffectResolver.DrawCount(profile.Id);
+        if (draw == 0 && profile.Flags.HasFlag(CardMechanicFlags.HasDraw))
+            draw = 1;
+
+        if (draw == 0 && !profile.Flags.HasFlag(CardMechanicFlags.HasExhaustFromHand))
+            return 0;
+
+        int junk = CountHandJunk(hand);
+        int bonus = draw * 8;
+
+        if (profile.Flags.HasFlag(CardMechanicFlags.HasExhaustFromHand)) {
+            bonus += junk > 0
+                ? junk * CombatJunkCard.DefaultJunkValue / 2
+                : -10;
+        }
+
+        return bonus;
+    }
+
+    static int CountHandJunk(JsonArray? hand) {
+        if (hand == null) return 0;
+        int junk = 0;
+        foreach (var node in hand) {
+            if (node is not JsonObject card) continue;
+            if (CombatJunkCard.IsJunkId(
+                card["id"]?.GetValue<string>(),
+                card["rarity"]?.GetValue<string>()))
+                junk++;
+        }
+        return junk;
+    }
+
+    public static bool HandHasEmergencyJunkClearForScorer(JsonArray? hand, JsonObject card) =>
+        HandHasEmergencyJunkClear(hand) && CardSelfExhausts(card);
+
+    static bool HandHasEmergencyJunkClear(JsonArray? hand) {
+        if (hand == null) return false;
+        bool hasRelief = false;
+        bool hasEmergency = false;
+        foreach (var node in hand) {
+            if (node is not JsonObject card) continue;
+            var id = card["id"]?.GetValue<string>() ?? "";
+            if (CardMechanicIndex.TryGet(id, out var profile)
+                && (profile.Flags.HasFlag(CardMechanicFlags.HasExhaustFromHand)
+                    || CardPileEffectResolver.ExhaustHandCount(id) > 0))
+                hasRelief = true;
+            if (CardSelfExhausts(card)
+                && CombatJunkCard.IsJunkId(id, card["rarity"]?.GetValue<string>()))
+                hasEmergency = true;
+        }
+        return !hasRelief && hasEmergency;
+    }
+
+    static bool CardSelfExhausts(JsonObject card) =>
+        card["hasExhaust"]?.GetValue<bool>() == true
+        || card["keywords"]?.AsArray()?.Any(k =>
+            (k?.GetValue<string>() ?? "").Contains("Exhaust", StringComparison.OrdinalIgnoreCase)) == true;
+
+    static bool HandHasAffordableAttack(JsonArray? hand) {
+        if (hand == null) return false;
+        foreach (var node in hand) {
+            if (node is not JsonObject card) continue;
+            var type = card["cardType"]?.GetValue<string>() ?? "";
+            if (!type.Contains("Attack", StringComparison.OrdinalIgnoreCase)) continue;
+            if ((card["damage"]?.GetValue<int>() ?? 0) <= 0) continue;
+            if (card["canPlay"]?.GetValue<bool>() == false) continue;
+            return true;
+        }
+        return false;
     }
 
     public static bool IsSetupSkill(CardMechanicProfile profile) =>
@@ -85,6 +169,8 @@ internal static class CombatEvalWeights {
     public const int LowHpNextTurnPenalty = 2;
     public const int UnusedEnergyExposedNetPenalty = 6;
     public const int UnsafeAttackPenaltyPerNet = 8;
+    /// <summary>Ensures mid-turn combat wipe beats end-turn leaf ties in beam search.</summary>
+    public const int CombatWipePriorityBonus = 500;
 }
 
 internal static class CombatScoreWeights {
