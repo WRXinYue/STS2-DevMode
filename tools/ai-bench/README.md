@@ -75,3 +75,17 @@ Manual spot-checks:
 3. **Steal** — `THIEVING_HOPPER` removes best card from draw/discard pile in sim.
 4. **RNG streams** — snapshot includes `rngEnergyCosts`; missing `rngShuffle` logs Warn.
 5. **Confused EV** — draw-pile planning uses cost EV 1.5 when Confused active.
+
+### Phase D relic-aware sim
+
+Regenerate data after STS2 relic changes:
+
+```powershell
+python tools/relic-combat-effect-dump/extract-relic-combat-effects.py
+```
+
+Spot-checks (`scenarios.json`):
+
+1. **Unceasing Top** — empty hand mid-turn triggers extra draw in `CombatSimulator`.
+2. **Runic Pyramid** — `EndTurn` retains hand (no flush to discard).
+3. **Snecko Eye** — +2 draw per turn + Confused merged from `relic-combat-effects.json` when not already in `playerPowers`.

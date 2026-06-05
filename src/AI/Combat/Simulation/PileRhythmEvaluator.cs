@@ -14,7 +14,7 @@ public static class PileRhythmEvaluator {
         int pollution = DeckPollutionEvaluator.JunkCount(state) * 2;
 
         int outlook = damage / 2 + block / 3 - pollution;
-        if (DrawPlanner.WillReshuffle(state, CombatPileSimulator.BaseHandDrawCount))
+        if (DrawPlanner.WillReshuffle(state, RelicCombatRules.PlannedHandDraw(state)))
             outlook -= DeckPollutionEvaluator.ImmediatePollutionCost(state) / 4;
 
         return outlook;

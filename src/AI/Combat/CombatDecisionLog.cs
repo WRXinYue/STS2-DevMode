@@ -74,7 +74,7 @@ public static class CombatDecisionLog {
         var poll = DeckPollutionEvaluator.ProjectedPollutionCost(state);
         var play = DeckPollutionEvaluator.ExpectedPlayableDamage(state);
         var peek = DrawPlanner.FormatPeekSummary(state);
-        var reshuf = DrawPlanner.WillReshuffle(state, CombatPileSimulator.BaseHandDrawCount) ? 1 : 0;
+        var reshuf = DrawPlanner.WillReshuffle(state, RelicCombatRules.PlannedHandDraw(state)) ? 1 : 0;
         var outlook = PileRhythmEvaluator.DrawPileOutlook(state);
         return $"IN={incoming} ND={nonDamage} NXT={next} JUNK={junk} POLL={poll} PLAY={play} {peek} RESHUF={reshuf} OUTLOOK={outlook}";
     }

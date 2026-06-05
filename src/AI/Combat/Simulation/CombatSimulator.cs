@@ -81,6 +81,13 @@ public static class CombatSimulator {
 
         (draw, discard) = CombatPileManipulator.ApplyOnPlay(state, card.Id, draw, discard);
 
+        int drawOnEmpty = RelicCombatRules.DrawOnHandEmptyCount(state.RelicIds);
+        if (drawOnEmpty > 0 && hand.Count == 0) {
+            (hand, draw, discard, rngCounter) = CombatPileSimulator.DrawCards(
+                hand, draw, discard, drawOnEmpty,
+                state.ShuffleRngSeed, rngCounter);
+        }
+
         return state
             .WithPlayer(state.PlayerHp, block, energy)
             .WithHand(hand)

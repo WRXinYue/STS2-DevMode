@@ -624,13 +624,14 @@ flowchart LR
 | 塞牌 vs 攻击不同尺 | 挡牌应对 debuff/塞牌 | `EffectiveIncoming` 仅攻击；污染 EV 单独计入 `POLL=` |
 | 硬编码 / 不透明 | card id 列表、缺什么靠调权重掩盖 | `monster-move-effects.json`（官方 handler 提取）+ `MonsterMechanicProfile.effects[]` |
 
-**已知局限**（不假装完美）：非完整协程/动画时序；无 `rngShuffle` seed 时回洗用牌堆哈希确定性 RNG；Confused 抽牌费用为 EV 近似（非逐张 `CombatEnergyCosts` 回放）；未列入 registry 的 player power / 遗物 Hook 仍忽略；偷牌不模拟死亡还牌。
+**已知局限**（不假装完美）：非完整协程/动画时序；无 `rngShuffle` seed 时回洗用牌堆哈希确定性 RNG；Confused 抽牌费用为 EV 近似（非逐张 `CombatEnergyCosts` 回放）；遗物仅白名单规则（`relic-combat-effects.json` 中 `simulatable`）；复杂遗物（PenNib、VelvetChoker 等 `needsManual`）仍忽略；偷牌不模拟死亡还牌。
 
 | 类型 | 职责 |
 | --- | --- |
-| `CombatState` | 不可变战斗状态（HP/block/能量、手牌、draw/discard/exhaust、modifiers、敌人 intent/moveId） |
+| `CombatState` | 不可变战斗状态（HP/block/能量、手牌、draw/discard/exhaust、modifiers、`relicIds[]`、敌人 intent/moveId） |
 | `MoveEffectIndex` | 合并运行时 intent 与 `monster-move-effects.json` 静态 handler 效果 |
-| `CombatTurnResolver` | `EndTurn` 推进：弃牌→敌人行动（伤害/塞牌/召唤）→抽 5 |
+| `RelicCombatRules` | 快照 `relics[]` + `relic-combat-effects.json`：抽牌加成、手牌保留、空手无歇抽牌、开战 block、AppliesPower |
+| `CombatTurnResolver` | `EndTurn` 推进：弃牌（Runic Pyramid 保留手牌）→敌人行动→按遗物规则抽牌 |
 | `DeckPollutionEvaluator` | 堆内废牌数、`ProjectedPollutionCost`、`ExpectedPlayableDamage` |
 | `ThreatEconomy` | HP + 污染 + power debuff 同尺比较；`KillBeforeHitBonus` |
 | `LegalActionGenerator` | 枚举合法动作；幻象爪牙在主体存活时不可攻击 |
@@ -675,9 +676,11 @@ flowchart LR
 - `PileRhythmEvaluator`：10 张顶牌视野 + 回洗污染惩罚，接入 `EvaluateMidTurn` / `EvaluateTerminal`。
 - **Beam 参数（职业级）**：深度 10–16、宽度 24–48、预算 480–650 ms；迭代加深从 depth 5 起。
 
-**故意不模拟**（Phase C 后仍保留）：完整 Hook/遗物链、多玩家时序、Scry UI 等价控牌、Innate/PerfectFit 回合初排序、偷牌死亡还牌。已模拟：有序 move 效果（Attack/Strength/Steal）、玩家 Strength/Dexterity、敌人 Strength/队友 buff、`StatusInject`+Random RNG、Swipe 启发式偷牌、Confused 费用 EV。
+**故意不模拟**（Phase D 后仍保留）：通用 Hook 链（事件房/商店/奖励副作用）、多玩家时序、Scry UI 等价控牌、Innate/PerfectFit 回合初排序、偷牌死亡还牌、计数/状态型遗物（PenNib、Shuriken 等）。已模拟：有序 move 效果、力敏/debuff、Swipe 偷牌、Confused EV；遗物白名单（抽牌/保留/空手无歇/开战 block/开战 power）。
 
-**效果数据**：`tools/monster-move-effect-dump/extract-move-effects.py` 从官方 `Monsters/*.cs` 提取 `AddToCombatAndPreview` / `CreatureCmd.Add` / `PowerCmd.Apply`；嵌入 `src/AI/Data/monster-move-effects.json`。
+**效果数据**：
+- `tools/monster-move-effect-dump/extract-move-effects.py` → `monster-move-effects.json`（怪物 move handler）
+- `tools/relic-combat-effect-dump/extract-relic-combat-effects.py` → `relic-combat-effects.json`（扫描 `RelicModel` 覆写的战斗 Hook + 可解析的 `DynamicVar` / `PowerCmd.Apply` / `CardPileCmd.Draw`）；`simulatable: true` 的条目由 `RelicCombatRules` 接入 beam。
 
 **NeedsBlock 与多攻击者**：`CanEliminateIncomingThreats` 不再要求单一威胁；可 AOE/逐个斩杀全部 `intentDamage>0` 敌人，或模拟击杀最高 intent 后 `Incoming` 归零且 net ≤ `SafeLethalNetMax`。
 

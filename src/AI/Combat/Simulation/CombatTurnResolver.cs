@@ -16,8 +16,13 @@ public static class CombatTurnResolver {
         var enemies = state.Enemies.ToList();
         var rngCounter = state.ShuffleRngCounter;
 
-        var (retained, newDiscard) = CombatPileSimulator.DiscardHand(state.Hand, discard);
-        discard = newDiscard;
+        List<CombatHandCard> retained;
+        if (RelicCombatRules.RetainHandOnEndTurn(state.RelicIds)) {
+            retained = state.Hand.ToList();
+        } else {
+            (retained, discard) = CombatPileSimulator.DiscardHand(state.Hand, discard);
+        }
+
         block = 0;
 
         foreach (var enemy in enemies.OrderBy(e => e.ActOrder).ToList()) {
@@ -94,12 +99,14 @@ public static class CombatTurnResolver {
             ThreatModel.OnPrimaryEnemyKilled(enemies, i);
         }
 
+        int nextCombatRound = state.TurnNumber + 1;
+        int handDraw = RelicCombatRules.HandDrawCount(state.RelicIds, nextCombatRound);
         (List<CombatHandCard> hand, List<CombatPileCard> drawAfter, List<CombatPileCard> discardAfter, int drawCounter) =
             CombatPileSimulator.DrawHand(
                 retained,
                 draw,
                 discard,
-                CombatPileSimulator.BaseHandDrawCount,
+                handDraw,
                 state.ShuffleRngSeed,
                 rngCounter);
         rngCounter = drawCounter;

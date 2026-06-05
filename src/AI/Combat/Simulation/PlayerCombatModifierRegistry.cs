@@ -34,7 +34,7 @@ public static class PlayerCombatModifierRegistry {
             effect.BoundCardsPerTurn);
     }
 
-    static PlayerCombatModifier? FromPowerId(string id, int amount) {
+    public static PlayerCombatModifier? FromPowerId(string id, int amount) {
         if (IsNonDeterministic(id))
             return null;
 

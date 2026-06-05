@@ -21,6 +21,7 @@ public sealed record CombatState(
     IReadOnlyList<CombatPileCard> ExhaustPile,
     IReadOnlyList<PlayerCombatModifier> Modifiers,
     IReadOnlyList<CombatEnemy> Enemies,
+    IReadOnlyList<string> RelicIds,
     uint ShuffleRngSeed = 0,
     int ShuffleRngCounter = 0,
     uint EnergyCostRngSeed = 0,
@@ -43,13 +44,21 @@ public sealed record CombatState(
         var discard = ParsePile(combat?["discardPile"]?.AsArray());
         var exhaust = ParsePile(combat?["exhaustPile"]?.AsArray());
         var modifiers = ParseModifiers(combat?["playerPowers"]?.AsArray());
+        var relicIds = RelicCombatRules.ParseRelicIds(snapshot);
+        modifiers = RelicCombatRules.MergeModifiers(relicIds, modifiers);
         var enemies = ParseEnemies(combat?["enemies"]?.AsArray());
         var (shuffleSeed, shuffleCounter) = ParseShuffleRng(combat?["rngShuffle"]?.AsObject());
         var (energyCostSeed, energyCostCounter) = ParseShuffleRng(combat?["rngEnergyCosts"]?.AsObject());
 
+        if (turnNumber <= 1 && block == 0) {
+            var relicBlock = RelicCombatRules.StartOfCombatBlock(relicIds);
+            if (relicBlock > 0)
+                block = relicBlock;
+        }
+
         return new CombatState(
             hp, maxHp, block, energy, maxEnergy, statusDamage, turnNumber,
-            hand, draw, discard, exhaust, modifiers, enemies,
+            hand, draw, discard, exhaust, modifiers, enemies, relicIds,
             shuffleSeed, shuffleCounter, energyCostSeed, energyCostCounter);
     }
 

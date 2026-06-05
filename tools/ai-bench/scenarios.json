@@ -75,6 +75,27 @@
       "encounterId": "THIEVING_HOPPER",
       "note": "Steal removes high-value card from draw/discard; POLL= drops after steal turn.",
       "logPatterns": ["POLL=", "IN="]
+    },
+    {
+      "id": "unceasing_top_empty_hand",
+      "encounterId": "LEAF_SLIME_M",
+      "relicIds": ["UNCEASING_TOP"],
+      "note": "AfterHandEmptied draw; playing out hand should not dead-end beam when Top equipped.",
+      "logPatterns": ["PLAY=", "POST_PLAY="]
+    },
+    {
+      "id": "runic_pyramid_retain",
+      "encounterId": "LEAF_SLIME_M",
+      "relicIds": ["RUNIC_PYRAMID"],
+      "note": "ShouldFlush false keeps hand across EndTurn; pile rhythm differs from default flush.",
+      "logPatterns": ["OUTLOOK=", "POST_PLAY="]
+    },
+    {
+      "id": "snecko_eye_draw_confused",
+      "encounterId": "LEAF_SLIME_M",
+      "relicIds": ["SNECKO_EYE"],
+      "note": "+2 hand draw each turn + Confused power from relic data; draw-pile planning uses EV cost.",
+      "logPatterns": ["NEXT=", "POST_PLAY=", "POLL="]
     }
   ]
 }
