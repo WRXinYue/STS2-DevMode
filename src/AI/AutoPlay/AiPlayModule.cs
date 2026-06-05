@@ -9,6 +9,7 @@ using DevMode.AI.Sts2;
 using DevMode.Multiplayer.Cheat;
 using DevMode.Settings;
 using DevMode.UI;
+using Godot;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Helpers;
 
@@ -72,6 +73,8 @@ internal sealed class AiPlayModule {
             $"[AiHost] Started delay={SettingsStore.Current.AutoPlayDelayMs}ms poll={AiPlayConfig.PollIntervalMs}ms");
         AiDecisionLog.Record("AiHost", "AutoPlay loop started.");
         AiHudOverlayUI.SyncState();
+        // Run launch can precede NGlobalUi re-attach after scene transition.
+        Callable.From(() => AiHudOverlayUI.SyncState()).CallDeferred();
     }
 
     public void StopLoop() {

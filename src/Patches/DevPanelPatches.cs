@@ -10,8 +10,10 @@ using MegaCrit.Sts2.Core.Models.Acts;
 using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardLibrary;
+using DevMode.AI.AutoPlay;
 using DevMode.Multiplayer.Cheat;
 using DevMode.Settings;
+using DevMode.UI;
 using MegaCrit.Sts2.Core.Nodes.Screens.RelicCollection;
 
 namespace DevMode.Patches;
@@ -29,6 +31,18 @@ public static class GlobalUiReadyPatch {
             EnsureProcessNodeOnly(__instance);
             return;
         }
+
+        if (_attached != null && !GodotObject.IsInstanceValid(_attached))
+            _attached = null;
+
+        // NGlobalUi can survive scene changes; TreeExiting may detach HUD while _attached stays set.
+        if (_attached == __instance) {
+            AiHudOverlayUI.Attach(__instance);
+            if (AiPlayModule.Instance.IsRunning)
+                AiHudOverlayUI.SyncState(__instance);
+            return;
+        }
+
         TryAttachDeferred(__instance);
     }
 
@@ -53,6 +67,8 @@ public static class GlobalUiReadyPatch {
         if (_attached == globalUi) return;
         _attached = globalUi;
         DevPanel.Attach(globalUi);
+        if (AiPlayModule.Instance.IsRunning)
+            AiHudOverlayUI.SyncState(globalUi);
 
         if (DevModeState.StatModifiers == null)
             DevModeState.StatModifiers = new RuntimeStatModifiers();

@@ -43,10 +43,16 @@ public sealed class Sts2StateProvider : IGameStateProvider
             if (overlay != null)
             {
                 if (overlay is NRewardsScreen rewardsScreen) {
-                    JsonObject? rewardSnap = null;
+                    // Terminal loot screen stays on the overlay stack after Proceed opens the map.
+                    // Once the player enters a room (rest/shop/event/treasure), do not hijack phase.
                     Player? rewardPlayer = null;
                     if (TryGetRunAndPlayer(out var runState, out rewardPlayer)
-                        && rewardPlayer is { HasOpenPotionSlots: false }) {
+                        && TryGetInRoomPhase(runState.CurrentRoom?.RoomType) is { } inRoomPhase)
+                        return inRoomPhase;
+
+                    JsonObject? rewardSnap = null;
+                    if (rewardPlayer is { HasOpenPotionSlots: false }
+                        && TryGetRunAndPlayer(out runState, out rewardPlayer)) {
                         // Capture with an explicit phase — TakeSnapshot() reads CurrentPhase and would recurse here.
                         rewardSnap = GameSnapshot.Capture(runState, rewardPlayer, GamePhase.RewardScreen);
                     }
@@ -135,4 +141,13 @@ public sealed class Sts2StateProvider : IGameStateProvider
         player = state.Players.FirstOrDefault();
         return player != null;
     }
+
+    static GamePhase? TryGetInRoomPhase(RoomType? roomType) =>
+        roomType switch {
+            RoomType.RestSite => GamePhase.RestSite,
+            RoomType.Shop => GamePhase.Shop,
+            RoomType.Event => GamePhase.EventChoice,
+            RoomType.Treasure => GamePhase.TreasureRoom,
+            _ => null,
+        };
 }
