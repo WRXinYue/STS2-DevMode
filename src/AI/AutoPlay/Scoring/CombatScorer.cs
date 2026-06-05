@@ -113,20 +113,28 @@ public static class CombatScorer {
         var fatalIfUnblocked = IntentCalculator.IsFatalIfUnblocked(snapshot);
 
         var builder = new ScoreBuilder();
+        var shouldScoreBlock = BlockThreatEvaluator.ShouldScoreBlock(snapshot);
+        var suppressTransform = BlockThreatEvaluator.ShouldSuppressTransform(snapshot);
 
-        if (needsBlock && (isSkill || isBlockCard)) {
+        if ((needsBlock || shouldScoreBlock) && (isSkill || isBlockCard) && hasBlock) {
             var blockNeeded = Math.Max(0, netIncoming);
             if (blockNeeded > 0) {
                 var effectiveBlock = Math.Min(blockValue, blockNeeded);
-                builder.Add("block", 25 + effectiveBlock * 2);
+                var blockBase = needsBlock ? 25 : 15;
+                builder.Add("block", blockBase + effectiveBlock * 2);
                 if (incoming >= 15) builder.Add("big-hit", 12);
                 if (fatalIfUnblocked) builder.Add("fatal", 25);
                 if (blockValue > blockNeeded + 5)
                     builder.Add("overblock", -(blockValue - blockNeeded));
             }
         }
-        else if ((isSkill || isBlockCard) && !needsBlock && !MechanicCombatBonus.IsSetupSkill(profile)) {
+        else if ((isSkill || isBlockCard) && !shouldScoreBlock && !MechanicCombatBonus.IsSetupSkill(profile)) {
             builder.Add("skill-no-block-need", -CombatScoreWeights.NonSetupSkillPenalty);
+        }
+
+        if (hasBlock && incoming > 0
+            && BlockThreatEvaluator.IsStarterDefend(cardId, card["rarity"]?.GetValue<string>())) {
+            builder.Add("starter-block", 8);
         }
 
         if (lowHp && (isSkill || isBlockCard) && needsBlock)
@@ -160,9 +168,16 @@ public static class CombatScorer {
 
         builder.Add("cost", -Math.Max(0, cost - 1) * 2);
 
-        var mechBonus = MechanicCombatBonus.Score(snapshot, card, profile, hand, targetEnemy, energy);
-        if (needsBlock && blockUrgency >= 40 && (isAttack || MechanicCombatBonus.IsSetupSkill(profile)))
+        var mechBonus = MechanicCombatBonus.Score(
+            snapshot, card, profile, hand, targetEnemy, energy, suppressTransform);
+        if (suppressTransform && !(canLethal && !fatalIfUnblocked)) {
+            var before = mechBonus;
+            mechBonus = (int)Math.Round(mechBonus * BlockThreatEvaluator.SuppressTransformScale);
+            builder.Add("transform-unsafe", -Math.Min(before, 40));
+        }
+        else if (needsBlock && blockUrgency >= 40 && (isAttack || MechanicCombatBonus.IsSetupSkill(profile))) {
             mechBonus = mechBonus * 2 / 3;
+        }
         builder.Add("mechanic", mechBonus);
 
         var cardName = card["name"]?.GetValue<string>() ?? cardId;

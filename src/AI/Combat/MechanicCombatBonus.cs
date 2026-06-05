@@ -12,7 +12,8 @@ internal static class MechanicCombatBonus {
         CardMechanicProfile profile,
         JsonArray? hand,
         JsonObject? targetEnemy,
-        int energy) {
+        int energy,
+        bool suppressTransform = false) {
         var bonus = 0;
 
         if (profile.Flags.HasFlag(CardMechanicFlags.TransformsHandAttacks)) {
@@ -23,17 +24,19 @@ internal static class MechanicCombatBonus {
             var gain = CombatTransformSimulator.EstimateDamageGain(hand, card);
             bonus += gain;
 
-            var projected = CombatTransformSimulator.ProjectHandAfterTransform(hand, card);
-            var skillCost = card["cost"]?.GetValue<int>() ?? 0;
-            var remainingEnergy = Math.Max(0, energy - skillCost);
-            bonus += CombatCardStats.EstimateFollowupAttackDamage(projected, remainingEnergy) / 2;
+            if (!suppressTransform) {
+                var projected = CombatTransformSimulator.ProjectHandAfterTransform(hand, card);
+                var skillCost = card["cost"]?.GetValue<int>() ?? 0;
+                var remainingEnergy = Math.Max(0, energy - skillCost);
+                bonus += CombatCardStats.EstimateFollowupAttackDamage(projected, remainingEnergy) / 2;
 
-            if (profile.CanonicalCost <= 0)
-                bonus += CombatScoreWeights.FreeTransformBonus;
-            if (energy >= 1)
-                bonus += CombatScoreWeights.EarlyTransformBonus;
-            if (attacks >= 2 && energy >= 2)
-                bonus += CombatScoreWeights.TurnOpenTransformBonus;
+                if (profile.CanonicalCost <= 0)
+                    bonus += CombatScoreWeights.FreeTransformBonus;
+                if (energy >= 1)
+                    bonus += CombatScoreWeights.EarlyTransformBonus;
+                if (attacks >= 2 && energy >= 2)
+                    bonus += CombatScoreWeights.TurnOpenTransformBonus;
+            }
         }
         else if (profile.Flags.HasFlag(CardMechanicFlags.TransformsCards)) {
             bonus += CombatTransformSimulator.EstimateDamageGain(hand, card) / 2;

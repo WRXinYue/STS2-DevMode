@@ -8,6 +8,7 @@ using DevMode.AI.Core.Schema;
 using DevMode.AI.Sts2;
 using DevMode.Multiplayer.Cheat;
 using DevMode.Settings;
+using DevMode.UI;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Helpers;
 
@@ -37,7 +38,9 @@ internal sealed class AiPlayModule {
     public void OnRunEnded() {
         StopLoop();
         AiDecisionLog.Clear();
+        AiHudState.Clear();
         MapPathPlanner.ClearCache();
+        AiHudOverlayUI.SyncState();
     }
 
     public void StartLoop() {
@@ -68,6 +71,7 @@ internal sealed class AiPlayModule {
         MainFile.Logger.Info(
             $"[AiHost] Started delay={SettingsStore.Current.AutoPlayDelayMs}ms poll={AiPlayConfig.PollIntervalMs}ms");
         AiDecisionLog.Record("AiHost", "AutoPlay loop started.");
+        AiHudOverlayUI.SyncState();
     }
 
     public void StopLoop() {
@@ -78,6 +82,7 @@ internal sealed class AiPlayModule {
         _cts?.Dispose();
         _cts = null;
         _loop = null;
+        AiHudOverlayUI.SyncState();
     }
 
     public void OnDecisionPoint(GamePhase phase) {

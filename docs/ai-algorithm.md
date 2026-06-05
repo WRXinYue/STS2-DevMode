@@ -424,15 +424,26 @@ DecideCombat:
 
 `DiscardPotion` / `UsePotion` 均使用 **slot index**（`player.GetPotionAtSlotIndex`）。
 
+### BlockThreatEvaluator
+
+集中「本回合受伤风险」判定，供 `IntentCalculator`、`CombatScorer`、`CombatSearch` 共用：
+
+| 方法 | 语义 |
+| --- | --- |
+| `ShouldScoreBlock` | `NeedsBlock` 或 `netIncoming ≥` 阈值（floor≤15 用 6，否则 8） |
+| `ShouldSuppressTransform` | `ShouldScoreBlock` 且非安全斩杀（`CanLethal` 且非 fatal） |
+| `IsStarterDefend` | `DEFEND_*` 或 STARTER 稀有度挡牌 |
+
 ### IntentCalculator
 
 ```
 TotalIncomingDamage = Σ 存活敌人 intentDamage
 NetDamageAfterBlock = max(0, incoming − playerBlock)
 EstimateStatusDamage = Σ playerPowers（BURN/POISON/INFEST/DOOM 的 amount）
-NeedsBlock = false 当 net≤0，或 CanEliminateIncomingThreats（仅 **单个** 攻击敌人且本回合 maxDamage 可斩杀）
-CanLethal 不再无条件跳过防守：仅当 net ≤ max(6, effectiveHp/5) 或（HP>65% 且 net < effectiveHp/3）时不挡
-fatal（net ≥ effectiveHp）时始终 NeedsBlock；BlockUrgency 0–100 驱动攻击惩罚与 EndTurn 惩罚
+NeedsBlock：fatal 始终 true；floor≤15 且 net≥6 为 true（早期小伤害也挡）
+CanEliminateIncomingThreats：仅单攻击敌人、本回合可斩杀、且 net≤8 时才因斩杀跳过防守
+CanLethal 豁免：net ≤ max(6, effectiveHp/5) 或（HP>65% 且 net < effectiveHp/3）时不挡
+BlockUrgency 0–100 驱动攻击惩罚与 EndTurn 惩罚
 ```
 
 ### CombatScorer（单步）
@@ -444,8 +455,11 @@ fatal（net ≥ effectiveHp）时始终 NeedsBlock；BlockUrgency 0–100 驱动
 | 情况 | 加分 |
 | --- | --- |
 | NeedsBlock 且 Skill/挡牌 | 25 + min(block, net)×2；incoming≥15 再 +12；fatal 再 +25 |
+| ShouldScoreBlock（非 NeedsBlock）且挡牌 | 15 + min(block, net)×2（incoming 威胁保底） |
+| 一级防 + incoming>0 | +8（`starter-block`） |
 | NeedsBlock 时 Attack | −BlockUrgency/2 − max(0, net−damage)/2；可斩杀但会死 → lethal-risky +8 而非 +25 |
-| !NeedsBlock 时的挡牌 | −40 |
+| !ShouldScoreBlock 时的挡牌 | −40 |
+| 受威胁时 transform（原始力量等） | `suppressTransform`：跳过固定 +20/+40；mechanic×0.25；`transform-unsafe` −40 |
 | 低 HP 且 Skill 且 NeedsBlock | +15 |
 | 自损牌（HEMOKINESIS 等）且 HP<65% | −30 |
 | Attack | 20 + cost×5 + damage + 目标加成（残血敌 +30）；CanLethal +25 |
@@ -481,14 +495,33 @@ Mod 可通过 `IAiMoveModifier.ModifyScore` 调整任意 move 分数（日志中
 | 时间预算 | 80 ms |
 | 最大深度 | 2 张牌 |
 
-1. 先尝试 `LethalChecker` → 直接出第一张可用 Attack 指向斩杀目标。
+1. 先尝试 `CanLethalAfterTransform` / `CanLethal` 捷径，但 **`ShouldSuppressTransform` 为 true 时跳过**（有 incoming 且非安全斩杀时不抢先变形/攻击）。
 2. 对每个根节点 `PlayCard`：`SimulateAfterPlay`（扣能量、移除手牌、简化伤害/block）→ 再评一手 follow-up → `leafScore = rootScore + max(followUp)/2 + EvaluateLeaf`。
-3. `EvaluateLeaf`：偏向高 HP、低 netDamage/statusDamage、低敌人总 HP；存活敌数 ×5 惩罚。
+3. `EvaluateLeaf`：偏向高 HP、低 netDamage/statusDamage、低敌人总 HP；有 incoming 时 netDamage 惩罚 ×4（否则 ×3）；存活敌数 ×5 惩罚。
 4. 时间允许时对最优首牌再试第二张 refinement。
 
 `SimulateAfterPlay`：扣能量/移除手牌；伤害用 `ResolveDamage`；**原始力量等变形牌**将手牌攻击替换为巨石（16/20 伤）；**易伤目标伤害 ×1.5**；模拟施加 `AppliedVulnerable/Weak`；仍不模拟抽牌与复杂 powers。
 
-**Lethal**：若变形后手牌可斩杀，优先出原始力量（`CanLethalAfterTransform`），再按攻击牌斩杀。
+**Lethal**：仅当无 suppress 时，变形后手牌可斩杀则优先原始力量（`CanLethalAfterTransform`），再按攻击牌斩杀。
+
+---
+
+## AI HUD（游戏内托管叠加层）
+
+单机开启 **AI Host** 且 `AiHudEnabled=true` 时，[`AiHudOverlayUI`](../src/UI/AiHudOverlayUI.cs) 在 `NGlobalUi` **左上角**以纯文字堆叠显示：
+
+| 行 | 内容 |
+| --- | --- |
+| 标题 | `AI hosting` |
+| 阶段 | 当前 `GamePhase` 简写 |
+| Plan | 阶段策略摘要（`AiHudModel.BuildStrategyLine`） |
+| Next | 最近一次 `GameAction`（`AiHudState` ← `GameLoop` 发布） |
+| 可选参数 | 战斗：`HP/BLK/IN/E`；非战斗：`F/G/HP`（`AiHudShowParams`） |
+| 可选分项 | 战斗 `Reason` 中的 `[block:+N, mechanic:+N, …]`（`AiHudShowScoreTerms`） |
+
+**显示条件**：`AutoPlayEnabled && AiPlayModule.IsRunning && !多人联机`。
+
+与侧边栏 **AI Terminal** 分工：HUD 只展示当前一步与少量参数；完整决策历史仍在 `AiDecisionLog` / session log。设置项在 AI Host 面板 Controls 区。
 
 ---
 

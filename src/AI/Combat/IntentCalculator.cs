@@ -91,6 +91,11 @@ public static class IntentCalculator {
         var effectiveHp = EffectiveHp(snapshot);
         if (net >= effectiveHp) return true;
 
+        var floor = snapshot["totalFloor"]?.GetValue<int>() ?? 0;
+        if (floor <= BlockThreatEvaluator.EarlyFloorMax
+            && net >= BlockThreatEvaluator.EarlyBlockThreshold)
+            return true;
+
         if (CanEliminateIncomingThreats(snapshot))
             return false;
 
@@ -126,7 +131,14 @@ public static class IntentCalculator {
         if (threats.Count == 0) return true;
         if (threats.Count > 1) return false;
 
-        return EstimateMaxOffense(hand, energy) >= threats[0];
+        var net = NetDamageAfterBlock(snapshot);
+        if (net <= 0) return true;
+
+        if (!LethalChecker.CanLethal(snapshot, out _))
+            return false;
+
+        return net <= BlockThreatEvaluator.SafeLethalNetMax
+            && EstimateMaxOffense(hand, energy) >= threats[0];
     }
 
     static int EstimateMaxOffense(JsonArray hand, int energy) {

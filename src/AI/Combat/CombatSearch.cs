@@ -16,7 +16,8 @@ public static class CombatSearch {
     public static GameAction? PickBestMove(JsonObject snapshot) {
         var mustBlock = IntentCalculator.IsFatalIfUnblocked(snapshot);
 
-        if (!mustBlock && LethalChecker.CanLethalAfterTransform(snapshot, out var transformTarget, out var transformIndex)) {
+        if (!mustBlock && !BlockThreatEvaluator.ShouldSuppressTransform(snapshot)
+            && LethalChecker.CanLethalAfterTransform(snapshot, out var transformTarget, out var transformIndex)) {
             var transformFirst = new GameAction {
                 Type = ActionType.PlayCard,
                 TargetIndex = transformIndex,
@@ -27,7 +28,8 @@ public static class CombatSearch {
             return transformFirst;
         }
 
-        if (!mustBlock && LethalChecker.CanLethal(snapshot, out var lethalTarget)) {
+        if (!mustBlock && !BlockThreatEvaluator.ShouldSuppressTransform(snapshot)
+            && LethalChecker.CanLethal(snapshot, out var lethalTarget)) {
             var lethalMove = FindLethalMove(snapshot, lethalTarget);
             if (lethalMove != null) {
                 var lethal = lethalMove with { Reason = $"Lethal on enemy {lethalTarget}" };
@@ -117,7 +119,9 @@ public static class CombatSearch {
         var hp = snapshot["currentHp"]?.GetValue<int>() ?? 0;
         var netDamage = IntentCalculator.NetDamageAfterBlock(snapshot);
         var statusDamage = IntentCalculator.EstimateStatusDamage(snapshot);
-        var score = hp - netDamage * 3 - statusDamage * 2;
+        var incoming = IntentCalculator.TotalIncomingDamage(snapshot);
+        var netMultiplier = incoming > 0 ? 4 : 3;
+        var score = hp - netDamage * netMultiplier - statusDamage * 2;
 
         var combat = snapshot["combat"]?.AsObject();
         var enemies = combat?["enemies"]?.AsArray();

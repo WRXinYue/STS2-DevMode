@@ -100,6 +100,7 @@ internal static class DevPanel {
             RegisterBuiltInTabs(globalUi, actions);
 
             DevPanelUI.Attach(globalUi, actions);
+            AiHudOverlayUI.Attach(globalUi);
             ((Node)globalUi).TreeExiting += () => Detach(globalUi);
 
             MainFile.Logger.Info("DevPanel: Sidebar attached.");
@@ -113,6 +114,7 @@ internal static class DevPanel {
         try {
             DevPanelRegistry.DeactivateAll(globalUi);
             DevPanelUI.Detach(globalUi);
+            AiHudOverlayUI.Detach(globalUi);
             ClearState();
             SpeedControl.Reset();
             SkipAnimControl.Reset();

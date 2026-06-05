@@ -1,6 +1,7 @@
 using System;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using DevMode.AI;
 using DevMode.AI.Core.Schema;
 
 namespace DevMode.AI.Core;
@@ -89,6 +90,8 @@ public sealed class GameLoop
 
             _log($"GameLoop: Phase={phase} Action={action.Type} " +
                  $"Target={action.TargetIndex} Reason=[{action.Reason}]");
+
+            AiHudState.Publish(decidePhase, action);
 
             if (ShouldDelayBeforeAction(action))
                 await Task.Delay(ActionDelayMs);

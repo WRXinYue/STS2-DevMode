@@ -48,6 +48,15 @@ public sealed partial class DevModeSettings {
     /// <summary>Log combat score breakdown (top alternatives) to AutoPlay terminal.</summary>
     public bool AiCombatVerboseLog { get; set; } = true;
 
+    /// <summary>Show in-game AI hosting HUD overlay during solo AutoPlay.</summary>
+    public bool AiHudEnabled { get; set; } = true;
+
+    /// <summary>Show compact HP/block/incoming params on AI HUD bottom bar.</summary>
+    public bool AiHudShowParams { get; set; } = true;
+
+    /// <summary>Show combat score term breakdown on AI HUD (debug).</summary>
+    public bool AiHudShowScoreTerms { get; set; }
+
     /// <summary>Weight for Spire Codex community priors (0 = off, 1 = default).</summary>
     public float CodexPriorWeight { get; set; } = 1f;
 

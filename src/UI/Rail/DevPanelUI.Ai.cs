@@ -152,6 +152,34 @@ internal static partial class DevPanelUI {
                         AiPlayModule.Instance.StartLoop();
                     else
                         AiPlayModule.Instance.StopLoop();
+                    AiHudOverlayUI.SyncState();
+                }));
+            inner.AddChild(CreateCheatToggle(
+                I18N.T("ai.hud.enabled", "In-game AI HUD"),
+                I18N.T("ai.hud.enabled.desc", "Show hosting badge and strategy bar on the game screen."),
+                () => SettingsStore.Current.AiHudEnabled,
+                v => {
+                    SettingsStore.Current.AiHudEnabled = v;
+                    SettingsStore.Save();
+                    AiHudOverlayUI.SyncState();
+                }));
+            inner.AddChild(CreateCheatToggle(
+                I18N.T("ai.hud.showParams", "HUD show params"),
+                I18N.T("ai.hud.showParams.desc", "Show HP/block/incoming or floor/gold on the HUD bar."),
+                () => SettingsStore.Current.AiHudShowParams,
+                v => {
+                    SettingsStore.Current.AiHudShowParams = v;
+                    SettingsStore.Save();
+                    AiHudOverlayUI.SyncState();
+                }));
+            inner.AddChild(CreateCheatToggle(
+                I18N.T("ai.hud.showScoreTerms", "HUD combat score terms"),
+                I18N.T("ai.hud.showScoreTerms.desc", "Append combat score breakdown terms to the HUD (debug)."),
+                () => SettingsStore.Current.AiHudShowScoreTerms,
+                v => {
+                    SettingsStore.Current.AiHudShowScoreTerms = v;
+                    SettingsStore.Save();
+                    AiHudOverlayUI.SyncState();
                 }));
         }
         inner.AddChild(CreateCheatSlider(
