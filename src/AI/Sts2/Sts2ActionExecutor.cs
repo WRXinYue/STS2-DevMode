@@ -127,7 +127,12 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
             return ActionResult.Ok($"Queued play [{card.Title}] netId={player.NetId}");
         }
 
-        await CardCmd.AutoPlay(new BlockingPlayerChoiceContext(), card, target);
+        if (!card.TryManualPlay(target))
+            return ActionResult.Fail($"Card [{card.Title}] cannot be played.");
+
+        if (!await Sts2CombatPlayHelper.WaitForManualPlayAsync(card, TimeSpan.FromSeconds(8)))
+            return ActionResult.Fail($"Card [{card.Title}] play did not complete.");
+
         return ActionResult.Ok($"Played [{card.Title}]");
     }
 

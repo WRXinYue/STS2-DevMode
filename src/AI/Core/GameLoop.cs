@@ -17,12 +17,8 @@ public sealed class GameLoop
     private readonly Action<string> _log;
     private bool _running;
     private bool _endTurnPending;
-    private bool _awaitingCombatUpdate;
-    private string? _preActionCombatFingerprint;
     private string? _lastFingerprint;
     private DateTime _lastActionUtc = DateTime.MinValue;
-
-    const int CombatUpdateTimeoutMs = 5000;
 
     public int ActionDelayMs { get; set; } = 800;
 
@@ -40,8 +36,6 @@ public sealed class GameLoop
 
     public void ResetDedupeState() {
         _endTurnPending = false;
-        _awaitingCombatUpdate = false;
-        _preActionCombatFingerprint = null;
         _lastFingerprint = null;
         _lastActionUtc = DateTime.MinValue;
     }
@@ -73,11 +67,8 @@ public sealed class GameLoop
             }
 
             var inCombat = IsCombatContext(phase, snapshot);
-            if (!inCombat) {
+            if (!inCombat)
                 _endTurnPending = false;
-                _awaitingCombatUpdate = false;
-                _preActionCombatFingerprint = null;
-            }
 
             if (ShouldSkipCombatPoll(phase, snapshot))
                 return;
@@ -103,24 +94,14 @@ public sealed class GameLoop
                 _log($"GameLoop: Action failed — {result.Message}");
                 if (decidePhase == GamePhase.Combat && action.Type == ActionType.EndTurn)
                     _endTurnPending = true;
-                if (decidePhase == GamePhase.Combat
-                    && action.Type is ActionType.PlayCard or ActionType.UsePotion)
-                    _awaitingCombatUpdate = false;
                 return;
             }
 
             _lastFingerprint = fingerprint;
             _lastActionUtc = DateTime.UtcNow;
 
-            if (decidePhase == GamePhase.Combat && action.Type == ActionType.EndTurn) {
+            if (decidePhase == GamePhase.Combat && action.Type == ActionType.EndTurn)
                 _endTurnPending = true;
-                _awaitingCombatUpdate = false;
-            }
-            else if (decidePhase == GamePhase.Combat
-                     && action.Type is ActionType.PlayCard or ActionType.UsePotion) {
-                _preActionCombatFingerprint = CombatFingerprint.FromSnapshot(snapshot);
-                _awaitingCombatUpdate = true;
-            }
         }
         catch (Exception ex)
         {
@@ -138,24 +119,10 @@ public sealed class GameLoop
         var combat = snapshot["combat"]?.AsObject();
         if (combat?["isPlayPhaseActive"]?.GetValue<bool>() == false) {
             _endTurnPending = false;
-            _awaitingCombatUpdate = false;
             return true;
         }
 
-        if (_endTurnPending)
-            return true;
-
-        if (!_awaitingCombatUpdate || _preActionCombatFingerprint == null)
-            return false;
-
-        var elapsed = (DateTime.UtcNow - _lastActionUtc).TotalMilliseconds;
-        var fp = CombatFingerprint.FromSnapshot(snapshot);
-        if (fp != _preActionCombatFingerprint) {
-            _awaitingCombatUpdate = false;
-            return false;
-        }
-
-        return elapsed < CombatUpdateTimeoutMs;
+        return _endTurnPending;
     }
 
     static bool IsCombatContext(GamePhase phase, JsonObject snapshot) =>

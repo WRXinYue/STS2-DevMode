@@ -438,10 +438,10 @@ Mod 可通过 `IAiMoveModifier.ModifyScore` 调整任意 move 分数。
 `AiPlayModule` 每 500ms 轮询当前 phase；`GameLoop` 在决策前：
 
 - **Combat** 且 `isPlayPhaseActive=false` → 跳过（等敌方回合/动画）；`Sts2StateProvider` 在 `CombatManager.IsInProgress` 时仍返回 `Combat`（避免敌方回合误判为 `Unknown` → `AdvanceOverlay` 刷屏）
-- **快照含 combat 段** 时，`ShouldSkipCombatPoll` 与出牌后 fingerprint 等待同样生效（兜底）
 - **EndTurn 已提交**（`_endTurnPending`）→ 跳过，直到 phase 变化或 play phase 结束
-- **PlayCard / UsePotion 后**（`_awaitingCombatUpdate`）→ 跳过，直到战斗 fingerprint（能量 + 手牌 id/cost/canPlay）变化或 5s 超时；避免 500ms poll 在动画/扣费完成前连打多张牌
 - **相同 fingerprint**（phase+action+target）2s 内 → 跳过（避免 EndTurn 刷屏、Rest 双动作）
+
+出牌同步由 `Sts2ActionExecutor` 内 `TryManualPlay` + `WaitForManualPlayAsync` 阻塞完成，不在 loop 层做 fingerprint / 能量账本等待。
 
 快照手牌 `cost` 使用 `EnergyCost.GetWithModifiers(All)`（实战费用），不再只用 `Canonical`。
 
@@ -453,6 +453,7 @@ Run 结束时 `ResetDedupeState()` 清空状态。
 
 | 动作 | 行为 |
 | --- | --- |
+| `PlayCard` | 单机：`TryManualPlay` → action queue → `SpendResources`（扣能量 + UI）；`WaitForManualPlayAsync` 等到牌离开手牌。勿用 `CardCmd.AutoPlay`（遗物/效果自动打出路径，不扣玩家能量）。Pseudo Co-op：`PlayCardAction` 入队 |
 | `PickCardReward` | 奖励屏点卡；`NDeckCardSelectScreen` 点选后点 Proceed |
 | `SkipCardReward` | Skip / Back |
 | `SelectRestSiteOption` | 按**绝对**按钮 index 点击；disabled 则失败 |
@@ -529,4 +530,5 @@ Run 结束时 `ResetDedupeState()` 清空状态。
 | `src/AI/Combat/LethalChecker.cs` | 斩杀 |
 | `src/AI/Combat/IntentCalculator.cs` | 意图伤害 |
 | `src/AI/Sts2/Snapshots/` | 快照捕获 |
+| `src/AI/Sts2/Helpers/Sts2CombatPlayHelper.cs` | 等待手动出牌 action queue 完成 |
 | `src/AI/Sts2/Sts2ActionExecutor.cs` | UI 执行 |
