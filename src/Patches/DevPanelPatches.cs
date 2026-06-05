@@ -38,8 +38,7 @@ public static class GlobalUiReadyPatch {
         // NGlobalUi can survive scene changes; TreeExiting may detach HUD while _attached stays set.
         if (_attached == __instance) {
             AiHudOverlayUI.Attach(__instance);
-            if (AiPlayModule.Instance.IsRunning)
-                AiHudOverlayUI.SyncState(__instance);
+            AiHudOverlayUI.SyncState(__instance);
             return;
         }
 
@@ -67,8 +66,7 @@ public static class GlobalUiReadyPatch {
         if (_attached == globalUi) return;
         _attached = globalUi;
         DevPanel.Attach(globalUi);
-        if (AiPlayModule.Instance.IsRunning)
-            AiHudOverlayUI.SyncState(globalUi);
+        AiHudOverlayUI.SyncState(globalUi);
 
         if (DevModeState.StatModifiers == null)
             DevModeState.StatModifiers = new RuntimeStatModifiers();

@@ -33,7 +33,10 @@ internal static partial class AiHudOverlayUI {
     }
 
     internal static void SyncState(NGlobalUi? globalUi = null) {
-        _globalUi = globalUi ?? ResolveGlobalUi();
+        if (globalUi != null)
+            _globalUi = globalUi;
+        else
+            TryResolveGlobalUi();
         EnsureAttached();
         _overlay?.SyncVisibility();
     }
@@ -41,7 +44,6 @@ internal static partial class AiHudOverlayUI {
     internal static void Attach(NGlobalUi globalUi) {
         _globalUi = globalUi;
         EnsureAttached();
-        SyncState(globalUi);
     }
 
     internal static void Detach(NGlobalUi globalUi) {
@@ -51,19 +53,21 @@ internal static partial class AiHudOverlayUI {
             _globalUi = null;
     }
 
-    static NGlobalUi? ResolveGlobalUi() {
+    static bool TryResolveGlobalUi() {
         if (_globalUi != null && GodotObject.IsInstanceValid(_globalUi))
-            return _globalUi;
+            return true;
 
         if (Engine.GetMainLoop() is not SceneTree tree || tree.Root == null)
-            return null;
+            return false;
 
         foreach (var node in tree.Root.FindChildren("*", recursive: true, owned: false)) {
-            if (node is NGlobalUi ui && GodotObject.IsInstanceValid(ui))
-                return ui;
+            if (node is not NGlobalUi ui || !GodotObject.IsInstanceValid(ui))
+                continue;
+            _globalUi = ui;
+            return true;
         }
 
-        return null;
+        return false;
     }
 
     static void EnsureAttached() {
@@ -74,6 +78,7 @@ internal static partial class AiHudOverlayUI {
         var existing = parent.GetNodeOrNull<Control>(RootName);
         if (existing is AiHudOverlayHost host && GodotObject.IsInstanceValid(host)) {
             _overlay = host;
+            host.SyncVisibility();
             return;
         }
 

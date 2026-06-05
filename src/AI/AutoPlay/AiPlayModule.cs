@@ -73,7 +73,6 @@ internal sealed class AiPlayModule {
             $"[AiHost] Started delay={SettingsStore.Current.AutoPlayDelayMs}ms poll={AiPlayConfig.PollIntervalMs}ms");
         AiDecisionLog.Record("AiHost", "AutoPlay loop started.");
         AiHudOverlayUI.SyncState();
-        // Run launch can precede NGlobalUi re-attach after scene transition.
         Callable.From(() => AiHudOverlayUI.SyncState()).CallDeferred();
     }
 
