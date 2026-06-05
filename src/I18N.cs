@@ -41,6 +41,9 @@ internal static class I18N {
         catch { return fmt; }
     }
 
+    /// <summary>Fired after translations reload on game locale change.</summary>
+    internal static event Action? LanguageChanged;
+
     /// <summary>Loaded language folder id: <c>eng</c> or <c>zhs</c>.</summary>
     internal static string LangCode {
         get {
@@ -130,5 +133,6 @@ internal static class I18N {
     private static void OnLocaleChanged() {
         _loadedLang = null;
         Reload();
+        LanguageChanged?.Invoke();
     }
 }

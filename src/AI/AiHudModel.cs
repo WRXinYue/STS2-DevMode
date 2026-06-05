@@ -64,7 +64,7 @@ public static class AiHudModel {
         var gold = snapshot["gold"]?.GetValue<int>() ?? 0;
         var hp = snapshot["currentHp"]?.GetValue<int>() ?? 0;
         var maxHp = snapshot["maxHp"]?.GetValue<int>() ?? 0;
-        return $"F{floor} G={gold} HP={hp}/{maxHp}";
+        return I18N.T("ai.hud.params.run", "F{0} G={1} HP={2}/{3}", floor, gold, hp, maxHp);
     }
 
     public static string? BuildScoreTerms(AiHudDecision? decision) {
@@ -153,7 +153,10 @@ public static class AiHudModel {
         var block = combat?["playerBlock"]?.GetValue<int>() ?? 0;
         var incoming = IntentCalculator.TotalIncomingDamage(snapshot);
         var energy = combat?["currentEnergy"]?.GetValue<int>() ?? 0;
-        return $"HP={hp}/{maxHp} BLK={block} IN={incoming} E={energy}";
+        return I18N.T(
+            "ai.hud.params.combat",
+            "HP={0}/{1} BLK={2} IN={3} E={4}",
+            hp, maxHp, block, incoming, energy);
     }
 
     static string ActionVerb(ActionType type) => type switch {

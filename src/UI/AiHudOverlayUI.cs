@@ -89,8 +89,11 @@ internal static partial class AiHudOverlayUI {
 
     sealed partial class AiHudOverlayHost : Control {
         const int LayoutZIndex = 1310;
-        const float Margin = 12f;
+        const float MarginLeft = 12f;
+        const float MarginTop = 52f;
         const float MaxWidth = 520f;
+        const int TitleFontSize = 20;
+        static readonly Color TitleColor = new(1f, 0.84f, 0.35f);
 
         readonly VBoxContainer _stack;
         readonly Label _titleLabel;
@@ -107,7 +110,7 @@ internal static partial class AiHudOverlayUI {
             MouseFilter = MouseFilterEnum.Ignore;
             ZIndex = LayoutZIndex;
             SetAnchorsAndOffsetsPreset(LayoutPreset.TopLeft);
-            Position = new Vector2(Margin, Margin);
+            Position = new Vector2(MarginLeft, MarginTop);
 
             _stack = new VBoxContainer {
                 MouseFilter = MouseFilterEnum.Ignore,
@@ -115,7 +118,7 @@ internal static partial class AiHudOverlayUI {
             };
             _stack.AddThemeConstantOverride("separation", 2);
 
-            _titleLabel = MakeLabel(14, DevModeTheme.Accent);
+            _titleLabel = MakeLabel(TitleFontSize, TitleColor);
             _phaseLabel = MakeLabel(12, DevModeTheme.TextSecondary);
             _strategyLabel = MakeLabel(12, DevModeTheme.TextPrimary);
             _nextLabel = MakeLabel(12, DevModeTheme.TextPrimary);
@@ -137,11 +140,18 @@ internal static partial class AiHudOverlayUI {
             TreeExiting += () => _refreshTimer.QueueFree();
             ThemeManager.OnThemeChanged += OnThemeChanged;
             TreeExiting += () => ThemeManager.OnThemeChanged -= OnThemeChanged;
+            I18N.LanguageChanged += OnLanguageChanged;
+            TreeExiting += () => I18N.LanguageChanged -= OnLanguageChanged;
 
             RefreshContent();
         }
 
         void OnThemeChanged() => ApplyTheme();
+
+        void OnLanguageChanged() {
+            _lastDecisionKey = null;
+            RefreshContent();
+        }
 
         public void SyncVisibility() {
             Visible = ShouldShow();
@@ -204,7 +214,8 @@ internal static partial class AiHudOverlayUI {
         }
 
         void ApplyTheme() {
-            _titleLabel.AddThemeColorOverride("font_color", DevModeTheme.Accent);
+            _titleLabel.AddThemeColorOverride("font_color", TitleColor);
+            _titleLabel.AddThemeFontSizeOverride("font_size", TitleFontSize);
             _phaseLabel.AddThemeColorOverride("font_color", DevModeTheme.TextSecondary);
             _strategyLabel.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
             _nextLabel.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
