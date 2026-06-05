@@ -193,7 +193,7 @@ internal static class CombatActionHeuristic {
             int bestScore = int.MinValue;
             bool bestHitsPrimary = false;
 
-            foreach (var enemy in CombatSetupEvaluator.OrderEnemiesByThreat(s)) {
+            foreach (var enemy in CombatSetupEvaluator.GreedyAttackTargets(s, primary)) {
                 int dmg = CombatDamageCalc.OutgoingDamage(card, s, enemy.Vulnerable);
                 if (dmg <= 0) continue;
 

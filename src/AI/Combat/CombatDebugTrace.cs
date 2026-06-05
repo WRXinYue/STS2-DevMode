@@ -83,6 +83,7 @@ internal static class CombatDebugTrace {
                 future0 = outcome.FutureIncoming0,
                 future1 = outcome.FutureIncoming1,
                 future2 = outcome.FutureIncoming2,
+                focusHp = outcome.FocusHp,
                 enemyHp = outcome.EnemyHp,
                 playerHp = outcome.PlayerHpAfterTurn,
             });

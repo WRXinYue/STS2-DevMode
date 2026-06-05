@@ -62,12 +62,13 @@ internal static class CombatSetupEvaluator {
         return Math.Max(0, ComputeVulnerableSetupSimDelta(state, handIndex, enemyIndex));
     }
 
-    /// <summary>Lexicographic: this-turn incoming, then 3 future pressure steps (damage + non-damage), enemy HP, player HP.</summary>
+    /// <summary>Lexicographic: this-turn incoming, future pressure, focus-target HP, total enemy HP, player HP.</summary>
     public readonly record struct CombatLineOutcome(
         int Incoming,
         int FutureIncoming0,
         int FutureIncoming1,
         int FutureIncoming2,
+        int FocusHp,
         int EnemyHp,
         int PlayerHpAfterTurn);
 
@@ -81,6 +82,7 @@ internal static class CombatSetupEvaluator {
             int incomingCmp = CompareIncomingTrade(
                 baseline.Incoming, candidate.Incoming,
                 baseline.EnemyHp, candidate.EnemyHp,
+                baseline.FocusHp, candidate.FocusHp,
                 baseline.FutureIncoming0, candidate.FutureIncoming0,
                 baseline.FutureIncoming1, candidate.FutureIncoming1,
                 baseline.FutureIncoming2, candidate.FutureIncoming2);
@@ -94,6 +96,9 @@ internal static class CombatSetupEvaluator {
         if (futureCmp != 0)
             return futureCmp;
 
+        if (candidate.FocusHp != baseline.FocusHp)
+            return baseline.FocusHp - candidate.FocusHp;
+
         if (candidate.EnemyHp != baseline.EnemyHp)
             return baseline.EnemyHp - candidate.EnemyHp;
         return candidate.PlayerHpAfterTurn - baseline.PlayerHpAfterTurn;
@@ -105,6 +110,8 @@ internal static class CombatSetupEvaluator {
         int candidateIncoming,
         int baselineEnemyHp,
         int candidateEnemyHp,
+        int baselineFocusHp,
+        int candidateFocusHp,
         int baselineF0,
         int candidateF0,
         int baselineF1,
@@ -119,8 +126,9 @@ internal static class CombatSetupEvaluator {
         int extra = candidateIncoming - baselineIncoming;
         int futureRelief = (baselineF0 - candidateF0) + (baselineF1 - candidateF1) + (baselineF2 - candidateF2);
         int hpGain = baselineEnemyHp - candidateEnemyHp;
-        int slack = Math.Clamp(futureRelief / 2 + hpGain / 3, 0, 16);
-        if (extra <= slack && (hpGain > 0 || futureRelief > 0))
+        int focusGain = baselineFocusHp - candidateFocusHp;
+        int slack = Math.Clamp(futureRelief / 2 + hpGain / 3 + focusGain / 2, 0, 24);
+        if (extra <= slack && (hpGain > 0 || futureRelief > 0 || focusGain > 0))
             return 1;
         return baselineIncoming - candidateIncoming;
     }
@@ -131,24 +139,28 @@ internal static class CombatSetupEvaluator {
             + (1000L - Math.Clamp(outcome.FutureIncoming0, 0, 999)) * 10_000
             + (1000L - Math.Clamp(outcome.FutureIncoming1, 0, 999)) * 1_000
             + (1000L - Math.Clamp(outcome.FutureIncoming2, 0, 999))
+            + (1000L - Math.Clamp(outcome.FocusHp, 0, 999)) * 10
             + (1000L - Math.Clamp(outcome.EnemyHp, 0, 9999)) / 10
             + Math.Clamp(outcome.PlayerHpAfterTurn, 0, 99);
         return score > int.MaxValue ? int.MaxValue - 1 : (int)score;
     }
 
     public static CombatLineOutcome WipeOutcome(CombatState state) =>
-        new(0, 0, 0, 0, 0, state.PlayerHp);
+        new(0, 0, 0, 0, 0, 0, state.PlayerHp);
 
     static int CompareLineOutcome(CombatLineOutcome without, CombatLineOutcome with) =>
         CompareLines(without, with);
 
     static CombatLineOutcome EvaluateLineOutcome(CombatState midTurn) {
         var afterTurn = CombatTurnResolver.ResolveEndTurn(midTurn);
+        int focusIdx = PrimaryAttackTargetIndex(midTurn);
+        var focusMid = midTurn.Enemies.FirstOrDefault(e => e.IsAlive && e.Index == focusIdx);
         return new CombatLineOutcome(
             ThreatModel.IncomingDamage(midTurn),
             ThreatModel.PressureAtIntentStep(afterTurn, 0),
             ThreatModel.PressureAtIntentStep(afterTurn, 1),
             ThreatModel.PressureAtIntentStep(afterTurn, 2),
+            focusMid?.CurrentHp ?? 0,
             afterTurn.Enemies.Where(e => e.IsAlive).Sum(e => e.CurrentHp),
             afterTurn.PlayerHp);
     }
@@ -334,6 +346,27 @@ internal static class CombatSetupEvaluator {
     public static int PrimaryAttackTargetIndex(CombatState state) =>
         OrderEnemiesByThreat(state).Select(e => e.Index).FirstOrDefault();
 
+    public static IEnumerable<CombatEnemy> GreedyAttackTargets(CombatState state, int lockedFocus) {
+        var focus = state.Enemies.FirstOrDefault(e => e.IsAlive && e.Index == lockedFocus);
+        if (focus != null && CanAffordDamageOn(state, focus.Index))
+            return new[] { focus };
+        return OrderEnemiesByThreat(state);
+    }
+
+    static bool CanAffordDamageOn(CombatState state, int enemyIndex) {
+        foreach (var card in state.Hand) {
+            if (!CombatCardCost.CanAfford(card, state) || !card.IsAttack || card.Damage <= 0 || card.IsAoe)
+                continue;
+            var enemy = state.Enemies.FirstOrDefault(e => e.IsAlive && e.Index == enemyIndex);
+            if (enemy == null)
+                continue;
+            if (CombatDamageCalc.OutgoingDamage(card, state, enemy.Vulnerable) > 0)
+                return true;
+        }
+
+        return false;
+    }
+
     public static int ComputeWastedVulnerablePenalty(CombatState state) {
         if (state.AliveEnemyCount < 2)
             return 0;
@@ -451,7 +484,7 @@ internal static class CombatSetupEvaluator {
                     continue;
                 }
 
-                foreach (var enemy in OrderEnemiesByThreat(s)) {
+                foreach (var enemy in GreedyAttackTargets(s, primary)) {
                     int dmg = CombatDamageCalc.OutgoingDamage(card, s, enemy.Vulnerable);
                     if (dmg <= 0) continue;
 
