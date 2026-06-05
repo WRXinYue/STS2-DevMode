@@ -118,6 +118,8 @@ internal static partial class AiHudOverlayUI {
         readonly VBoxContainer _stack;
         readonly Label _titleLabel;
         readonly Label _phaseLabel;
+        readonly Label _deckLabel;
+        readonly Label _forecastLabel;
         readonly Label _strategyLabel;
         readonly Label _nextLabel;
         readonly Label _paramsLabel;
@@ -140,6 +142,8 @@ internal static partial class AiHudOverlayUI {
 
             _titleLabel = MakeLabel(TitleFontSize, TitleColor);
             _phaseLabel = MakeLabel(12, DevModeTheme.TextSecondary);
+            _deckLabel = MakeLabel(11, DevModeTheme.TextSecondary);
+            _forecastLabel = MakeLabel(11, DevModeTheme.TextSecondary);
             _strategyLabel = MakeLabel(12, DevModeTheme.TextPrimary);
             _nextLabel = MakeLabel(12, DevModeTheme.TextPrimary);
             _paramsLabel = MakeLabel(11, DevModeTheme.TextSecondary);
@@ -147,6 +151,8 @@ internal static partial class AiHudOverlayUI {
 
             _stack.AddChild(_titleLabel);
             _stack.AddChild(_phaseLabel);
+            _stack.AddChild(_deckLabel);
+            _stack.AddChild(_forecastLabel);
             _stack.AddChild(_strategyLabel);
             _stack.AddChild(_nextLabel);
             _stack.AddChild(_paramsLabel);
@@ -198,6 +204,9 @@ internal static partial class AiHudOverlayUI {
                 snapshot = new JsonObject();
             }
 
+            _deckLabel.Text = AiHudModel.BuildDeckProfileLine(snapshot);
+            _forecastLabel.Text = AiHudModel.BuildForecastLine(snapshot, phase);
+
             var decision = AiHudState.Last;
             var decisionKey = decision == null
                 ? ""
@@ -221,8 +230,9 @@ internal static partial class AiHudOverlayUI {
                 _paramsLabel.Visible = false;
             }
 
-            if (SettingsStore.Current.AiHudShowScoreTerms && phase == GamePhase.Combat) {
-                var terms = AiHudModel.BuildScoreTerms(decision);
+            if (SettingsStore.Current.AiHudShowScoreTerms
+                && phase is GamePhase.Combat or GamePhase.CardReward) {
+                var terms = AiHudModel.BuildScoreTerms(decision, phase);
                 _scoreLabel.Text = string.IsNullOrWhiteSpace(terms) ? "" : $"[{terms}]";
                 _scoreLabel.Visible = !string.IsNullOrWhiteSpace(_scoreLabel.Text);
             }
@@ -237,6 +247,8 @@ internal static partial class AiHudOverlayUI {
             _titleLabel.AddThemeColorOverride("font_color", TitleColor);
             _titleLabel.AddThemeFontSizeOverride("font_size", TitleFontSize);
             _phaseLabel.AddThemeColorOverride("font_color", DevModeTheme.TextSecondary);
+            _deckLabel.AddThemeColorOverride("font_color", DevModeTheme.TextSecondary);
+            _forecastLabel.AddThemeColorOverride("font_color", DevModeTheme.TextSecondary);
             _strategyLabel.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
             _nextLabel.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
             _paramsLabel.AddThemeColorOverride("font_color", DevModeTheme.TextSecondary);

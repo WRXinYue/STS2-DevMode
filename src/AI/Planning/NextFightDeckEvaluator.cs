@@ -20,6 +20,13 @@ public static class NextFightDeckEvaluator {
         return withOffer - baseline;
     }
 
+    public static int GetBaselineRouteScore(JsonObject snapshot, DeckPlan plan) {
+        var route = NextFightRoute.ResolveFromSnapshot(snapshot);
+        if (route.Count == 0)
+            return 0;
+        return GetBaselineScore(snapshot, plan, route);
+    }
+
     static int GetBaselineScore(JsonObject snapshot, DeckPlan plan, IReadOnlyList<NextFightNode> route) {
         int key = ComputeCacheKey(snapshot);
         lock (Gate) {
