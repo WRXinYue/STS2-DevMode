@@ -90,7 +90,7 @@ internal static partial class AiHudOverlayUI {
     sealed partial class AiHudOverlayHost : Control {
         const int LayoutZIndex = 1310;
         const float MarginLeft = 40f;
-        const float MarginTop = 100f;
+        const float MarginTop = 180f;
         const float MaxWidth = 520f;
         const int TitleFontSize = 20;
         static readonly Color TitleColor = new(1f, 0.84f, 0.35f);
