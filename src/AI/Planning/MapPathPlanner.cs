@@ -16,7 +16,10 @@ public sealed record MapPlan(
     int NextChildIndex,
     int PathScore,
     string Summary,
-    MapCoord NextCoord
+    MapCoord NextCoord,
+    int PathRiskAtNext,
+    float CombatsToRestAtNext,
+    int ElitesToRestAtNext
 );
 
 public static class MapPathPlanner {
@@ -36,6 +39,7 @@ public static class MapPathPlanner {
 
         var snapshot = GameSnapshot.Capture(state, player, Core.Schema.GamePhase.MapSelection);
         var ctx = MapRouteContext.FromSnapshot(snapshot);
+        var survivalIndex = MapSurvivalIndex.Build(map);
 
         var points = map.GetAllMapPoints().OrderByDescending(p => p.coord.row).ToList();
         var bestToBoss = new Dictionary<MapCoord, int>();
@@ -48,7 +52,7 @@ public static class MapPathPlanner {
                 continue;
             }
 
-            int nodeScore = MapNodeWeightScorer.ScoreNode(point.PointType, ctx);
+            int baseNodeScore = MapNodeWeightScorer.ScoreNode(point.PointType, ctx);
             int best = int.MinValue;
             MapCoord? chosen = null;
 
@@ -56,14 +60,21 @@ public static class MapPathPlanner {
                 if (!bestToBoss.TryGetValue(child.coord, out int childScore))
                     childScore = 0;
 
-                int total = MapNodeWeightScorer.EdgeBonus(point.PointType, child.PointType, ctx) + childScore;
+                int pathRisk = PathSurvivalRisk.Compute(
+                    child.coord, survivalIndex, ctx.Metrics, ctx.HpRatio, ctx.Ascension);
+                var segment = survivalIndex.GetOrDefault(child.coord);
+                int total = baseNodeScore
+                    + MapNodeWeightScorer.PathRiskNodeAdjust(
+                        child.PointType, pathRisk, ctx, segment.ElitesToRest)
+                    + MapNodeWeightScorer.EdgeBonus(point.PointType, child.PointType, ctx, pathRisk)
+                    + childScore;
                 if (total > best) {
                     best = total;
                     chosen = child.coord;
                 }
             }
 
-            bestToBoss[point.coord] = nodeScore + best;
+            bestToBoss[point.coord] = best == int.MinValue ? baseNodeScore : best;
             bestChild[point.coord] = chosen;
         }
 
@@ -103,8 +114,23 @@ public static class MapPathPlanner {
 
         var edges = BuildEdges(path);
         var summary = BuildSummary(path, map);
+        var nextSegment = survivalIndex.GetOrDefault(nextCoord);
+        int pathRiskAtNext = PathSurvivalRisk.Compute(
+            nextSegment.CombatsToRest,
+            nextSegment.ElitesToRest,
+            ctx.Metrics,
+            ctx.HpRatio);
 
-        _cached = new MapPlan(path, edges, nextIdx, pathScore, summary, nextCoord);
+        _cached = new MapPlan(
+            path,
+            edges,
+            nextIdx,
+            pathScore,
+            summary,
+            nextCoord,
+            pathRiskAtNext,
+            nextSegment.CombatsToRest,
+            nextSegment.ElitesToRest);
         return _cached;
     }
 

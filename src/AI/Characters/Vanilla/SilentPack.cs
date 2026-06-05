@@ -13,6 +13,10 @@ sealed class SilentPack : IDeckPlanContributor {
 
     public void AdjustPlan(DeckPlan.Builder builder, JsonObject snapshot) {
         builder.TargetDeckSize = 15;
+        builder.TargetStrikeCount = 0;
+        builder.TargetDefendCount = 1;
+        builder.TargetBlockSources = 1;
+        builder.TargetDrawSources = 3;
         builder.AddWeight(AiTag.Attack, 0.4f);
         builder.AddWeight(AiTag.Draw, 0.5f);
         builder.AddWeight(AiTag.Exhaust, 0.3f);

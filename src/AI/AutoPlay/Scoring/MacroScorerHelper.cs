@@ -13,7 +13,7 @@ internal static class MacroScorerHelper {
         var deck = snapshot?["deck"]?.AsArray();
         var composition = deck != null
             ? DeckCardScoring.AnalyzeComposition(deck)
-            : new DeckComposition(0, 0, 0);
+            : new DeckComposition(0, 0, 0, 0);
         var score = DeckCardScoring.ScoreInDeck(card, plan, composition);
         score -= (int)Math.Round(DeckPlanInferer.DilutionPenalty(deckSize + 1, plan));
         var characterId = snapshot?["characterId"]?.GetValue<string>();
@@ -21,6 +21,11 @@ internal static class MacroScorerHelper {
         var context = snapshot?["shopOffers"] != null ? "shop" : "combat_reward";
         score += CodexPriorCatalog.GetCardBonus(characterId, cardId, context);
         score += DeckSynergyEvaluator.ScoreCard(card, plan, snapshot);
+        if (snapshot != null) {
+            var metrics = DeckEvaluator.Evaluate(snapshot, plan);
+            score += DeckSurvivability.ScoreTransitionBlockOffer(card, plan, metrics);
+            score += DeckSurvivability.ScoreDrawSourceOffer(card, plan, metrics);
+        }
         return score;
     }
 

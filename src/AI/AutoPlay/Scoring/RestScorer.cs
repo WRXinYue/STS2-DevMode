@@ -19,7 +19,9 @@ public static class RestScorer {
         var maxHp = snapshot["maxHp"]?.GetValue<int>() ?? 1;
         var hpRatio = maxHp > 0 ? (float)hp / maxHp : 1f;
         var plan = DeckPlanInferer.Infer(snapshot);
+        var metrics = DeckEvaluator.Evaluate(snapshot, plan);
         var eliteAhead = NextNodeIsElite();
+        var pathPressure = HasPathSurvivalPressure(metrics);
 
         if (options == null || options.Count == 0)
             return new GameAction { Type = ActionType.Proceed, Reason = "Leave rest site (no options)" };
@@ -38,11 +40,14 @@ public static class RestScorer {
             return new GameAction { Type = ActionType.Proceed, Reason = "Leave rest site (heal used)" };
         }
 
-        if (hpRatio < 0.55f || (hpRatio < 0.7f && eliteAhead)) {
+        var urgentHealThreshold = pathPressure ? 0.65f : 0.55f;
+        if (hpRatio < urgentHealThreshold || (hpRatio < 0.7f && eliteAhead)) {
             return new GameAction {
                 Type = ActionType.Rest,
                 TargetIndex = healIdx,
-                Reason = $"Rest heal HP {hp}/{maxHp}",
+                Reason = pathPressure
+                    ? $"Rest heal (path pressure) HP {hp}/{maxHp}"
+                    : $"Rest heal HP {hp}/{maxHp}",
             };
         }
 
@@ -71,7 +76,8 @@ public static class RestScorer {
             };
         }
 
-        if (healIdx >= 0 && hpRatio < 0.75f) {
+        var mildHealThreshold = pathPressure ? 0.65f : 0.75f;
+        if (healIdx >= 0 && hpRatio < mildHealThreshold) {
             return new GameAction {
                 Type = ActionType.Rest,
                 TargetIndex = healIdx,
@@ -88,6 +94,12 @@ public static class RestScorer {
         }
 
         return new GameAction { Type = ActionType.Proceed, Reason = "Leave rest site" };
+    }
+
+    static bool HasPathSurvivalPressure(DeckMetrics metrics) {
+        var cached = MapPathPlanner.CachedPlan;
+        if (cached == null) return false;
+        return cached.CombatsToRestAtNext >= 3f && metrics.BlockDeficit >= 1;
     }
 
     static bool NextNodeIsElite() {

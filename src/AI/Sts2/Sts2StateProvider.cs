@@ -44,7 +44,8 @@ public sealed class Sts2StateProvider : IGameStateProvider
             {
                 if (overlay is NRewardsScreen rewardsScreen) {
                     TryGetRunAndPlayer(out _, out var player);
-                    if (OverlayPhaseHelper.RewardsReadyForMap(rewardsScreen, player))
+                    JsonObject? rewardSnap = player is { HasOpenPotionSlots: false } ? TakeSnapshot() : null;
+                    if (OverlayPhaseHelper.RewardsReadyForMap(rewardsScreen, player, rewardSnap))
                         return GamePhase.MapSelection;
                     return GamePhase.RewardScreen;
                 }

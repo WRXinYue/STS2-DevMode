@@ -1,4 +1,6 @@
 using System.Linq;
+using System.Text.Json.Nodes;
+using DevMode.AI.AutoPlay.Scoring;
 using Godot;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Nodes.Rewards;
@@ -23,20 +25,26 @@ internal static class OverlayPhaseHelper {
     /// Terminal <see cref="NRewardsScreen"/> stays on the overlay stack after proceed opens the map.
     /// Treat as map selection once rewards are drained and the map is visible.
     /// </summary>
-    public static bool RewardsReadyForMap(NRewardsScreen screen, Player? player) {
+    public static bool RewardsReadyForMap(NRewardsScreen screen, Player? player, JsonObject? snapshot = null) {
         if (NMapScreen.Instance is not { IsOpen: true })
             return false;
 
         if (screen.IsComplete)
             return true;
 
-        return !HasClickableRewards(screen, player?.HasOpenPotionSlots ?? false);
+        return !HasClickableRewards(screen, player?.HasOpenPotionSlots ?? false, snapshot);
     }
 
-    public static bool HasClickableRewards(NRewardsScreen screen, bool hasPotionSlots) =>
+    public static bool HasClickableRewards(NRewardsScreen screen, bool hasPotionSlots, JsonObject? snapshot = null) =>
         UIHelper.FindAll<NRewardButton>((Node)screen)
-            .Any(b => b.IsEnabled
-                && (b.Reward is not PotionReward || hasPotionSlots));
+            .Any(b => {
+                if (!b.IsEnabled) return false;
+                if (b.Reward is not PotionReward potionReward) return true;
+                if (hasPotionSlots) return true;
+                if (snapshot == null) return false;
+                var id = potionReward.Potion?.Id.Entry;
+                return PotionInventoryScorer.ShouldMakeRoom(id, snapshot, out _);
+            });
 
     public static Node? FindCardRewardScreen() {
         var stack = NOverlayStack.Instance;

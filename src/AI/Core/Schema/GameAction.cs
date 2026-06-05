@@ -32,6 +32,7 @@ public enum ActionType
     Rest,
     UpgradeCard,
     UsePotion,
+    DiscardPotion,
     CollectReward,
     DismissRewards,
     Proceed,

@@ -84,6 +84,20 @@ public static class CardRewardScorer {
         if (metrics.StarterBloat >= 3)
             score -= 8;
 
+        if (metrics.StrikeSurplus >= 3)
+            score -= 10;
+        if (metrics.ThinGap >= 3)
+            score += metrics.ThinGap * 2;
+        if (metrics.CardsNeedingBurn >= 5 && plan.IsExhaustFocused)
+            score += 8;
+
+        if (metrics.BlockDeficit >= 2)
+            score -= 6;
+        if (metrics.DrawDeficit >= 2 && metrics.DeckSize > plan.TargetDeckSize)
+            score -= 4;
+        if (metrics.BlockDeficit == 0 && metrics.DrawDeficit == 0 && metrics.MeanValue >= 12f)
+            score += 4;
+
         score += CodexPriorCatalog.GetSkipThresholdOffset(snapshot);
 
         return score;

@@ -1,3 +1,4 @@
+using System;
 using MegaCrit.Sts2.Core.Map;
 
 namespace DevMode.AI.Planning;
@@ -17,7 +18,25 @@ public static class MapNodeWeightScorer {
         };
     }
 
-    public static int EdgeBonus(MapPointType from, MapPointType to, MapRouteContext ctx) {
+    public static int PathRiskNodeAdjust(MapPointType type, int pathRisk, MapRouteContext ctx, int elitesToRest) {
+        if (pathRisk <= 0) return 0;
+
+        int adjust = type switch {
+            MapPointType.RestSite => Math.Min(pathRisk, 40),
+            MapPointType.Elite => -Math.Min(pathRisk * 2 / 3, 28),
+            MapPointType.Monster => pathRisk >= 25 ? -6 : 0,
+            MapPointType.Shop => pathRisk >= 30 && ctx.HpRatio < 0.6f ? -8 : 0,
+            MapPointType.Unknown => pathRisk >= 25 ? -4 : 0,
+            _ => 0,
+        };
+
+        if (type == MapPointType.Elite && elitesToRest >= 2)
+            adjust -= 10;
+
+        return adjust;
+    }
+
+    public static int EdgeBonus(MapPointType from, MapPointType to, MapRouteContext ctx, int pathRisk = 0) {
         int bonus = 0;
 
         if (from == MapPointType.RestSite && to == MapPointType.Elite && ctx.HpRatio < 0.7f)
@@ -35,6 +54,13 @@ public static class MapNodeWeightScorer {
         if (from == MapPointType.Treasure && to == MapPointType.Elite)
             bonus += 4;
 
+        if (pathRisk > 0) {
+            if (from == MapPointType.RestSite && to == MapPointType.Elite)
+                bonus -= pathRisk / 4;
+            if (from == MapPointType.Elite && to == MapPointType.Elite)
+                bonus -= pathRisk / 3;
+        }
+
         return bonus;
     }
 
@@ -49,6 +75,8 @@ public static class MapNodeWeightScorer {
         int score = ctx.HpRatio > 0.45f ? 12 : 4;
         if (ctx.WantsShopRemoval) score += 28;
         if (ctx.Metrics.StarterBloat >= 2) score += 12;
+        if (ctx.Metrics.StrikeSurplus >= 2) score += 10;
+        if (ctx.Metrics.CardsNeedingBurn >= 4) score += 14;
         if (ctx.Gold < 50) score -= 15;
         return score;
     }

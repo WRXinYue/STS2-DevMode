@@ -235,6 +235,7 @@ internal static class GameSnapshotPhaseCapture
             arr.Add(new JsonObject {
                 ["index"] = idx++,
                 ["offerType"] = "potion",
+                ["id"] = entry.Model?.Id.Entry ?? "",
                 ["cost"] = entry.Cost,
                 ["enoughGold"] = entry.EnoughGold,
             });

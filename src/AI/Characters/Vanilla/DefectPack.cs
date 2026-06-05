@@ -13,6 +13,8 @@ sealed class DefectPack : IDeckPlanContributor {
 
     public void AdjustPlan(DeckPlan.Builder builder, JsonObject snapshot) {
         builder.TargetDeckSize = 15;
+        builder.TargetBlockSources = 2;
+        builder.TargetDrawSources = 2;
         builder.AddWeight(AiTag.Scaling, 0.9f);
         builder.AddWeight(AiTag.Aoe, 0.4f);
         builder.AddWeight(AiTag.Energy, 0.3f);

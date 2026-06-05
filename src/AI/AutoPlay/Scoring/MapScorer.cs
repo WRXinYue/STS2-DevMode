@@ -13,12 +13,15 @@ public static class MapScorer {
         if (AiPlayServices.StateProvider.TryGetRunAndPlayer(out var state, out var player)) {
             var plan = MapPathPlanner.Plan(state, player) ?? MapPathPlanner.CachedPlan;
             if (plan != null) {
+                var routeCtx = MapRouteContext.FromSnapshot(snapshot);
                 var type = snapshot["mapNodes"]?[plan.NextChildIndex]?["pointType"]?.GetValue<string>()
                     ?? ShortTypeForCoord(state, plan.NextCoord);
                 return new GameAction {
                     Type = ActionType.SelectMapNode,
                     TargetIndex = plan.NextChildIndex,
-                    Reason = $"Map → {type} score={plan.PathScore} path={plan.Summary}",
+                    Reason = $"Map → {type} score={plan.PathScore} path={plan.Summary} "
+                        + $"risk={plan.PathRiskAtNext} fightsToRest={plan.CombatsToRestAtNext:0.#} "
+                        + $"blockDef={routeCtx.Metrics.BlockDeficit}",
                 };
             }
         }

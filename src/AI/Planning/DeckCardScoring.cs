@@ -1,10 +1,15 @@
 using System;
+using System.Linq;
 using System.Text.Json.Nodes;
 using DevMode.AI.Knowledge;
 
 namespace DevMode.AI.Planning;
 
-public sealed record DeckComposition(int StrikeCount, int DefendCount, int CurseCount);
+public sealed record DeckComposition(
+    int StrikeCount,
+    int DefendCount,
+    int CurseCount,
+    int ExhaustCount);
 
 /// <summary>Scores cards already in the deck (no dilution penalty).</summary>
 public static class DeckCardScoring {
@@ -19,7 +24,7 @@ public static class DeckCardScoring {
     };
 
     public static DeckComposition AnalyzeComposition(JsonArray deck) {
-        int strikes = 0, defends = 0, curses = 0;
+        int strikes = 0, defends = 0, curses = 0, exhaust = 0;
         foreach (var node in deck) {
             if (node is not JsonObject card) continue;
             var id = (card["id"]?.GetValue<string>() ?? "").ToUpperInvariant();
@@ -27,8 +32,14 @@ public static class DeckCardScoring {
             if (id.Contains("STRIKE", StringComparison.Ordinal)) strikes++;
             else if (id.Contains("DEFEND", StringComparison.Ordinal)) defends++;
             if (rarity.Contains("CURSE", StringComparison.Ordinal)) curses++;
+
+            var tags = CardCatalog.ResolveTags(
+                card["id"]?.GetValue<string>(),
+                card["cardType"]?.GetValue<string>(),
+                card["keywords"]?.AsArray());
+            if (tags.Contains(AiTag.Exhaust)) exhaust++;
         }
-        return new DeckComposition(strikes, defends, curses);
+        return new DeckComposition(strikes, defends, curses, exhaust);
     }
 
     public static int ScoreInDeck(JsonObject card, DeckPlan plan, DeckComposition composition) {

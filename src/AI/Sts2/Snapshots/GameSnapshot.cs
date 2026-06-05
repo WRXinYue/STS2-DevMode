@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text.Json.Nodes;
 using DevMode.AI.Core;
 using DevMode.AI.Core.Schema;
+using DevMode.AI.Knowledge;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Entities.Creatures;
@@ -34,6 +35,8 @@ internal static class GameSnapshot
             ["deck"] = CaptureDeck(player),
             ["relics"] = CaptureRelics(player),
             ["potions"] = CapturePotions(player),
+            ["hasOpenPotionSlots"] = player.HasOpenPotionSlots,
+            ["potionSlotCount"] = player.PotionSlots.Count,
         };
 
         var combatState = player.PlayerCombatState;
@@ -92,12 +95,22 @@ internal static class GameSnapshot
     private static JsonArray CapturePotions(Player player)
     {
         var arr = new JsonArray();
-        foreach (var p in player.Potions)
-        {
+        var slots = player.PotionSlots;
+        for (int slot = 0; slot < slots.Count; slot++) {
+            var p = slots[slot];
+            if (p == null) continue;
+
+            var id = p.Id.Entry ?? "";
+            var profile = PotionMechanicIndex.GetOrDefault(id);
             arr.Add(new JsonObject
             {
-                ["id"] = p.Id.Entry,
-                ["targetType"] = p.TargetType.ToString(),
+                ["id"] = id,
+                ["slot"] = slot,
+                ["category"] = profile.Category.ToString(),
+                ["usage"] = profile.Usage,
+                ["targetType"] = profile.TargetType,
+                ["rarity"] = profile.Rarity,
+                ["retainScore"] = PotionTierCatalog.GetRetainScore(id),
             });
         }
         return arr;

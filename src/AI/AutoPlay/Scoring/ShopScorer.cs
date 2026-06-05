@@ -23,6 +23,7 @@ public static class ShopScorer {
         int removeScore = int.MinValue;
         int purchasableIdx = 0;
         string bestOfferType = "item";
+        JsonObject? bestOffer = null;
 
         for (int i = 0; i < offers.Count; i++) {
             if (offers[i] is not JsonObject offer) continue;
@@ -39,6 +40,7 @@ public static class ShopScorer {
                 bestPurchaseScore = score;
                 bestPurchaseIdx = purchasableIdx;
                 bestOfferType = type;
+                bestOffer = offer;
             }
             purchasableIdx++;
         }
@@ -48,11 +50,25 @@ public static class ShopScorer {
                 Type = ActionType.RemoveCardAtShop,
                 TargetIndex = 0,
                 Reason = $"Remove [{metrics.WorstCardName}] uplift={metrics.RemovalUplift} "
+                    + $"strikes+{metrics.StrikeSurplus} burnDebt={metrics.CardsNeedingBurn} "
                     + $"score={removeScore} vs buy={bestOfferType}({bestPurchaseScore})",
             };
         }
 
         if (bestPurchaseIdx >= 0 && bestPurchaseScore > 0) {
+            if (bestOfferType == "potion"
+                && snapshot["hasOpenPotionSlots"]?.GetValue<bool>() == false
+                && bestOffer != null) {
+                var potionId = bestOffer["id"]?.GetValue<string>();
+                if (PotionInventoryScorer.ShouldMakeRoom(potionId, snapshot, out var discardSlot)) {
+                    return new GameAction {
+                        Type = ActionType.DiscardPotion,
+                        TargetIndex = discardSlot,
+                        Reason = $"Discard slot {discardSlot} to buy potion [{potionId}]",
+                    };
+                }
+            }
+
             return new GameAction {
                 Type = ActionType.PurchaseShopItem,
                 TargetIndex = bestPurchaseIdx,
@@ -106,10 +122,19 @@ public static class ShopScorer {
         var cost = offer["cost"]?.GetValue<int>() ?? 999;
         if (gold - cost < MinGoldAfterShopping) return 0;
 
+        if (type == "potion") {
+            var id = offer["id"]?.GetValue<string>() ?? "";
+            if (snapshot["hasOpenPotionSlots"]?.GetValue<bool>() == false) {
+                if (string.IsNullOrEmpty(id)
+                    || !PotionInventoryScorer.ShouldMakeRoom(id, snapshot, out _))
+                    return 0;
+            }
+            return PotionInventoryScorer.ValueOffer(offer, snapshot) - cost / 25;
+        }
+
         return type switch {
             "card" => MacroScorerHelper.ScoreCardOffer(offer, plan, deckSize, snapshot) - cost / 8,
             "relic" => MacroScorerHelper.ScoreRelicOffer(offer, plan, null, snapshot) - cost / 12,
-            "potion" => 10 - cost / 25,
             _ => 0,
         };
     }

@@ -123,6 +123,8 @@
     <EmbeddedResource Include="src\Data\harmony-patch-registry.json" LogicalName="DevMode.Data.harmony-patch-registry.json" />
     <EmbeddedResource Include="src\AI\Data\codex-priors.json" LogicalName="DevMode.AI.codex-priors.json"
                       Condition="Exists('src\AI\Data\codex-priors.json')" />
+    <EmbeddedResource Include="src\AI\Data\potion-tiers.json" LogicalName="DevMode.AI.potion-tiers.json"
+                      Condition="Exists('src\AI\Data\potion-tiers.json')" />
   </ItemGroup>
 
   <ItemGroup>

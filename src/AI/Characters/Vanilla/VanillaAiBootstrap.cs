@@ -16,6 +16,8 @@ public static class VanillaAiBootstrap {
         RelicCatalog.Initialize();
         CardMechanicIndex.Initialize();
         RelicMechanicIndex.Initialize();
+        PotionMechanicIndex.Initialize();
+        PotionTierCatalog.EnsureLoaded();
         RegisterPacksOnce();
         MainFile.Logger.Info("[AiVanilla] Registered 5 character DeckPlan packs.");
     }

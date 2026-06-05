@@ -68,7 +68,7 @@ internal sealed class AiCombatCardSelector : ICardSelector {
         var deck = snapshot["deck"]?.AsArray();
         var composition = deck != null
             ? DeckCardScoring.AnalyzeComposition(deck)
-            : new DeckComposition(0, 0, 0);
+            : new DeckComposition(0, 0, 0, 0);
         var needsBlock = IntentCalculator.NeedsBlock(snapshot);
 
         return new HandSelectContext(snapshot, plan, composition, needsBlock);
@@ -90,7 +90,7 @@ internal readonly record struct HandSelectContext(
     DeckPlan Plan,
     DeckComposition Composition,
     bool NeedsBlock) {
-    public static HandSelectContext Empty => new(null, new DeckPlan(), new DeckComposition(0, 0, 0), false);
+    public static HandSelectContext Empty => new(null, new DeckPlan(), new DeckComposition(0, 0, 0, 0), false);
     public bool HasSnapshot => Snapshot != null;
 }
 

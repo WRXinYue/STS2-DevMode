@@ -45,7 +45,7 @@ public static class DeckSelectScorer {
         var deck = snapshot["deck"]?.AsArray();
         return deck != null
             ? DeckCardScoring.AnalyzeComposition(deck)
-            : new DeckComposition(0, 0, 0);
+            : new DeckComposition(0, 0, 0, 0);
     }
 
     static int FindBestDeckCardIndex(

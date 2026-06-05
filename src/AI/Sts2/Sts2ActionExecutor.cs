@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
-using DevMode.Multiplayer.Cheat;
+using DevMode.Actions;
 using DevMode.Multiplayer.PseudoCoop;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Commands;
@@ -33,6 +33,7 @@ using MegaCrit.Sts2.Core.Nodes.Screens.RelicCollection;
 using MegaCrit.Sts2.Core.Nodes.Screens.TreasureRoomRelic;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
+using DevMode.AI.AutoPlay.Scoring;
 using DevMode.AI.Core;
 using DevMode.AI.Core.Schema;
 using DevMode.AI.Sts2.Helpers;
@@ -76,6 +77,7 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
             ActionType.Rest => await SelectRestSiteOption(action.TargetIndex),
             ActionType.UpgradeCard => await SelectRestSiteOption(action.TargetIndex),
             ActionType.UsePotion => UsePotion(player, action.TargetIndex, action.SecondaryIndex),
+            ActionType.DiscardPotion => await DiscardPotion(player, action.TargetIndex),
             ActionType.CollectReward => await CollectReward(action.TargetIndex),
             ActionType.DismissRewards => await DismissRewards(),
             ActionType.Proceed => await Proceed(),
@@ -369,18 +371,37 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
         }
 
         // Mirrors official RewardsScreenHandler: drain buttons, wait on UI state (not fixed delays).
-        bool hasPotionSlots = _stateProvider.TryGetRunAndPlayer(out _, out var p)
-                              && (p?.HasOpenPotionSlots ?? false);
+        var snapshot = _stateProvider.TakeSnapshot();
+        bool hasPotionSlots = _stateProvider.TryGetRunAndPlayer(out _, out var player)
+                              && (player?.HasOpenPotionSlots ?? false);
 
         var clicked = 0;
         while (clicked < 12) {
             var btn = UIHelper.FindAll<NRewardButton>((Node)screen)
-                .FirstOrDefault(b => b.IsEnabled
-                    && !_attemptedRewardButtons.Contains(b)
-                    && (b.Reward is not PotionReward || hasPotionSlots));
+                .FirstOrDefault(b => b.IsEnabled && !_attemptedRewardButtons.Contains(b));
 
             if (btn == null)
                 break;
+
+            if (btn.Reward is PotionReward potionReward) {
+                if (!hasPotionSlots) {
+                    if (player == null)
+                        return ActionResult.Fail("No player for potion reward.");
+
+                    var incomingId = potionReward.Potion?.Id.Entry;
+                    if (!PotionInventoryScorer.ShouldMakeRoom(incomingId, snapshot, out var discardSlot)) {
+                        _attemptedRewardButtons.Add(btn);
+                        continue;
+                    }
+
+                    var discardResult = await DiscardPotion(player!, discardSlot);
+                    if (!discardResult.Success)
+                        return discardResult;
+
+                    snapshot = _stateProvider.TakeSnapshot();
+                    hasPotionSlots = player!.HasOpenPotionSlots;
+                }
+            }
 
             _attemptedRewardButtons.Add(btn);
             _log($"CollectReward: clicking [{btn.Reward?.GetType().Name}] (attempted={_attemptedRewardButtons.Count})");
@@ -643,13 +664,11 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
 
     // ──────── Potions ────────
 
-    private static ActionResult UsePotion(Player player, int potionIndex, int targetIndex)
+    private static ActionResult UsePotion(Player player, int potionSlot, int targetIndex)
     {
-        var potions = player.Potions.ToList();
-        if (potionIndex < 0 || potionIndex >= potions.Count)
-            return ActionResult.Fail($"Invalid potion index: {potionIndex}");
-
-        var potion = potions[potionIndex];
+        var potion = player.GetPotionAtSlotIndex(potionSlot);
+        if (potion == null)
+            return ActionResult.Fail($"No potion in slot {potionSlot}.");
 
         Creature? target = null;
         if (potion.TargetType.IsSingleTarget())
@@ -665,7 +684,17 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
         }
 
         potion.EnqueueManualUse(target);
-        return ActionResult.Ok($"Used potion [{potion.Id.Entry}].");
+        return ActionResult.Ok($"Used potion [{potion.Id.Entry}] slot {potionSlot}.");
+    }
+
+    private static async Task<ActionResult> DiscardPotion(Player player, int potionSlot)
+    {
+        var potion = player.GetPotionAtSlotIndex(potionSlot);
+        if (potion == null)
+            return ActionResult.Fail($"No potion in slot {potionSlot}.");
+
+        await PotionActions.DiscardPotion(potion);
+        return ActionResult.Ok($"Discarded potion [{potion.Id.Entry}] from slot {potionSlot}.");
     }
 
     // ──────── Helpers ────────

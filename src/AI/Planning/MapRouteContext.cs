@@ -27,6 +27,8 @@ public sealed record MapRouteContext(
             snapshot["ascensionLevel"]?.GetValue<int>() ?? 0,
             plan,
             metrics,
-            metrics.RemovalUplift >= DeckEvaluator.MinRemovalUplift && gold >= 75);
+            metrics.RemovalUplift >= DeckEvaluator.MinRemovalUplift && gold >= 75
+            || metrics.StrikeSurplus >= 2
+            || metrics.CardsNeedingBurn >= 4);
     }
 }

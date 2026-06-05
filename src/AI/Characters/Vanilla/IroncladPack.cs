@@ -13,6 +13,10 @@ sealed class IroncladPack : IDeckPlanContributor {
 
     public void AdjustPlan(DeckPlan.Builder builder, JsonObject snapshot) {
         builder.TargetDeckSize = 17;
+        builder.TargetStrikeCount = 2;
+        builder.TargetDefendCount = 2;
+        builder.TargetBlockSources = 2;
+        builder.TargetDrawSources = 2;
         builder.AddWeight(AiTag.Attack, 0.6f);
         builder.AddWeight(AiTag.Exhaust, 0.8f);
         builder.AddWeight(AiTag.Scaling, 0.5f);

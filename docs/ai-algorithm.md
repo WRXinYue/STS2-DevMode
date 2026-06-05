@@ -65,7 +65,8 @@ flowchart TD
 | `characterId`, `ascensionLevel` | 角色与进阶 |
 | `deck[]` | 牌组（id、name、rarity、cost、keywords、upgradeLevel） |
 | `relics[]` | 已拥有遗物 |
-| `potions[]` | 药水 id |
+| `potions[]` | 药水：id、slot、category、usage、rarity、retainScore |
+| `hasOpenPotionSlots`, `potionSlotCount` | 腰带空位 |
 
 ### 战斗 `combat`
 
@@ -161,9 +162,23 @@ DilutionPenalty(deckSize, plan) = max(0, deckSize - TargetDeckSize) × ThinPrefe
 | --- | --- |
 | `MeanValue` | 牌组内单卡均分 |
 | `WorstValue` / `WorstCardName` | 最低分卡（删牌首选） |
-| `RemovalUplift` | 删最差卡的边际收益 |
-| `StarterBloat` | Strike/Defend/Curse 冗余度 |
+| `RemovalUplift` | 删最差卡的边际收益（含 burn 压力项） |
+| `StarterBloat` | Strike/Defend/Curse 冗余度（相对 plan 目标） |
+| `StrikeSurplus` | 超出 `TargetStrikeCount` 的 Strike 张数 |
+| `DefendSurplus` | 超出 `TargetDefendCount` 的 Defend 张数 |
+| `ThinGap` | 超出 `TargetDeckSize` 的牌数 |
+| `ExhaustCount` | 带 Exhaust tag 的卡数 |
+| `CardsNeedingBurn` | 宏观「还需烧/删」债务：thinGap + starter 冗余；exhaust 构筑额外计入非 exhaust 填充卡 |
+| `BlockSourceCount` | 非 starter、cost≤2 的过渡防张数（`DeckSurvivability`） |
+| `DrawSourceCount` | 非 starter 抽牌源张数 |
+| `BlockDeficit` | max(0, `TargetBlockSources` − BlockSourceCount) |
+| `DrawDeficit` | max(0, `TargetDrawSources` − DrawSourceCount) |
+| `SurvivalGap` | BlockDeficit×2 + DrawDeficit |
 | `ConsistencyScore` | 一致性 0..1 |
+
+`DeckPlan` 续航目标（`*Pack.cs`）：Silent block/draw `1/3`；Ironclad/Defect `2/2`；默认 block/draw `2/2`。Strike/Defend 目标：Silent `0/1`；Ironclad `2/2`。
+
+**宏观选牌续航 bonus**（`MacroScorerHelper`）：过渡防 +6+BlockDeficit×4；抽牌源 +4+DrawDeficit×3。**Skip**：BlockDeficit≥2 → −6；DrawDeficit≥2 且 deck 厚 → −4；续航满且 MeanValue≥12 → +4。
 
 ### 单卡价值 ScoreInDeck（`DeckCardScoring`）
 
@@ -185,9 +200,11 @@ RemovalUplift = (MeanValue - WorstValue)
               + StarterBloat × 4
               + round(DilutionPenalty(deckSize))
               + FutureThinBonus(actIndex, floor)
+              + round(CardsNeedingBurn × 1.5)
 ```
 
-- `StarterBloat`：Strike>2 计超出部分；Defend>2 计超出×0.8；每张诅咒 +3
+- `StarterBloat`：`StrikeSurplus` + `DefendSurplus×0.8` + 每张诅咒 +3（目标来自 `TargetStrikeCount` / `TargetDefendCount`）
+- `CardsNeedingBurn`：`ThinGap + StrikeSurplus + DefendSurplus`；若 `IsExhaustFocused`，再加 `max(0, nonExhaustFiller − ExhaustCount×2)`
 - `FutureThinBonus`：Act1 +5/+3，Act2 +2，Act3 +0（越早删，长期收益越高）
 - **门槛**：`RemovalUplift < MinRemovalUplift(11)` 时不买商店删牌（**无 deckSize 硬门槛**）
 
@@ -254,6 +271,9 @@ score = round(ScoreTags) + RarityScore
 - `skipScore = DilutionPenalty + ThinPreference×14` + 后期加厚惩罚
 - 牌组已成型：`StarterBloat≤0` 且 `MeanValue≥12` → +10 skip；`RemovalUplift<11` 且 `MeanValue≥10` → +8 skip
 - 仍有多余 Strike/Defend（`StarterBloat≥3`）→ −8 skip（倾向拿好卡或去商店删）
+- `StrikeSurplus≥3` → −10 skip（更倾向拿牌或去删敲）
+- `ThinGap≥3` → +ThinGap×2 skip（牌组过厚）
+- exhaust 构筑且 `CardsNeedingBurn≥5` → +8 skip（优先去烧/删）
 - 若 `bestScore < max(MinPickScore, skipScore)` → `SkipCardReward`
 
 ### DeckSelectScorer（休息 smith / 商店删牌）
@@ -278,13 +298,13 @@ removeScore = RemovalUplift - cost/4 - OpportunityCost + 金币充裕加成
 
 - `RemovalUplift < 11` → 不删
 - `OpportunityCost`：Act3 或 gold 紧张时额外扣分（留金给后续商店）
-- 日志示例：`Remove [Strike] uplift=28 score=24 vs buy=relic(22)`
+- 日志示例：`Remove [Strike] uplift=28 strikes+2 burnDebt=5 score=24 vs buy=relic(22)`
 
 **购买分**：
 
 - card → `ScoreCardOffer − cost/8`
 - relic → `ScoreRelicOffer − cost/12`
-- potion → `10 − cost/25`
+- potion → `PotionInventoryScorer.ValueOffer − cost/25`（瓶满且不值得腾槽 → 0）
 
 **决策**：若 `removeScore > 0` 且 `removeScore ≥ bestPurchaseScore` → 删牌；否则买最高分商品；都不值得 → `LeaveShop`。
 
@@ -331,14 +351,22 @@ bestToBoss(p) = nodeScore(p, ctx) + max_{c ∈ children} ( edgeBonus(p,c) + best
 | 类型 | 逻辑 |
 | --- | --- |
 | RestSite | 低 HP 高；成型牌组低 |
-| Shop | `RemovalUplift≥11` + gold → 高；`StarterBloat` 高 → 高 |
+| Shop | `RemovalUplift≥11` + gold → 高；`StarterBloat` 高 → 高；`StrikeSurplus≥2` +10；`CardsNeedingBurn≥4` +14 |
 | Elite | 高 HP + 高 MeanValue → 高；低 HP / A7+ → 负；Act1 floor 6–9 且 HP<75% → −15 |
 | Monster | baseline；缺金略升 |
 | Treasure | +20 |
 | Unknown | Monster×0.7 + Event×0.3 期望 |
 | Ancient | 同 Unknown |
 
-**邻接边加成**：Rest→Elite（低 HP **−10**）；Shop→*（需删牌 +6）；Elite→Elite（低 HP −12）；Rest→Rest −5；Treasure→Elite +4。
+**邻接边加成**：Rest→Elite（低 HP **−10**）；Shop→*（需删牌 +6）；Elite→Elite（低 HP −12）；Rest→Rest −5；Treasure→Elite +4；pathRisk 高时 Rest→Elite、Elite→Elite 额外扣分。
+
+**连战续航（`MapSurvivalIndex` + `PathSurvivalRisk`）**：
+
+- 自 Boss 行反向 DP：每格 `CombatsToRest`（到下 Rest 的预期战斗数）、`ElitesToRest`
+- 战斗权重：M/Elite=1，Unknown=0.7，Ancient=0.5
+- `PathRisk = combats×10×blockFactor×drawFactor×hpFactor + elites×12×hpFactor`（block/draw deficit 来自 DeckMetrics）
+- DP 选边时对 **child** 叠加 `PathRiskNodeAdjust`：Rest +risk；Elite −risk；Monster/Shop/Unknown 高压时略降
+- 日志：`risk=N fightsToRest=M blockDef=D`；Rest 在 `CombatsToRest≥3 && BlockDeficit≥1` 时 heal 阈值 55%→65%
 
 **MapScorer**：委托 `MapPathPlanner`；无 run 数据时 greedy fallback。
 
@@ -372,15 +400,29 @@ DecideCombat:
   4. EndTurn
 ```
 
-### PotionScorer（仅战斗，按药水 id 子串）
+### PotionScorer（战斗：全瓶打分，取最高 ≥25）
 
-| 优先级 | 条件 | 匹配 id |
-| --- | --- | --- |
-| 治疗 | HP 比例 <35% | BLOOD, HEAL, FRUIT, REGEN, FAIRY |
-| 保命挡 | 净伤害 ≥ 当前 HP | BLOCK, SMOKE, SOLUTION, ARMOR, SHIELD |
-| AOE | ≥2 敌人且 incoming≥15 | EXPLOSIVE |
-| 重挡 | NeedsBlock 且 incoming≥20 | 挡伤类 |
-| 中挡 | NeedsBlock 且 HP<50% 且 incoming≥12 | 挡伤类 |
+启动时 `PotionMechanicIndex` 索引官方 `PotionModel`（category / usage / rarity）；`PotionTierCatalog` 提供 retain 分（`potion-tiers.json`）。
+
+对 `potions[]` 每格按 **category + IntentCalculator + DeckPlan** 打分，日志 `potion candidates [ID:+score] …`；`TargetIndex` 为 **slot**（非枚举序）。
+
+| Category | 典型加分局面 |
+| --- | --- |
+| Heal / Block | 低 HP、fatal、NeedsBlock |
+| DamageSingle / AoE | 斩杀差伤害、多敌 |
+| Energy | 能量不够打出关键牌且接近 lethal |
+| Buff / Debuff / Random | DeckPlan 权重 + 局面 |
+| 浪费惩罚 | HP 高、非精英、高 retain 药（如 SHAPED_ROCK） |
+
+### PotionInventoryScorer（宏观腰带）
+
+| 场景 | 行为 |
+| --- | --- |
+| 奖励屏瓶满 | `CollectReward` 前 `ShouldMakeRoom` → `DiscardPotion` 最弱 slot，再收 |
+| 商店瓶满 | `ShopScorer` 先 `DiscardPotion` 再买；购买分 = `ValueOffer − cost/25` |
+| 腾槽条件 | `incomingValue > lowestHeld + 8` |
+
+`DiscardPotion` / `UsePotion` 均使用 **slot index**（`player.GetPotionAtSlotIndex`）。
 
 ### IntentCalculator
 
