@@ -29,59 +29,51 @@ public static class AiHudModel {
         _ => I18N.T("ai.hud.phase.other", "Other"),
     };
 
-    public static string BuildDeckProfileLine(JsonObject snapshot) {
-        var profile = AiHudRunForecast.AnalyzeDeck(snapshot);
+    public static string BuildDeckProfileLine(AiHudRunForecast.DeckProfile profile) {
         var style = AiHudRunForecast.StyleLabel(profile.Style);
 
         if (AiHudRunForecast.MeetsOfficialBig(profile))
             return I18N.T(
                 "ai.hud.deck.profile.big",
-                "Deck: {0} · {1} cards (≥{2}) · mean {3:0.#}",
+                "Deck: {0} · {1} cards (≥{2})",
                 style,
                 profile.DeckSize,
-                AiHudRunForecast.OfficialBigDeckMin,
-                profile.MeanValue);
+                AiHudRunForecast.OfficialBigDeckMin);
 
         if (AiHudRunForecast.MeetsOfficialSmall(profile))
             return I18N.T(
                 "ai.hud.deck.profile.small",
-                "Deck: {0} · {1} cards (≤{2}) · mean {3:0.#}",
+                "Deck: {0} · {1} cards (≤{2})",
                 style,
                 profile.DeckSize,
-                AiHudRunForecast.OfficialSmallDeckMax,
-                profile.MeanValue);
+                AiHudRunForecast.OfficialSmallDeckMax);
 
         return I18N.T(
             "ai.hud.deck.profile.mid",
-            "Deck: {0} · {1} cards (21–39) · mean {2:0.#}",
+            "Deck: {0} · {1} cards (21–39)",
             style,
-            profile.DeckSize,
-            profile.MeanValue);
+            profile.DeckSize);
     }
 
-    public static string BuildForecastLine(JsonObject snapshot, GamePhase phase) {
-        var profile = AiHudRunForecast.AnalyzeDeck(snapshot);
-        var prognosis = AiHudRunForecast.AnalyzeRun(snapshot, profile);
+    public static string BuildForecastLine(
+        AiHudRunForecast.DeckProfile profile,
+        AiHudRunForecast.RunPrognosis prognosis,
+        GamePhase phase) {
         var winPct = (int)Math.Round(prognosis.WinRate * 100f);
 
-        if (phase == GamePhase.CardReward && prognosis.NextFightScore != 0) {
-            var lethalHint = prognosis.NextFightLethal
-                ? I18N.T("ai.hud.forecast.lethal", "T1 lethal")
-                : I18N.T("ai.hud.forecast.noLethal", "no T1 lethal");
+        if (phase == GamePhase.CardReward && prognosis.NextFightIncoming > 0) {
             return I18N.T(
                 "ai.hud.forecast.cardReward",
-                "Forecast: ~{0}% win · route {1} nodes · next-fight EV {2} (IN {3}, {4})",
+                "Forecast: ~{0}% win · route {1} nodes · next IN {2}",
                 winPct,
                 prognosis.RouteNodes,
-                prognosis.NextFightScore,
-                prognosis.NextFightIncoming,
-                lethalHint);
+                prognosis.NextFightIncoming);
         }
 
         if (phase == GamePhase.Combat) {
             return I18N.T(
                 "ai.hud.forecast.combat",
-                "Forecast: ~{0}% win · beam depth full · route risk {1}",
+                "Forecast: ~{0}% win · route risk {1}",
                 winPct,
                 prognosis.PathRisk);
         }
@@ -104,14 +96,14 @@ public static class AiHudModel {
             prognosis.PathRisk);
     }
 
-    public static string BuildStrategyLine(JsonObject snapshot, GamePhase phase) {
+    public static string BuildStrategyLine(JsonObject snapshot, GamePhase phase, AiHudRunForecast.HudContext? ctx = null) {
         return phase switch {
             GamePhase.Combat => BuildCombatStrategy(snapshot),
-            GamePhase.MapSelection => BuildMapStrategy(snapshot),
-            GamePhase.CardReward => BuildCardRewardStrategy(snapshot),
-            GamePhase.Shop => BuildShopStrategy(snapshot),
-            GamePhase.RestSite => BuildRestStrategy(snapshot),
-            GamePhase.EventChoice => BuildEventStrategy(snapshot),
+            GamePhase.MapSelection => BuildMapStrategy(snapshot, ctx?.Profile),
+            GamePhase.CardReward => BuildCardRewardStrategy(snapshot, ctx?.Prognosis),
+            GamePhase.Shop => BuildShopStrategy(ctx?.Profile),
+            GamePhase.RestSite => BuildRestStrategy(snapshot, ctx?.Prognosis),
+            GamePhase.EventChoice => BuildEventStrategy(ctx?.Profile),
             _ => I18N.T("ai.hud.strategy.default", "Follow StrongStrategy for current phase"),
         };
     }
@@ -198,12 +190,9 @@ public static class AiHudModel {
         return I18N.T("ai.hud.strategy.combat.light", "Light threat {0} — full-depth beam balances kill and block", incoming);
     }
 
-    static string BuildMapStrategy(JsonObject snapshot) {
+    static string BuildMapStrategy(JsonObject snapshot, AiHudRunForecast.DeckProfile? profile = null) {
         var plan = MapPathPlanner.CachedPlan;
-        if (plan == null && AiPlayServices.StateProvider.TryGetRunAndPlayer(out var state, out var player))
-            plan = MapPathPlanner.Plan(state, player, forceRefresh: false);
-
-        var profile = AiHudRunForecast.AnalyzeDeck(snapshot);
+        profile ??= AiHudRunForecast.AnalyzeDeckLight(snapshot);
 
         if (plan == null)
             return I18N.T("ai.hud.strategy.map.none", "Pick the best reachable node for {0}", AiHudRunForecast.StyleLabel(profile.Style));
@@ -218,61 +207,44 @@ public static class AiHudModel {
             plan.CombatsToRestAtNext);
     }
 
-    static string BuildCardRewardStrategy(JsonObject snapshot) {
-        var profile = AiHudRunForecast.AnalyzeDeck(snapshot);
-        var plan = DeckPlanInferer.Infer(snapshot);
+    static string BuildCardRewardStrategy(JsonObject snapshot, AiHudRunForecast.RunPrognosis? prognosis = null) {
+        var profile = AiHudRunForecast.AnalyzeDeckLight(snapshot);
         var preview = snapshot["nextFightPreview"]?.AsArray();
         var fightHint = preview != null && preview.Count > 0
             ? preview[0]?["roomType"]?.GetValue<string>() ?? "?"
             : null;
-        var routeScore = NextFightDeckEvaluator.GetBaselineRouteScore(snapshot, plan);
 
         if (AiHudRunForecast.MeetsOfficialBig(profile))
             return I18N.T(
                 "ai.hud.strategy.reward.big",
-                "Big deck (≥40) — skip unless marginal+next-fight > 0 (route EV {0})",
-                routeScore);
+                "Big deck (≥40) — skip unless marginal+next-fight > 0");
 
         if (fightHint != null)
             return I18N.T(
                 "ai.hud.strategy.reward.nextFight",
-                "MC×8 + beam d=3 vs {0} fights; pick only when total > 0 (route EV {1})",
-                fightHint,
-                routeScore);
-
-        if (profile.ThinGap < 0 || AiHudRunForecast.MeetsOfficialSmall(profile))
-            return I18N.T(
-                "ai.hud.strategy.reward.small",
-                "Small deck (≤20) — take high marginal picks (route EV {0})",
-                routeScore);
+                "Marginal pick + next-fight preview ({0}); pick only when total > 0",
+                fightHint);
 
         return I18N.T(
             "ai.hud.strategy.reward.default",
-            "Marginal deck quality + next-fight sim; skip when score <= 0 (route EV {0})",
-            routeScore);
+            "Marginal deck quality + next-fight preview; skip when score <= 0");
     }
 
-    static string BuildShopStrategy(JsonObject snapshot) {
-        var profile = AiHudRunForecast.AnalyzeDeck(snapshot);
-        var plan = DeckPlanInferer.Infer(snapshot);
-        var metrics = DeckEvaluator.Evaluate(snapshot, plan);
-        if (metrics.RemovalUplift >= DeckEvaluator.MinRemovalUplift)
-            return I18N.T(
-                "ai.hud.strategy.shop.remove",
-                "Removal uplift {0} — thin {1} deck at shop",
-                metrics.RemovalUplift,
-                AiHudRunForecast.StyleLabel(profile.Style));
+    static string BuildShopStrategy(AiHudRunForecast.DeckProfile? profile) {
+        if (profile == null)
+            return I18N.T("ai.hud.strategy.shop.buy", "Buy relic/card/potion; skip bloat");
+
         return I18N.T(
             "ai.hud.strategy.shop.buy",
             "Buy relic/card/potion for {0}; skip bloat",
             AiHudRunForecast.StyleLabel(profile.Style));
     }
 
-    static string BuildRestStrategy(JsonObject snapshot) {
+    static string BuildRestStrategy(JsonObject snapshot, AiHudRunForecast.RunPrognosis? prognosis = null) {
         var hp = snapshot["currentHp"]?.GetValue<int>() ?? 0;
         var maxHp = snapshot["maxHp"]?.GetValue<int>() ?? 1;
         var ratio = maxHp > 0 ? (float)hp / maxHp : 1f;
-        var prognosis = AiHudRunForecast.AnalyzeRun(snapshot);
+        var pathRisk = prognosis?.PathRisk ?? 0;
 
         if (ratio < 0.55f)
             return I18N.T(
@@ -280,13 +252,15 @@ public static class AiHudModel {
                 "Low HP ({0}/{1}) — rest heal (route risk {2})",
                 hp,
                 maxHp,
-                prognosis.PathRisk);
+                pathRisk);
 
         return I18N.T("ai.hud.strategy.rest.upgrade", "HP healthy — smith upgrade on core cards");
     }
 
-    static string BuildEventStrategy(JsonObject snapshot) {
-        var profile = AiHudRunForecast.AnalyzeDeck(snapshot);
+    static string BuildEventStrategy(AiHudRunForecast.DeckProfile? profile) {
+        if (profile == null)
+            return I18N.T("ai.hud.strategy.event", "Evaluate options by deck synergy and codex priors");
+
         if (AiHudRunForecast.MeetsOfficialBig(profile))
             return I18N.T("ai.hud.strategy.event.big", "Big deck (≥40) — favor remove/transform; avoid bloat");
         if (profile.IsExhaustFocused)
@@ -314,7 +288,7 @@ public static class AiHudModel {
         var maxHp = snapshot["maxHp"]?.GetValue<int>() ?? 0;
         return I18N.T(
             "ai.hud.params.cardReward",
-            "F{0} G={1} HP={2}/{3} · sim MC×8 beam d=3",
+            "F{0} G={1} HP={2}/{3}",
             floor, gold, hp, maxHp);
     }
 

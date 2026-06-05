@@ -151,7 +151,7 @@ internal static class CombatActionHeuristic {
         if (action.EnemyIndex >= 0) {
             var value = CombatSetupEvaluator.ComputeVulnerableSetupValue(
                 state, action.HandIndex, action.EnemyIndex);
-            if (value <= 0) return 5;
+            if (value <= 0) return int.MinValue + 4;
             var score = 90 + value * 4 + card.Damage * 2;
             if (action.EnemyIndex != primary)
                 score -= 40;
@@ -169,7 +169,7 @@ internal static class CombatActionHeuristic {
             }
         }
 
-        if (best <= 0) return 5;
+        if (best <= 0) return int.MinValue + 4;
         var heuristic = 90 + best * 4 + card.Damage * 2;
         if (bestIndex >= 0 && bestIndex != primary)
             heuristic -= 40;

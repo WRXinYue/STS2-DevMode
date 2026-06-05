@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
 using DevMode.AI.Combat.Simulation;
@@ -67,6 +68,9 @@ internal static class CombatSetupEvaluator {
         if (target == null)
             return 0;
         if (target.Vulnerable > 0)
+            return 0;
+
+        if (ShouldSkipVulnerableForKillLine(state, handIndex, enemyIndex))
             return 0;
 
         var hand = state.ToHandJson();
@@ -147,9 +151,22 @@ internal static class CombatSetupEvaluator {
             return 0;
 
         int debt = 0;
-        foreach (var card in state.Hand) {
+        for (int i = 0; i < state.Hand.Count; i++) {
+            var card = state.Hand[i];
             if (!card.CanPlay || card.Cost > state.Energy) continue;
             if (!AppliesVulnerable(card)) continue;
+
+            bool worthOpening = false;
+            foreach (var enemy in state.Enemies.Where(e => e.IsAlive && e.Vulnerable <= 0)) {
+                if (!ShouldSkipVulnerableForKillLine(state, i, enemy.Index)) {
+                    worthOpening = true;
+                    break;
+                }
+            }
+
+            if (!worthOpening)
+                continue;
+
             debt += 12 + Math.Max(card.Profile.AppliedVulnerable, 1) * 5;
         }
 
@@ -208,6 +225,139 @@ internal static class CombatSetupEvaluator {
 
             energy -= cost;
             total += CombatDamageCalc.OutgoingDamage(card, state, target.Vulnerable);
+        }
+
+        return Math.Max(0, total);
+    }
+
+    /// <summary>Greedy kill count when attacks can be routed across enemies (excludes one hand card).</summary>
+    public static int EstimateGreedyKillCount(CombatState state, int excludeHandIndex = -1) {
+        var hp = state.Enemies
+            .Where(e => e.IsAlive)
+            .ToDictionary(e => e.Index, e => e.EffectiveHp);
+
+        if (hp.Count == 0)
+            return 0;
+
+        var attacks = new List<(int Cost, int Damage, bool IsAoe)>();
+        for (int i = 0; i < state.Hand.Count; i++) {
+            if (i == excludeHandIndex)
+                continue;
+
+            var card = state.Hand[i];
+            if (!CombatCardCost.CanAfford(card, state) || !card.IsAttack || card.Damage <= 0)
+                continue;
+
+            attacks.Add((
+                CombatCardCost.EffectiveCost(card, state.Modifiers),
+                CombatDamageCalc.OutgoingDamage(card, state, 0),
+                card.IsAoe));
+        }
+
+        attacks.Sort((a, b) => b.Damage.CompareTo(a.Damage));
+
+        int energy = state.Energy;
+        int kills = 0;
+        foreach (var (cost, damage, isAoe) in attacks) {
+            if (cost > energy || damage <= 0)
+                continue;
+
+            energy -= cost;
+            if (isAoe) {
+                foreach (var idx in hp.Keys.ToList()) {
+                    if (damage >= hp[idx]) {
+                        kills++;
+                        hp.Remove(idx);
+                    }
+                    else {
+                        hp[idx] -= damage;
+                    }
+                }
+
+                continue;
+            }
+
+            int? killIdx = null;
+            foreach (var kv in hp.OrderBy(e => e.Value)) {
+                if (damage >= kv.Value) {
+                    killIdx = kv.Key;
+                    break;
+                }
+            }
+
+            if (killIdx != null) {
+                kills++;
+                hp.Remove(killIdx.Value);
+                continue;
+            }
+
+            var chip = hp.OrderBy(e => e.Value).First();
+            hp[chip.Key] = Math.Max(0, chip.Value - damage);
+        }
+
+        return kills;
+    }
+
+    static bool ShouldSkipVulnerableForKillLine(CombatState state, int vulnHandIndex, int vulnEnemyIndex) {
+        if (state.AliveEnemyCount < 2)
+            return false;
+
+        int killsWithout = EstimateGreedyKillCount(state, vulnHandIndex);
+        if (killsWithout <= 0)
+            return false;
+
+        var afterVuln = CombatSimulator.Apply(
+            state,
+            new SimCombatAction(SimActionKind.PlayCard, vulnHandIndex, vulnEnemyIndex));
+        int killsWithVulnFirst = EstimateGreedyKillCount(afterVuln);
+        if (killsWithVulnFirst < killsWithout)
+            return true;
+
+        if (killsWithVulnFirst == killsWithout) {
+            int damageWithout = EstimateGreedyTotalDamage(state, vulnHandIndex);
+            int damageWith = EstimateGreedyTotalDamage(afterVuln);
+            if (damageWith <= damageWithout)
+                return true;
+        }
+
+        return false;
+    }
+
+    static int EstimateGreedyTotalDamage(CombatState state, int excludeHandIndex = -1) {
+        var hp = state.Enemies
+            .Where(e => e.IsAlive)
+            .ToDictionary(e => e.Index, e => e.EffectiveHp);
+
+        var attacks = new List<(int Cost, int Damage, bool IsAoe)>();
+        for (int i = 0; i < state.Hand.Count; i++) {
+            if (i == excludeHandIndex)
+                continue;
+
+            var card = state.Hand[i];
+            if (!CombatCardCost.CanAfford(card, state) || !card.IsAttack || card.Damage <= 0)
+                continue;
+
+            attacks.Add((
+                CombatCardCost.EffectiveCost(card, state.Modifiers),
+                CombatDamageCalc.OutgoingDamage(card, state, 0),
+                card.IsAoe));
+        }
+
+        attacks.Sort((a, b) => b.Damage.CompareTo(a.Damage));
+
+        int energy = state.Energy;
+        int total = 0;
+        foreach (var (cost, damage, isAoe) in attacks) {
+            if (cost > energy || damage <= 0)
+                continue;
+
+            energy -= cost;
+            if (isAoe) {
+                total += damage * hp.Count;
+                continue;
+            }
+
+            total += damage;
         }
 
         return total;

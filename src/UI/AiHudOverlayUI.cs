@@ -126,6 +126,7 @@ internal static partial class AiHudOverlayUI {
         readonly Label _scoreLabel;
         readonly Timer _refreshTimer;
         string? _lastDecisionKey;
+        JsonObject? _cachedSnapshot;
 
         public AiHudOverlayHost() {
             Name = RootName;
@@ -159,7 +160,7 @@ internal static partial class AiHudOverlayUI {
             _stack.AddChild(_scoreLabel);
             AddChild(_stack);
 
-            _refreshTimer = new Timer { WaitTime = 0.4, Autostart = true };
+            _refreshTimer = new Timer { WaitTime = 2.0, Autostart = true };
             _refreshTimer.Timeout += RefreshContent;
             AddChild(_refreshTimer);
 
@@ -196,26 +197,37 @@ internal static partial class AiHudOverlayUI {
             _titleLabel.Text = I18N.T("ai.hud.badge", "AI hosting");
             _phaseLabel.Text = AiHudModel.PhaseShortLabel(phase);
 
-            JsonObject snapshot;
-            try {
-                snapshot = AiPlayServices.StateProvider.TakeSnapshot();
-            }
-            catch {
-                snapshot = new JsonObject();
-            }
-
-            _deckLabel.Text = AiHudModel.BuildDeckProfileLine(snapshot);
-            _forecastLabel.Text = AiHudModel.BuildForecastLine(snapshot, phase);
-
             var decision = AiHudState.Last;
             var decisionKey = decision == null
                 ? ""
                 : $"{decision.Utc.Ticks}:{decision.Action}:{decision.TargetIndex}:{decision.Reason}";
 
+            AiHudRunForecast.HudContext ctx;
+            JsonObject snapshot;
+            if (AiHudRunForecast.TryGetCachedContext(out ctx)
+                && _cachedSnapshot != null
+                && decisionKey == _lastDecisionKey) {
+                snapshot = _cachedSnapshot;
+            }
+            else {
+                try {
+                    snapshot = AiPlayServices.StateProvider.TakeSnapshot();
+                }
+                catch {
+                    snapshot = _cachedSnapshot ?? new JsonObject();
+                }
+
+                ctx = AiHudRunForecast.BuildHudContext(snapshot, phase);
+                _cachedSnapshot = snapshot;
+            }
+
+            _deckLabel.Text = AiHudModel.BuildDeckProfileLine(ctx.Profile);
+            _forecastLabel.Text = AiHudModel.BuildForecastLine(ctx.Profile, ctx.Prognosis, phase);
+
             _strategyLabel.Text = I18N.T(
                 "ai.hud.strategy.prefix",
                 "Plan: {0}",
-                AiHudModel.BuildStrategyLine(snapshot, phase));
+                AiHudModel.BuildStrategyLine(snapshot, phase, ctx));
 
             if (decisionKey != _lastDecisionKey) {
                 _lastDecisionKey = decisionKey;

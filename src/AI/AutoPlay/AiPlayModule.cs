@@ -41,6 +41,7 @@ internal sealed class AiPlayModule {
         AiDecisionLog.Clear();
         AiHudState.Clear();
         NextFightDeckEvaluator.ClearCache();
+        AiHudRunForecast.ClearCache();
         MapPathPlanner.ClearCache();
         AiHudOverlayUI.SyncState();
     }
