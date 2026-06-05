@@ -62,20 +62,149 @@ internal static class CombatSetupEvaluator {
         return Math.Max(0, ComputeVulnerableSetupSimDelta(state, handIndex, enemyIndex));
     }
 
-    /// <summary>Terminal score delta: greedy attacks after vuln first vs skipping the vuln card.</summary>
+    /// <summary>Lexicographic: this-turn incoming, then 3 future enemy rounds, enemy HP, player HP.</summary>
+    public readonly record struct CombatLineOutcome(
+        int Incoming,
+        int FutureIncoming0,
+        int FutureIncoming1,
+        int FutureIncoming2,
+        int EnemyHp,
+        int PlayerHpAfterTurn);
+
+    /// <summary>Greedy completion of the turn from a mid-turn state, then outcome metrics.</summary>
+    public static CombatLineOutcome EvaluateLine(CombatState midTurn) =>
+        EvaluateLineOutcome(SimulateGreedyPlays(midTurn));
+
+    /// <summary>Positive when <paramref name="candidate"/> is better than <paramref name="baseline"/>.</summary>
+    public static int CompareLines(CombatLineOutcome baseline, CombatLineOutcome candidate) {
+        if (candidate.Incoming != baseline.Incoming)
+            return baseline.Incoming - candidate.Incoming;
+
+        int futureCmp = ThreatModel.CompareFutureIncoming(
+            candidate.FutureIncoming0, candidate.FutureIncoming1, candidate.FutureIncoming2,
+            baseline.FutureIncoming0, baseline.FutureIncoming1, baseline.FutureIncoming2);
+        if (futureCmp != 0)
+            return futureCmp;
+
+        if (candidate.EnemyHp != baseline.EnemyHp)
+            return baseline.EnemyHp - candidate.EnemyHp;
+        return candidate.PlayerHpAfterTurn - baseline.PlayerHpAfterTurn;
+    }
+
+    public static int LineRankScore(CombatLineOutcome outcome) {
+        long score =
+            (1000L - Math.Clamp(outcome.Incoming, 0, 999)) * 1_000_000_000
+            + (1000L - Math.Clamp(outcome.FutureIncoming0, 0, 999)) * 1_000_000
+            + (1000L - Math.Clamp(outcome.FutureIncoming1, 0, 999)) * 1_000
+            + (1000L - Math.Clamp(outcome.FutureIncoming2, 0, 999))
+            + (10_000L - Math.Clamp(outcome.EnemyHp, 0, 9999)) / 100
+            + Math.Clamp(outcome.PlayerHpAfterTurn, 0, 99);
+        return score > int.MaxValue ? int.MaxValue : (int)score;
+    }
+
+    public static CombatLineOutcome WipeOutcome(CombatState state) =>
+        new(0, 0, 0, 0, 0, state.PlayerHp);
+
+    static int CompareLineOutcome(CombatLineOutcome without, CombatLineOutcome with) =>
+        CompareLines(without, with);
+
+    static CombatLineOutcome EvaluateLineOutcome(CombatState midTurn) {
+        var afterTurn = CombatTurnResolver.ResolveEndTurn(midTurn);
+        return new CombatLineOutcome(
+            ThreatModel.IncomingDamage(midTurn),
+            ThreatModel.IncomingAtIntentStep(afterTurn, 0),
+            ThreatModel.IncomingAtIntentStep(afterTurn, 1),
+            ThreatModel.IncomingAtIntentStep(afterTurn, 2),
+            afterTurn.Enemies.Where(e => e.IsAlive).Sum(e => e.CurrentHp),
+            afterTurn.PlayerHp);
+    }
+
+    static int ScoreMidTurn(CombatState s) {
+        int incoming = ThreatModel.IncomingDamage(s);
+        int future0 = ThreatModel.IncomingAtIntentStep(s, 1);
+        int future1 = ThreatModel.IncomingAtIntentStep(s, 2);
+        int future2 = ThreatModel.IncomingAtIntentStep(s, 3);
+        int enemyHp = s.Enemies.Where(e => e.IsAlive).Sum(e => e.EffectiveHp);
+        return -incoming * 1000 - future0 * 250 - future1 * 100 - future2 * 40 - enemyHp;
+    }
+
+    /// <summary>Sim delta: play vuln first vs skip vuln card, compared by explicit line metrics.</summary>
     static int ComputeVulnerableSetupSimDelta(CombatState state, int handIndex, int enemyIndex) {
-        int withoutVuln = EvaluateGreedyLineTerminal(state, handIndex);
+        var withoutMid = SimulateGreedyPlays(state, handIndex);
         var afterVuln = CombatSimulator.Apply(
             state,
             new SimCombatAction(SimActionKind.PlayCard, handIndex, enemyIndex));
-        int withVuln = EvaluateGreedyLineTerminal(afterVuln);
-        return withVuln - withoutVuln;
+        var withMid = SimulateGreedyPlays(afterVuln);
+
+        var without = EvaluateLineOutcome(withoutMid);
+        var with = EvaluateLineOutcome(withMid);
+        int delta = CompareLineOutcome(without, with);
+
+        // #region agent log
+        AgentDebugLog.Write("H1", "CombatSetupEvaluator.ComputeVulnerableSetupSimDelta", "vuln sim delta", new {
+            cardId = state.Hand[handIndex].Id,
+            enemyIndex,
+            withoutIncoming = without.Incoming,
+            withIncoming = with.Incoming,
+            withoutFuture0 = without.FutureIncoming0,
+            withFuture0 = with.FutureIncoming0,
+            withoutFuture1 = without.FutureIncoming1,
+            withFuture1 = with.FutureIncoming1,
+            withoutFuture2 = without.FutureIncoming2,
+            withFuture2 = with.FutureIncoming2,
+            withoutEnemyHp = without.EnemyHp,
+            withEnemyHp = with.EnemyHp,
+            withoutPlayerHp = without.PlayerHpAfterTurn,
+            withPlayerHp = with.PlayerHpAfterTurn,
+            delta,
+            energy = state.Energy,
+            hand = state.Hand.Select(c => c.Id).ToArray(),
+            enemies = state.Enemies.Where(e => e.IsAlive).Select(e => new {
+                e.Index, e.MonsterId, e.CurrentHp, e.IsMinion, e.IntentDamage,
+            }).ToArray(),
+        });
+        // #endregion
+
+        return delta;
     }
 
-    static int EvaluateGreedyLineTerminal(CombatState state, int excludeHandIndex = -1) {
-        var midTurn = SimulateGreedyAttacks(state, excludeHandIndex);
-        var afterTurn = CombatTurnResolver.ResolveEndTurn(midTurn);
-        return CombatEvaluator.EvaluateTerminal(afterTurn);
+    static CombatState SimulateGreedyPlays(CombatState state, int excludeHandIndex = -1) {
+        var s = state;
+        string? excludeId = excludeHandIndex >= 0 && excludeHandIndex < state.Hand.Count
+            ? state.Hand[excludeHandIndex].Id
+            : null;
+
+        bool playedTransform = true;
+        while (playedTransform) {
+            playedTransform = false;
+            int bestHand = -1;
+            int bestDelta = 0;
+
+            for (int i = 0; i < s.Hand.Count; i++) {
+                var card = s.Hand[i];
+                if (excludeId != null && card.Id == excludeId)
+                    continue;
+                if (!CombatCardCost.CanAfford(card, s))
+                    continue;
+                if (!CombatTransformSimulator.IsHandAttackTransform(card.Profile))
+                    continue;
+
+                int delta = CombatTransformSimulator.EstimateTurnDamageDelta(
+                    s.ToHandJson(), card.ToJson(), s.Energy);
+                if (delta > bestDelta) {
+                    bestDelta = delta;
+                    bestHand = i;
+                }
+            }
+
+            if (bestHand < 0 || bestDelta <= 0)
+                break;
+
+            s = CombatSimulator.Apply(s, new SimCombatAction(SimActionKind.PlayCard, bestHand, -1));
+            playedTransform = true;
+        }
+
+        return SimulateGreedyAttacks(s, excludeHandIndex);
     }
 
     public static int ComputeBestVulnerableDeferValue(
@@ -157,16 +286,19 @@ internal static class CombatSetupEvaluator {
         return debt;
     }
 
-    /// <summary>Primary focus for single-target attacks this turn (matches beam target ordering).</summary>
-    public static int PrimaryAttackTargetIndex(CombatState state) =>
+    /// <summary>Threat-ordered enemies for focus fire (non-minion, this-turn intent, next-turn intent, then HP).</summary>
+    public static IEnumerable<CombatEnemy> OrderEnemiesByThreat(CombatState state) =>
         state.Enemies
             .Where(e => ThreatModel.IsViableAttackTarget(state, e))
             .OrderByDescending(e => e.IsMinion ? 0 : 1)
-            .ThenBy(e => e.EffectiveHp)
             .ThenByDescending(e => e.IntentDamage)
             .ThenByDescending(e => ThreatModel.NextTurnAttackOn(e))
-            .Select(e => e.Index)
-            .FirstOrDefault();
+            .ThenByDescending(e => e.CurrentHp)
+            .ThenBy(e => e.EffectiveHp);
+
+    /// <summary>Primary focus for single-target attacks this turn.</summary>
+    public static int PrimaryAttackTargetIndex(CombatState state) =>
+        OrderEnemiesByThreat(state).Select(e => e.Index).FirstOrDefault();
 
     public static int ComputeWastedVulnerablePenalty(CombatState state) {
         if (state.AliveEnemyCount < 2)
@@ -234,12 +366,15 @@ internal static class CombatSetupEvaluator {
             ? state.Hand[excludeHandIndex].Id
             : null;
 
-        bool played = true;
-        while (played) {
-            played = false;
-            int bestHand = -1;
-            int bestEnemy = -1;
+        while (true) {
+            SimCombatAction? bestAction = null;
             int bestScore = int.MinValue;
+            int bestIncoming = int.MaxValue;
+            int bestFuture0 = int.MaxValue;
+            int bestFuture1 = int.MaxValue;
+            int bestFuture2 = int.MaxValue;
+            bool bestHitsPrimary = false;
+            int primary = PrimaryAttackTargetIndex(s);
 
             for (int i = 0; i < s.Hand.Count; i++) {
                 var card = s.Hand[i];
@@ -249,11 +384,22 @@ internal static class CombatSetupEvaluator {
                     continue;
 
                 if (card.IsAoe) {
-                    int score = CombatDamageCalc.OutgoingDamage(card, s) * s.AliveEnemyCount;
-                    if (score > bestScore) {
-                        bestScore = score;
-                        bestHand = i;
-                        bestEnemy = -1;
+                    var next = CombatSimulator.Apply(s, new SimCombatAction(SimActionKind.PlayCard, i, -1));
+                    var future = FutureIncomingFromMidTurn(next);
+                    if (IsBetterAttackStep(
+                            ThreatModel.IncomingDamage(next),
+                            future.f0, future.f1, future.f2,
+                            ScoreMidTurn(next),
+                            hitsPrimary: false,
+                            bestIncoming, bestFuture0, bestFuture1, bestFuture2,
+                            bestScore, bestHitsPrimary)) {
+                        bestScore = ScoreMidTurn(next);
+                        bestIncoming = ThreatModel.IncomingDamage(next);
+                        bestFuture0 = future.f0;
+                        bestFuture1 = future.f1;
+                        bestFuture2 = future.f2;
+                        bestHitsPrimary = false;
+                        bestAction = new SimCombatAction(SimActionKind.PlayCard, i, -1);
                     }
 
                     continue;
@@ -263,38 +409,98 @@ internal static class CombatSetupEvaluator {
                     int dmg = CombatDamageCalc.OutgoingDamage(card, s, enemy.Vulnerable);
                     if (dmg <= 0) continue;
 
-                    int score = dmg * 3;
-                    if (dmg >= enemy.EffectiveHp)
-                        score += 200;
-                    score += enemy.IntentDamage * 4;
-                    if (!enemy.IsMinion)
-                        score += 50;
-                    else
-                        score -= 30;
-
-                    if (score > bestScore) {
-                        bestScore = score;
-                        bestHand = i;
-                        bestEnemy = enemy.Index;
+                    var next = CombatSimulator.Apply(
+                        s, new SimCombatAction(SimActionKind.PlayCard, i, enemy.Index));
+                    bool hitsPrimary = enemy.Index == primary;
+                    var future = FutureIncomingFromMidTurn(next);
+                    if (IsBetterAttackStep(
+                            ThreatModel.IncomingDamage(next),
+                            future.f0, future.f1, future.f2,
+                            ScoreMidTurn(next),
+                            hitsPrimary,
+                            bestIncoming, bestFuture0, bestFuture1, bestFuture2,
+                            bestScore, bestHitsPrimary)) {
+                        bestScore = ScoreMidTurn(next);
+                        bestIncoming = ThreatModel.IncomingDamage(next);
+                        bestFuture0 = future.f0;
+                        bestFuture1 = future.f1;
+                        bestFuture2 = future.f2;
+                        bestHitsPrimary = hitsPrimary;
+                        bestAction = new SimCombatAction(SimActionKind.PlayCard, i, enemy.Index);
                     }
                 }
             }
 
-            if (bestHand < 0)
+            if (bestAction == null)
                 break;
 
-            s = CombatSimulator.Apply(s, new SimCombatAction(SimActionKind.PlayCard, bestHand, bestEnemy));
-            played = true;
+            // #region agent log
+            if (bestAction.EnemyIndex >= 0) {
+                var tgt = s.Enemies.FirstOrDefault(e => e.Index == bestAction.EnemyIndex);
+                AgentDebugLog.Write("H3", "CombatSetupEvaluator.SimulateGreedyAttacks", "greedy attack pick", new {
+                    cardId = s.Hand[bestAction.HandIndex].Id,
+                    enemyIndex = bestAction.EnemyIndex,
+                    monsterId = tgt?.MonsterId,
+                    isMinion = tgt?.IsMinion,
+                    hp = tgt?.CurrentHp,
+                    incomingAfter = bestIncoming,
+                    future0 = bestFuture0,
+                    future1 = bestFuture1,
+                    future2 = bestFuture2,
+                    hitsPrimary = bestHitsPrimary,
+                    score = bestScore,
+                });
+            }
+            // #endregion
+
+            s = CombatSimulator.Apply(s, bestAction);
         }
 
         return s;
     }
 
-    static bool AppliesVulnerable(CombatHandCard card) =>
-        card.Profile.AppliedVulnerable > 0
-        || card.Profile.Flags.HasFlag(CardMechanicFlags.AppliesVulnerable);
+    static (int f0, int f1, int f2) FutureIncomingFromMidTurn(CombatState state) => (
+        ThreatModel.IncomingAtIntentStep(state, 1),
+        ThreatModel.IncomingAtIntentStep(state, 2),
+        ThreatModel.IncomingAtIntentStep(state, 3));
+
+    static bool IsBetterAttackStep(
+        int incoming,
+        int future0,
+        int future1,
+        int future2,
+        int score,
+        bool hitsPrimary,
+        int bestIncoming,
+        int bestFuture0,
+        int bestFuture1,
+        int bestFuture2,
+        int bestScore,
+        bool bestHitsPrimary) {
+        if (incoming != bestIncoming)
+            return incoming < bestIncoming;
+
+        int futureCmp = ThreatModel.CompareFutureIncoming(
+            future0, future1, future2,
+            bestFuture0, bestFuture1, bestFuture2);
+        if (futureCmp != 0)
+            return futureCmp > 0;
+
+        if (score != bestScore)
+            return score > bestScore;
+        if (hitsPrimary != bestHitsPrimary)
+            return hitsPrimary;
+        return false;
+    }
+
+    static bool AppliesVulnerable(CombatHandCard card) {
+        if (card.Profile.AppliedVulnerable <= 0)
+            return false;
+        if (string.Equals(card.Id, "GIANT_ROCK", StringComparison.OrdinalIgnoreCase))
+            return false;
+        return true;
+    }
 
     static bool AppliesVulnerable(CardMechanicProfile profile) =>
-        profile.AppliedVulnerable > 0
-        || profile.Flags.HasFlag(CardMechanicFlags.AppliesVulnerable);
+        profile.AppliedVulnerable > 0;
 }

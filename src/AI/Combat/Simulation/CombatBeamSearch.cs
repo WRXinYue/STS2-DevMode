@@ -20,8 +20,7 @@ public static class CombatBeamSearch {
     }
 
     public static int RunBestScore(CombatState root, BeamSearchOptions options) {
-        var sw = Stopwatch.StartNew();
-        var result = RunBeam(root, options.MaxDepth, options, sw);
+        var result = Run(root, options);
         return result.HasResult ? result.Score : int.MinValue;
     }
 
@@ -32,20 +31,15 @@ public static class CombatBeamSearch {
 
     static BeamSearchResult RunBeam(CombatState root, int maxDepth, BeamSearchOptions config, Stopwatch sw) {
         var beam = new List<BeamNode> {
-            new(root, [], CombatEvaluator.EvaluateMidTurn(root)),
+            new(root, [], RankLine(root)),
         };
 
         List<SimCombatAction>? bestPath = null;
-        int bestScore = int.MinValue;
+        CombatSetupEvaluator.CombatLineOutcome? bestOutcome = null;
         int bestDepth = 0;
-
-        int rootPostBudget = Math.Max(40, config.TimeBudgetMs - (int)sw.ElapsedMilliseconds);
-        ConsiderLeaf(root, [], 0, rootPostBudget, sw, ref bestPath, ref bestScore, ref bestDepth);
 
         for (int depth = 0; depth < maxDepth && sw.ElapsedMilliseconds < config.TimeBudgetMs; depth++) {
             var nextBeam = new List<BeamNode>();
-            int postBudget = Math.Max(40, config.TimeBudgetMs - (int)sw.ElapsedMilliseconds);
-
             foreach (var node in beam) {
                 if (sw.ElapsedMilliseconds >= config.TimeBudgetMs)
                     break;
@@ -58,25 +52,26 @@ public static class CombatBeamSearch {
                     var newPath = node.Path.Append(action).ToList();
 
                     if (next.AliveEnemyCount == 0) {
-                        int wipeScore = CombatEvaluator.EvaluateTerminal(next)
-                            + CombatEvalWeights.CombatWipePriorityBonus;
-                        if (wipeScore > bestScore) {
-                            bestScore = wipeScore;
-                            bestPath = newPath;
-                            bestDepth = depth + 1;
-                        }
+                        ConsiderLeaf(root, next, newPath, depth + 1, ref bestPath, ref bestOutcome, ref bestDepth);
                         continue;
                     }
 
-                    ConsiderLeaf(next, newPath, depth + 1, postBudget, sw,
-                        ref bestPath, ref bestScore, ref bestDepth);
+                    ConsiderLeaf(root, next, newPath, depth + 1, ref bestPath, ref bestOutcome, ref bestDepth);
 
                     bool exhausted = next.Energy <= 0 || !CombatCardCost.HasAffordablePlay(next);
                     if (exhausted || depth + 1 >= maxDepth)
                         continue;
 
-                    nextBeam.Add(new BeamNode(next, newPath, CombatEvaluator.EvaluateMidTurn(next)));
+                    nextBeam.Add(new BeamNode(next, newPath, RankLine(next)));
                 }
+            }
+
+            if (depth == 0 && nextBeam.Count > 0) {
+                CombatDebugTrace.LogBeamDepthCandidates(
+                    root,
+                    nextBeam.OrderByDescending(n => n.Score)
+                        .Select(n => ((IReadOnlyList<SimCombatAction>)n.Path, n.Score)),
+                    depth + 1);
             }
 
             if (nextBeam.Count == 0)
@@ -88,160 +83,57 @@ public static class CombatBeamSearch {
                 .ToList();
         }
 
-        return new BeamSearchResult(bestPath, bestScore, bestDepth);
+        int score = bestOutcome.HasValue
+            ? CombatSetupEvaluator.LineRankScore(bestOutcome.Value)
+            : int.MinValue;
+        return new BeamSearchResult(bestPath, score, bestDepth);
     }
 
     static void ConsiderLeaf(
+        CombatState root,
         CombatState state,
         List<SimCombatAction> path,
         int depth,
-        int postBudget,
-        Stopwatch sw,
         ref List<SimCombatAction>? bestPath,
-        ref int bestScore,
+        ref CombatSetupEvaluator.CombatLineOutcome? bestOutcome,
         ref int bestDepth) {
-        var afterTurn = CombatTurnResolver.ResolveEndTurn(state);
-        if (afterTurn.AliveEnemyCount == 0) {
-            int wipeScore = CombatEvaluator.EvaluateTerminal(afterTurn)
-                + CombatEvalWeights.CombatWipePriorityBonus;
-            if (wipeScore > bestScore) {
-                bestScore = wipeScore;
-                bestPath = path;
-                bestDepth = depth;
-            }
+        CombatSetupEvaluator.CombatLineOutcome outcome = state.AliveEnemyCount == 0
+            ? CombatSetupEvaluator.WipeOutcome(state)
+            : CombatSetupEvaluator.EvaluateLine(state);
 
-            return;
-        }
-
-        int endScore = PostTurnSimulator.ScoreLine(afterTurn, postBudget, sw);
-        endScore -= UnusedEnergyPenalty(state);
-
-        var net = ThreatModel.NetDamageAfterBlock(state);
-        var incoming = ThreatModel.IncomingDamage(state);
-        if (net <= 0 && incoming > 0)
-            endScore += CombatEvalWeights.TerminalFullBlockBonus / 2;
-
-        if (endScore > bestScore) {
-            bestScore = endScore;
+        if (IsBetterLineOutcome(bestOutcome, bestPath, outcome, path)) {
+            bestOutcome = outcome;
             bestPath = path;
             bestDepth = depth;
+            int rank = CombatSetupEvaluator.LineRankScore(outcome);
+            CombatDebugTrace.LogBeamLeafUpdate(
+                root, state, path, rank, depth, "line outcome");
         }
     }
 
-    static int UnusedEnergyPenalty(CombatState state) {
-        if (state.Energy <= 0 || !CombatCardCost.HasAffordablePlay(state))
-            return 0;
-        if (RelicCombatRules.RetainsEnergyOnTurnStart(state.RelicIds, state.TurnNumber + 1))
-            return 0;
+    static bool IsBetterLineOutcome(
+        CombatSetupEvaluator.CombatLineOutcome? currentBest,
+        List<SimCombatAction>? currentPath,
+        CombatSetupEvaluator.CombatLineOutcome candidate,
+        List<SimCombatAction> candidatePath) {
+        if (currentBest == null)
+            return true;
 
-        var net = ThreatModel.NetDamageAfterBlock(state);
-        if (net <= 0)
-            return GreedyRemainingPlayValue(state, prioritizeBlock: false);
+        int cmp = CombatSetupEvaluator.CompareLines(currentBest.Value, candidate);
+        if (cmp > 0)
+            return true;
+        if (cmp < 0)
+            return false;
 
-        return net * CombatEvalWeights.UnusedEnergyExposedNetPenalty
-            + GreedyRemainingPlayValue(state, prioritizeBlock: true);
+        int currentLen = currentPath?.Count ?? 0;
+        return candidatePath.Count > currentLen;
     }
 
-    static int GreedyRemainingPlayValue(CombatState state, bool prioritizeBlock) {
-        var net = ThreatModel.NetDamageAfterBlock(state);
-        var primary = CombatSetupEvaluator.PrimaryAttackTargetIndex(state);
-        var primaryTarget = state.Enemies.FirstOrDefault(e => e.IsAlive && e.Index == primary);
-
-        var blockOptions = new List<(int Cost, int Value)>();
-        var attackOptions = new List<(int Cost, int Value)>();
-
-        foreach (var card in state.Hand) {
-            if (!CombatCardCost.CanAfford(card, state)) continue;
-
-            int cost = CombatCardCost.EffectiveCost(card, state.Modifiers);
-
-            if (card.Block > 0 && net > 0) {
-                int block = Math.Min(CombatDamageCalc.OutgoingBlock(card, state), net);
-                if (block > 0)
-                    blockOptions.Add((cost, block));
-            }
-
-            if (card.IsAttack && card.Damage > 0) {
-                var vuln = primaryTarget?.Vulnerable ?? 0;
-                int value = CombatDamageCalc.OutgoingDamage(card, state, vuln);
-                if (value > 0)
-                    attackOptions.Add((cost, value));
-            }
-        }
-
-        var setupOptions = new List<(int Cost, int Value)>();
-        for (int i = 0; i < state.Hand.Count; i++) {
-            var card = state.Hand[i];
-            if (!CombatCardCost.CanAfford(card, state)) continue;
-            if (primaryTarget == null || primaryTarget.Vulnerable > 0)
-                continue;
-            if (!AppliesVulnerable(card)) continue;
-
-            int cost = CombatCardCost.EffectiveCost(card, state.Modifiers);
-            int setup = CombatSetupEvaluator.ComputeVulnerableSetupValue(state, i, primary);
-            if (setup > 0)
-                setupOptions.Add((cost, setup));
-        }
-
-        blockOptions.Sort((a, b) => b.Value.CompareTo(a.Value));
-        attackOptions.Sort((a, b) => b.Value.CompareTo(a.Value));
-        setupOptions.Sort((a, b) => b.Value.CompareTo(a.Value));
-
-        int energy = state.Energy;
-        int remainingNet = net;
-        int blockValue = 0;
-
-        if (prioritizeBlock && remainingNet > 0) {
-            foreach (var (cost, value) in blockOptions) {
-                if (cost > energy || remainingNet <= 0) continue;
-                energy -= cost;
-                remainingNet = Math.Max(0, remainingNet - value);
-                blockValue += value;
-            }
-        }
-
-        int attackSetupValue = 0;
-        foreach (var options in new[] { attackOptions, setupOptions }) {
-            foreach (var (cost, value) in options) {
-                if (cost > energy) continue;
-                energy -= cost;
-                attackSetupValue += value;
-            }
-        }
-
-        int junkReliefValue = 0;
-        if (DeckPollutionEvaluator.HandJunkCount(state) > 0) {
-            foreach (var card in state.Hand) {
-                if (!CombatCardCost.CanAfford(card, state)) continue;
-                int relief = DeckPollutionEvaluator.JunkReliefScore(state, card);
-                if (relief > 0) {
-                    int cost = CombatCardCost.EffectiveCost(card, state.Modifiers);
-                    if (cost > energy) continue;
-                    energy -= cost;
-                    junkReliefValue += relief;
-                    continue;
-                }
-                int emergency = DeckPollutionEvaluator.EmergencyJunkPlayScore(state, card);
-                if (emergency <= int.MinValue + 1) continue;
-                int emergencyCost = CombatCardCost.EffectiveCost(card, state.Modifiers);
-                if (emergencyCost > energy) continue;
-                energy -= emergencyCost;
-                junkReliefValue += emergency;
-            }
-        }
-
-        if (prioritizeBlock && net > 0) {
-            if (remainingNet > 0)
-                return remainingNet * CombatEvalWeights.UnusedEnergyExposedNetPenalty + attackSetupValue + junkReliefValue;
-            return attackSetupValue + junkReliefValue;
-        }
-
-        return blockValue + attackSetupValue + junkReliefValue;
+    static int RankLine(CombatState state) {
+        if (state.AliveEnemyCount == 0)
+            return CombatSetupEvaluator.LineRankScore(CombatSetupEvaluator.WipeOutcome(state));
+        return CombatSetupEvaluator.LineRankScore(CombatSetupEvaluator.EvaluateLine(state));
     }
-
-    static bool AppliesVulnerable(CombatHandCard card) =>
-        card.Profile.AppliedVulnerable > 0
-        || card.Profile.Flags.HasFlag(CardMechanicFlags.AppliesVulnerable);
 
     readonly record struct BeamNode(CombatState State, List<SimCombatAction> Path, int Score);
 }

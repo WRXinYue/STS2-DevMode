@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DevMode.AI.Combat;
 using DevMode.AI.Knowledge;
 
 namespace DevMode.AI.Combat.Simulation;
@@ -24,8 +25,19 @@ public static class LegalActionGenerator {
 
     public static IEnumerable<SimCombatAction> GenerateOrdered(CombatState state, int maxActions = int.MaxValue) =>
         Generate(state)
-            .OrderByDescending(a => CombatActionHeuristic.QuickScore(state, a))
+            .OrderByDescending(a => RankActionByLineOutcome(state, a))
             .Take(maxActions);
+
+    static int RankActionByLineOutcome(CombatState state, SimCombatAction action) {
+        if (action.Kind == SimActionKind.EndTurn)
+            return int.MinValue;
+
+        var next = CombatSimulator.Apply(state, action);
+        if (next.AliveEnemyCount == 0)
+            return int.MaxValue;
+
+        return CombatSetupEvaluator.LineRankScore(CombatSetupEvaluator.EvaluateLine(next));
+    }
 
     static IEnumerable<SimCombatAction> GenerateRaw(CombatState state) {
         for (int i = 0; i < state.Hand.Count; i++) {
@@ -75,14 +87,8 @@ public static class LegalActionGenerator {
         }
     }
 
-    static IEnumerable<int> OrderedAttackTargets(CombatState state) {
-        return state.Enemies
-            .Where(e => ThreatModel.IsViableAttackTarget(state, e))
-            .OrderByDescending(e => e.IsMinion ? 0 : 1)
-            .ThenBy(e => e.EffectiveHp)
-            .ThenByDescending(e => e.IntentDamage)
-            .ThenByDescending(e => ThreatModel.NextTurnAttackOn(e))
+    static IEnumerable<int> OrderedAttackTargets(CombatState state) =>
+        CombatSetupEvaluator.OrderEnemiesByThreat(state)
             .Take(4)
             .Select(e => e.Index);
-    }
 }

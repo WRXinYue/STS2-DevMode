@@ -33,8 +33,9 @@ public static class CombatSimulator {
         var exhaustHand = CardPileEffectResolver.ExhaustHandCount(card.Id);
 
         if (CombatTransformSimulator.IsHandAttackTransform(card.Profile)) {
+            var cost = CombatCardCost.EffectiveCost(card, state.Modifiers);
             hand = ApplyHandTransform(hand, action.HandIndex);
-            return state.WithPlayer(state.PlayerHp, block, energy).WithHand(hand);
+            return state.WithPlayer(state.PlayerHp, block, energy - cost).WithHand(hand);
         }
 
         hand.RemoveAt(action.HandIndex);

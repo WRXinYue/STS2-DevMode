@@ -226,7 +226,7 @@ public sealed record CombatState(
                 step["nonDamageThreat"]?.GetValue<int>() ?? 0));
         }
 
-        return steps.Take(3).ToArray();
+        return steps.Take(ThreatModel.LineFutureHorizonTurns + 2).ToArray();
     }
 
     static string[] ParseIntentTypeStrings(JsonArray? arr) {

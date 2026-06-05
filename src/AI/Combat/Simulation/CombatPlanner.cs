@@ -30,8 +30,22 @@ public static class CombatPlanner {
                 best = result;
         }
 
+        CombatDebugTrace.LogOpeningDecision(state, snapshot, best);
+
         if (best is { Path: { Count: > 0 } path, Score: var beamScore, Depth: var beamDepth }) {
             var action = ToGameAction(path[0], state, $"Planner score={beamScore}");
+            // #region agent log
+            AgentDebugLog.Write("H2", "CombatPlanner.PickBestMove", "beam pick", new {
+                beamScore,
+                beamDepth,
+                first = FormatBeamPath(state, path),
+                energy = state.Energy,
+                hand = state.Hand.Select(c => c.Id).ToArray(),
+                enemies = state.Enemies.Where(e => e.IsAlive).Select(e => new {
+                    e.Index, e.MonsterId, e.CurrentHp, e.IsMinion, e.IntentDamage,
+                }).ToArray(),
+            });
+            // #endregion
             LogPick(snapshot, state, action, $"beam d={beamDepth} s={beamScore}", path);
             return action;
         }

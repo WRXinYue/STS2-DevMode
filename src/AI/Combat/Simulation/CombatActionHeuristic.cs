@@ -142,7 +142,65 @@ internal static class CombatActionHeuristic {
         if (delta <= 0)
             return int.MinValue;
 
-        return 40 + delta;
+        var attacks = CombatTransformSimulator.CountTransformableAttacks(hand);
+        var score = 40 + delta;
+        if (attacks >= 2)
+            score += 100;
+
+        var afterMid = SimulateGreedyPlaysForHeuristic(after);
+        if (ThreatModel.IncomingDamage(afterMid) <= 0)
+            score += 80;
+
+        return score;
+    }
+
+    static CombatState SimulateGreedyPlaysForHeuristic(CombatState state) {
+        var s = state;
+        for (int i = 0; i < s.Hand.Count; i++) {
+            var card = s.Hand[i];
+            if (!CombatCardCost.CanAfford(card, s))
+                continue;
+            if (!CombatTransformSimulator.IsHandAttackTransform(card.Profile))
+                continue;
+            if (CombatTransformSimulator.EstimateTurnDamageDelta(
+                    s.ToHandJson(), card.ToJson(), s.Energy) <= 0)
+                continue;
+            s = CombatSimulator.Apply(s, new SimCombatAction(SimActionKind.PlayCard, i, -1));
+            break;
+        }
+
+        return GreedyAttacksOnce(s);
+    }
+
+    static CombatState GreedyAttacksOnce(CombatState state) {
+        var s = state;
+        for (int i = 0; i < s.Hand.Count; i++) {
+            var card = s.Hand[i];
+            if (!CombatCardCost.CanAfford(card, s) || !card.IsAttack || card.Damage <= 0)
+                continue;
+
+            int bestEnemy = -1;
+            int bestScore = int.MinValue;
+            foreach (var enemy in s.Enemies.Where(e => ThreatModel.IsViableAttackTarget(s, e))) {
+                int dmg = CombatDamageCalc.OutgoingDamage(card, s, enemy.Vulnerable);
+                if (dmg <= 0) continue;
+                int score = dmg * 3 + enemy.IntentDamage * 12;
+                if (dmg >= enemy.EffectiveHp) {
+                    score += 200;
+                    if (enemy.IntentDamage > 0)
+                        score += 500;
+                }
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestEnemy = enemy.Index;
+                }
+            }
+
+            if (bestEnemy >= 0)
+                return CombatSimulator.Apply(s, new SimCombatAction(SimActionKind.PlayCard, i, bestEnemy));
+        }
+
+        return s;
     }
 
     static int ScoreVulnerableSetup(CombatState state, SimCombatAction action, CombatHandCard card) {
@@ -185,6 +243,13 @@ internal static class CombatActionHeuristic {
                 score -= 25;
 
             score += ThreatEconomy.KillBeforeHitBonus(target, state);
+
+            if (action.EnemyIndex == CombatSetupEvaluator.PrimaryAttackTargetIndex(state))
+                score += 40;
+
+            if (target.IsMinion && eff >= target.EffectiveHp
+                && state.Enemies.Any(e => e.IsAlive && !e.IsMinion && e.Index != target.Index))
+                score -= 60;
         }
 
         if (card.IsAoe) {
@@ -314,12 +379,7 @@ internal static class CombatActionHeuristic {
     }
 
     static IEnumerable<int> OrderedAttackTargets(CombatState state) =>
-        state.Enemies
-            .Where(e => ThreatModel.IsViableAttackTarget(state, e))
-            .OrderByDescending(e => e.IsMinion ? 0 : 1)
-            .ThenBy(e => e.EffectiveHp)
-            .ThenByDescending(e => e.IntentDamage)
-            .ThenByDescending(e => ThreatModel.NextTurnAttackOn(e))
+        CombatSetupEvaluator.OrderEnemiesByThreat(state)
             .Take(4)
             .Select(e => e.Index);
 
@@ -327,8 +387,7 @@ internal static class CombatActionHeuristic {
         (int)Math.Round(damage * (target.Vulnerable > 0 ? 1.5f : 1f));
 
     static bool AppliesVulnerable(CombatHandCard card) =>
-        card.Profile.AppliedVulnerable > 0
-        || card.Profile.Flags.HasFlag(CardMechanicFlags.AppliesVulnerable);
+        card.Profile.AppliedVulnerable > 0;
 
     static JsonObject BuildSnapshot(CombatState state) => new() {
         ["currentHp"] = state.PlayerHp,

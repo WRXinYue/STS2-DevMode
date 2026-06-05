@@ -68,12 +68,11 @@ internal static class MonsterIntentReader {
         return entries;
     }
 
-    /// <summary>Predicted intent for the enemy turn after the one currently shown.</summary>
-    /// <summary>Intent chain for AI snapshot enrichment (up to 3 predicted enemy turns).</summary>
+    /// <summary>Intent chain for AI snapshot (current + up to 3 predicted enemy turns).</summary>
     internal static JsonArray CaptureIntentSteps(
         Creature enemy,
         IReadOnlyList<Creature> targets,
-        int maxSteps = 3) {
+        int maxSteps = DevMode.AI.Combat.Simulation.ThreatModel.LineFutureHorizonTurns + 2) {
         var arr = new JsonArray();
         if (enemy.Monster is not { } monster)
             return arr;

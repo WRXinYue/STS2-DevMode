@@ -8,6 +8,9 @@ using DevMode.AI.Knowledge;
 namespace DevMode.AI.Combat.Simulation;
 
 public static class ThreatModel {
+    /// <summary>Future enemy rounds compared in line outcome (after the current line resolves).</summary>
+    public const int LineFutureHorizonTurns = 3;
+
     public static int IncomingDamage(CombatState state) =>
         state.Enemies
             .Where(e => e.IsAlive && e.EffectiveIncoming > 0)
@@ -22,10 +25,20 @@ public static class ThreatModel {
     public static bool IsFatalIfUnblocked(CombatState state) =>
         NetDamageAfterBlock(state) >= EffectiveHp(state);
 
-    public static int NextTurnIncoming(CombatState state) {
+    public static int NextTurnIncoming(CombatState state) =>
+        IncomingAtIntentStep(state, 1);
+
+    /// <summary>Sum attack damage at intentSteps[stepIndex] across alive enemies.</summary>
+    public static int IncomingAtIntentStep(CombatState state, int stepIndex) {
+        if (stepIndex < 0)
+            return 0;
+
         double total = 0;
-        foreach (var enemy in state.Enemies.Where(e => e.IsAlive && e.IntentSteps.Length > 1)) {
-            var step = enemy.IntentSteps[1];
+        foreach (var enemy in state.Enemies.Where(e => e.IsAlive)) {
+            if (stepIndex >= enemy.IntentSteps.Length)
+                continue;
+
+            var step = enemy.IntentSteps[stepIndex];
             var damage = step.IntentDamage;
             if (step.IsUncertain)
                 damage = (int)Math.Round(damage * EnemyThreatWeights.NextTurnUncertainMultiplier);
@@ -35,14 +48,27 @@ public static class ThreatModel {
         return (int)Math.Round(total);
     }
 
+    /// <summary>Positive when horizon A is better (lower incoming) than horizon B.</summary>
+    public static int CompareFutureIncoming(
+        int a0, int a1, int a2,
+        int b0, int b1, int b2) {
+        if (a0 != b0) return b0 - a0;
+        if (a1 != b1) return b1 - a1;
+        if (a2 != b2) return b2 - a2;
+        return 0;
+    }
+
     public static int TotalNonDamageThreat(CombatState state) =>
         state.Enemies.Where(e => e.IsAlive).Sum(e => e.NonDamageThreat);
 
-    public static int NextTurnAttackOn(CombatEnemy enemy) {
-        if (enemy.IntentSteps.Length < 2)
+    public static int NextTurnAttackOn(CombatEnemy enemy) =>
+        IncomingAtIntentStepForEnemy(enemy, 1);
+
+    static int IncomingAtIntentStepForEnemy(CombatEnemy enemy, int stepIndex) {
+        if (!enemy.IsAlive || stepIndex < 0 || stepIndex >= enemy.IntentSteps.Length)
             return 0;
 
-        var step = enemy.IntentSteps[1];
+        var step = enemy.IntentSteps[stepIndex];
         var damage = step.IntentDamage;
         if (step.IsUncertain)
             damage = (int)Math.Round(damage * EnemyThreatWeights.NextTurnUncertainMultiplier);
