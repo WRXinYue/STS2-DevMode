@@ -8,25 +8,13 @@ namespace DevMode.AI.Sts2.Helpers;
 
 internal static class UIHelper
 {
-    public static async Task Click(NClickableControl button, int delayMs = 100)
-    {
+    public static Task Click(NClickableControl button) {
         button.ForceClick();
-        await Task.Delay(delayMs);
+        return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// Polls <paramref name="condition"/> until true or <paramref name="timeout"/> elapses.
-    /// </summary>
-    public static async Task<bool> WaitUntil(Func<bool> condition, TimeSpan timeout, int pollMs = 200)
-    {
-        var deadline = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadline)
-        {
-            if (condition()) return true;
-            await Task.Delay(pollMs);
-        }
-        return condition();
-    }
+    public static Task<bool> WaitUntil(Func<bool> condition, TimeSpan timeout) =>
+        Sts2WaitHelper.Until(condition, timeout);
 
     public static List<T> FindAll<T>(Node start) where T : Node
     {

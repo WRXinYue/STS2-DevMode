@@ -368,32 +368,37 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
             _lastRewardScreen = screen;
         }
 
-        // --- Mirrors official AutoSlay RewardsScreenHandler logic ---
-        // Find next enabled reward button we haven't tried yet (skip potions if full).
+        // Mirrors official RewardsScreenHandler: drain buttons, wait on UI state (not fixed delays).
         bool hasPotionSlots = _stateProvider.TryGetRunAndPlayer(out _, out var p)
                               && (p?.HasOpenPotionSlots ?? false);
 
-        var btn = UIHelper.FindAll<NRewardButton>((Node)screen)
-            .FirstOrDefault(b => b.IsEnabled
-                && !_attemptedRewardButtons.Contains(b)
-                && (b.Reward is not PotionReward || hasPotionSlots));
+        var clicked = 0;
+        while (clicked < 12) {
+            var btn = UIHelper.FindAll<NRewardButton>((Node)screen)
+                .FirstOrDefault(b => b.IsEnabled
+                    && !_attemptedRewardButtons.Contains(b)
+                    && (b.Reward is not PotionReward || hasPotionSlots));
 
-        if (btn != null)
-        {
+            if (btn == null)
+                break;
+
             _attemptedRewardButtons.Add(btn);
             _log($"CollectReward: clicking [{btn.Reward?.GetType().Name}] (attempted={_attemptedRewardButtons.Count})");
             await UIHelper.Click(btn);
-            await Task.Delay(500);
+            clicked++;
 
-            // If a child overlay opened (e.g. card selection), let the game loop handle it.
+            if (!await RewardScreenHelper.WaitForClaimAsync(screen, btn, TimeSpan.FromSeconds(10)))
+                return ActionResult.Fail("Timed out waiting for reward claim.");
+
             var top = NOverlayStack.Instance?.Peek();
             if (top != null && top != (IOverlayScreen)screen)
                 return ActionResult.Ok("Child overlay opened.");
-
-            return ActionResult.Ok("Reward button clicked.");
         }
 
-        // No more buttons to click — click Proceed (same as official AutoSlay).
+        if (clicked > 0)
+            return ActionResult.Ok($"Collected {clicked} reward(s).");
+
+        // No more buttons — click Proceed (official handler waits for map/screen close).
         if (NMapScreen.Instance is { IsOpen: true } && screen.IsComplete) {
             ResetRewardTracking();
             return ActionResult.Ok("Rewards complete; map is open.");
@@ -408,13 +413,15 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
             }
 
             _log("CollectReward: all rewards collected — clicking proceed.");
+            await UIHelper.WaitUntil(
+                () => proceedBtn.IsEnabled || screen.IsComplete,
+                TimeSpan.FromSeconds(10));
             await UIHelper.Click(proceedBtn);
-            // Wait up to 5s for screen to close or map to open.
             await UIHelper.WaitUntil(
                 () => !GodotObject.IsInstanceValid((Node)screen)
                       || NOverlayStack.Instance?.Peek() != (IOverlayScreen)screen
                       || (NMapScreen.Instance?.IsOpen ?? false),
-                TimeSpan.FromSeconds(5));
+                TimeSpan.FromSeconds(10));
             return ActionResult.Ok("Proceed clicked.");
         }
 
@@ -445,10 +452,12 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
         {
             _log("TreasureRoom: opening chest.");
             await UIHelper.Click(chest);
-            await Task.Delay(1000);
+            await UIHelper.WaitUntil(
+                () => UIHelper.FindAll<NTreasureRoomRelicHolder>((Node)room)
+                    .Any(h => h.Visible && h.IsEnabled),
+                TimeSpan.FromSeconds(5));
         }
 
-        // 2. Pick up relics.
         var relicHolders = UIHelper.FindAll<NTreasureRoomRelicHolder>((Node)room);
         foreach (var holder in relicHolders)
         {
@@ -456,11 +465,10 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
             {
                 _log("TreasureRoom: picking up relic.");
                 await UIHelper.Click(holder);
-                await Task.Delay(500);
+                await Sts2WaitHelper.ActionsSettled(TimeSpan.FromSeconds(5));
             }
         }
 
-        // 3. Click proceed.
         var proceedBtn = room.ProceedButton;
         if (proceedBtn != null)
         {
@@ -600,7 +608,9 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
         if (backBtn != null)
             await UIHelper.Click(backBtn);
 
-        await Task.Delay(300);
+        await UIHelper.WaitUntil(
+            () => room.ProceedButton is { IsEnabled: true },
+            TimeSpan.FromSeconds(5));
 
         if (room.ProceedButton is { IsEnabled: true })
             await UIHelper.Click(room.ProceedButton);

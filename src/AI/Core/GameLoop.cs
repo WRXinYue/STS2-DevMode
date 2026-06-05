@@ -90,7 +90,7 @@ public sealed class GameLoop
             _log($"GameLoop: Phase={phase} Action={action.Type} " +
                  $"Target={action.TargetIndex} Reason=[{action.Reason}]");
 
-            if (ActionDelayMs > 0)
+            if (ShouldDelayBeforeAction(action))
                 await Task.Delay(ActionDelayMs);
 
             var result = await _executor.ExecuteAsync(action);
@@ -146,8 +146,14 @@ public sealed class GameLoop
     bool IsDuplicateAction(string fingerprint) {
         if (_lastFingerprint == null) return false;
         if (_lastFingerprint != fingerprint) return false;
+        // CollectReward reuses the same action; draining is one executor call now.
+        if (_lastFingerprint.Contains(":CollectReward:", StringComparison.Ordinal))
+            return false;
         return (DateTime.UtcNow - _lastActionUtc).TotalMilliseconds < 2000;
     }
+
+    static bool ShouldDelayBeforeAction(GameAction action) =>
+        action.Type is ActionType.PlayCard or ActionType.EndTurn or ActionType.UsePotion;
 
     async Task<bool> TryRecoverFromRepeatedFailureAsync(string fingerprint) {
         if (_repeatFailFingerprint == fingerprint)
