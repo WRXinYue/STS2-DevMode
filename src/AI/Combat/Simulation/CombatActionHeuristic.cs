@@ -191,9 +191,10 @@ internal static class CombatActionHeuristic {
             int bestFuture1 = int.MaxValue;
             int bestFuture2 = int.MaxValue;
             int bestScore = int.MinValue;
+            int bestFocusHp = int.MaxValue;
             bool bestHitsPrimary = false;
 
-            foreach (var enemy in CombatSetupEvaluator.GreedyAttackTargets(s, primary)) {
+            foreach (var enemy in CombatSetupEvaluator.OrderEnemiesByThreat(s)) {
                 int dmg = CombatDamageCalc.OutgoingDamage(card, s, enemy.Vulnerable);
                 if (dmg <= 0) continue;
 
@@ -203,15 +204,17 @@ internal static class CombatActionHeuristic {
                 var future = FuturePressureFromMidTurnHeuristic(next);
                 int incoming = ThreatModel.IncomingDamage(next);
                 int score = ScoreMidTurnHeuristic(next);
+                int focusHp = CombatSetupEvaluator.FocusHpAfter(next, primary);
 
                 if (PreferGreedyAttackTarget(
-                        incoming, future.f0, future.f1, future.f2, score, hitsPrimary,
-                        bestIncoming, bestFuture0, bestFuture1, bestFuture2, bestScore, bestHitsPrimary,
-                        slack)) {
+                        incoming, future.f0, future.f1, future.f2, score, focusHp, hitsPrimary,
+                        bestIncoming, bestFuture0, bestFuture1, bestFuture2, bestFocusHp,
+                        bestScore, bestHitsPrimary, slack)) {
                     bestIncoming = incoming;
                     bestFuture0 = future.f0;
                     bestFuture1 = future.f1;
                     bestFuture2 = future.f2;
+                    bestFocusHp = focusHp;
                     bestScore = score;
                     bestHitsPrimary = hitsPrimary;
                     bestAction = new SimCombatAction(SimActionKind.PlayCard, i, enemy.Index);
@@ -239,7 +242,8 @@ internal static class CombatActionHeuristic {
         int future0 = ThreatModel.PressureAtIntentStep(afterPhase, 0);
         int future1 = ThreatModel.PressureAtIntentStep(afterPhase, 1);
         int enemyHp = s.Enemies.Where(e => e.IsAlive).Sum(e => e.EffectiveHp);
-        return -incoming * 1000 - future0 * 250 - future1 * 100 - enemyHp;
+        int focusHp = CombatSetupEvaluator.FocusHpAfter(s, CombatSetupEvaluator.PrimaryAttackTargetIndex(s));
+        return -incoming * 1000 - future0 * 250 - future1 * 100 - enemyHp - focusHp * 12;
     }
 
     static bool PreferGreedyAttackTarget(
@@ -248,11 +252,13 @@ internal static class CombatActionHeuristic {
         int future1,
         int future2,
         int score,
+        int focusHp,
         bool hitsPrimary,
         int bestIncoming,
         int bestFuture0,
         int bestFuture1,
         int bestFuture2,
+        int bestFocusHp,
         int bestScore,
         bool bestHitsPrimary,
         int incomingSlack) {
@@ -266,6 +272,9 @@ internal static class CombatActionHeuristic {
                 return true;
             return false;
         }
+
+        if (focusHp != bestFocusHp)
+            return focusHp < bestFocusHp;
 
         if (hitsPrimary != bestHitsPrimary)
             return hitsPrimary;
