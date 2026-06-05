@@ -247,71 +247,8 @@ internal static class CombatActionHeuristic {
         if (!PotionCombatEffectData.TryGetProfile(potion.Id, out var profile) || !profile.Simulatable)
             return int.MinValue;
 
-        int score = 20;
-
-        if (profile.Random != null) {
-            score += 25;
-            if (ThreatModel.IsFatalIfUnblocked(state))
-                score += 10;
-            return score;
-        }
-
-        foreach (var effect in profile.Effects) {
-            switch (effect.Kind) {
-                case PotionCombatEffectKind.GainBlock:
-                    var net = ThreatModel.NetDamageAfterBlock(state);
-                    if (ThreatModel.IsFatalIfUnblocked(state))
-                        score += 70 + Math.Min(effect.Amount, net) * 3;
-                    else if (net > 0)
-                        score += 25 + Math.Min(effect.Amount, net) * 2;
-                    break;
-
-                case PotionCombatEffectKind.GainEnergy:
-                    if (state.Energy < state.MaxEnergy)
-                        score += state.Energy >= state.MaxEnergy - 1 ? 35 : 20;
-                    else
-                        score -= 20;
-                    break;
-
-                case PotionCombatEffectKind.DrawCards:
-                    score += 15 + effect.Amount * 4;
-                    break;
-
-                case PotionCombatEffectKind.GainStrength:
-                case PotionCombatEffectKind.GainDexterity:
-                    if (state.Energy >= state.MaxEnergy && !ThreatModel.IsFatalIfUnblocked(state)
-                        && ThreatModel.NetDamageAfterBlock(state) <= 0)
-                        score -= 25;
-                    else
-                        score += 30 + effect.Amount * 6;
-                    break;
-
-                case PotionCombatEffectKind.ApplyWeak:
-                case PotionCombatEffectKind.ApplyVulnerable:
-                    score += 28 + effect.Amount * 6;
-                    if (action.EnemyIndex >= 0) {
-                        var primary = CombatSetupEvaluator.PrimaryAttackTargetIndex(state);
-                        if (action.EnemyIndex != primary)
-                            score -= 30;
-                    }
-                    break;
-
-                case PotionCombatEffectKind.DamageSingle:
-                    score += effect.Amount * 2;
-                    if (action.EnemyIndex >= 0) {
-                        var target = ResolveTarget(state, action.EnemyIndex);
-                        if (target != null && effect.Amount >= target.EffectiveHp)
-                            score += 180;
-                    }
-                    break;
-
-                case PotionCombatEffectKind.DamageAll:
-                    score += effect.Amount * state.AliveEnemyCount;
-                    break;
-            }
-        }
-
-        return score;
+        var ctx = PotionUseScoring.FromState(state, potion.Id);
+        return PotionUseScoring.ScoreSimProfile(state, profile, action.EnemyIndex, ctx);
     }
 
     static int ScoreBlock(CombatState state, CombatHandCard card) {

@@ -112,6 +112,10 @@ internal static class PotionSimulator {
             case PotionCombatEffectKind.DamageAll:
                 CombatEffectApplier.ApplyAoeDamage(enemies, effect.Amount);
                 break;
+
+            case PotionCombatEffectKind.GainHeal:
+                hp = ApplyHeal(hp, state.PlayerMaxHp, effect.Amount);
+                break;
         }
     }
 
@@ -122,6 +126,13 @@ internal static class PotionSimulator {
 
     static bool IsAllEnemies(string targetType) =>
         targetType.Contains("AllEnemies", StringComparison.OrdinalIgnoreCase);
+
+    static int ApplyHeal(int hp, int maxHp, int amount) {
+        if (maxHp <= 0 || amount <= 0)
+            return hp;
+        var heal = amount <= 100 ? maxHp * amount / 100 : amount;
+        return Math.Min(maxHp, hp + heal);
+    }
 
     static List<CombatHandCard> ReindexHand(List<CombatHandCard> hand) {
         var result = new List<CombatHandCard>(hand.Count);

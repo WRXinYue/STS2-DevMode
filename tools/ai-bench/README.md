@@ -106,7 +106,7 @@ If beam picks Defend but `scorer-alts` ranks Strike higher, that is normal — b
 
 **Combat index**: `SecondaryIndex` / `→eN` = 0-based slot in `CombatState.Enemies` (same as snapshot). Not the UI log's 1-based index. After a kill, `e1` still means the second slot — executor resolves via `CombatTargetResolver`, not shortened `HittableEnemies` position.
 
-**Potions**: logged only on use as `potion pick [ID:+score] card=<best card score>`. Non-emergency potions need `score >= card + 8`, max one per turn; full-energy FLEX/buff deferred; weak debuff deferred when hand can attack and incoming is low.
+**Potions**: logged only on use as `potion pick [ID:+score] card=<best card score>`. Emergency path is **unmodeled** heal/block only (e.g. FRUIT); simulatable BLOCK/BLOOD/FIRE/etc. compete in beam. Fallback non-sim potions need `score >= card + 8`, max one per turn. Beam and fallback share `PotionUseScoring` (secure-kill block defer, full-energy buff penalty, debuff defer, retain waste).
 
 ### Sim limitation fixes (Phase A + B)
 
@@ -143,7 +143,7 @@ Spot-checks (`scenarios.json`):
 
 ### Beam potion sim (`potion_beam_timing`)
 
-Deterministic potions (FLEX, WEAK, FIRE, BLOCK, ENERGY, SWIFT) and random pick-one potions (COLORLESS/ATTACK/SKILL/POWER) are expanded in beam via `potion-combat-effects.json`. Emergency heal/block still uses `PotionScorer.TryEmergencyPotion` before planner.
+Deterministic potions (FLEX, WEAK, FIRE, BLOCK, BLOOD, ENERGY, SWIFT) and random pick-one potions (COLORLESS/ATTACK/SKILL/POWER) are expanded in beam via `potion-combat-effects.json`. Emergency heal/block uses `PotionScorer.TryEmergencyPotion` only when the potion is **not** simulatable in JSON.
 
 Verbose log checks:
 

@@ -10,5 +10,6 @@ public enum PotionCombatEffectKind {
     DamageAll,
     GainStrength,
     GainDexterity,
+    GainHeal,
     RandomAddCards,
 }

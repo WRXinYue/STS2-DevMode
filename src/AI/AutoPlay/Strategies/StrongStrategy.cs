@@ -9,7 +9,7 @@ namespace DevMode.AI.AutoPlay.Strategies;
 
 /// <summary>
 /// Deck-plan-aware strategy for solo A10-capable play.
-/// Macro phases delegate to dedicated scorers; combat uses beam-only search (no lethal fast-path).
+/// Combat: emergency potions (unmodeled heal/block) → beam (simulatable potions) → fallback (non-sim) → card scorer.
 /// </summary>
 public sealed class StrongStrategy : IDecisionMaker {
     public Task<GameAction> DecideAsync(JsonObject snapshot, GamePhase phase) {

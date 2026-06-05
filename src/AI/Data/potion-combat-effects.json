@@ -49,6 +49,13 @@
         { "kind": "GainBlock", "amount": 12 }
       ]
     },
+    "BLOOD_POTION": {
+      "simulatable": true,
+      "targetType": "AnyPlayer",
+      "effects": [
+        { "kind": "GainHeal", "amount": 20 }
+      ]
+    },
     "ENERGY_POTION": {
       "simulatable": true,
       "targetType": "AnyPlayer",
