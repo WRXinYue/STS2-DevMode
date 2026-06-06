@@ -50,8 +50,14 @@ internal static class Sts2CombatPlayHelper {
     static bool IsCardInHand(CardModel card) {
         if (RunContext.TryGetRunAndPlayer(out _, out var player)) {
             var hand = player.PlayerCombatState?.Hand?.Cards;
-            if (hand != null)
-                return hand.Contains(card);
+            if (hand != null) {
+                foreach (var c in hand) {
+                    if (ReferenceEquals(c, card))
+                        return true;
+                }
+
+                return false;
+            }
         }
 
         return card.Pile?.Type == PileType.Hand;
