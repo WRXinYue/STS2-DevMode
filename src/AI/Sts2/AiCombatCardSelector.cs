@@ -57,13 +57,6 @@ internal sealed class AiCombatCardSelector : ICardSelector {
 
         var picked = ranked.Take(count).ToList();
         LogPick(isUpgrade ? "upgrade" : "exhaust/discard", picked, context);
-        AgentDebugLog.Write("P3", "AiCombatCardSelector.GetSelectedCards", "hand select", new {
-            kind = isUpgrade ? "upgrade" : "exhaust/discard",
-            minSelect,
-            maxSelect,
-            optionCount = list.Count,
-            picked = picked.Select(c => c.Id.Entry).ToArray(),
-        });
         return Task.FromResult(picked.AsEnumerable());
     }
 

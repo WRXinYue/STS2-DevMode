@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text.Json.Nodes;
 using DevMode.AI;
-using DevMode.AI.Combat;
 using DevMode.AI.Knowledge;
 
 namespace DevMode.AI.Combat.Simulation;
@@ -86,14 +85,6 @@ public static class CombatBeamSearch {
                 }
             }
 
-            if (CombatDecisionLog.VerboseEnabled && depth == 0 && nextBeam.Count > 0) {
-                CombatDebugTrace.LogBeamDepthCandidates(
-                    root,
-                    nextBeam.OrderByDescending(n => n.Score)
-                        .Select(n => ((IReadOnlyList<SimCombatAction>)n.Path, n.Score)),
-                    depth + 1);
-            }
-
             if (nextBeam.Count == 0)
                 break;
 
@@ -130,13 +121,6 @@ public static class CombatBeamSearch {
             bestOutcome = outcome;
             bestPath = path;
             bestDepth = depth;
-            int rank = CombatSetupEvaluator.PackLineScore(outcome);
-            if (path.Count > 0)
-                rank += SimMoveScoring.OpeningModifierBonus(root, path[0], rootSnapshot);
-            if (CombatDecisionLog.VerboseEnabled) {
-                CombatDebugTrace.LogBeamLeafUpdate(
-                    root, state, path, rank, depth, "line outcome");
-            }
         }
     }
 

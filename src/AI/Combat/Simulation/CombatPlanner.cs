@@ -30,9 +30,6 @@ public static class CombatPlanner {
                 best = result;
         }
 
-        if (CombatDecisionLog.VerboseEnabled)
-            CombatDebugTrace.LogOpeningDecision(state, snapshot, best);
-
         if (best is { Path: { Count: > 0 } path, Score: var beamScore, Depth: var beamDepth }) {
             var action = ToGameAction(path[0], state, $"Planner score={beamScore}");
             LogPick(snapshot, state, action, $"beam d={beamDepth} s={beamScore}", path);

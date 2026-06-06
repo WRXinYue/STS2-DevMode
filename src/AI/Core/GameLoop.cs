@@ -3,7 +3,6 @@ using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using DevMode;
 using DevMode.AI.AutoPlay.Scoring;
-using DevMode.AI.Combat;
 using DevMode.AI.Sts2;
 using DevMode.AI.Core.Schema;
 
@@ -57,11 +56,8 @@ public sealed class GameLoop
     /// </summary>
     public async Task OnDecisionPointAsync(GamePhase? phaseOverride = null)
     {
-        if (_running) {
-            if ((phaseOverride ?? _state.CurrentPhase) is GamePhase.Combat or GamePhase.Unknown)
-                AgentDebugLog.Write("P2", "GameLoop.OnDecisionPoint", "blocked: running", null);
+        if (_running)
             return;
-        }
         _running = true;
 
         try
@@ -96,15 +92,11 @@ public sealed class GameLoop
             if (!inCombat)
                 _endTurnPending = false;
 
-            if (inCombat && !IsCombatSnapshotReady(snapshot)) {
-                AgentDebugLog.Write("P2", "GameLoop.OnDecisionPoint", "skip combat poll", new { reason = "snapshot_not_ready" });
+            if (inCombat && !IsCombatSnapshotReady(snapshot))
                 return;
-            }
 
-            if (ShouldSkipCombatPoll(phase, snapshot, out var skipReason)) {
-                AgentDebugLog.Write("P2", "GameLoop.OnDecisionPoint", "skip combat poll", new { reason = skipReason });
+            if (ShouldSkipCombatPoll(phase, snapshot, out _))
                 return;
-            }
 
             var decidePhase = inCombat && phase is GamePhase.Unknown or GamePhase.Combat
                 ? GamePhase.Combat
@@ -113,13 +105,8 @@ public sealed class GameLoop
             var action = await _decisionMaker.DecideAsync(snapshot, decidePhase);
 
             var fingerprint = $"{phase}:{action.Type}:{action.TargetIndex}:{action.SecondaryIndex}";
-            if (IsDuplicateAction(fingerprint)) {
-                AgentDebugLog.Write("P2", "GameLoop.OnDecisionPoint", "skip duplicate action", new {
-                    fingerprint,
-                    elapsedMs = (int)(DateTime.UtcNow - _lastActionUtc).TotalMilliseconds,
-                });
+            if (IsDuplicateAction(fingerprint))
                 return;
-            }
 
             _log($"GameLoop: Phase={phase} Action={action.Type} " +
                  $"Target={action.TargetIndex} Reason=[{action.Reason}]");
@@ -203,10 +190,6 @@ public sealed class GameLoop
 
         _endTurnPending = false;
         _endTurnAtRound = -1;
-        AgentDebugLog.Write("P2", "GameLoop.OnDecisionPoint", "endTurnPending cleared", new {
-            reason = "newRound",
-            round = round.Value,
-        });
         return true;
     }
 

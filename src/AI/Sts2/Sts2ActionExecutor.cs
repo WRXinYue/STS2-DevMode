@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Godot;
 using DevMode;
 using DevMode.AI;
-using DevMode.AI.Combat;
 using DevMode.Actions;
 using DevMode.Multiplayer.PseudoCoop;
 using MegaCrit.Sts2.Core.Combat;
@@ -147,24 +146,9 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
         if (!card.TryManualPlay(target))
             return ActionResult.Fail($"Card [{card.Title}] cannot be played.");
 
-        if (!await Sts2CombatPlayHelper.WaitForManualPlayAsync(card, TimeSpan.FromSeconds(8))) {
-            AgentDebugLog.Write("P1", "Sts2ActionExecutor.PlayCard", "wait failed", new {
-                cardId = card.Id.Entry,
-                handIndex = cardIndex,
-                targetIndex,
-                playPhase = Sts2CombatCompat.IsCombatPlayPhaseActive(),
-                skipAnim = SkipAnimControl.IsSkipping,
-            });
+        if (!await Sts2CombatPlayHelper.WaitForManualPlayAsync(card, TimeSpan.FromSeconds(8)))
             return ActionResult.Fail($"Card [{card.Title}] play did not complete.");
-        }
 
-        AgentDebugLog.Write("P1", "Sts2ActionExecutor.PlayCard", "wait ok", new {
-            cardId = card.Id.Entry,
-            handIndex = cardIndex,
-            targetIndex,
-            playPhase = Sts2CombatCompat.IsCombatPlayPhaseActive(),
-            skipAnim = SkipAnimControl.IsSkipping,
-        });
         return ActionResult.Ok($"Played [{card.Title}]");
     }
 
