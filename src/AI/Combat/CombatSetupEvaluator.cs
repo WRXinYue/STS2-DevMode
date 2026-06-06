@@ -62,7 +62,7 @@ internal static class CombatSetupEvaluator {
         return Math.Max(0, ComputeVulnerableSetupSimDelta(state, handIndex, enemyIndex));
     }
 
-    /// <summary>Lexicographic: incoming, future pressure, pollution, focus HP, enemy HP, vuln outlook, pile outlook, player HP.</summary>
+    /// <summary>Lexicographic: incoming, future pressure, pollution, focus HP, enemy HP, vuln/weak outlook, pile outlook, player HP.</summary>
     public readonly record struct CombatLineOutcome(
         int Incoming,
         int FutureIncoming0,
@@ -72,6 +72,7 @@ internal static class CombatSetupEvaluator {
         int FocusHp,
         int EnemyHp,
         int VulnerableOutlook,
+        int WeakOutlook,
         int PileOutlook,
         int PlayerHpAfterTurn);
 
@@ -109,6 +110,9 @@ internal static class CombatSetupEvaluator {
 
         if (candidate.VulnerableOutlook != baseline.VulnerableOutlook)
             return candidate.VulnerableOutlook - baseline.VulnerableOutlook;
+
+        if (candidate.WeakOutlook != baseline.WeakOutlook)
+            return candidate.WeakOutlook - baseline.WeakOutlook;
 
         if (candidate.PileOutlook != baseline.PileOutlook)
             return candidate.PileOutlook - baseline.PileOutlook;
@@ -154,6 +158,7 @@ internal static class CombatSetupEvaluator {
             + (cap - Math.Min(outcome.FocusHp, cap))
             + (cap * 10 - Math.Min(outcome.EnemyHp, cap * 10))
             + Math.Min(outcome.VulnerableOutlook, 3000)
+            + Math.Min(outcome.WeakOutlook, 2000)
             + Math.Min(outcome.PileOutlook, 500)
             + Math.Min(outcome.PlayerHpAfterTurn, cap);
         const int packedCap = int.MaxValue - 2;
@@ -176,7 +181,7 @@ internal static class CombatSetupEvaluator {
     }
 
     public static CombatLineOutcome WipeOutcome(CombatState state) =>
-        new(0, 0, 0, 0, 0, 0, 0, 0, 0, state.PlayerHp);
+        new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, state.PlayerHp);
 
     static int CompareLineOutcome(CombatLineOutcome without, CombatLineOutcome with) =>
         CompareLines(without, with);
@@ -194,6 +199,7 @@ internal static class CombatSetupEvaluator {
             focusMid?.CurrentHp ?? 0,
             afterTurn.Enemies.Where(e => e.IsAlive).Sum(e => e.CurrentHp),
             VulnerableOutlookEvaluator.Estimate(afterTurn),
+            WeakMitigationEvaluator.Estimate(afterTurn),
             PileRhythmEvaluator.DrawPileOutlook(afterTurn),
             afterTurn.PlayerHp);
     }
@@ -423,6 +429,74 @@ internal static class CombatSetupEvaluator {
         }
 
         return debt;
+    }
+
+    /// <summary>Inferno + same-turn self-damage combo available but not opened yet.</summary>
+    public static int ComputeInfernoComboDebt(CombatState state) {
+        int infernoIdx = -1;
+        for (int i = 0; i < state.Hand.Count; i++) {
+            var card = state.Hand[i];
+            if (!PlayerPowerSimulator.InstallsInferno(card.Profile)) continue;
+            if (!card.CanPlay || !CombatCardCost.CanAfford(card, state)) continue;
+            infernoIdx = i;
+            break;
+        }
+
+        if (infernoIdx < 0)
+            return 0;
+
+        var inferno = state.Hand[infernoIdx];
+        int energyAfter = state.Energy - CombatCardCost.EffectiveCost(inferno, state);
+        bool hasCombo = false;
+        for (int i = 0; i < state.Hand.Count; i++) {
+            if (i == infernoIdx) continue;
+            var card = state.Hand[i];
+            if (card.Profile.HpLoss <= 0) continue;
+            if (!card.CanPlay || card.Cost > energyAfter) continue;
+            hasCombo = true;
+            break;
+        }
+
+        if (!hasCombo)
+            return 0;
+
+        return 10 + Math.Max(inferno.Profile.InstallAmount(PlayerPowerEffectKind.InfernoRetaliate), 6) * state.AliveEnemyCount;
+    }
+
+    /// <summary>Beam tie-break: prefer Inferno before same-turn self-damage triggers.</summary>
+    public static int EstimateInfernoOpenerValue(CombatState state, int infernoHandIndex) {
+        if (infernoHandIndex < 0 || infernoHandIndex >= state.Hand.Count)
+            return 0;
+
+        var inferno = state.Hand[infernoHandIndex];
+        if (!PlayerPowerSimulator.InstallsInferno(inferno.Profile))
+            return 0;
+
+        int install = Math.Max(inferno.Profile.InstallAmount(PlayerPowerEffectKind.InfernoRetaliate), 6);
+        int retaliation = state.Buffs.InfernoRetaliation + install;
+        int enemies = Math.Max(1, state.AliveEnemyCount);
+        int energyAfter = state.Energy - CombatCardCost.EffectiveCost(inferno, state);
+
+        int bestCombo = 0;
+        for (int i = 0; i < state.Hand.Count; i++) {
+            if (i == infernoHandIndex) continue;
+            var card = state.Hand[i];
+            if (card.Profile.HpLoss <= 0) continue;
+            if (!card.CanPlay || card.Cost > energyAfter) continue;
+
+            int combo = retaliation * enemies;
+            if (card.IsAttack && card.Damage > 0) {
+                var target = state.Enemies.FirstOrDefault(e => e.IsAlive);
+                combo += CombatDamageCalc.OutgoingDamage(card, state, target?.Vulnerable ?? 0);
+            }
+
+            bestCombo = Math.Max(bestCombo, combo);
+        }
+
+        if (bestCombo > 0)
+            return bestCombo;
+
+        return install * enemies / 4;
     }
 
     /// <summary>Threat-ordered enemies for focus fire (future peak threat and HP over this-turn poke).</summary>

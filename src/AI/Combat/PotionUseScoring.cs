@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Text.Json.Nodes;
 using DevMode.AI.Combat.Simulation;
 using DevMode.AI.Core.Schema;
@@ -126,6 +127,11 @@ internal static class PotionUseScoring {
                     break;
 
                 case PotionCombatEffectKind.ApplyWeak:
+                    blockOnly = false;
+                    hasDebuff = true;
+                    score += ScoreWeakDebuff(ctx, state, enemyIndex, effect.Amount);
+                    break;
+
                 case PotionCombatEffectKind.ApplyVulnerable:
                     blockOnly = false;
                     hasDebuff = true;
@@ -291,6 +297,38 @@ internal static class PotionUseScoring {
                 score -= 30;
         }
         return score;
+    }
+
+    static int ScoreWeakDebuff(Context ctx, CombatState state, int enemyIndex, int amount) {
+        var target = state.Enemies.FirstOrDefault(e => e.IsAlive && e.Index == enemyIndex);
+        if (target == null)
+            return ScoreDebuffEffect(ctx, amount, state, enemyIndex);
+        if (target.Weak > 0)
+            return Math.Max(0, amount * 2);
+
+        int baseline = ThreatModel.ScheduledPressureScore(state);
+        var enemies = state.Enemies.ToList();
+        CombatEffectApplier.ApplyDebuff(enemies, enemyIndex, isAoe: false, "WEAK", amount);
+        int saved = baseline - ThreatModel.ScheduledPressureScore(state.WithEnemies(enemies));
+
+        int score = Math.Max(0, saved * 4 + amount * 3);
+
+        if (enemyIndex != CombatSetupEvaluator.PrimaryAttackTargetIndex(state))
+            score -= 25;
+
+        if (ctx.Energy <= 0 && ctx.MaxOffense <= 0) {
+            var afterTurn = CombatTurnResolver.ResolveEndTurn(state);
+            int nextOffense = DeckPollutionEvaluator.ExpectedPlayableDamage(afterTurn);
+            if (target.EffectiveHp <= nextOffense)
+                score -= 55;
+            else
+                score -= 30;
+        }
+
+        if (baseline < 8 && ctx.Incoming <= 0)
+            score -= 18;
+
+        return Math.Max(0, score);
     }
 
     static int ScoreDamageSingle(CombatState state, Context ctx, int amount, int enemyIndex) {

@@ -86,6 +86,7 @@ internal static class CombatDebugTrace {
                 focusHp = outcome.FocusHp,
                 enemyHp = outcome.EnemyHp,
                 vulnOutlook = outcome.VulnerableOutlook,
+                weakOutlook = outcome.WeakOutlook,
                 playerHp = outcome.PlayerHpAfterTurn,
             });
         }

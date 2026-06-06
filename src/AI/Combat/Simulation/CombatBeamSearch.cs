@@ -168,6 +168,9 @@ public static class CombatBeamSearch {
             return 0;
 
         var card = root.Hand[action.HandIndex];
+        if (PlayerPowerSimulator.InstallsInferno(card.Profile))
+            return CombatSetupEvaluator.EstimateInfernoOpenerValue(root, action.HandIndex);
+
         if (card.Damage <= 0)
             return 0;
 

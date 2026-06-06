@@ -89,7 +89,7 @@ public static class CombatDecisionLog {
         bool retainsEnergy = RelicCombatRules.RetainsEnergyOnTurnStart(
             state.RelicIds, state.TurnNumber + 1);
 
-        return $"SETUP={CombatSetupEvaluator.ComputeSetupDebt(state)} VULN={vulnPlays} ICE={(retainsEnergy ? 1 : 0)}";
+        return $"SETUP={CombatSetupEvaluator.ComputeSetupDebt(state)} INFERNO={CombatSetupEvaluator.ComputeInfernoComboDebt(state)} VULN={vulnPlays} ICE={(retainsEnergy ? 1 : 0)}";
     }
 
     static string FormatEnemyThreat(CombatState state) {
@@ -103,7 +103,8 @@ public static class CombatDecisionLog {
         var reshuf = DrawPlanner.WillReshuffle(state, RelicCombatRules.PlannedHandDraw(state)) ? 1 : 0;
         var outlook = PileRhythmEvaluator.DrawPileOutlook(state);
         var vulnEv = VulnerableOutlookEvaluator.Estimate(state);
-        return $"IN={incoming} ND={nonDamage} NXT={next} JUNK={junk} POLL={poll} PLAY={play} {peek} RESHUF={reshuf} VULN_EV={vulnEv} OUTLOOK={outlook}";
+        var weakEv = WeakMitigationEvaluator.Estimate(state);
+        return $"IN={incoming} ND={nonDamage} NXT={next} JUNK={junk} POLL={poll} PLAY={play} {peek} RESHUF={reshuf} VULN_EV={vulnEv} WEAK_EV={weakEv} OUTLOOK={outlook}";
     }
 
     internal static string FormatPostEndTurnPreview(CombatState afterTurn) =>

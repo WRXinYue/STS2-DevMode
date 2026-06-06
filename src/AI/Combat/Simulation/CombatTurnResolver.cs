@@ -17,6 +17,8 @@ public static class CombatTurnResolver {
         var rngCounter = state.ShuffleRngCounter;
         int unblockedDamage = 0;
 
+        PlayerPowerSimulator.ApplyTurnEndBlock(state.Buffs, ref block);
+
         List<CombatHandCard> retained;
         if (RelicCombatRules.RetainHandOnEndTurn(state.RelicIds)) {
             retained = state.Hand.ToList();
@@ -43,6 +45,7 @@ public static class CombatTurnResolver {
                         var attackDamage = effect.Damage > 0
                             ? effect.Damage + acting.Strength
                             : acting.IntentDamage;
+                        attackDamage = DebuffDamageCalc.MitigateWeakIncoming(attackDamage, acting.Weak);
                         (hp, block, var unblocked) = ApplyEnemyAttack(hp, block, attackDamage, modifiers);
                         unblockedDamage += unblocked;
                         break;
@@ -94,7 +97,8 @@ public static class CombatTurnResolver {
             }
 
             if (acting.IntentDamage > 0 && !hasExplicitAttack) {
-                (hp, block, var unblocked) = ApplyEnemyAttack(hp, block, acting.IntentDamage, modifiers);
+                int intentDamage = DebuffDamageCalc.MitigateWeakIncoming(acting.IntentDamage, acting.Weak);
+                (hp, block, var unblocked) = ApplyEnemyAttack(hp, block, intentDamage, modifiers);
                 unblockedDamage += unblocked;
             }
 
@@ -126,6 +130,8 @@ public static class CombatTurnResolver {
 
         // Block absorbs during enemy phase; clears at start of the next player turn.
         block = 0;
+
+        PlayerPowerSimulator.ApplyTurnStartPowers(state.Buffs, ref hp, ref block, ref enemies);
 
         return state with {
             PlayerHp = Math.Max(0, hp),

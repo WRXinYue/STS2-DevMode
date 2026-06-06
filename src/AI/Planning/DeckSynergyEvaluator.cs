@@ -1,5 +1,6 @@
 using System;
 using System.Text.Json.Nodes;
+using DevMode.AI.Combat.Simulation;
 using DevMode.AI.Knowledge;
 
 namespace DevMode.AI.Planning;
@@ -75,7 +76,29 @@ public static class DeckSynergyEvaluator {
         foreach (var tag in profile.DerivedTags)
             score += (int)Math.Round(plan.GetWeight(tag) * 1.5f);
 
+        if (profile.Installs(PlayerPowerEffectKind.InfernoRetaliate)) {
+            int selfDamageSources = CountSelfDamageSources(snapshot?["deck"]?.AsArray());
+            score += Math.Min(selfDamageSources, 5) * 7;
+            if (selfDamageSources == 0)
+                score -= 14;
+        }
+
         return score;
+    }
+
+    static int CountSelfDamageSources(JsonArray? deck) {
+        if (deck == null || deck.Count == 0)
+            return 0;
+
+        int count = 0;
+        foreach (var node in deck) {
+            if (node is not JsonObject card) continue;
+            var profile = ResolveCardProfile(card);
+            if (profile.HpLoss > 0)
+                count++;
+        }
+
+        return count;
     }
 
     public static int ScoreDeckDilutionOffer(

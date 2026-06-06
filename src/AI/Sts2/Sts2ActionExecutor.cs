@@ -54,6 +54,7 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
     private readonly HashSet<NRewardButton> _declinedRewardButtons = new();
     private NRewardButton? _pendingCardRewardButton;
     private NRewardsScreen? _lastRewardScreen;
+    private bool _cardRewardDeclined;
 
     public Sts2ActionExecutor(Sts2StateProvider stateProvider, Action<string> log)
     {
@@ -144,9 +145,20 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
         if (!card.TryManualPlay(target))
             return ActionResult.Fail($"Card [{card.Title}] cannot be played.");
 
-        if (!await Sts2CombatPlayHelper.WaitForManualPlayAsync(card, TimeSpan.FromSeconds(8)))
+        if (!await Sts2CombatPlayHelper.WaitForManualPlayAsync(card, TimeSpan.FromSeconds(8))) {
+            DevMode.AI.Combat.AgentDebugLog.Write("P1", "Sts2ActionExecutor.PlayCard", "wait failed", new {
+                cardId = card.Id.Entry,
+                handIndex = cardIndex,
+                playPhase = Sts2CombatCompat.IsCombatPlayPhaseActive(),
+            });
             return ActionResult.Fail($"Card [{card.Title}] play did not complete.");
+        }
 
+        DevMode.AI.Combat.AgentDebugLog.Write("P1", "Sts2ActionExecutor.PlayCard", "wait ok", new {
+            cardId = card.Id.Entry,
+            handIndex = cardIndex,
+            playPhase = Sts2CombatCompat.IsCombatPlayPhaseActive(),
+        });
         return ActionResult.Ok($"Played [{card.Title}]");
     }
 
@@ -391,9 +403,11 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
 
         if (_pendingCardRewardButton != null && GodotObject.IsInstanceValid(_pendingCardRewardButton)) {
             _declinedRewardButtons.Add(_pendingCardRewardButton);
+            _attemptedRewardButtons.Add(_pendingCardRewardButton);
             _log("SkipCardReward: card reward marked declined.");
         }
 
+        _cardRewardDeclined = true;
         _pendingCardRewardButton = null;
         return ActionResult.Ok("Skipped card reward.");
     }
@@ -422,7 +436,8 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
             var btn = UIHelper.FindAll<NRewardButton>((Node)screen)
                 .FirstOrDefault(b => b.IsEnabled
                     && !_attemptedRewardButtons.Contains(b)
-                    && !_declinedRewardButtons.Contains(b));
+                    && !_declinedRewardButtons.Contains(b)
+                    && !(_cardRewardDeclined && b.Reward is CardReward));
 
             if (btn == null)
                 break;
@@ -491,18 +506,23 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
                 return ActionResult.Ok("Map already open.");
             }
 
-            _log("CollectReward: all rewards collected — clicking proceed.");
+            _log($"CollectReward: all rewards collected — clicking proceed (cardDeclined={_cardRewardDeclined}).");
             await UIHelper.WaitUntil(
                 () => proceedBtn.IsEnabled || screen.IsComplete,
                 TimeSpan.FromSeconds(10));
             await UIHelper.Click(proceedBtn);
-            await UIHelper.WaitUntil(
+            var closed = await UIHelper.WaitUntil(
                 () => !GodotObject.IsInstanceValid((Node)screen)
                       || NOverlayStack.Instance?.Peek() != (IOverlayScreen)screen
                       || (NMapScreen.Instance?.IsOpen ?? false),
                 TimeSpan.FromSeconds(10));
-            ResetRewardTracking();
-            return ActionResult.Ok("Proceed clicked.");
+            if (closed) {
+                ResetRewardTracking();
+                return ActionResult.Ok("Proceed clicked.");
+            }
+
+            _log("CollectReward: proceed clicked but rewards screen still open.");
+            return ActionResult.Ok("Proceed clicked; awaiting screen close.");
         }
 
         return ActionResult.Fail("Rewards screen has no clickable buttons yet.");
@@ -514,6 +534,7 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
         _attemptedRewardButtons.Clear();
         _declinedRewardButtons.Clear();
         _pendingCardRewardButton = null;
+        _cardRewardDeclined = false;
     }
 
     /// <summary>

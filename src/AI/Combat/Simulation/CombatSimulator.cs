@@ -33,6 +33,8 @@ public static class CombatSimulator {
         var block = state.PlayerBlock;
         var rngCounter = state.ShuffleRngCounter;
         var attacksPlayed = state.AttacksPlayedThisTurn;
+        var modifiers = state.Modifiers.ToList();
+        var buffs = state.Buffs;
         var pileEffects = CardPileEffectResolver.ResolveAll(card.Id);
         var exhaustHand = CardPileEffectResolver.ExhaustHandCount(card.Id);
 
@@ -54,6 +56,8 @@ public static class CombatSimulator {
                 ref hp,
                 ref block,
                 ref enemies,
+                ref modifiers,
+                ref buffs,
                 ref rngCounter);
         } else {
             int playCount = 1 + Math.Max(0, card.Profile.ReplayCount);
@@ -63,6 +67,7 @@ public static class CombatSimulator {
                     state with { Energy = energy, Hand = hand, Enemies = enemies, AttacksPlayedThisTurn = attacksPlayed },
                     action.EnemyIndex,
                     skillsInHand,
+                    buffs,
                     ref hp,
                     ref block,
                     ref enemies);
@@ -71,6 +76,8 @@ public static class CombatSimulator {
                     attacksPlayed++;
             }
         }
+
+        PlayerPowerSimulator.InstallFromCard(card, ref modifiers, ref buffs);
 
         var pileCard = CombatPileSimulator.HandToPile(card);
         if (card.HasExhaust || card.Profile.Flags.HasFlag(CardMechanicFlags.Exhaust))
@@ -112,8 +119,10 @@ public static class CombatSimulator {
             .WithEnemies(enemies)
             .WithPiles(draw, discard, exhaust)
             .WithShuffleRng(state.ShuffleRngSeed, rngCounter)
+            .WithModifiers(modifiers)
             .WithNextPlayCostWaive(nextWaive) with {
                 AttacksPlayedThisTurn = attacksPlayed,
+                Buffs = buffs,
             };
     }
 

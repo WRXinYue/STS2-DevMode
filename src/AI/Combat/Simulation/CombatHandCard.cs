@@ -1,3 +1,4 @@
+using System;
 using DevMode.AI.Knowledge;
 
 namespace DevMode.AI.Combat.Simulation;
@@ -19,6 +20,7 @@ public sealed record CombatHandCard(
     int HitCount = 1) {
     public bool IsAttack => CombatCardStats.IsAttackCard(ToJson());
     public bool IsSkill => CombatCardStats.IsSkillCard(ToJson());
+    public bool IsPower => string.Equals(CardType, "Power", StringComparison.OrdinalIgnoreCase);
 
     public System.Text.Json.Nodes.JsonObject ToJson() => new() {
         ["id"] = Id,

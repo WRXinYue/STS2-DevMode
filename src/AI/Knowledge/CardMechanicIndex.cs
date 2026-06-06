@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
 using DevMode.Actions;
+using DevMode.AI.Combat.Simulation;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Models;
 
@@ -24,7 +25,30 @@ public sealed record CardMechanicProfile(
     bool AttackHitsScaleWithEnergy = false,
     int HpLoss = 0,
     int ReplayCount = 0,
-    AttackHitScaleMode HitScaleMode = AttackHitScaleMode.None);
+    AttackHitScaleMode HitScaleMode = AttackHitScaleMode.None,
+    IReadOnlyList<PlayerPowerInstall> PowerInstalls = null!) {
+    public IReadOnlyList<PlayerPowerInstall> PowerInstalls { get; init; } =
+        PowerInstalls ?? Array.Empty<PlayerPowerInstall>();
+
+    public bool Installs(PlayerPowerEffectKind kind) {
+        foreach (var install in PowerInstalls) {
+            if (install.Kind == kind)
+                return true;
+        }
+
+        return false;
+    }
+
+    public int InstallAmount(PlayerPowerEffectKind kind) {
+        int total = 0;
+        foreach (var install in PowerInstalls) {
+            if (install.Kind == kind)
+                total += install.Amount;
+        }
+
+        return total;
+    }
+}
 
 /// <summary>Indexes official card mechanics from <see cref="ModelDb.AllCards"/> at startup.</summary>
 public static class CardMechanicIndex {
@@ -120,6 +144,7 @@ public static class CardMechanicIndex {
 
         var costsEnergyX = card.EnergyCost.CostsX;
         var hitScale = ReadHitScaleMode(card, costsEnergyX);
+        var powerInstalls = PlayerPowerEffectIndex.ReadInstalls(card);
         return new CardMechanicProfile(
             id,
             flags,
@@ -136,7 +161,8 @@ public static class CardMechanicIndex {
             hitScale == AttackHitScaleMode.Energy,
             ReadHpLoss(card),
             CardEditActions.GetReplayCount(card) ?? 0,
-            hitScale);
+            hitScale,
+            powerInstalls);
     }
 
     static int ReadAttackHitCount(CardModel card, AttackHitScaleMode hitScale) {

@@ -35,8 +35,24 @@ public static class ThreatModel {
             FocusHp(state, focusIndex),
             state.Enemies.Where(e => e.IsAlive).Sum(e => e.EffectiveHp),
             VulnerableOutlookEvaluator.Estimate(state),
+            WeakMitigationEvaluator.Estimate(state),
             PileRhythmEvaluator.DrawPileOutlook(state),
             state.PlayerHp));
+    }
+
+    /// <summary>Sum of mitigated attack pressure over the line-evaluation horizon.</summary>
+    public static int ScheduledPressureScore(CombatState state) =>
+        PressureAtIntentStepKillAdjusted(state, 0, afterDrawTurnStart: false)
+        + PressureAtIntentStep(state, 1)
+        + PressureAtIntentStep(state, 2);
+
+    /// <summary>Intent attack damage before weak mitigation (for EV estimates).</summary>
+    public static int RawIntentDamageAtStep(CombatEnemy enemy, int stepIndex) {
+        if (!enemy.IsAlive || stepIndex < 0 || stepIndex >= enemy.IntentSteps.Length)
+            return 0;
+
+        var step = enemy.IntentSteps[stepIndex];
+        return ResolveStepDamage(enemy, step, mitigateWeak: false);
     }
 
     /// <summary>Acceptable extra this-turn incoming when focus progress justifies it.</summary>
@@ -73,19 +89,11 @@ public static class ThreatModel {
         if (stepIndex < 0)
             return 0;
 
-        double total = 0;
-        foreach (var enemy in state.Enemies.Where(e => e.IsAlive)) {
-            if (stepIndex >= enemy.IntentSteps.Length)
-                continue;
+        int total = 0;
+        foreach (var enemy in state.Enemies.Where(e => e.IsAlive))
+            total += IncomingAtIntentStepForEnemy(enemy, stepIndex);
 
-            var step = enemy.IntentSteps[stepIndex];
-            var damage = step.IntentDamage;
-            if (step.IsUncertain)
-                damage = (int)Math.Round(damage * EnemyThreatWeights.NextTurnUncertainMultiplier);
-            total += damage;
-        }
-
-        return (int)Math.Round(total);
+        return total;
     }
 
     /// <summary>Non-damage pressure for one enemy intent step from the current deck/hand.</summary>
@@ -247,9 +255,10 @@ public static class ThreatModel {
         int total = 0;
         for (int i = startStep; i < startStep + stepCount && i < enemy.IntentSteps.Length; i++) {
             var step = enemy.IntentSteps[i];
-            int damage = step.IntentDamage;
+            int damage = BaseStepDamage(enemy, step);
             if (i > startStep && step.IsUncertain)
                 damage = (int)Math.Round(damage * EnemyThreatWeights.NextTurnUncertainMultiplier);
+            damage = DebuffDamageCalc.MitigateWeakIncoming(damage, enemy.Weak);
             total += damage + NonDamageForStep(state, enemy, i);
         }
 
@@ -269,7 +278,8 @@ public static class ThreatModel {
 
         int peak = PeakScheduledDamage(enemy);
         int horizon = HorizonThreatForEnemy(enemy, state, 1, LineFutureHorizonTurns);
-        int thisTurn = enemy.IntentDamage + NonDamageForStep(state, enemy, 0);
+        int thisTurn = DebuffDamageCalc.MitigateWeakIncoming(enemy.IntentDamage, enemy.Weak)
+            + NonDamageForStep(state, enemy, 0);
 
         int poolPeak = 0;
         foreach (var e in alive)
@@ -303,13 +313,13 @@ public static class ThreatModel {
         int peak = 0;
         for (int i = 1; i <= horizon && i < enemy.IntentSteps.Length; i++) {
             var step = enemy.IntentSteps[i];
-            peak = Math.Max(peak, ResolveStepDamage(enemy, step));
+            peak = Math.Max(peak, ResolveStepDamage(enemy, step, mitigateWeak: true));
         }
 
         return peak;
     }
 
-    static int ResolveStepDamage(CombatEnemy enemy, CombatIntentStep step) {
+    static int BaseStepDamage(CombatEnemy enemy, CombatIntentStep step) {
         int dmg = step.IntentDamage;
         if (dmg <= 0 && !string.IsNullOrWhiteSpace(step.MoveId)) {
             foreach (var effect in MoveEffectIndex.GetEffects(enemy.MonsterId, step.MoveId)) {
@@ -318,8 +328,16 @@ public static class ThreatModel {
             }
         }
 
+        return dmg;
+    }
+
+    static int ResolveStepDamage(CombatEnemy enemy, CombatIntentStep step, bool mitigateWeak) {
+        int dmg = BaseStepDamage(enemy, step);
         if (step.IsUncertain)
             dmg = (int)Math.Round(dmg * EnemyThreatWeights.NextTurnUncertainMultiplier);
+
+        if (mitigateWeak)
+            dmg = DebuffDamageCalc.MitigateWeakIncoming(dmg, enemy.Weak);
         return dmg;
     }
 
@@ -346,10 +364,8 @@ public static class ThreatModel {
         int total = 0;
         for (int i = 1; i <= LineFutureHorizonTurns && i < enemy.IntentSteps.Length; i++) {
             var step = enemy.IntentSteps[i];
-            int damage = step.IntentDamage;
-            if (step.IsUncertain)
-                damage = (int)Math.Round(damage * EnemyThreatWeights.NextTurnUncertainMultiplier);
-            total += damage + NonDamageForStep(state, enemy, i);
+            total += ResolveStepDamage(enemy, step, mitigateWeak: true)
+                + NonDamageForStep(state, enemy, i);
         }
 
         return total;
@@ -360,10 +376,7 @@ public static class ThreatModel {
             return 0;
 
         var step = enemy.IntentSteps[stepIndex];
-        var damage = step.IntentDamage;
-        if (step.IsUncertain)
-            damage = (int)Math.Round(damage * EnemyThreatWeights.NextTurnUncertainMultiplier);
-        return damage;
+        return ResolveStepDamage(enemy, step, mitigateWeak: true);
     }
 
     /// <summary>Next-turn attack weight — full when safe this turn so kill-before-hit is valued.</summary>

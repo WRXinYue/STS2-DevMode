@@ -48,10 +48,6 @@ internal static class CombatActionHeuristic {
             if (CombatTransformSimulator.EstimateTurnDamageDelta(
                     state.ToHandJson(), card.ToJson(), state.Energy) <= 0)
                 return int.MinValue;
-
-            var after = CombatSimulator.Apply(state, action);
-            if (BlockDefensePolicy.NeedsBlock(state) && !SimLethalChecker.CanSecureKillThisTurn(after))
-                return int.MinValue;
         }
 
         if (card.IsAttack && card.Damage > 0 && ShouldPruneIllusionAttack(state, action))

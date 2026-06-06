@@ -11,11 +11,13 @@ internal static class CombatCardPlayEffects {
         CombatState state,
         int enemyIndex,
         int skillsInHand,
+        PlayerBuffState buffs,
         ref int playerHp,
         ref int block,
         ref List<CombatEnemy> enemies) {
         if (card.Profile.HpLoss > 0)
-            playerHp = Math.Max(0, playerHp - card.Profile.HpLoss);
+            PlayerPowerSimulator.ApplyPlayerHpLoss(
+                card.Profile.HpLoss, buffs, ref playerHp, ref enemies);
 
         if (card.IsAttack && card.Damage > 0) {
             if (card.IsAoe || CombatTargetTypes.IsAllEnemies(card.TargetType)) {
@@ -65,6 +67,8 @@ internal static class CombatCardPlayEffects {
         ref int playerHp,
         ref int block,
         ref List<CombatEnemy> enemies,
+        ref List<PlayerCombatModifier> modifiers,
+        ref PlayerBuffState buffs,
         ref int rngCounter) {
         (draw, discard, rngCounter) = CombatPileSimulator.ReshuffleIfNeeded(
             draw, discard, state.ShuffleRngSeed, rngCounter);
@@ -80,7 +84,8 @@ internal static class CombatCardPlayEffects {
         var topCard = PileToHand(top, profile);
         int skillsInHand = CountSkillsInHand(state.Hand);
 
-        ApplyIteration(topCard, state, enemyIndex, skillsInHand, ref playerHp, ref block, ref enemies);
+        ApplyIteration(topCard, state, enemyIndex, skillsInHand, buffs, ref playerHp, ref block, ref enemies);
+        PlayerPowerSimulator.InstallFromCard(topCard, ref modifiers, ref buffs);
         exhaust = CombatPileSimulator.AddToBottom(exhaust, top);
         return true;
     }

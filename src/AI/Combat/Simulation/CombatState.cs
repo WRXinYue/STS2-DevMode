@@ -31,7 +31,9 @@ public sealed record CombatState(
     NextPlayCostWaive NextPlayCostWaive = NextPlayCostWaive.None,
     int AttacksPlayedThisTurn = 0,
     int UnblockedDamageTakenThisTurn = 0,
-    int OrbCount = 0) {
+    int OrbCount = 0,
+    PlayerBuffState Buffs = null!) {
+    public PlayerBuffState Buffs { get; init; } = Buffs ?? PlayerBuffState.Empty;
 
     public int AliveEnemyCount => Enemies.Count(e => e.IsAlive);
 
@@ -49,7 +51,9 @@ public sealed record CombatState(
         var draw = ParsePile(combat?["drawPile"]?.AsArray());
         var discard = ParsePile(combat?["discardPile"]?.AsArray());
         var exhaust = ParsePile(combat?["exhaustPile"]?.AsArray());
-        var modifiers = ParseModifiers(combat?["playerPowers"]?.AsArray());
+        var playerPowers = combat?["playerPowers"]?.AsArray();
+        var modifiers = ParseModifiers(playerPowers);
+        var buffs = PlayerPowerSimulator.ParseBuffsFromPowers(playerPowers);
         var relicIds = RelicCombatRules.ParseRelicIds(snapshot);
         modifiers = RelicCombatRules.MergeModifiers(relicIds, modifiers);
         var enemies = ParseEnemies(combat?["enemies"]?.AsArray());
@@ -69,7 +73,8 @@ public sealed record CombatState(
             hand, draw, discard, exhaust, modifiers, enemies, relicIds, potions,
             false,
             shuffleSeed, shuffleCounter, energyCostSeed, energyCostCounter,
-            OrbCount: orbCount);
+            OrbCount: orbCount,
+            Buffs: buffs);
     }
 
     public CombatState WithPlayer(int hp, int block, int energy) =>

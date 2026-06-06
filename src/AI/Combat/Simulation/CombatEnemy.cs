@@ -25,7 +25,7 @@ public sealed record CombatEnemy(
 
     /// <summary>HP damage this turn (snapshot intent already includes strength). <see cref="Strength"/> is for resolver mid-turn buffs.</summary>
     public int EffectiveIncoming =>
-        IsAlive ? IntentDamage : 0;
+        IsAlive ? DebuffDamageCalc.MitigateWeakIncoming(IntentDamage, Weak) : 0;
 
     public CombatEnemy WithHp(int hp, int block, bool alive) =>
         this with { CurrentHp = hp, Block = block, IsAlive = alive };

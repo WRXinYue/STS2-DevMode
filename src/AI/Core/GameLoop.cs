@@ -2,6 +2,7 @@ using System;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using DevMode.AI.AutoPlay.Scoring;
+using DevMode.AI.Combat;
 using DevMode.AI.Sts2;
 using DevMode.AI.Core.Schema;
 
@@ -91,8 +92,11 @@ public sealed class GameLoop
             if (inCombat && !IsCombatSnapshotReady(snapshot))
                 return;
 
-            if (ShouldSkipCombatPoll(phase, snapshot))
+            if (ShouldSkipCombatPoll(phase, snapshot, out var skipReason)) {
+                if (skipReason != null)
+                    AgentDebugLog.Write("P2", "GameLoop.OnDecisionPoint", "skip combat poll", new { skipReason });
                 return;
+            }
 
             var decidePhase = inCombat && phase is GamePhase.Unknown or GamePhase.Combat
                 ? GamePhase.Combat
@@ -145,17 +149,25 @@ public sealed class GameLoop
         }
     }
 
-    bool ShouldSkipCombatPoll(GamePhase phase, JsonObject snapshot) {
-        if (!IsCombatContext(phase, snapshot)) return false;
+    bool ShouldSkipCombatPoll(GamePhase phase, JsonObject snapshot, out string? reason) {
+        reason = null;
+        if (!IsCombatContext(phase, snapshot))
+            return false;
 
         // Snapshot was captured on the main thread moments ago; prefer it over live reads from the poll thread.
         var playPhase = ReadSnapshotBool(snapshot, "combat", "isPlayPhaseActive");
         if (playPhase == false) {
             _endTurnPending = false;
+            reason = "playPhaseInactive";
             return true;
         }
 
-        return _endTurnPending;
+        if (_endTurnPending) {
+            reason = "endTurnPending";
+            return true;
+        }
+
+        return false;
     }
 
     static bool IsCombatContext(GamePhase phase, JsonObject snapshot) {

@@ -255,6 +255,12 @@ internal static class GameSnapshot
             }
             catch { }
 
+            try {
+                if (power.DynamicVars.TryGetValue("SelfDamage", out var selfDamage))
+                    entry["selfDamage"] = (int)selfDamage.BaseValue;
+            }
+            catch { }
+
             arr.Add(entry);
         }
         return arr;
