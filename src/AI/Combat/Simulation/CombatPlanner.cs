@@ -128,6 +128,9 @@ public static class CombatPlanner {
             };
         }
 
+        if (action.HandIndex < 0 || action.HandIndex >= state.Hand.Count)
+            return EndTurn($"Invalid hand index {action.HandIndex}");
+
         var card = state.Hand[action.HandIndex];
         return new GameAction {
             Type = ActionType.PlayCard,

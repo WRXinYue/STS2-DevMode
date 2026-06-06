@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using DevMode.AI.AutoPlay.Scoring;
@@ -31,20 +32,32 @@ public sealed class StrongStrategy : IDecisionMaker {
     }
 
     static GameAction DecideCombat(JsonObject snapshot) {
-        var emergency = PotionScorer.TryEmergencyPotion(snapshot);
-        if (emergency != null)
-            return emergency;
+        try {
+            var emergency = PotionScorer.TryEmergencyPotion(snapshot);
+            if (emergency != null)
+                return emergency;
 
-        var move = CombatSearch.PickBestMove(snapshot);
-        if (move != null && move.Type != ActionType.EndTurn)
-            return move;
+            var move = CombatSearch.PickBestMove(snapshot);
+            if (move != null && move.Type != ActionType.EndTurn)
+                return move;
 
-        var fallback = PotionScorer.TryFallbackPotion(snapshot);
-        if (fallback != null)
-            return fallback;
+            var fallback = PotionScorer.TryFallbackPotion(snapshot);
+            if (fallback != null)
+                return fallback;
 
-        return move
-            ?? CombatScorer.PickBestCombatMove(snapshot)
-            ?? new GameAction { Type = ActionType.EndTurn, Reason = "No combat move" };
+            return move
+                ?? CombatScorer.PickBestCombatMove(snapshot)
+                ?? new GameAction { Type = ActionType.EndTurn, Reason = "No combat move" };
+        }
+        catch (Exception ex) {
+            // #region agent log
+            DbgSessionLog.Write("F", "StrongStrategy.DecideCombat", "fallback after error", new {
+                type = ex.GetType().Name,
+                message = ex.Message,
+            });
+            // #endregion
+            return CombatScorer.PickBestCombatMove(snapshot)
+                ?? new GameAction { Type = ActionType.EndTurn, Reason = $"Combat planner error: {ex.Message}" };
+        }
     }
 }

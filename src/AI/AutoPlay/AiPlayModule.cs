@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DevMode.AI.Planning;
 using DevMode.AI.AutoPlay.Strategies;
+using MegaCrit.Sts2.Core.Runs;
 using DevMode.AI.Core;
 using DevMode.AI.Core.Schema;
 using DevMode.AI.Sts2;
@@ -28,6 +29,13 @@ internal sealed class AiPlayModule {
     public static bool IsAutoPlayAllowed => !MpCheatSession.InMultiplayerRun;
 
     public void OnRunStarted() {
+        // #region agent log
+        DbgSessionLog.Write("A", "AiPlayModule.OnRunStarted", "run launched", new {
+            autoPlayEnabled = SettingsStore.Current.AutoPlayEnabled,
+            mpRun = MpCheatSession.InMultiplayerRun,
+            runInProgress = RunManager.Instance?.IsInProgress == true,
+        });
+        // #endregion
         if (MpCheatSession.InMultiplayerRun) {
             DisableMultiplayerAutoPlay();
             return;
@@ -46,6 +54,13 @@ internal sealed class AiPlayModule {
     }
 
     public void StartLoop() {
+        // #region agent log
+        DbgSessionLog.Write("A", "AiPlayModule.StartLoop", "enter", new {
+            allowed = IsAutoPlayAllowed,
+            autoPlayEnabled = SettingsStore.Current.AutoPlayEnabled,
+            runInProgress = RunManager.Instance?.IsInProgress == true,
+        });
+        // #endregion
         if (!IsAutoPlayAllowed) {
             DisableMultiplayerAutoPlay();
             return;
@@ -75,6 +90,14 @@ internal sealed class AiPlayModule {
         AiDecisionLog.Record("AiHost", "AutoPlay loop started.");
         AiHudOverlayUI.SyncState();
         Callable.From(() => AiHudOverlayUI.SyncState()).CallDeferred();
+        // #region agent log
+        DbgSessionLog.Write("A", "AiPlayModule.StartLoop", "started", new {
+            hasLoop = _loop != null,
+            hasCts = _cts != null,
+            isRunActive = AiPlayServices.StateProvider.IsRunActive,
+            phase = AiPlayServices.StateProvider.CurrentPhase.ToString(),
+        });
+        // #endregion
     }
 
     public void StopLoop() {
@@ -102,6 +125,8 @@ internal sealed class AiPlayModule {
         MainFile.Logger.Info("[AiHost] AutoPlay disabled in multiplayer (use Host AI Teammate for phantom peers only).");
     }
 
+    DateTime _lastPollLogUtc = DateTime.MinValue;
+
     async Task RunPollLoop(CancellationToken ct) {
         while (!ct.IsCancellationRequested) {
             try {
@@ -109,8 +134,20 @@ internal sealed class AiPlayModule {
                     StopLoop();
                     break;
                 }
-                if (_loop != null && AiPlayServices.StateProvider.IsRunActive) {
-                    var phase = AiPlayServices.StateProvider.CurrentPhase;
+                var isRunActive = AiPlayServices.StateProvider.IsRunActive;
+                var phase = AiPlayServices.StateProvider.CurrentPhase;
+                // #region agent log
+                if ((DateTime.UtcNow - _lastPollLogUtc).TotalSeconds >= 2) {
+                    _lastPollLogUtc = DateTime.UtcNow;
+                    DbgSessionLog.Write("B", "AiPlayModule.RunPollLoop", "poll tick", new {
+                        hasLoop = _loop != null,
+                        isRunActive,
+                        phase = phase.ToString(),
+                        willDecide = _loop != null && isRunActive && phase != GamePhase.None,
+                    });
+                }
+                // #endregion
+                if (_loop != null && isRunActive) {
                     if (phase != GamePhase.None)
                         await _loop.OnDecisionPointAsync(phase);
                 }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Linq;
 using System.Text.Json.Nodes;
 using Godot;
@@ -125,6 +126,21 @@ public sealed class Sts2StateProvider : IGameStateProvider
         if (!TryGetRunAndPlayer(out var state, out var player))
             return new JsonObject();
         return GameSnapshot.Capture(state, player, CurrentPhase);
+    }
+
+    public Task<JsonObject> TakeSnapshotAsync()
+    {
+        if (!TryGetRunAndPlayer(out var state, out var player))
+            return Task.FromResult(new JsonObject());
+
+        if (player.PlayerCombatState != null) {
+            return AiMainThread.InvokeAsync(() => {
+                var phase = CurrentPhase;
+                return GameSnapshot.Capture(state, player, phase);
+            });
+        }
+
+        return Task.FromResult(GameSnapshot.Capture(state, player, CurrentPhase));
     }
 
     public bool TryGetRunAndPlayer(out RunState state, out Player player)

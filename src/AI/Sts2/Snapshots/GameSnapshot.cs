@@ -158,9 +158,14 @@ internal static class GameSnapshot
         {
             foreach (var c in combatState.Hand.Cards)
             {
-                var cardObj = SnapshotCardJson.FromCard(c);
-                cardObj["canPlay"] = c.CanPlay(out _, out _);
-                hand.Add(cardObj);
+                try {
+                    var cardObj = SnapshotCardJson.FromCard(c);
+                    cardObj["canPlay"] = TryCanPlay(c);
+                    hand.Add(cardObj);
+                }
+                catch {
+                    // Skip cards that throw when read from a deferred main-thread capture.
+                }
             }
         }
         combat["hand"] = hand;
@@ -261,7 +266,12 @@ internal static class GameSnapshot
 
                 foreach (var intent in enemy.Monster.NextMove.Intents)
                 {
-                    intents.Add(intent.ToString());
+                    try {
+                        intents.Add(intent.ToString());
+                    }
+                    catch {
+                        intents.Add(intent.IntentType.ToString());
+                    }
                     if (intent.IntentType == IntentType.Hidden) continue;
 
                     if (intent is AttackIntent attack)
@@ -350,5 +360,15 @@ internal static class GameSnapshot
     static string SafeRelicRarity(RelicModel relic) {
         try { return relic.Rarity.ToString(); }
         catch { return ""; }
+    }
+
+    /// <summary>CanPlay may touch Godot card nodes; tolerate failures from background AI polls.</summary>
+    static bool TryCanPlay(CardModel card) {
+        try {
+            return card.CanPlay(out _, out _);
+        }
+        catch {
+            return false;
+        }
     }
 }

@@ -63,6 +63,21 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
         if (!_stateProvider.TryGetRunAndPlayer(out var state, out var player))
             return ActionResult.Fail("No active run or player.");
 
+        if (player.PlayerCombatState != null && action.Type is ActionType.PlayCard or ActionType.EndTurn or ActionType.UsePotion) {
+            // #region agent log
+            DbgSessionLog.Write("E", "Sts2ActionExecutor.ExecuteAsync", "combat marshal", new {
+                action = action.Type.ToString(),
+                target = action.TargetIndex,
+            });
+            // #endregion
+            return action.Type switch {
+                ActionType.PlayCard => await AiMainThread.InvokeAsync(() => PlayCard(player, action.TargetIndex, action.SecondaryIndex)),
+                ActionType.EndTurn => await AiMainThread.InvokeAsync(() => Task.FromResult(EndTurn(player))),
+                ActionType.UsePotion => await AiMainThread.InvokeAsync(() => Task.FromResult(UsePotion(player, action.TargetIndex, action.SecondaryIndex))),
+                _ => ActionResult.Fail($"Unexpected combat action: {action.Type}"),
+            };
+        }
+
         return action.Type switch
         {
             ActionType.PlayCard => await PlayCard(player, action.TargetIndex, action.SecondaryIndex),

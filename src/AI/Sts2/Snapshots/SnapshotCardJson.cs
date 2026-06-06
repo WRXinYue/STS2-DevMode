@@ -12,7 +12,7 @@ internal static class SnapshotCardJson {
     public static JsonObject FromCard(CardModel card, int index = -1) {
         var obj = new JsonObject {
             ["id"] = card.Id.Entry ?? "",
-            ["name"] = card.Title,
+            ["name"] = SafeCardTitle(card),
             ["cost"] = SnapshotEnergyCost(card),
             ["upgradeLevel"] = card.CurrentUpgradeLevel,
             ["maxUpgradeLevel"] = card.MaxUpgradeLevel,
@@ -48,6 +48,16 @@ internal static class SnapshotCardJson {
         catch { }
 
         return obj;
+    }
+
+    static string SafeCardTitle(CardModel card) {
+        try {
+            var title = card.Title?.ToString();
+            if (!string.IsNullOrWhiteSpace(title))
+                return title;
+        }
+        catch { }
+        return card.Id.Entry ?? "";
     }
 
     static int SnapshotEnergyCost(CardModel card) {

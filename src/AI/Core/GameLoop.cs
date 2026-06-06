@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using DevMode.AI;
 using DevMode.AI.AutoPlay.Scoring;
+using DevMode.AI.Sts2;
 using DevMode.AI.Core.Schema;
 
 namespace DevMode.AI.Core;
@@ -59,9 +60,45 @@ public sealed class GameLoop
         try
         {
             var phase = phaseOverride ?? _state.CurrentPhase;
-            if (phase == GamePhase.None) return;
+            // #region agent log
+            DbgSessionLog.Write("C", "GameLoop.OnDecisionPointAsync", "enter", new {
+                phase = phase.ToString(),
+                alreadyRunning = _running,
+            });
+            // #endregion
+            if (phase == GamePhase.None) {
+                // #region agent log
+                DbgSessionLog.Write("C", "GameLoop.OnDecisionPointAsync", "skip phase none", null);
+                // #endregion
+                return;
+            }
 
-            var snapshot = _state.TakeSnapshot();
+            JsonObject snapshot;
+            try {
+                snapshot = _state is Sts2StateProvider sp
+                    ? await sp.TakeSnapshotAsync()
+                    : _state.TakeSnapshot() ?? new JsonObject();
+                // #region agent log
+                if (phase == GamePhase.Combat) {
+                    DbgSessionLog.Write("G", "GameLoop.OnDecisionPointAsync", "snapshot ok", new {
+                        hand = snapshot["combat"]?["hand"]?.AsArray()?.Count ?? 0,
+                        enemies = snapshot["combat"]?["enemies"]?.AsArray()?.Count ?? 0,
+                    });
+                }
+                // #endregion
+            }
+            catch (Exception snapEx) {
+                // #region agent log
+                DbgSessionLog.Write("G", "GameLoop.OnDecisionPointAsync", "snapshot error", new {
+                    phase = phase.ToString(),
+                    type = snapEx.GetType().Name,
+                    message = snapEx.Message,
+                });
+                // #endregion
+                if (phase != GamePhase.Combat)
+                    throw;
+                snapshot = new JsonObject();
+            }
             if (snapshot == null)
             {
                 if (phase == GamePhase.Combat)
@@ -77,18 +114,51 @@ public sealed class GameLoop
             if (!inCombat)
                 _endTurnPending = false;
 
-            if (ShouldSkipCombatPoll(phase, snapshot))
+            if (ShouldSkipCombatPoll(phase, snapshot)) {
+                // #region agent log
+                DbgSessionLog.Write("D", "GameLoop.OnDecisionPointAsync", "skip combat poll", new {
+                    endTurnPending = _endTurnPending,
+                    snapshotPlayPhase = ReadSnapshotBool(snapshot, "combat", "isPlayPhaseActive"),
+                    livePlayPhase = Sts2CombatCompat.IsCombatPlayPhaseActive(),
+                });
+                // #endregion
                 return;
+            }
 
             var decidePhase = inCombat && phase is GamePhase.Unknown or GamePhase.Combat
                 ? GamePhase.Combat
                 : phase;
 
-            var action = await _decisionMaker.DecideAsync(snapshot, decidePhase);
+            GameAction action;
+            try {
+                action = await _decisionMaker.DecideAsync(snapshot, decidePhase);
+            }
+            catch (Exception decideEx) {
+                // #region agent log
+                DbgSessionLog.Write("F", "GameLoop.OnDecisionPointAsync", "decide error", new {
+                    phase = decidePhase.ToString(),
+                    type = decideEx.GetType().Name,
+                    message = decideEx.Message,
+                });
+                // #endregion
+                throw;
+            }
+
+            // #region agent log
+            DbgSessionLog.Write("F", "GameLoop.OnDecisionPointAsync", "decided", new {
+                phase = decidePhase.ToString(),
+                action = action.Type.ToString(),
+                target = action.TargetIndex,
+            });
+            // #endregion
 
             var fingerprint = $"{phase}:{action.Type}:{action.TargetIndex}:{action.SecondaryIndex}";
-            if (IsDuplicateAction(fingerprint))
+            if (IsDuplicateAction(fingerprint)) {
+                // #region agent log
+                DbgSessionLog.Write("D", "GameLoop.OnDecisionPointAsync", "skip duplicate", new { fingerprint });
+                // #endregion
                 return;
+            }
 
             _log($"GameLoop: Phase={phase} Action={action.Type} " +
                  $"Target={action.TargetIndex} Reason=[{action.Reason}]");
@@ -99,6 +169,13 @@ public sealed class GameLoop
                 await Task.Delay(ActionDelayMs);
 
             var result = await _executor.ExecuteAsync(action);
+            // #region agent log
+            DbgSessionLog.Write("E", "GameLoop.OnDecisionPointAsync", "executed", new {
+                action = action.Type.ToString(),
+                success = result.Success,
+                message = result.Message,
+            });
+            // #endregion
             if (!result.Success) {
                 _log($"GameLoop: Action failed — {result.Message}");
                 if (decidePhase == GamePhase.Combat && action.Type == ActionType.EndTurn)
@@ -121,6 +198,12 @@ public sealed class GameLoop
         }
         catch (Exception ex)
         {
+            // #region agent log
+            DbgSessionLog.Write("F", "GameLoop.OnDecisionPointAsync", "error", new {
+                type = ex.GetType().Name,
+                message = ex.Message,
+            });
+            // #endregion
             _log($"GameLoop: Error — {ex.Message}");
         }
         finally
@@ -132,8 +215,9 @@ public sealed class GameLoop
     bool ShouldSkipCombatPoll(GamePhase phase, JsonObject snapshot) {
         if (!IsCombatContext(phase, snapshot)) return false;
 
-        var combat = snapshot["combat"]?.AsObject();
-        if (combat?["isPlayPhaseActive"]?.GetValue<bool>() == false) {
+        // Snapshot was captured on the main thread moments ago; prefer it over live reads from the poll thread.
+        var playPhase = ReadSnapshotBool(snapshot, "combat", "isPlayPhaseActive");
+        if (playPhase == false) {
             _endTurnPending = false;
             return true;
         }
@@ -162,6 +246,15 @@ public sealed class GameLoop
 
     static bool ShouldDelayBeforeAction(GameAction action) =>
         action.Type is ActionType.PlayCard or ActionType.EndTurn or ActionType.UsePotion;
+
+    static bool? ReadSnapshotBool(JsonObject snapshot, string section, string key) {
+        try {
+            return snapshot[section]?[key]?.GetValue<bool>();
+        }
+        catch {
+            return null;
+        }
+    }
 
     async Task<bool> TryRecoverFromRepeatedFailureAsync(string fingerprint) {
         if (_repeatFailFingerprint == fingerprint)
