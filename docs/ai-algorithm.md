@@ -34,8 +34,8 @@ flowchart TD
 | 循环 | 轮询当前阶段、触发决策、写 `AiDecisionLog` | `AiPlayModule`, `GameLoop` |
 | 快照 | 把 Run / 战斗 / UI 状态序列化为 `JsonObject` | `GameSnapshot`, `GameSnapshotPhaseCapture` |
 | 规划 | 根据牌组 / 遗物 / 层数推断「想要什么牌」 | `DeckPlanInferer`, `DeckPlan` |
-| 评分 | 各阶段选最优 `GameAction` | `*Scorer`, `CombatScorer` |
-| 战斗搜索 | 不可变状态 + beam 搜索 + 斩杀检测 | `CombatPlanner`, `CombatSearch`, `LethalChecker` |
+| 评分 | 宏观阶段选最优 `GameAction` | `*Scorer`（Map/Shop/…） |
+| 战斗搜索 | 主路径：beam + 贪心线评估；fallback：`CombatScorer` | `CombatPlanner`, `CombatBeamSearch`, `CombatSetupEvaluator` |
 | 执行 | 点击 UI / 出牌 / 购货 | `Sts2ActionExecutor` |
 
 **策略解析顺序**（Companion / 多人场景同样适用）：`netId` 注册表 → 角色 `CharacterAiRegistry` → 默认 `StrongStrategy`（`AutoPlayStrategy=Simple` 时回退 `SimpleStrategy`）。
@@ -93,7 +93,7 @@ flowchart TD
 | `mapNodes[]` | MapSelection | 可选地图节点 |
 | `eventOptions[]`, `eventId` | EventChoice | 事件选项 |
 
-Mod 扩展写入 `snapshot["extensions"][yourKey]`，StrongStrategy **不会**读取 mod 专有字段，需注册自定义 `IDecisionMaker` 或 `IAiMoveModifier`。
+Mod 扩展写入 `snapshot["extensions"][yourKey]`，StrongStrategy **不会**读取 mod 专有字段，需注册自定义 `IDecisionMaker` 或 `IAiMoveModifier`（经 `SimMoveScoring` 作用于 beam / QuickScore）。
 
 ---
 
@@ -239,7 +239,7 @@ RemovalUplift = (MeanValue - WorstValue)
 
 | GamePhase | 决策器 | 动作类型 |
 | --- | --- | --- |
-| Combat | `PotionScorer` → `CombatSearch` → `CombatScorer` | UsePotion / PlayCard / EndTurn |
+| Combat | `PotionScorer` → `CombatSearch`（beam）→ `CombatScorer`（fallback） | UsePotion / PlayCard / EndTurn |
 | MapSelection | `MapScorer` → `MapPathPlanner` | SelectMapNode |
 | CardReward | `DeckSelectScorer` | PickCardReward / SkipCardReward |
 | RelicSelection | `RelicScorer` | PickRelic |
@@ -409,14 +409,131 @@ bestToBoss(p) = nodeScore(p, ctx) + max_{c ∈ children} ( edgeBonus(p,c) + best
 
 ## 战斗决策
 
+### 架构关系图（主路径 vs 快路径）
+
+**主战斗决策只信 beam + 贪心线评估**；`CanSkipBlockForKill` / `CombatScorer` 不参与起手选择。
+
+```mermaid
+flowchart TB
+    subgraph entry [StrongStrategy.DecideCombat]
+        E1[PotionScorer.TryEmergencyPotion]
+        E2[CombatSearch.PickBestMove]
+        E3[PotionScorer.TryFallbackPotion]
+        E4[CombatScorer.PickBestCombatMove]
+        E5[EndTurn]
+        E1 -->|无紧急药| E2
+        E2 -->|有非 EndTurn 动作| OUT[Sts2ActionExecutor]
+        E2 -->|仅 EndTurn / 无路径| E3
+        E3 -->|无备用药| E4
+        E4 --> E5
+        E5 --> OUT
+    end
+
+    subgraph beam [CombatPlanner 主路径]
+        B1[CombatState.FromSnapshot]
+        B2[CombatBeamSearch.Run 迭代加深]
+        B3[LegalActionGenerator.GenerateOrdered]
+        B4[CombatSimulator.Apply 单步]
+        B5[EvaluateLine 贪心补全本回合]
+        B6[LineRankScore + CompareLines]
+        B7[最优路径 path0]
+        B1 --> B2
+        B2 --> B3
+        B3 --> B4
+        B4 --> B5
+        B5 --> B6
+        B6 --> B7
+    end
+
+    E2 --> B1
+    B7 --> OUT
+
+    subgraph greedy [EvaluateLine = SimulateGreedyPlays]
+        G1[贪心打 Transform]
+        G2[SimulateGreedyAttacks]
+        G3[SimulateGreedyBlock]
+        G4[EvaluateLineOutcome 量指标]
+        G1 --> G2 --> G3 --> G4
+    end
+
+    B5 --> greedy
+
+    subgraph metrics [线指标 → LineRankScore]
+        M1["Incoming: NetDamageAfterBlock"]
+        M2["Future0/1/2: 敌人回合后压力"]
+        M3["EnemyHp / FocusHp / PlayerHpAfterTurn"]
+    end
+
+    G4 --> metrics
+    metrics --> B6
+```
+
+**贪心攻击（本回合有伤害时）**：`OrderEnemiesForGreedyAttacks` 先打 `EffectiveIncoming>0` 的敌人；`incomingSlack=0`（不为集火容忍本回合挨打）。攻击清掉威胁后 `SimulateGreedyBlock` 不跑 → 线评估自然体现「能杀就不防」。
+
+```mermaid
+flowchart LR
+    subgraph attackFirst [先 PRIMAL_FORCE / 攻击]
+        A1[Transform]
+        A2[贪心杀出手怪]
+        A3["incoming=0, 不补防"]
+        A4[剩余能量打伤害]
+        A1 --> A2 --> A3 --> A4
+    end
+
+    subgraph defendFirst [先 DEFEND]
+        D1[花 1 费 block]
+        D2[Transform + 攻击]
+        D3["incoming=0, 但 enemyHp 更高"]
+        D1 --> D2 --> D3
+    end
+
+    attackFirst -->|LineRankScore 更高| WIN[Beam 选攻击起手]
+    defendFirst -->|浪费费用| LOSE[Beam 不选 Defend 起手]
+```
+
+**快路径启发式**（不决定 beam 起手，仅辅助排序 / fallback / 药水）：
+
+```mermaid
+flowchart TB
+    subgraph fast [快路径 非主决策]
+        F1[CombatActionHeuristic.QuickScore]
+        F2[BlockDefensePolicy.NeedsBlock]
+        F3["CanSkipBlockForKill → CanSecureKillThisTurn"]
+        F4[CombatScorer fallback]
+        F5[PotionUseScoring 格挡药压低]
+    end
+
+    F3 --> F2
+    F3 --> F1
+    F3 --> F5
+    F2 -.->|HUD / ShouldScoreBlock| HUD[IntentCalculator]
+
+    subgraph mod [Mod 扩展]
+        M1[IAiMoveModifier]
+        M2[SimMoveScoring.WithModifiers]
+        M1 --> M2
+    end
+
+    M2 --> B3
+    M2 --> F1
+```
+
+| 层 | 是否决定起手 | 核心类型 |
+| --- | --- | --- |
+| **Beam + EvaluateLine** | **是** | `CombatPlanner`, `CombatBeamSearch`, `CombatSetupEvaluator` |
+| QuickScore | 否（beam 展开排序 + 剪枝） | `CombatActionHeuristic` |
+| `IAiMoveModifier` | 否（加分修正） | `SimMoveScoring` → beam / QuickScore |
+| `CanSkipBlockForKill` | **否** | `BlockDefensePolicy` → NeedsBlock / ScoreBlock / 药水 |
+| `CombatScorer` | 否（beam 无结果时 fallback） | 最小 lethal/block/transform 启发式 |
+
 ### 顺序
 
 ```
 DecideCombat:
-  1. PotionScorer.TryEmergencyPotion  → fatal heal / block
-  2. CombatSearch.PickBestMove  → beam-only planner
-  3. PotionScorer.TryFallbackPotion  → non-simulatable potions
-  4. CombatScorer.PickBestCombatMove → fallback
+  1. PotionScorer.TryEmergencyPotion  → fatal heal / block（非 sim 紧急药）
+  2. CombatSearch.PickBestMove        → CombatPlanner beam（主决策）
+  3. PotionScorer.TryFallbackPotion   → 非 sim 药；基准分 = QuickScore 最高
+  4. CombatScorer.PickBestCombatMove  → 最小 fallback（beam 无路径时）
   5. EndTurn
 ```
 
@@ -473,7 +590,7 @@ DecideCombat:
 | API | 语义 |
 | --- | --- |
 | `NeedsBlock` | fatal / early floor / 阈值 / 低 HP；**仅** `CanSkipBlockForKill` 为 true 时豁免 |
-| `CanSkipBlockForKill` | 本回合 sim 证明清威胁且 `net≤0`（`SimLethalChecker.CanSecureKillThisTurn`） |
+| `CanSkipBlockForKill` | 快路径：`CanSecureKillThisTurn` 或 `net≤0`；**不参与** `EvaluateLine` / beam 叶评分 |
 | `CanFullyBlock` / `ShouldPrioritizeBlock` | 手牌可负担格挡是否覆盖 net |
 | `FullBlockValue` | Evaluator / ConsiderLeaf 挡满潜力分 |
 
@@ -486,37 +603,28 @@ NeedsBlock → BlockDefensePolicy（无 CanLethal blanket 豁免）
 BlockUrgency 0–100 驱动攻击惩罚与 EndTurn 惩罚
 ```
 
-### CombatScorer（单步）
+### CombatScorer（fallback 最小启发式）
 
-对每张可打出、能量足够的牌生成 `(PlayCard, score)`；对需选目标的 Attack 枚举敌人索引。
-
-**出牌分（概要）**：
+**仅**在 `CombatPlanner` beam 无可用路径时使用；不参与主路径起手。无 `IAiMoveModifier`、无完整机制分。
 
 | 情况 | 加分 |
 | --- | --- |
-| NeedsBlock 且 Skill/挡牌 | 25 + min(block, net)×2；incoming≥15 再 +12；fatal 再 +25 |
-| ShouldScoreBlock（非 NeedsBlock）且挡牌 | 15 + min(block, net)×2（incoming 威胁保底） |
-| 一级防 + incoming>0 | +8（`starter-block`） |
-| NeedsBlock 时 Attack | −BlockUrgency/2 − max(0, net−damage)/2；可斩杀但会死 → lethal-risky +8 而非 +25 |
-| !ShouldScoreBlock 时的挡牌 | −40 |
-| 先打可变形攻击（手牌有廉价变形技） | `attack-before-transform` −min(伤害增益, 50) |
-| 受威胁时 transform（原始力量等） | `suppressTransform`：跳过固定 +20/+40；follow-up 按 `ThreatDiscountScale` 折扣；`transform-threat-discount` 最多 −20 |
-| 易伤 setup（痛击等） | `defer-vuln-setup` 动态加分；攻击侧 `defer-vuln` 机会成本 |
-| 低 HP 且 Skill 且 NeedsBlock | +15 |
-| 自损牌（HEMOKINESIS 等）且 HP<65% | −30 |
-| Attack | 20 + cost×5 + damage + 目标加成（残血敌 +30；有存活爪牙时召唤者 +35、爪牙 −30）；CanLethal +25 |
-| Skill | 15 + cost×2 +（NeedsBlock 时 block/2） |
-| AOE / 多敌 Attack | +12 / +15；多敌无谓 Defend −20 |
-| 高费 | −(cost−1)×2 |
+| Attack 可斩杀 | lethal +80；`CanSkipBlockForKill` 时再 secure +20 |
+| Attack 且 NeedsBlock 且不能 secure kill | unsafe 惩罚 |
+| Block 且 NeedsBlock/fatal | block + 30 + 有效格挡×2 |
+| Block 无威胁 | block-waste −10 |
+| Transform 技能 | +50 |
+| Junk | −200 |
+| EndTurn fatal | `int.MinValue` |
 
-**EndTurn** 基础分 −10；NeedsBlock 且 incoming>0 再 −15；敌人已挂易伤时略加分（最多 +15）。
+完整单步评分（挡牌权重、易伤 defer、机制分等）已迁移至 **beam + `CombatSetupEvaluator`** 与 **`CombatActionHeuristic.QuickScore`**。
 
-**机制驱动加分**（`MechanicCombatBonus`，权重在 `CombatScoreWeights`，非按 card id 写死）：
+**机制驱动加分**（主路径在 beam / QuickScore，非 CombatScorer）：
 
 | 机制 | 来源 | 效果 |
 | --- | --- | --- |
-| `TransformsHandAttacks` | 原始力量等 | `EstimateTurnDamageDelta` 整回合净收益；≤0 给 −80；beam 内负收益变形剪枝 |
-| `AppliesVulnerable` | DynamicVar 探测（痛击等） | 无易伤时：18 + 层数×8 + followup/3 + `CombatSetupEvaluator` defer 动态分；已有易伤 −12 |
+| `TransformsHandAttacks` | 原始力量等 | `EstimateTurnDamageDelta`；QuickScore / beam 剪枝 |
+| `AppliesVulnerable` | DynamicVar 探测（痛击等） | `CombatSetupEvaluator` defer；QuickScore `ScoreVulnerableSetup` |
 | `AppliesWeak` | DynamicVar | 类似，权重略低 |
 | Setup Skill | 上述机制牌 | **不再**吃「非挡牌 Skill −40」惩罚 |
 
@@ -524,7 +632,7 @@ BlockUrgency 0–100 驱动攻击惩罚与 EndTurn 惩罚
 
 **战斗日志**（`AiCombatVerboseLog=true`，默认开）：每次出牌记录 top pick + 最多 4 个备选，含分项 `[attack:+31, mechanic:+48, …]`。见 `CombatDecisionLog`。
 
-Mod 可通过 `IAiMoveModifier.ModifyScore` 调整任意 move 分数（日志中显示 `mod:+N`）。
+Mod 可通过 `IAiMoveModifier.ModifyScore` 调整 beam / QuickScore 中的 move 分数（经 `SimMoveScoring`；调试日志可见 `mod:+N`）。
 
 ### Enemy Intelligence Layer
 
@@ -697,7 +805,7 @@ flowchart LR
 
 **战斗日志**（`AiCombatVerboseLog`）：`CombatDecisionLog` 输出 `IN=` / `ND=` / `NXT=` / `JUNK=` / `POLL=` / `PLAY=` / `NEXT=` / `RESHUF=` / `POST_PLAY=` 与 `tgt= bias= flags=` 便于 bench 调参。
 
-`CombatScorer` 保留为 **fallback**（beam 无结果时）及 mod `IAiMoveModifier` 单步估价基线。
+`CombatScorer` 保留为 **最小 fallback**（beam 无结果时）。Mod `IAiMoveModifier` 经 `SimMoveScoring` 作用于 beam 排序与 QuickScore，不再挂 CombatScorer。
 
 ---
 
@@ -773,7 +881,7 @@ Run 结束时 `ResetDedupeState()` 清空状态。
 | `IDecisionMaker` | 完全接管决策 |
 | `IDeckPlanContributor` | 调整 DeckPlan.Builder |
 | `ICardTagProvider` | 扩展 CardCatalog tag |
-| `IAiMoveModifier` | 战斗 move 加分 |
+| `IAiMoveModifier` | 战斗 move 加分（`SimMoveScoring` → beam / QuickScore） |
 | `IAiSnapshotContributor` | 写入 `extensions.*` |
 
 注册入口：`CompanionBridge.Register*`（见 README）。
@@ -812,7 +920,8 @@ Run 结束时 `ResetDedupeState()` 清空状态。
 | `src/AI/Planning/MapNodeWeightScorer.cs` | 地图节点/边权重 |
 | `src/Map/MapPathOverlay.cs` | AutoPlay 路径高亮 |
 | `src/AI/AutoPlay/Scoring/*.cs` | 宏观评分 |
-| `src/AI/AutoPlay/Scoring/CombatScorer.cs` | 战斗单步评分 |
+| `src/AI/AutoPlay/Scoring/CombatScorer.cs` | 战斗 fallback 最小评分 |
+| `src/AI/Combat/Simulation/SimMoveScoring.cs` | `IAiMoveModifier` → sim/beam 桥接 |
 | `src/AI/Combat/CombatSearch.cs` | 浅层搜索 |
 | `src/AI/Combat/LethalChecker.cs` | 斩杀 |
 | `src/AI/Combat/IntentCalculator.cs` | 意图伤害 |

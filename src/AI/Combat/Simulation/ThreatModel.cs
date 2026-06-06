@@ -21,10 +21,13 @@ public static class ThreatModel {
     public static LineScoreWeights WeightsFor(CombatState state) {
         var afterPhase = CombatTurnResolver.ProjectAfterEnemyPhase(state);
         int thisIn = IncomingDamage(state);
-        int nextP = PressureAtIntentStep(afterPhase, 0);
+        int nextP = PressureAtIntentStepKillAdjusted(afterPhase, 0);
         int horizonSum = 0;
-        for (int i = 0; i <= LineFutureHorizonTurns; i++)
-            horizonSum += PressureAtIntentStep(afterPhase, i);
+        for (int i = 0; i <= LineFutureHorizonTurns; i++) {
+            horizonSum += i == 0
+                ? PressureAtIntentStepKillAdjusted(afterPhase, 0)
+                : PressureAtIntentStep(afterPhase, i);
+        }
 
         int incomingUnit = Math.Max(1, Math.Max(thisIn, nextP));
         int futureUnit = Math.Max(1, horizonSum / (LineFutureHorizonTurns + 1));
@@ -45,7 +48,7 @@ public static class ThreatModel {
         var w = WeightsFor(state);
         var afterPhase = CombatTurnResolver.ProjectAfterEnemyPhase(state);
         int incoming = NetDamageAfterBlock(state);
-        int future0 = PressureAtIntentStep(afterPhase, 0);
+        int future0 = PressureAtIntentStepKillAdjusted(afterPhase, 0);
         int future1 = PressureAtIntentStep(afterPhase, 1);
         int future2 = PressureAtIntentStep(afterPhase, 2);
         int enemyHp = state.Enemies.Where(e => e.IsAlive).Sum(e => e.EffectiveHp);
@@ -125,6 +128,126 @@ public static class ThreatModel {
     /// <summary>Damage + debuff pressure at one future enemy phase (for line horizon).</summary>
     public static int PressureAtIntentStep(CombatState state, int stepIndex) =>
         IncomingAtIntentStep(state, stepIndex) + NonDamageAtIntentStep(state, stepIndex);
+
+    /// <summary>
+    /// Scheduled pressure at <paramref name="stepIndex"/>, discounting enemies killable with
+    /// projected playable damage (and block for attacks) before they act.
+    /// </summary>
+    public static int PressureAtIntentStepKillAdjusted(CombatState state, int stepIndex, bool afterDrawTurnStart = false) {
+        if (stepIndex != 0)
+            return PressureAtIntentStep(state, stepIndex);
+
+        int budget = PlayableDamageBeforeIntentStep(state, afterDrawTurnStart);
+        var (attack, nonDamage) = ScheduledPressureAfterKillBudget(state, stepIndex, budget);
+        int block = PlayableBlockBeforeIntentStep(state, afterDrawTurnStart);
+        return Math.Max(0, attack - Math.Min(block, attack)) + nonDamage;
+    }
+
+    /// <summary>Attack damage playable before enemies execute intentSteps[0].</summary>
+    public static int PlayableDamageBeforeIntentStep(CombatState state, bool afterDrawTurnStart) {
+        if (afterDrawTurnStart)
+            return DeckPollutionEvaluator.ExpectedPlayableDamage(state);
+
+        return EstimateRemainingTurnDamage(state)
+            + DrawPlanner.ExpectedDrawnDamage(
+                state,
+                RelicCombatRules.PlannedHandDraw(state),
+                state.MaxEnergy);
+    }
+
+    /// <summary>Block playable before enemies execute intentSteps[0].</summary>
+    public static int PlayableBlockBeforeIntentStep(CombatState state, bool afterDrawTurnStart) {
+        if (afterDrawTurnStart)
+            return DeckPollutionEvaluator.ExpectedPlayableBlock(state);
+
+        return EstimateRemainingTurnBlock(state)
+            + DrawPlanner.ExpectedDrawnBlock(
+                state,
+                RelicCombatRules.PlannedHandDraw(state),
+                state.MaxEnergy);
+    }
+
+    public static int EstimateRemainingTurnDamage(CombatState state) {
+        int total = 0;
+        int energy = state.Energy;
+        foreach (var card in state.Hand.OrderByDescending(c => c.Damage)) {
+            if (!CombatCardCost.CanAfford(card, state))
+                continue;
+            if (!card.IsAttack || card.Damage <= 0)
+                continue;
+
+            int cost = CombatCardCost.EffectiveCost(card, state.Modifiers);
+            if (cost > energy)
+                continue;
+
+            energy -= cost;
+            total += CombatDamageCalc.OutgoingDamage(card, state);
+        }
+
+        return total;
+    }
+
+    public static int EstimateRemainingTurnBlock(CombatState state) {
+        int total = 0;
+        int energy = state.Energy;
+        foreach (var card in state.Hand.OrderByDescending(c => c.Block)) {
+            if (!CombatCardCost.CanAfford(card, state))
+                continue;
+
+            int block = CombatDamageCalc.OutgoingBlock(card, state);
+            if (block <= 0)
+                continue;
+
+            int cost = CombatCardCost.EffectiveCost(card, state.Modifiers);
+            if (cost > energy)
+                continue;
+
+            energy -= cost;
+            total += block;
+        }
+
+        return total;
+    }
+
+    static (int Attack, int NonDamage) ScheduledPressureAfterKillBudget(
+        CombatState state,
+        int stepIndex,
+        int damageBudget) {
+        int budget = Math.Max(0, damageBudget);
+        int attack = 0;
+        int nonDamage = 0;
+
+        foreach (var enemy in OrderEnemiesForKillBeforeStep(state, stepIndex)) {
+            int inc = IncomingAtIntentStepForEnemy(enemy, stepIndex);
+            int nd = NonDamageAtIntentStepForEnemy(enemy, stepIndex);
+            if (inc <= 0 && nd <= 0)
+                continue;
+
+            if (budget >= enemy.EffectiveHp) {
+                budget -= enemy.EffectiveHp;
+                continue;
+            }
+
+            attack += inc;
+            nonDamage += nd;
+        }
+
+        return (attack, nonDamage);
+    }
+
+    static IEnumerable<CombatEnemy> OrderEnemiesForKillBeforeStep(CombatState state, int stepIndex) =>
+        state.Enemies
+            .Where(e => e.IsAlive)
+            .OrderByDescending(e =>
+                IncomingAtIntentStepForEnemy(e, stepIndex) + NonDamageAtIntentStepForEnemy(e, stepIndex))
+            .ThenBy(e => e.EffectiveHp);
+
+    static int NonDamageAtIntentStepForEnemy(CombatEnemy enemy, int stepIndex) {
+        if (!enemy.IsAlive || stepIndex < 0 || stepIndex >= enemy.IntentSteps.Length)
+            return 0;
+
+        return enemy.IntentSteps[stepIndex].NonDamageThreat;
+    }
 
     /// <summary>Intent-chain threat for focus fire over the next enemy phases.</summary>
     public static int HorizonThreatForEnemy(CombatEnemy enemy, int startStep = 0, int stepCount = 3) {

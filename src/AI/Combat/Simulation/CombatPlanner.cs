@@ -25,7 +25,7 @@ public static class CombatPlanner {
             if (sw.ElapsedMilliseconds >= config.TimeBudgetMs)
                 break;
 
-            var result = CombatBeamSearch.Run(state, config with { MaxDepth = depth });
+            var result = CombatBeamSearch.Run(state, config with { MaxDepth = depth }, snapshot);
             if (result.HasResult)
                 best = result;
         }

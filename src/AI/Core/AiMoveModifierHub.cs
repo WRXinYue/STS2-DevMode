@@ -9,7 +9,7 @@ public static class AiMoveModifierHub {
 
     public static void Register(IAiMoveModifier modifier) {
         Modifiers.Add(modifier);
-        MainFile.Logger.Info($"[AiScorer] Move modifier registered type={modifier.GetType().Name}.");
+        MainFile.Logger.Info($"[AiSim] Move modifier registered type={modifier.GetType().Name}.");
     }
 
     public static int ApplyModifiers(JsonObject snapshot, GameAction move, int baseScore) {

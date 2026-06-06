@@ -171,10 +171,18 @@ public static class PotionScorer {
     }
 
     static int BestCombatMoveScore(JsonObject snapshot) {
-        var ranked = CombatScorer.ScoreLegalMovesDetailed(snapshot)
-            .OrderByDescending(x => x.Score)
-            .FirstOrDefault();
-        return ranked?.Score ?? 0;
+        var state = CombatState.FromSnapshot(snapshot);
+        if (state.AliveEnemyCount == 0)
+            return 0;
+
+        int best = 0;
+        foreach (var action in LegalActionGenerator.Generate(state, snapshot)) {
+            if (action.Kind == SimActionKind.EndTurn)
+                continue;
+            best = Math.Max(best, CombatActionHeuristic.QuickScore(state, action, snapshot));
+        }
+
+        return best;
     }
 
     static bool TryReadPotionSlot(JsonObject potion, int arrayIndex, out int slot, out string id) {

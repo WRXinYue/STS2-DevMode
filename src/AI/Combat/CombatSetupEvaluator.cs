@@ -142,6 +142,23 @@ internal static class CombatSetupEvaluator {
         return score > int.MaxValue ? int.MaxValue - 1 : (int)score;
     }
 
+    public static int RankPlayAction(
+        CombatState state,
+        SimCombatAction action,
+        JsonObject? rootSnapshot = null) {
+        if (action.Kind == SimActionKind.EndTurn)
+            return int.MinValue;
+
+        var next = CombatSimulator.Apply(state, action);
+        if (next.AliveEnemyCount == 0)
+            return int.MaxValue;
+
+        int baseScore = LineRankScore(
+            EvaluateLine(next),
+            ThreatModel.WeightsFor(state));
+        return SimMoveScoring.WithModifiers(state, action, baseScore, rootSnapshot);
+    }
+
     public static CombatLineOutcome WipeOutcome(CombatState state) =>
         new(0, 0, 0, 0, 0, 0, state.PlayerHp);
 
@@ -154,7 +171,7 @@ internal static class CombatSetupEvaluator {
         var focusMid = midTurn.Enemies.FirstOrDefault(e => e.IsAlive && e.Index == focusIdx);
         return new CombatLineOutcome(
             ThreatModel.NetDamageAfterBlock(midTurn),
-            ThreatModel.PressureAtIntentStep(afterTurn, 0),
+            ThreatModel.PressureAtIntentStepKillAdjusted(afterTurn, 0, afterDrawTurnStart: true),
             ThreatModel.PressureAtIntentStep(afterTurn, 1),
             ThreatModel.PressureAtIntentStep(afterTurn, 2),
             focusMid?.CurrentHp ?? 0,
@@ -163,7 +180,7 @@ internal static class CombatSetupEvaluator {
     }
 
     static int ScoreMidTurn(CombatState s) =>
-        ThreatModel.MidTurnScore(s, PrimaryAttackTargetIndex(s));
+        ThreatModel.MidTurnScore(s, GreedyAttackFocusIndex(s));
 
     /// <summary>Sim delta: play vuln first vs skip vuln card, compared by explicit line metrics.</summary>
     static int ComputeVulnerableSetupSimDelta(CombatState state, int handIndex, int enemyIndex) {
@@ -251,9 +268,6 @@ internal static class CombatSetupEvaluator {
             : null;
 
         while (ThreatModel.NetDamageAfterBlock(s) > 0) {
-            if (BlockDefensePolicy.CanSkipBlockForKill(s))
-                break;
-
             int bestHand = -1;
             int bestCover = 0;
 
@@ -376,6 +390,46 @@ internal static class CombatSetupEvaluator {
     public static int PrimaryAttackTargetIndex(CombatState state) =>
         OrderEnemiesByThreat(state).Select(e => e.Index).FirstOrDefault();
 
+    /// <summary>Greedy sim focus: this-turn attackers, then status injectors, then horizon threat.</summary>
+    public static int GreedyAttackFocusIndex(CombatState state) {
+        if (ThreatModel.IncomingDamage(state) > 0) {
+            var attacker = state.Enemies
+                .Where(e => e.IsAlive && e.EffectiveIncoming > 0
+                    && ThreatModel.IsViableAttackTarget(state, e))
+                .OrderByDescending(e => e.EffectiveIncoming)
+                .ThenBy(e => e.EffectiveHp)
+                .FirstOrDefault();
+            if (attacker != null)
+                return attacker.Index;
+        }
+
+        var statusThreat = state.Enemies
+            .Where(e => e.IsAlive && ThreatModel.IsViableAttackTarget(state, e))
+            .Where(e => e.NonDamageThreat > 0
+                || e.MechanicFlags.HasFlag(EnemyMechanicFlags.HasStatusCardIntent))
+            .OrderBy(e => e.EffectiveHp)
+            .ThenByDescending(e => e.NonDamageThreat)
+            .FirstOrDefault();
+        if (statusThreat != null)
+            return statusThreat.Index;
+
+        return PrimaryAttackTargetIndex(state);
+    }
+
+    public static IEnumerable<CombatEnemy> OrderEnemiesForGreedyAttacks(CombatState state) {
+        if (ThreatModel.IncomingDamage(state) <= 0)
+            return OrderEnemiesByThreat(state);
+
+        var attackers = state.Enemies
+            .Where(e => e.IsAlive && e.EffectiveIncoming > 0
+                && ThreatModel.IsViableAttackTarget(state, e))
+            .OrderByDescending(e => e.EffectiveIncoming)
+            .ThenBy(e => e.EffectiveHp);
+        var rest = OrderEnemiesByThreat(state)
+            .Where(e => e.EffectiveIncoming <= 0);
+        return attackers.Concat(rest);
+    }
+
     public static int FocusHpAfter(CombatState state, int focusIndex) =>
         ThreatModel.FocusHp(state, focusIndex);
 
@@ -445,17 +499,18 @@ internal static class CombatSetupEvaluator {
             ? state.Hand[excludeHandIndex].Id
             : null;
 
-        int focusIndex = PrimaryAttackTargetIndex(state);
-        int incomingSlack = 0;
+        int focusIndex = GreedyAttackFocusIndex(state);
 
         while (true) {
             var focusEnemy = s.Enemies.FirstOrDefault(e => e.IsAlive && e.Index == focusIndex);
             if (focusEnemy == null) {
-                focusIndex = PrimaryAttackTargetIndex(s);
+                focusIndex = GreedyAttackFocusIndex(s);
                 focusEnemy = s.Enemies.FirstOrDefault(e => e.IsAlive && e.Index == focusIndex);
             }
 
-            incomingSlack = focusEnemy != null ? ThreatModel.IncomingTradeSlack(focusEnemy, s) : 0;
+            int incomingSlack = ThreatModel.IncomingDamage(s) > 0
+                ? 0
+                : focusEnemy != null ? ThreatModel.IncomingTradeSlack(focusEnemy, s) : 0;
 
             SimCombatAction? bestAction = null;
             int bestScore = int.MinValue;
@@ -464,6 +519,8 @@ internal static class CombatSetupEvaluator {
             int bestFuture1 = int.MaxValue;
             int bestFuture2 = int.MaxValue;
             int bestFocusHp = int.MaxValue;
+            int bestNonDamage = int.MaxValue;
+            int bestEnemyHp = int.MaxValue;
             bool bestHitsPrimary = false;
             int primary = focusIndex;
 
@@ -477,14 +534,18 @@ internal static class CombatSetupEvaluator {
                 if (card.IsAoe) {
                     var next = CombatSimulator.Apply(s, new SimCombatAction(SimActionKind.PlayCard, i, -1));
                     var future = FuturePressureFromMidTurn(next);
+                    int nonDamage = ThreatModel.TotalNonDamageThreat(next);
+                    int enemyHp = AliveEnemyHp(next);
                     if (IsBetterAttackStep(
                             ThreatModel.NetDamageAfterBlock(next),
                             future.f0, future.f1, future.f2,
                             ScoreMidTurn(next),
                             FocusHpAfter(next, primary),
+                            nonDamage,
+                            enemyHp,
                             hitsPrimary: false,
                             bestIncoming, bestFuture0, bestFuture1, bestFuture2,
-                            bestFocusHp, bestScore, bestHitsPrimary,
+                            bestFocusHp, bestNonDamage, bestEnemyHp, bestScore, bestHitsPrimary,
                             incomingSlack)) {
                         bestScore = ScoreMidTurn(next);
                         bestIncoming = ThreatModel.NetDamageAfterBlock(next);
@@ -492,6 +553,8 @@ internal static class CombatSetupEvaluator {
                         bestFuture1 = future.f1;
                         bestFuture2 = future.f2;
                         bestFocusHp = FocusHpAfter(next, primary);
+                        bestNonDamage = nonDamage;
+                        bestEnemyHp = enemyHp;
                         bestHitsPrimary = false;
                         bestAction = new SimCombatAction(SimActionKind.PlayCard, i, -1);
                     }
@@ -499,7 +562,7 @@ internal static class CombatSetupEvaluator {
                     continue;
                 }
 
-                foreach (var enemy in OrderEnemiesByThreat(s)) {
+                foreach (var enemy in OrderEnemiesForGreedyAttacks(s)) {
                     int dmg = CombatDamageCalc.OutgoingDamage(card, s, enemy.Vulnerable);
                     if (dmg <= 0) continue;
 
@@ -508,14 +571,18 @@ internal static class CombatSetupEvaluator {
                     bool hitsPrimary = enemy.Index == primary;
                     var future = FuturePressureFromMidTurn(next);
                     int focusHp = FocusHpAfter(next, primary);
+                    int nonDamage = ThreatModel.TotalNonDamageThreat(next);
+                    int enemyHp = AliveEnemyHp(next);
                     if (IsBetterAttackStep(
                             ThreatModel.NetDamageAfterBlock(next),
                             future.f0, future.f1, future.f2,
                             ScoreMidTurn(next),
                             focusHp,
+                            nonDamage,
+                            enemyHp,
                             hitsPrimary,
                             bestIncoming, bestFuture0, bestFuture1, bestFuture2,
-                            bestFocusHp, bestScore, bestHitsPrimary,
+                            bestFocusHp, bestNonDamage, bestEnemyHp, bestScore, bestHitsPrimary,
                             incomingSlack)) {
                         bestScore = ScoreMidTurn(next);
                         bestIncoming = ThreatModel.NetDamageAfterBlock(next);
@@ -523,6 +590,8 @@ internal static class CombatSetupEvaluator {
                         bestFuture1 = future.f1;
                         bestFuture2 = future.f2;
                         bestFocusHp = focusHp;
+                        bestNonDamage = nonDamage;
+                        bestEnemyHp = enemyHp;
                         bestHitsPrimary = hitsPrimary;
                         bestAction = new SimCombatAction(SimActionKind.PlayCard, i, enemy.Index);
                     }
@@ -567,10 +636,13 @@ internal static class CombatSetupEvaluator {
     static (int f0, int f1, int f2) FuturePressureFromMidTurn(CombatState state) {
         var afterPhase = CombatTurnResolver.ProjectAfterEnemyPhase(state);
         return (
-            ThreatModel.PressureAtIntentStep(afterPhase, 0),
+            ThreatModel.PressureAtIntentStepKillAdjusted(afterPhase, 0),
             ThreatModel.PressureAtIntentStep(afterPhase, 1),
             ThreatModel.PressureAtIntentStep(afterPhase, 2));
     }
+
+    static int AliveEnemyHp(CombatState state) =>
+        state.Enemies.Where(e => e.IsAlive).Sum(e => e.EffectiveHp);
 
     static bool IsBetterAttackStep(
         int incoming,
@@ -579,12 +651,16 @@ internal static class CombatSetupEvaluator {
         int future2,
         int score,
         int focusHp,
+        int nonDamageThreat,
+        int enemyHp,
         bool hitsPrimary,
         int bestIncoming,
         int bestFuture0,
         int bestFuture1,
         int bestFuture2,
         int bestFocusHp,
+        int bestNonDamage,
+        int bestEnemyHp,
         int bestScore,
         bool bestHitsPrimary,
         int incomingSlack) {
@@ -599,17 +675,23 @@ internal static class CombatSetupEvaluator {
             return false;
         }
 
-        if (focusHp != bestFocusHp)
-            return focusHp < bestFocusHp;
-
-        if (hitsPrimary != bestHitsPrimary)
-            return hitsPrimary;
-
         int futureCmp = ThreatModel.CompareFutureIncoming(
             future0, future1, future2,
             bestFuture0, bestFuture1, bestFuture2);
         if (futureCmp != 0)
             return futureCmp > 0;
+
+        if (focusHp != bestFocusHp)
+            return focusHp < bestFocusHp;
+
+        if (enemyHp != bestEnemyHp)
+            return enemyHp < bestEnemyHp;
+
+        if (nonDamageThreat != bestNonDamage)
+            return nonDamageThreat < bestNonDamage;
+
+        if (hitsPrimary != bestHitsPrimary)
+            return hitsPrimary;
 
         if (score != bestScore)
             return score > bestScore;

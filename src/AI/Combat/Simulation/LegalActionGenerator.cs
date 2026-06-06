@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Nodes;
 using DevMode.AI.Combat;
 using DevMode.AI.Knowledge;
 
@@ -9,13 +10,15 @@ namespace DevMode.AI.Combat.Simulation;
 public static class LegalActionGenerator {
     public const int MaxMcBranches = 3;
 
-    public static IEnumerable<SimCombatAction> Generate(CombatState state) {
+    public static IEnumerable<SimCombatAction> Generate(
+        CombatState state,
+        JsonObject? rootSnapshot = null) {
         bool anyPlay = false;
 
         foreach (var action in GenerateRaw(state)) {
             if (action.Kind == SimActionKind.PlayCard)
                 anyPlay = true;
-            if (!CombatActionHeuristic.ShouldPrune(state, action))
+            if (!CombatActionHeuristic.ShouldPrune(state, action, rootSnapshot))
                 yield return action;
         }
 
@@ -23,23 +26,19 @@ public static class LegalActionGenerator {
             yield return new SimCombatAction(SimActionKind.EndTurn);
     }
 
-    public static IEnumerable<SimCombatAction> GenerateOrdered(CombatState state, int maxActions = int.MaxValue) =>
-        Generate(state)
-            .OrderByDescending(a => RankActionByLineOutcome(state, a))
+    public static IEnumerable<SimCombatAction> GenerateOrdered(
+        CombatState state,
+        int maxActions = int.MaxValue,
+        JsonObject? rootSnapshot = null) =>
+        Generate(state, rootSnapshot)
+            .OrderByDescending(a => RankActionByLineOutcome(state, a, rootSnapshot))
             .Take(maxActions);
 
-    static int RankActionByLineOutcome(CombatState state, SimCombatAction action) {
-        if (action.Kind == SimActionKind.EndTurn)
-            return int.MinValue;
-
-        var next = CombatSimulator.Apply(state, action);
-        if (next.AliveEnemyCount == 0)
-            return int.MaxValue;
-
-        return CombatSetupEvaluator.LineRankScore(
-            CombatSetupEvaluator.EvaluateLine(next),
-            ThreatModel.WeightsFor(state));
-    }
+    static int RankActionByLineOutcome(
+        CombatState state,
+        SimCombatAction action,
+        JsonObject? rootSnapshot) =>
+        CombatSetupEvaluator.RankPlayAction(state, action, rootSnapshot);
 
     static IEnumerable<SimCombatAction> GenerateRaw(CombatState state) {
         for (int i = 0; i < state.Hand.Count; i++) {
@@ -90,7 +89,7 @@ public static class LegalActionGenerator {
     }
 
     static IEnumerable<int> OrderedAttackTargets(CombatState state) =>
-        CombatSetupEvaluator.OrderEnemiesByThreat(state)
+        CombatSetupEvaluator.OrderEnemiesForGreedyAttacks(state)
             .Take(4)
             .Select(e => e.Index);
 }

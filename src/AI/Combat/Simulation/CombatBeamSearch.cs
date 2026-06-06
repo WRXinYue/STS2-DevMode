@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text.Json.Nodes;
 using DevMode.AI.Combat;
 using DevMode.AI.Knowledge;
 
@@ -19,17 +20,28 @@ public static class CombatBeamSearch {
         return new BeamSearchOptions(depth, width, budget, actions);
     }
 
-    public static int RunBestScore(CombatState root, BeamSearchOptions options) {
-        var result = Run(root, options);
+    public static int RunBestScore(
+        CombatState root,
+        BeamSearchOptions options,
+        JsonObject? rootSnapshot = null) {
+        var result = Run(root, options, rootSnapshot);
         return result.HasResult ? result.Score : int.MinValue;
     }
 
-    public static BeamSearchResult Run(CombatState root, BeamSearchOptions options) {
+    public static BeamSearchResult Run(
+        CombatState root,
+        BeamSearchOptions options,
+        JsonObject? rootSnapshot = null) {
         var sw = Stopwatch.StartNew();
-        return RunBeam(root, options.MaxDepth, options, sw);
+        return RunBeam(root, options.MaxDepth, options, sw, rootSnapshot);
     }
 
-    static BeamSearchResult RunBeam(CombatState root, int maxDepth, BeamSearchOptions config, Stopwatch sw) {
+    static BeamSearchResult RunBeam(
+        CombatState root,
+        int maxDepth,
+        BeamSearchOptions config,
+        Stopwatch sw,
+        JsonObject? rootSnapshot) {
         var beam = new List<BeamNode> {
             new(root, [], RankLine(root)),
         };
@@ -44,7 +56,8 @@ public static class CombatBeamSearch {
                 if (sw.ElapsedMilliseconds >= config.TimeBudgetMs)
                     break;
 
-                foreach (var action in LegalActionGenerator.GenerateOrdered(node.State, config.MaxActionsPerNode)) {
+                foreach (var action in LegalActionGenerator.GenerateOrdered(
+                    node.State, config.MaxActionsPerNode, rootSnapshot)) {
                     if (action.Kind == SimActionKind.EndTurn)
                         continue;
 
@@ -52,11 +65,13 @@ public static class CombatBeamSearch {
                     var newPath = node.Path.Append(action).ToList();
 
                     if (next.AliveEnemyCount == 0) {
-                        ConsiderLeaf(root, next, newPath, depth + 1, ref bestPath, ref bestOutcome, ref bestDepth);
+                        ConsiderLeaf(root, next, newPath, depth + 1, rootSnapshot,
+                            ref bestPath, ref bestOutcome, ref bestDepth);
                         continue;
                     }
 
-                    ConsiderLeaf(root, next, newPath, depth + 1, ref bestPath, ref bestOutcome, ref bestDepth);
+                    ConsiderLeaf(root, next, newPath, depth + 1, rootSnapshot,
+                        ref bestPath, ref bestOutcome, ref bestDepth);
 
                     bool exhausted = next.Energy <= 0 || !CombatCardCost.HasAffordablePlay(next);
                     if (exhausted || depth + 1 >= maxDepth)
@@ -83,9 +98,13 @@ public static class CombatBeamSearch {
                 .ToList();
         }
 
-        int score = bestOutcome.HasValue
-            ? CombatSetupEvaluator.LineRankScore(bestOutcome.Value, ThreatModel.WeightsFor(root))
-            : int.MinValue;
+        int score = int.MinValue;
+        if (bestOutcome.HasValue) {
+            score = CombatSetupEvaluator.LineRankScore(bestOutcome.Value, ThreatModel.WeightsFor(root));
+            if (bestPath is { Count: > 0 })
+                score += SimMoveScoring.OpeningModifierBonus(root, bestPath[0], rootSnapshot);
+        }
+
         return new BeamSearchResult(bestPath, score, bestDepth);
     }
 
@@ -94,6 +113,7 @@ public static class CombatBeamSearch {
         CombatState state,
         List<SimCombatAction> path,
         int depth,
+        JsonObject? rootSnapshot,
         ref List<SimCombatAction>? bestPath,
         ref CombatSetupEvaluator.CombatLineOutcome? bestOutcome,
         ref int bestDepth) {
@@ -106,6 +126,8 @@ public static class CombatBeamSearch {
             bestPath = path;
             bestDepth = depth;
             int rank = CombatSetupEvaluator.LineRankScore(outcome, ThreatModel.WeightsFor(root));
+            if (path.Count > 0)
+                rank += SimMoveScoring.OpeningModifierBonus(root, path[0], rootSnapshot);
             CombatDebugTrace.LogBeamLeafUpdate(
                 root, state, path, rank, depth, "line outcome");
         }

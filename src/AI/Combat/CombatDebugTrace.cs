@@ -11,7 +11,7 @@ namespace DevMode.AI.Combat;
 /// <summary>Cross-layer combat decision tracing (QuickScore vs beam vs scorer vs sim).</summary>
 internal static class CombatDebugTrace {
     public static void LogOpeningDecision(CombatState state, JsonObject snapshot, BeamSearchResult? beam) {
-        LogQuickScoreTop(state, 10);
+        LogQuickScoreTop(state, snapshot, 10);
         LogScorerTop(snapshot, 6);
         LogSimLineCandidates(state);
         if (beam is { HasResult: true })
@@ -19,12 +19,12 @@ internal static class CombatDebugTrace {
         LogLayerConflict(state, snapshot, beam);
     }
 
-    public static void LogQuickScoreTop(CombatState state, int topN) {
-        var ranked = LegalActionGenerator.Generate(state)
+    public static void LogQuickScoreTop(CombatState state, JsonObject snapshot, int topN) {
+        var ranked = LegalActionGenerator.Generate(state, snapshot)
             .Where(a => a.Kind != SimActionKind.EndTurn)
             .Select(a => {
                 var kind = ClassifyAction(state, a);
-                var quickScore = CombatActionHeuristic.QuickScore(state, a);
+                var quickScore = CombatActionHeuristic.QuickScore(state, a, snapshot);
                 int? setupSim = null;
                 int? transformDelta = null;
                 if (a.HandIndex >= 0 && a.HandIndex < state.Hand.Count) {
@@ -67,7 +67,7 @@ internal static class CombatDebugTrace {
             })
             .ToList();
 
-        AgentDebugLog.Write("H5", "CombatDebugTrace.Scorer", "snapshot scorer top", new { ranked });
+        AgentDebugLog.Write("H5", "CombatDebugTrace.Scorer", "fallback scorer top", new { ranked });
     }
 
     public static void LogSimLineCandidates(CombatState state) {
@@ -141,9 +141,9 @@ internal static class CombatDebugTrace {
     }
 
     static void LogLayerConflict(CombatState state, JsonObject snapshot, BeamSearchResult? beam) {
-        var quickBest = LegalActionGenerator.Generate(state)
+        var quickBest = LegalActionGenerator.Generate(state, snapshot)
             .Where(a => a.Kind != SimActionKind.EndTurn)
-            .Select(a => (action: a, score: CombatActionHeuristic.QuickScore(state, a)))
+            .Select(a => (action: a, score: CombatActionHeuristic.QuickScore(state, a, snapshot)))
             .OrderByDescending(x => x.score)
             .FirstOrDefault();
 

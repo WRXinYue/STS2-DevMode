@@ -12,6 +12,7 @@ ID_FIXES = {
     "SHRINKERBEETLE": "SHRINKER_BEETLE",
     "LEAFSLIMES": "LEAF_SLIME_S",
     "LEAFSLIMEM": "LEAF_SLIME_M",
+    "TWIGSLIMES": "TWIG_SLIME_S",
     "TWIGSLIMEM": "TWIG_SLIME_M",
     "LIVINGFOG": "LIVING_FOG",
     "HAUNTEDSHIP": "HAUNTED_SHIP",
@@ -30,6 +31,13 @@ ID_FIXES = {
 }
 
 MOVE_STATE_RE = re.compile(r'new MoveState\("([^"]+)",\s*(\w+)')
+MOVE_ATTACK_INTENT_RE = re.compile(
+    r'new MoveState\("([^"]+)",\s*\w+[^;]*SingleAttackIntent\(([^)]+)\)'
+)
+PROP_ASCENSION_DAMAGE_RE = re.compile(
+    r"private int (\w+)\s*=>\s*AscensionHelper\.GetValueIfAscension\([^,]+,\s*(\d+),\s*(\d+)\)"
+)
+PROP_LITERAL_DAMAGE_RE = re.compile(r"private int (\w+)\s*=>\s*(\d+)\s*;")
 
 CARD_PREVIEW_RE = re.compile(
     r"AddToCombatAndPreview<(\w+)>\([^,]+,\s*PileType\.(\w+),\s*([^,\)]+)"
@@ -85,7 +93,45 @@ def is_ally_strength_target(args: str) -> bool:
     return "GetTeammatesOf" in first or first == "targets"
 
 
-def parse_effects_ordered(body: str) -> list[dict]:
+def parse_damage_properties(text: str) -> dict[str, int]:
+    """Map damage property names to base (low-ascension) values from monster source."""
+    props: dict[str, int] = {}
+    for m in PROP_LITERAL_DAMAGE_RE.finditer(text):
+        props[m.group(1)] = int(m.group(2))
+    for m in PROP_ASCENSION_DAMAGE_RE.finditer(text):
+        name, high, low = m.group(1), int(m.group(2)), int(m.group(3))
+        props[name] = low
+        props[f"{name}__high"] = high
+    return props
+
+
+def resolve_attack_damage(arg: str, damage_props: dict[str, int]) -> int:
+    arg = arg.strip()
+    if not arg or arg.startswith("("):
+        return 0
+    if arg.isdigit():
+        return int(arg)
+    return damage_props.get(arg, 0)
+
+
+def parse_move_attack_intents(text: str, damage_props: dict[str, int]) -> dict[str, int]:
+    intents: dict[str, int] = {}
+    for move_id, raw in MOVE_ATTACK_INTENT_RE.findall(text):
+        dmg = resolve_attack_damage(raw, damage_props)
+        if dmg > 0:
+            intents[move_id] = dmg
+    return intents
+
+
+def apply_attack_damage(effects: list[dict], damage: int) -> None:
+    if damage <= 0:
+        return
+    for effect in effects:
+        if effect.get("kind") == "Attack":
+            effect["damage"] = damage
+
+
+def parse_effects_ordered(body: str, damage_props: dict[str, int]) -> list[dict]:
     events: list[tuple[int, dict]] = []
 
     for m in CARD_PREVIEW_RE.finditer(body):
@@ -143,7 +189,8 @@ def parse_effects_ordered(body: str) -> list[dict]:
         )
 
     for m in ATTACK_RE.finditer(body):
-        events.append((m.start(), {"kind": "Attack", "damage": 0}))
+        damage = resolve_attack_damage(m.group(1), damage_props)
+        events.append((m.start(), {"kind": "Attack", "damage": damage}))
 
     for m in STRENGTH_RE.finditer(body):
         args = m.group(1)
@@ -205,11 +252,14 @@ def main() -> None:
     for path in sorted(MONSTERS_DIR.glob("*.cs")):
         text = path.read_text(encoding="utf-8")
         mid = pascal_to_id(path.stem)
+        damage_props = parse_damage_properties(text)
+        move_intents = parse_move_attack_intents(text, damage_props)
         for move_id, method in MOVE_STATE_RE.findall(text):
             body = extract_method_body(text, method)
             if not body:
                 continue
-            effects = parse_effects_ordered(body)
+            effects = parse_effects_ordered(body, damage_props)
+            apply_attack_damage(effects, move_intents.get(move_id, 0))
             if effects:
                 moves.setdefault(mid, {})[move_id] = effects
 

@@ -18,7 +18,7 @@
       "ONE_TWO_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 5
         }
       ],
       "SHARPEN_MOVE": [
@@ -30,7 +30,7 @@
       "HAMMER_UPPERCUT_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         }
       ]
     },
@@ -38,19 +38,19 @@
       "SWING_1": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 5
         }
       ],
       "SWING_2": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 5
         }
       ],
       "BIG_SWING": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 12
         }
       ]
     },
@@ -58,7 +58,7 @@
       "BITE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 7
         }
       ]
     },
@@ -66,7 +66,7 @@
       "THRASH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 3
         }
       ],
       "BUFF_MOVE": [
@@ -78,7 +78,7 @@
       "THRASH2_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 3
         }
       ]
     },
@@ -94,7 +94,7 @@
       "TRASH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 4
         }
       ]
     },
@@ -102,7 +102,7 @@
       "BEAT_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 7
         }
       ],
       "ROAR_MOVE": [
@@ -122,7 +122,7 @@
       "SLASHES_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 13
         }
       ]
     },
@@ -144,7 +144,7 @@
       "DARK_STRIKE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 9
         }
       ]
     },
@@ -152,7 +152,7 @@
       "PLOW_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 18
         },
         {
           "kind": "EnemyStrength",
@@ -162,13 +162,13 @@
       "STOMP_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 15
         }
       ],
       "CRUSH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 17
         },
         {
           "kind": "EnemyStrength",
@@ -196,13 +196,13 @@
       "WHIP_SLAP_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 3
         }
       ],
       "GLOMP_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         }
       ]
     },
@@ -210,7 +210,7 @@
       "FIRE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 14
         }
       ]
     },
@@ -218,19 +218,19 @@
       "THRASH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 12
         }
       ],
       "ENLARGING_STRIKE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 4
         }
       ],
       "BUG_STING_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 6
         }
       ],
       "ADAPT_MOVE": [
@@ -242,7 +242,7 @@
       "GUARDED_STRIKE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 12
         }
       ]
     },
@@ -256,7 +256,7 @@
       "REPEATER_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 7
         },
         {
           "kind": "EnemyStrength",
@@ -266,7 +266,7 @@
       "REPEATER_MOVE_2": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 7
         },
         {
           "kind": "EnemyStrength",
@@ -276,7 +276,7 @@
       "EXPEL_BLAST": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 5
         }
       ]
     },
@@ -284,7 +284,7 @@
       "DARK_STRIKE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 1
         }
       ]
     },
@@ -292,13 +292,13 @@
       "WRITHE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 5
         }
       ],
       "BULK_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 6
         },
         {
           "kind": "EnemyStrength",
@@ -308,7 +308,7 @@
       "CONSTRICT_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         }
       ]
     },
@@ -316,7 +316,7 @@
       "SAVAGE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 12
         }
       ]
     },
@@ -324,19 +324,19 @@
       "HUNGER_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 30
         }
       ],
       "SCRUTINY_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 24
         }
       ],
       "GRASP_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 10
         },
         {
           "kind": "EnemyStrength",
@@ -358,13 +358,13 @@
       "BEES_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 3
         }
       ],
       "SPEAR_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 18
         }
       ]
     },
@@ -372,13 +372,13 @@
       "SKITTER_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 1
         }
       ],
       "MANDIBLE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         }
       ],
       "ENRAGE_MOVE": [
@@ -402,13 +402,13 @@
       "FABRICATING_STRIKE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 18
         }
       ],
       "DISINTEGRATE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 11
         }
       ]
     },
@@ -416,7 +416,7 @@
       "SWIPE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 13
         }
       ],
       "SPEW_COINS_MOVE": [
@@ -428,7 +428,7 @@
       "THROW_RELIC_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 9
         }
       ],
       "ENRAGE_MOVE": [
@@ -448,7 +448,7 @@
       "RAM_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 15
         }
       ]
     },
@@ -456,13 +456,13 @@
       "FRAIL_SPORES_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         }
       ],
       "SMASH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 11
         }
       ]
     },
@@ -476,7 +476,7 @@
       "SWIPE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         },
         {
           "kind": "EnemyStrength",
@@ -486,7 +486,7 @@
       "SWIPE_RANDOM_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         },
         {
           "kind": "EnemyStrength",
@@ -496,7 +496,7 @@
       "HEADBUTT_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 14
         }
       ]
     },
@@ -504,19 +504,19 @@
       "TACKLE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 9
         }
       ],
       "LATCH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 12
         }
       ],
       "LASH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 3
         }
       ]
     },
@@ -530,19 +530,19 @@
       "STRIKE_DOWN_EVIL": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 21
         }
       ],
       "TONGUE_LASH": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 13
         }
       ],
       "BEETLE_CHARGE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 35
         }
       ]
     },
@@ -550,13 +550,13 @@
       "FIRST_ACID_GOOP": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 4
         }
       ],
       "ACID_GOOP": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 4
         }
       ],
       "INHALE": [
@@ -570,7 +570,7 @@
       "EXPLODE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         }
       ]
     },
@@ -578,19 +578,19 @@
       "THUNDER_STRIKE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 6
         }
       ],
       "SHOCKING_SLAP": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 13
         }
       ],
       "GALVANIC_BURST": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 16
         },
         {
           "kind": "EnemyStrength",
@@ -602,13 +602,13 @@
       "GIMME_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 7
         }
       ],
       "DOUBLE_SMASH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 6
         }
       ],
       "HEHE_MOVE": [
@@ -626,19 +626,19 @@
       "RAMMING_SPEED_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 10
         }
       ],
       "SWIPE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 13
         }
       ],
       "STOMP_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 4
         }
       ],
       "HAUNT_MOVE": [
@@ -654,13 +654,13 @@
       "BITE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 17
         }
       ],
       "PUNCTURE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 7
         }
       ]
     },
@@ -668,19 +668,19 @@
       "JAB_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 22
         }
       ],
       "RADIATE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 16
         }
       ],
       "WHIRLWIND_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 9
         }
       ],
       "PULSATE_MOVE": [
@@ -694,19 +694,19 @@
       "JAB_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 3
         }
       ],
       "WHIRLWIND_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 2
         }
       ],
       "PIERCING_GAZE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 10
         }
       ]
     },
@@ -714,13 +714,13 @@
       "QUICK_SLASH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 5
         }
       ],
       "BOOMERANG_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 2
         }
       ],
       "POWER_DANCE_MOVE": [
@@ -734,19 +734,19 @@
       "ORB_OF_FRAILTY_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         }
       ],
       "ORB_OF_WEAKNESS_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         }
       ],
       "BEAM_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 3
         }
       ],
       "RITUAL_MOVE": [
@@ -760,19 +760,19 @@
       "SLAP_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 17
         }
       ],
       "KNOWLEDGE_OVERWHELMING_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         }
       ],
       "PONDER_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 11
         },
         {
           "kind": "EnemyStrength",
@@ -784,19 +784,19 @@
       "SLASH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 19
         }
       ],
       "SLASH2_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 12
         }
       ],
       "DISEMBOWEL_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 9
         }
       ],
       "SOUL_SIPHON_MOVE": [
@@ -814,7 +814,7 @@
       "CLUMP_SHOT": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         }
       ],
       "STICKY_SHOT": [
@@ -830,7 +830,7 @@
       "BUTT_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 3
         }
       ],
       "GOOP_MOVE": [
@@ -846,7 +846,7 @@
       "ADVANCED_GAS_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         },
         {
           "kind": "PowerAffliction",
@@ -861,13 +861,13 @@
         },
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 5
         }
       ],
       "SUPER_GAS_BLAST_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         }
       ]
     },
@@ -875,13 +875,13 @@
       "SHIELD_SLAM_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 6
         }
       ],
       "SMASH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 16
         },
         {
           "kind": "EnemyStrength",
@@ -893,13 +893,13 @@
       "WEB_CANNON_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 9
         }
       ],
       "POUNCE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 14
         }
       ],
       "CURL_AND_GROW_MOVE": [
@@ -913,19 +913,19 @@
       "FIRST_POWER_SHIELD_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 6
         }
       ],
       "MAGIC_BOMB": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 35
         }
       ],
       "RAM_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 10
         }
       ]
     },
@@ -933,13 +933,13 @@
       "RIP_AND_TEAR_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 14
         }
       ],
       "CLAW_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 4
         }
       ]
     },
@@ -991,13 +991,13 @@
       "BITE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 13
         }
       ],
       "SUCK_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 4
         },
         {
           "kind": "EnemyStrength",
@@ -1009,13 +1009,13 @@
       "BUTT_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 12
         }
       ],
       "SLICE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 6
         }
       ],
       "HISS_MOVE": [
@@ -1035,13 +1035,13 @@
       "SMASH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 16
         }
       ],
       "TENDERIZER_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 7
         }
       ],
       "NUTRITIONAL_PASTE_MOVE": [
@@ -1055,19 +1055,19 @@
       "MAGISTRATE_SCRUTINY": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 16
         }
       ],
       "PECK_ASSAULT": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 4
         }
       ],
       "VERDICT": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 33
         }
       ]
     },
@@ -1075,7 +1075,7 @@
       "SLAM_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 16
         }
       ]
     },
@@ -1083,19 +1083,19 @@
       "BITE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 5
         }
       ],
       "LASH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 7
         }
       ],
       "FLAIL_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 1
         }
       ],
       "ENLARGE_MOVE": [
@@ -1117,7 +1117,7 @@
       "LASH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 4
         }
       ]
     },
@@ -1125,13 +1125,13 @@
       "STRONG_PUNCH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 14
         }
       ],
       "FAST_PUNCH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 5
         }
       ]
     },
@@ -1152,13 +1152,13 @@
       "OFF_WITH_YOUR_HEAD_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 3
         }
       ],
       "EXECUTION_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 15
         }
       ],
       "ENRAGE_MOVE": [
@@ -1172,13 +1172,13 @@
       "TARGETING_RETICLE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 3
         }
       ],
       "PRECISION_BEAM_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 18
         }
       ],
       "CHARGE_UP_MOVE": [
@@ -1190,7 +1190,7 @@
       "LASER_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 31
         }
       ]
     },
@@ -1198,13 +1198,13 @@
       "CHOMP": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 14
         }
       ],
       "CHEW": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 5
         }
       ],
       "MORE_TEETH": [
@@ -1218,13 +1218,13 @@
       "SEA_KICK_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 11
         }
       ],
       "SPINNING_KICK_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 2
         }
       ],
       "BUBBLE_BURP_MOVE": [
@@ -1244,7 +1244,7 @@
       "JET_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 10
         }
       ]
     },
@@ -1259,13 +1259,13 @@
       "CHOMP_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 7
         }
       ],
       "STOMP_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 13
         }
       ]
     },
@@ -1273,7 +1273,7 @@
       "POKE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 1
         }
       ]
     },
@@ -1281,19 +1281,19 @@
       "SMASH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 12
         }
       ],
       "ZOOM_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 14
         }
       ],
       "INERTIA_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 9
         },
         {
           "kind": "EnemyStrength",
@@ -1303,7 +1303,7 @@
       "PIERCING_STABS_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 7
         }
       ]
     },
@@ -1325,13 +1325,13 @@
       "SMOTHER_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 30
         }
       ],
       "FURIOUS_PUMMELING_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 4
         }
       ]
     },
@@ -1339,13 +1339,13 @@
       "TWACK": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 7
         }
       ],
       "LASH": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 12
         }
       ]
     },
@@ -1353,19 +1353,19 @@
       "OIL_SPRAY_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         }
       ],
       "SLAM_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 11
         }
       ],
       "RAGE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 6
         },
         {
           "kind": "EnemyStrength",
@@ -1377,7 +1377,7 @@
       "ROLL_OUT_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 16
         },
         {
           "kind": "EnemyStrength",
@@ -1389,7 +1389,7 @@
       "TACKLE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 9
         }
       ]
     },
@@ -1397,19 +1397,19 @@
       "DE_GAS_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 16
         }
       ],
       "GAZE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 7
         }
       ],
       "SCREAM_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 11
         }
       ]
     },
@@ -1417,19 +1417,19 @@
       "SOUL_BURN_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 29
         }
       ],
       "MAELSTROM_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 6
         }
       ],
       "DRAIN_LIFE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 18
         }
       ]
     },
@@ -1437,13 +1437,13 @@
       "SOUL_SLASH": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 15
         }
       ],
       "SOUL_FLAME": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 3
         }
       ]
     },
@@ -1451,13 +1451,13 @@
       "SPIKE_EXPLOSION_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 23
         }
       ],
       "TONGUE_LASH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 17
         }
       ]
     },
@@ -1465,7 +1465,7 @@
       "STAB_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 11
         }
       ]
     },
@@ -1473,13 +1473,13 @@
       "CRASH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 16
         }
       ],
       "ThrashMove": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 3
         }
       ]
     },
@@ -1487,31 +1487,31 @@
       "BITE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 20
         }
       ],
       "SKULL_BASH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 14
         }
       ],
       "MULTI_CLAW_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 10
         }
       ],
       "PHASE3_LACERATE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 10
         }
       ],
       "BIG_POUNCE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 45
         }
       ],
       "BURNING_GROWL_MOVE": [
@@ -1531,19 +1531,19 @@
       "SMASH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 12
         }
       ],
       "BEAM_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 15
         }
       ],
       "BARRAGE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         },
         {
           "kind": "EnemyStrength",
@@ -1555,19 +1555,19 @@
       "CRASH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 15
         }
       ],
       "FLAME_BEAM_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 18
         }
       ],
       "BARRAGE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 10
         },
         {
           "kind": "EnemyStrength",
@@ -1579,19 +1579,19 @@
       "BASH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 13
         }
       ],
       "FLAME_BEAM_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 16
         }
       ],
       "BARRAGE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 9
         },
         {
           "kind": "EnemyStrength",
@@ -1619,19 +1619,19 @@
       "THRASH_MOVE_1": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         }
       ],
       "THRASH_MOVE_2": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         }
       ],
       "LUNGING_BITE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 28
         }
       ],
       "SALIVATE_MOVE": [
@@ -1655,7 +1655,7 @@
       "EYE_LASERS": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 4
         }
       ]
     },
@@ -1669,7 +1669,7 @@
       "PIERCING_GAZE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 10
         }
       ],
       "SAIL_MOVE": [
@@ -1681,7 +1681,7 @@
       "HARDENING_STRIKE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 6
         }
       ]
     },
@@ -1696,19 +1696,19 @@
         },
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 17
         }
       ],
       "NAB_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 14
         }
       ],
       "HAT_TRICK_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 21
         }
       ]
     },
@@ -1716,13 +1716,13 @@
       "SPIKE_SPIT_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 3
         }
       ],
       "WHIRL_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 7
         }
       ]
     },
@@ -1730,31 +1730,31 @@
       "TACKLE_1_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 18
         }
       ],
       "TACKLE_2_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 18
         }
       ],
       "BEAM_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         }
       ],
       "TACKLE_3_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 14
         }
       ],
       "TACKLE_4_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 14
         }
       ]
     },
@@ -1770,7 +1770,7 @@
       "HOUNDS_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 1
         }
       ]
     },
@@ -1778,13 +1778,13 @@
       "BITE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 13
         }
       ],
       "BELOW_MOVE_1": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 23
         }
       ]
     },
@@ -1792,13 +1792,13 @@
       "UNLOAD_MOVE_1": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 3
         }
       ],
       "UNLOAD_MOVE_2": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 3
         }
       ],
       "RELOAD_MOVE": [
@@ -1812,7 +1812,7 @@
       "CLUMP_SHOT_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 11
         }
       ],
       "STICKY_SHOT_MOVE": [
@@ -1828,7 +1828,7 @@
       "BUTT_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 4
         }
       ]
     },
@@ -1836,13 +1836,13 @@
       "SCRATCH_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         }
       ],
       "DISEASE_BITE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 6
         }
       ],
       "CALL_FOR_BACKUP_MOVE": [
@@ -1856,19 +1856,19 @@
       "INK_BLOT_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 7
         }
       ],
       "INKY_LANCE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 6
         }
       ],
       "DISMEMBER_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 27
         },
         {
           "kind": "StatusInject",
@@ -1888,7 +1888,7 @@
       "GRASPING_VINES_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 8
         },
         {
           "kind": "PowerAffliction",
@@ -1899,13 +1899,13 @@
       "SWIPE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 6
         }
       ],
       "CHOMP_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 16
         }
       ]
     },
@@ -1913,13 +1913,13 @@
       "STOMP_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 15
         }
       ],
       "RAM_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 10
         }
       ],
       "PRESSURE_GUN_MOVE": [
@@ -1931,7 +1931,7 @@
       "PRESSURE_UP_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 13
         }
       ],
       "EXPLODE_MOVE": [
@@ -1945,7 +1945,7 @@
       "NASTY_BITE_MOVE": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 6
         }
       ],
       "WRIGGLE_MOVE": [
@@ -1965,7 +1965,7 @@
       "ZAP": [
         {
           "kind": "Attack",
-          "damage": 0
+          "damage": 14
         }
       ]
     }

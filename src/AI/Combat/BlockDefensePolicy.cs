@@ -62,62 +62,17 @@ public static class BlockDefensePolicy {
     public static bool ShouldPrioritizeBlock(CombatState state) =>
         NetDamage(state) > 0 && RemainingBlockGap(state) > 0;
 
-    public static int FullBlockValue(CombatState state) {
-        var net = NetDamage(state);
-        if (net <= 0) return 0;
-
-        var coverable = Math.Min(net, AffordableBlockTotal(state));
-        return coverable * CombatEvalWeights.BlockCoverPerPoint;
-    }
-
-    public static bool NeedsBlock(JsonObject snapshot) {
-        var net = NetDamage(snapshot);
-        if (net <= 0) return false;
-
-        var effectiveHp = IntentCalculator.EffectiveHp(snapshot);
-        if (net >= effectiveHp) return true;
-
-        var floor = snapshot["totalFloor"]?.GetValue<int>() ?? 0;
-        if (floor <= BlockThreatEvaluator.EarlyFloorMax
-            && net >= BlockThreatEvaluator.EarlyBlockThreshold)
-            return true;
-
-        return NeedsBlock(CombatState.FromSnapshot(snapshot));
-    }
+    public static bool NeedsBlock(JsonObject snapshot) =>
+        NeedsBlock(CombatState.FromSnapshot(snapshot));
 
     public static bool NeedsBlock(CombatState state) {
-        var net = NetDamage(state);
-        if (net <= 0) return false;
-
-        var effectiveHp = ThreatModel.EffectiveHp(state);
-        if (net >= effectiveHp) return true;
-
-        if (net >= BlockThreatEvaluator.LateBlockThreshold)
-            return true;
-
-        if (CanSkipBlockForKill(state))
+        if (NetDamage(state) <= 0)
             return false;
-
-        var hpRatio = state.PlayerMaxHp > 0
-            ? (float)state.PlayerHp / state.PlayerMaxHp
-            : 1f;
-
-        if (hpRatio < 0.55f)
-            return true;
-
-        var thresholdRatio = Math.Max(8, (int)(effectiveHp * 0.15f));
-        if (net >= thresholdRatio || net >= effectiveHp - 20)
-            return true;
-
-        return IntentCalculator.BlockUrgencyFromState(state) >= 35;
+        return !CanSkipBlockForKill(state);
     }
 
-    public static bool ShouldScoreBlock(JsonObject snapshot) {
-        if (NeedsBlock(snapshot))
-            return true;
-
-        return NetDamage(snapshot) >= BlockThreatEvaluator.EarlyBlockThresholdFor(snapshot);
-    }
+    public static bool ShouldScoreBlock(JsonObject snapshot) =>
+        NeedsBlock(snapshot);
 
     public static bool CanSkipBlockForKill(JsonObject snapshot) =>
         CanSkipBlockForKill(CombatState.FromSnapshot(snapshot));
