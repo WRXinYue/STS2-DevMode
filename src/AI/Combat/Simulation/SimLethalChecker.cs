@@ -11,9 +11,7 @@ public static class SimLethalChecker {
     public static bool CanLethal(CombatState state, out int targetIndex) {
         targetIndex = -1;
 
-        foreach (var enemy in state.Enemies
-                     .OrderByDescending(e => !e.IsMinion)
-                     .ThenBy(e => e.CurrentHp)) {
+        foreach (var enemy in OrderLethalTargets(state)) {
             if (!enemy.IsAlive) continue;
             if (LethalExclusions.ShouldSkip(enemy)) continue;
             if (LethalDamageSolver.MaxSingleTargetDamage(state, enemy.Index) < enemy.EffectiveHp) continue;
@@ -165,5 +163,23 @@ public static class SimLethalChecker {
                 yield return new SimCombatAction(SimActionKind.PlayCard, i, threat.Index);
             }
         }
+    }
+
+    static IEnumerable<CombatEnemy> OrderLethalTargets(CombatState state) {
+        var attackers = state.Enemies
+            .Where(e => e.IsAlive && e.EffectiveIncoming > 0 && !LethalExclusions.ShouldSkip(e))
+            .OrderByDescending(e => e.EffectiveIncoming)
+            .ThenBy(e => e.EffectiveHp);
+
+        if (attackers.Any())
+            return attackers.Concat(state.Enemies
+                .Where(e => e.IsAlive && e.EffectiveIncoming <= 0 && !LethalExclusions.ShouldSkip(e))
+                .OrderByDescending(e => !e.IsMinion)
+                .ThenBy(e => e.EffectiveHp));
+
+        return state.Enemies
+            .Where(e => e.IsAlive && !LethalExclusions.ShouldSkip(e))
+            .OrderByDescending(e => !e.IsMinion)
+            .ThenBy(e => e.EffectiveHp);
     }
 }

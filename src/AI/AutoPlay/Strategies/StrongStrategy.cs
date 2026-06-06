@@ -38,6 +38,10 @@ public sealed class StrongStrategy : IDecisionMaker {
             if (emergency != null)
                 return emergency;
 
+            var slotClear = PotionScorer.TryProactiveSlotClear(snapshot);
+            if (slotClear != null)
+                return slotClear;
+
             var move = CombatSearch.PickBestMove(snapshot);
             if (move != null && move.Type != ActionType.EndTurn)
                 return move;

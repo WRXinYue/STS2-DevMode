@@ -17,4 +17,5 @@ public enum PotionCombatEffectKind {
     GainStars,
     EnemyStrengthDown,
     NextAttackDoubled,
+    GainMaxHp,
 }

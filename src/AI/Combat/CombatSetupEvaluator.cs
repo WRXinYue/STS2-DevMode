@@ -74,11 +74,14 @@ internal static class CombatSetupEvaluator {
         int VulnerableOutlook,
         int WeakOutlook,
         int PileOutlook,
-        int PlayerHpAfterTurn);
+        int PlayerHpAfterTurn,
+        int PotionRetainCost);
 
     /// <summary>Greedy completion of the turn from a mid-turn state, then outcome metrics.</summary>
-    public static CombatLineOutcome EvaluateLine(CombatState midTurn) =>
-        EvaluateLineOutcome(SimulateGreedyPlays(midTurn));
+    public static CombatLineOutcome EvaluateLine(CombatState midTurn, CombatState? decisionRoot = null) {
+        int potionCost = decisionRoot != null ? PotionLineCost.Estimate(decisionRoot, midTurn) : 0;
+        return EvaluateLineOutcome(SimulateGreedyPlays(midTurn), potionCost);
+    }
 
     /// <summary>Positive when <paramref name="candidate"/> is better than <paramref name="baseline"/>.</summary>
     public static int CompareLines(CombatLineOutcome baseline, CombatLineOutcome candidate) {
@@ -110,6 +113,9 @@ internal static class CombatSetupEvaluator {
 
         if (candidate.VulnerableOutlook != baseline.VulnerableOutlook)
             return candidate.VulnerableOutlook - baseline.VulnerableOutlook;
+
+        if (candidate.PotionRetainCost != baseline.PotionRetainCost)
+            return baseline.PotionRetainCost - candidate.PotionRetainCost;
 
         if (candidate.WeakOutlook != baseline.WeakOutlook)
             return candidate.WeakOutlook - baseline.WeakOutlook;
@@ -177,18 +183,26 @@ internal static class CombatSetupEvaluator {
             return int.MaxValue;
 
         int baseScore = PackLineScore(EvaluateLine(next));
+        if (action.Kind == SimActionKind.PlayCard
+            && action.HandIndex >= 0
+            && action.HandIndex < state.Hand.Count) {
+            baseScore += AttackerKillPriority.OpenerBonus(state, action);
+            baseScore -= AttackerKillPriority.SetupOpenerPenalty(state, state.Hand[action.HandIndex]);
+        }
         return SimMoveScoring.WithModifiers(state, action, baseScore, rootSnapshot);
     }
 
     public static CombatLineOutcome WipeOutcome(CombatState state) =>
-        new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, state.PlayerHp);
+        new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, state.PlayerHp, 0);
 
     static int CompareLineOutcome(CombatLineOutcome without, CombatLineOutcome with) =>
         CompareLines(without, with);
 
-    static CombatLineOutcome EvaluateLineOutcome(CombatState midTurn) {
+    static CombatLineOutcome EvaluateLineOutcome(CombatState midTurn, int potionRetainCost = 0) {
         var afterTurn = CombatTurnResolver.ResolveEndTurn(midTurn);
-        int focusIdx = PrimaryAttackTargetIndex(midTurn);
+        int focusIdx = ThreatModel.IncomingDamage(midTurn) > 0
+            ? GreedyAttackFocusIndex(midTurn)
+            : PrimaryAttackTargetIndex(midTurn);
         var focusMid = midTurn.Enemies.FirstOrDefault(e => e.IsAlive && e.Index == focusIdx);
         return new CombatLineOutcome(
             EffectiveIncomingForLine(midTurn),
@@ -201,7 +215,8 @@ internal static class CombatSetupEvaluator {
             VulnerableOutlookEvaluator.Estimate(afterTurn),
             WeakMitigationEvaluator.Estimate(afterTurn),
             PileRhythmEvaluator.DrawPileOutlook(afterTurn),
-            afterTurn.PlayerHp);
+            afterTurn.PlayerHp,
+            potionRetainCost);
     }
 
     /// <summary>Chip damage ignored when a secure-kill line exists (matches BlockDefensePolicy).</summary>
@@ -265,10 +280,64 @@ internal static class CombatSetupEvaluator {
             playedTransform = true;
         }
 
-        s = SimulateGreedyAttacks(s, excludeHandIndex);
-        if (!BlockDefensePolicy.CanSkipBlockForKill(s))
+        if (BlockDefensePolicy.NeedsBlock(s))
             s = SimulateGreedyBlock(s, excludeHandIndex);
+
+        if (s.Buffs.InfernoRetaliation > 0 && s.AliveEnemyCount >= 2)
+            s = SimulateGreedyInfernoHpLoss(s, excludeHandIndex);
+
+        s = SimulateGreedyAttacks(s, excludeHandIndex);
+
+        if (BlockDefensePolicy.NeedsBlock(s))
+            s = SimulateGreedyBlock(s, excludeHandIndex);
+
         return SimulateGreedyJunkClear(s, excludeHandIndex);
+    }
+
+    /// <summary>Hp-loss skills that trigger Inferno AOE — not covered by the attack-only greedy loop.</summary>
+    static CombatState SimulateGreedyInfernoHpLoss(CombatState state, int excludeHandIndex = -1) {
+        var s = state;
+        string? excludeId = excludeHandIndex >= 0 && excludeHandIndex < state.Hand.Count
+            ? state.Hand[excludeHandIndex].Id
+            : null;
+
+        while (true) {
+            SimCombatAction? bestAction = null;
+            int bestEnemyHp = int.MaxValue;
+            int bestScore = int.MinValue;
+
+            for (int i = 0; i < s.Hand.Count; i++) {
+                var card = s.Hand[i];
+                if (excludeId != null && card.Id == excludeId)
+                    continue;
+                if (!CombatCardCost.CanAfford(card, s))
+                    continue;
+                if (card.Profile.HpLoss <= 0)
+                    continue;
+                if (card.IsAttack && card.Damage > 0)
+                    continue;
+
+                int loss = card.Profile.HpLoss;
+                if (loss >= ThreatModel.EffectiveHp(s))
+                    continue;
+
+                var next = CombatSimulator.Apply(s, new SimCombatAction(SimActionKind.PlayCard, i, -1));
+                int enemyHp = AliveEnemyHp(next);
+                int score = ScoreMidTurn(next);
+                if (enemyHp < bestEnemyHp || (enemyHp == bestEnemyHp && score > bestScore)) {
+                    bestEnemyHp = enemyHp;
+                    bestScore = score;
+                    bestAction = new SimCombatAction(SimActionKind.PlayCard, i, -1);
+                }
+            }
+
+            if (bestAction == null)
+                break;
+
+            s = CombatSimulator.Apply(s, bestAction);
+        }
+
+        return s;
     }
 
     static CombatState SimulateGreedyJunkClear(CombatState state, int excludeHandIndex = -1) {

@@ -59,4 +59,24 @@ public static class EnemyTargetPriority {
             .OrderByDescending(i => MinionEngagementPolicy.TargetBias(enemies, i))
             .ThenBy(i => enemies[i]?["currentHp"]?.GetValue<int>() ?? int.MaxValue);
     }
+
+    /// <summary>Attackers first (by intent, then HP), then default priority order.</summary>
+    public static IEnumerable<int> OrderByAttackerKillPriority(JsonArray enemies) {
+        var alive = Enumerable.Range(0, enemies.Count)
+            .Where(i => IsAlive(enemies[i]?.AsObject()))
+            .ToList();
+
+        var attackers = alive
+            .Where(i => (enemies[i]?["intentDamage"]?.GetValue<int>() ?? 0) > 0)
+            .OrderByDescending(i => enemies[i]?["intentDamage"]?.GetValue<int>() ?? 0)
+            .ThenBy(i => enemies[i]?["currentHp"]?.GetValue<int>() ?? int.MaxValue)
+            .ToList();
+
+        if (attackers.Count > 0) {
+            var rest = OrderByPriority(enemies).Where(i => !attackers.Contains(i));
+            return attackers.Concat(rest);
+        }
+
+        return OrderByPriority(enemies);
+    }
 }

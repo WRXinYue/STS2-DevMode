@@ -33,6 +33,64 @@ public static class PotionScorer {
         _usedThisTurn = 0;
     }
 
+    public const int SlotClearThreshold = 35;
+
+    public static GameAction? TryProactiveSlotClear(JsonObject snapshot) {
+        var potions = snapshot["potions"]?.AsArray();
+        if (potions == null || potions.Count == 0) return null;
+
+        if (IntentCalculator.TotalIncomingDamage(snapshot) > 0)
+            return null;
+        if (IntentCalculator.NeedsBlock(snapshot))
+            return null;
+
+        var potionCount = potions.Count;
+        var beltFull = snapshot["hasOpenPotionSlots"]?.GetValue<bool>() == false;
+        if (!beltFull && potionCount < 3)
+            return null;
+
+        SyncCombatTurn(snapshot);
+        if (_usedThisTurn >= 1)
+            return null;
+
+        var plan = DeckPlanInferer.Infer(snapshot);
+        var candidates = new List<(int Slot, int Score, string Label, JsonObject Potion)>();
+
+        for (int i = 0; i < potions.Count; i++) {
+            if (potions[i] is not JsonObject potion) continue;
+            if (!TryReadPotionSlot(potion, i, out var slot, out var id)) continue;
+
+            var ctx = PotionUseScoring.FromSnapshot(snapshot, id, plan);
+            if (PotionUseScoring.ScoreSlotClearBonus(ctx) <= 0)
+                continue;
+
+            int score;
+            if (PotionCombatEffectData.IsSimulatable(id)) {
+                var state = CombatState.FromSnapshot(snapshot);
+                if (!PotionCombatEffectData.TryGetProfile(id, out var profile))
+                    continue;
+                score = PotionUseScoring.ScoreSimProfile(state, profile, -1, ctx);
+            } else {
+                score = ScoreCombatUse(potion, snapshot, plan);
+            }
+
+            if (score >= SlotClearThreshold)
+                candidates.Add((slot, score, ShortId(id), potion));
+        }
+
+        if (candidates.Count == 0)
+            return null;
+
+        candidates.Sort((a, b) => b.Score.CompareTo(a.Score));
+        var best = candidates[0];
+        if (!PotionExistsAtSlot(potions, best.Slot, best.Potion))
+            return null;
+
+        AiDecisionLog.Record("AutoPlay",
+            $"potion slot-clear [{best.Label}:+{best.Score}] alts [{string.Join("] [", candidates.Take(3).Select(c => $"{c.Label}:+{c.Score}"))}]");
+        return BuildUseAction(snapshot, (best.Slot, best.Score, PotionCategory.Utility, best.Label, best.Potion));
+    }
+
     public static GameAction? TryEmergencyPotion(JsonObject snapshot) {
         var potions = snapshot["potions"]?.AsArray();
         if (potions == null || potions.Count == 0) return null;

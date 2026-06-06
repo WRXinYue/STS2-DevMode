@@ -59,6 +59,7 @@ public static class CombatPlanner {
         IReadOnlyList<SimCombatAction>? beamPath = null) {
         if (!CombatDecisionLog.VerboseEnabled) return;
         var ranked = CombatScorer.ScoreLegalMovesDetailed(snapshot)
+            .Concat(ScorePotionMoves(state, snapshot))
             .OrderByDescending(x => x.Score)
             .Take(5)
             .ToList();
@@ -141,4 +142,22 @@ public static class CombatPlanner {
         Type = ActionType.EndTurn,
         Reason = reason,
     };
+
+    static IEnumerable<CombatMoveScore> ScorePotionMoves(CombatState state, JsonObject snapshot) {
+        foreach (var simAction in LegalActionGenerator.GenerateOrdered(state, maxActions: 16, snapshot)) {
+            if (simAction.Kind != SimActionKind.UsePotion)
+                continue;
+
+            int score = CombatActionHeuristic.QuickScore(state, simAction, snapshot);
+            if (score <= int.MinValue + 1)
+                continue;
+
+            var move = SimMoveScoring.ToGameAction(simAction, state);
+            var label = FormatPotionLabel(state, simAction);
+            yield return new CombatMoveScore(
+                move with { Reason = $"{label} line:+{score}" },
+                score,
+                [$"line:+{score}"]);
+        }
+    }
 }

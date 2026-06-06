@@ -63,6 +63,13 @@
         { "kind": "GainHeal", "amount": 20 }
       ]
     },
+    "FRUIT_JUICE": {
+      "simulatable": true,
+      "targetType": "AnyPlayer",
+      "effects": [
+        { "kind": "GainMaxHp", "amount": 5 }
+      ]
+    },
     "ENERGY_POTION": {
       "simulatable": true,
       "targetType": "AnyPlayer",

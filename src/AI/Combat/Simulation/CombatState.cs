@@ -80,6 +80,9 @@ public sealed record CombatState(
     public CombatState WithPlayer(int hp, int block, int energy) =>
         this with { PlayerHp = hp, PlayerBlock = block, Energy = energy };
 
+    public CombatState WithPlayerVitals(int hp, int maxHp, int block, int energy) =>
+        this with { PlayerHp = hp, PlayerMaxHp = maxHp, PlayerBlock = block, Energy = energy };
+
     public CombatState WithHand(IReadOnlyList<CombatHandCard> hand) =>
         this with { Hand = hand };
 

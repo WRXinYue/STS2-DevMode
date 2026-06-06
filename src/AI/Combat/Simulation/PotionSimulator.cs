@@ -24,6 +24,7 @@ internal static class PotionSimulator {
             return state;
 
         var hp = state.PlayerHp;
+        var maxHp = state.PlayerMaxHp;
         var block = state.PlayerBlock;
         var energy = state.Energy;
         var hand = state.Hand.ToList();
@@ -43,14 +44,14 @@ internal static class PotionSimulator {
             }
         } else {
             foreach (var effect in profile.Effects)
-                ApplyEffect(effect, profile.TargetType, ref hp, ref block, ref energy, ref hand, ref draw, ref discard, ref exhaust, ref enemies, ref modifiers, ref rngCounter, state, enemyIndex);
+                ApplyEffect(effect, profile.TargetType, ref hp, ref maxHp, ref block, ref energy, ref hand, ref draw, ref discard, ref exhaust, ref enemies, ref modifiers, ref rngCounter, state, enemyIndex);
         }
 
         var remaining = state.Potions.Where(p => p.Slot != slot).ToList();
         hand = ReindexHand(hand);
 
         return state
-            .WithPlayer(hp, block, energy)
+            .WithPlayerVitals(hp, maxHp, block, energy)
             .WithHand(hand)
             .WithEnemies(enemies)
             .WithPiles(draw, discard, exhaust)
@@ -63,6 +64,7 @@ internal static class PotionSimulator {
         PotionCombatEffect effect,
         string targetType,
         ref int hp,
+        ref int maxHp,
         ref int block,
         ref int energy,
         ref List<CombatHandCard> hand,
@@ -114,7 +116,12 @@ internal static class PotionSimulator {
                 break;
 
             case PotionCombatEffectKind.GainHeal:
-                hp = ApplyHeal(hp, state.PlayerMaxHp, effect.Amount);
+                hp = ApplyHeal(hp, maxHp, effect.Amount);
+                break;
+
+            case PotionCombatEffectKind.GainMaxHp:
+                maxHp += Math.Max(0, effect.Amount);
+                hp += Math.Max(0, effect.Amount);
                 break;
 
             case PotionCombatEffectKind.ApplyPoison:

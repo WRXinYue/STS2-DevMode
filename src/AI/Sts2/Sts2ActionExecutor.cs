@@ -427,6 +427,9 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
 
         var clicked = 0;
         while (clicked < 12) {
+            snapshot = _stateProvider.TakeSnapshot();
+            hasPotionSlots = player?.HasOpenPotionSlots ?? false;
+
             var btn = UIHelper.FindAll<NRewardButton>((Node)screen)
                 .FirstOrDefault(b => b.IsEnabled
                     && !_attemptedRewardButtons.Contains(b)
@@ -468,14 +471,33 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
             clicked++;
 
             if (!await RewardScreenHelper.WaitForClaimAsync(screen, btn, TimeSpan.FromSeconds(10))) {
-                if (btn.Reward is PotionReward && player != null
-                    && await PotionRewardHelper.TryResolveFullBeltPrompt(player, snapshot, discardSlot)) {
+                if (btn.Reward is PotionReward && player != null) {
                     snapshot = _stateProvider.TakeSnapshot();
-                    hasPotionSlots = player.HasOpenPotionSlots;
-                    continue;
+                    if (!player.HasOpenPotionSlots) {
+                        var incomingId = (btn.Reward as PotionReward)?.Potion?.Id.Entry;
+                        if (discardSlot < 0
+                            && PotionInventoryScorer.ShouldMakeRoom(incomingId, snapshot, out discardSlot)) {
+                            var discardResult = await DiscardPotion(player, discardSlot);
+                            if (!discardResult.Success)
+                                return discardResult;
+                            snapshot = _stateProvider.TakeSnapshot();
+                        }
+
+                        if (await PotionRewardHelper.TryResolveFullBeltPrompt(player, snapshot, discardSlot)
+                            || player.HasOpenPotionSlots) {
+                            _attemptedRewardButtons.Remove(btn);
+                            hasPotionSlots = player.HasOpenPotionSlots;
+                            continue;
+                        }
+                    }
                 }
 
                 return ActionResult.Fail("Timed out waiting for reward claim.");
+            }
+
+            if (btn.Reward is PotionReward && player != null) {
+                snapshot = _stateProvider.TakeSnapshot();
+                hasPotionSlots = player.HasOpenPotionSlots;
             }
 
             var top = NOverlayStack.Instance?.Peek();

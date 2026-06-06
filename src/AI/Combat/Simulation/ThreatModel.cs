@@ -37,7 +37,8 @@ public static class ThreatModel {
             VulnerableOutlookEvaluator.Estimate(state),
             WeakMitigationEvaluator.Estimate(state),
             PileRhythmEvaluator.DrawPileOutlook(state),
-            state.PlayerHp));
+            state.PlayerHp,
+            0));
     }
 
     /// <summary>Sum of mitigated attack pressure over the line-evaluation horizon.</summary>
@@ -353,6 +354,12 @@ public static class ThreatModel {
 
     public static int TotalNonDamageThreat(CombatState state) =>
         NonDamageAtIntentStep(state, 0);
+
+    /// <summary>Sum of raw attack damage across the line-evaluation intent horizon.</summary>
+    public static int ScheduledAttackPressure(CombatState state) =>
+        IncomingAtIntentStep(state, 0)
+        + IncomingAtIntentStep(state, 1)
+        + IncomingAtIntentStep(state, 2);
 
     public static int NextTurnAttackOn(CombatEnemy enemy) =>
         IncomingAtIntentStepForEnemy(enemy, 1);

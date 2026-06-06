@@ -33,6 +33,10 @@ internal static class CombatActionHeuristic {
         if (BlockDefensePolicy.IsPureBlockCard(card, state) && BlockDefensePolicy.CanSkipBlockForKill(state))
             return int.MinValue;
 
+        int setupPenalty = AttackerKillPriority.SetupOpenerPenalty(state, card);
+        if (setupPenalty > 0)
+            return int.MinValue + 5;
+
         if (DeckPollutionEvaluator.IsHandJunk(card)) {
             var emergency = DeckPollutionEvaluator.EmergencyJunkPlayScore(state, card, action.HandIndex);
             if (emergency > int.MinValue + 1)
@@ -104,7 +108,10 @@ internal static class CombatActionHeuristic {
             return int.MinValue;
 
         var ctx = PotionUseScoring.FromState(state, potion.Id);
-        return PotionUseScoring.ScoreSimProfile(state, profile, action.EnemyIndex, ctx);
+        int score = PotionUseScoring.ScoreSimProfile(state, profile, action.EnemyIndex, ctx);
+        if (!state.PotionUsedThisTurn && PotionUseScoring.ScoreSlotClearBonus(ctx) > 0)
+            score += PotionUseScoring.ScoreSlotClearBonus(ctx);
+        return score;
     }
 
     static int ScoreEndTurn(CombatState state) {

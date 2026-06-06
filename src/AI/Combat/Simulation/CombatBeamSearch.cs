@@ -120,7 +120,7 @@ public static class CombatBeamSearch {
         ref int bestDepth) {
         CombatSetupEvaluator.CombatLineOutcome outcome = state.AliveEnemyCount == 0
             ? CombatSetupEvaluator.WipeOutcome(state)
-            : CombatSetupEvaluator.EvaluateLine(state);
+            : CombatSetupEvaluator.EvaluateLine(state, root);
 
         if (IsBetterLineOutcome(root, bestOutcome, bestPath, outcome, path)) {
             bestOutcome = outcome;
@@ -171,11 +171,13 @@ public static class CombatBeamSearch {
         if (PlayerPowerSimulator.InstallsInferno(card.Profile))
             return CombatSetupEvaluator.EstimateInfernoOpenerValue(root, action.HandIndex);
 
+        int setupPenalty = AttackerKillPriority.SetupOpenerPenalty(root, card);
         if (card.Damage <= 0)
-            return 0;
+            return -setupPenalty;
 
         var target = root.Enemies.FirstOrDefault(e => e.IsAlive && e.Index == action.EnemyIndex);
-        return CombatDamageCalc.OutgoingDamage(card, root, target?.Vulnerable ?? 0);
+        int damage = CombatDamageCalc.OutgoingDamage(card, root, target?.Vulnerable ?? 0);
+        return damage + AttackerKillPriority.OpenerBonus(root, action) - setupPenalty;
     }
 
     /// <summary>Secure-kill turns: do not replace a non-block opener with a block-first line.</summary>

@@ -89,7 +89,7 @@ public static class CombatDecisionLog {
         bool retainsEnergy = RelicCombatRules.RetainsEnergyOnTurnStart(
             state.RelicIds, state.TurnNumber + 1);
 
-        return $"SETUP={CombatSetupEvaluator.ComputeSetupDebt(state)} INFERNO={CombatSetupEvaluator.ComputeInfernoComboDebt(state)} VULN={vulnPlays} ICE={(retainsEnergy ? 1 : 0)}";
+        return $"SETUP={CombatSetupEvaluator.ComputeSetupDebt(state)} INFERNO={CombatSetupEvaluator.ComputeInfernoComboDebt(state)} INF_RET={state.Buffs.InfernoRetaliation} VULN={vulnPlays} ICE={(retainsEnergy ? 1 : 0)}";
     }
 
     static string FormatEnemyThreat(CombatState state) {

@@ -24,6 +24,8 @@ internal static class PotionUseScoring {
         int MinPlayableCost,
         int EnemyCount,
         int RetainScore,
+        int PotionCount,
+        bool BeltFull,
         bool IsBigFight,
         float AttackPlanWeight,
         float ScalingPlanWeight,
@@ -52,6 +54,8 @@ internal static class PotionUseScoring {
             MinPlayableCost(state),
             state.AliveEnemyCount,
             PotionTierCatalog.GetRetainScore(potionId),
+            state.Potions.Count,
+            state.Potions.Count >= 3,
             false,
             1f,
             1f,
@@ -85,6 +89,8 @@ internal static class PotionUseScoring {
             MinPlayableCost(hand, energy),
             IntentCalculator.AliveEnemyCount(snapshot),
             PotionTierCatalog.GetRetainScore(potionId),
+            snapshot["potions"]?.AsArray()?.Count ?? 0,
+            snapshot["hasOpenPotionSlots"]?.GetValue<bool>() == false,
             room.Contains("ELITE") || room.Contains("BOSS"),
             plan.GetWeight(AiTag.Attack),
             plan.GetWeight(AiTag.Scaling),
@@ -151,6 +157,11 @@ internal static class PotionUseScoring {
                 case PotionCombatEffectKind.GainHeal:
                     blockOnly = false;
                     score += ScoreHealEffect(ctx);
+                    break;
+
+                case PotionCombatEffectKind.GainMaxHp:
+                    blockOnly = false;
+                    score += ScoreGainMaxHp(ctx, effect.Amount);
                     break;
 
                 case PotionCombatEffectKind.ApplyPoison:
@@ -248,7 +259,25 @@ internal static class PotionUseScoring {
         if (ctx.HpRatio < 0.35f) return 40;
         if (ctx.HpRatio < 0.55f && ctx.Fatal) return 30;
         if (ctx.Fatal) return 20;
-        return 0;
+        return ScoreSlotClearBonus(ctx);
+    }
+
+    static int ScoreGainMaxHp(Context ctx, int amount) {
+        int score = 12 + Math.Max(0, amount) * 2;
+        score += ScoreSlotClearBonus(ctx);
+        if (ctx.Incoming <= 0 && !ctx.NeedsBlock && ctx.HpRatio >= 0.5f)
+            score += 10;
+        return score;
+    }
+
+    public static int ScoreSlotClearBonus(Context ctx) {
+        if (ctx.Fatal || ctx.NeedsBlock || ctx.Incoming > 0)
+            return 0;
+        if (!ctx.BeltFull && ctx.PotionCount < 3)
+            return 0;
+        if (ctx.RetainScore > 18)
+            return 0;
+        return 28 + (ctx.BeltFull ? 12 : 0);
     }
 
     static int ScoreBlockEffect(Context ctx, int amount) {
@@ -328,6 +357,13 @@ internal static class PotionUseScoring {
         if (baseline < 8 && ctx.Incoming <= 0)
             score -= 18;
 
+        int attackPressure = ThreatModel.ScheduledAttackPressure(state);
+        if (ctx.Incoming <= 0 && attackPressure < 12)
+            score -= 40;
+
+        if (ThreatModel.TotalNonDamageThreat(state) > attackPressure)
+            score -= 25;
+
         return Math.Max(0, score);
     }
 
@@ -365,6 +401,8 @@ internal static class PotionUseScoring {
 
     static int WastePenalty(Context ctx) {
         if (ctx.Fatal || ctx.NeedsBlock) return 0;
+        if (ctx.Incoming <= 0 && (ctx.BeltFull || ctx.PotionCount >= 3) && ctx.RetainScore <= 18)
+            return 0;
         if (!ctx.IsBigFight && ctx.HpRatio > 0.65f)
             return ctx.RetainScore + 15;
         if (!ctx.IsBigFight && ctx.HpRatio > 0.45f)
