@@ -50,6 +50,9 @@ internal static class Sts2CombatCompat {
     public static bool IsCombatPlayPhaseActive() =>
         IsCombatPlayPhase(CombatManager.Instance);
 
+    public static int GetCombatRoundNumber() =>
+        CombatManager.Instance?.DebugOnlyGetState()?.RoundNumber ?? 0;
+
     public static bool IsPlayerReadyToBeginEnemyTurn(CombatManager cm, Player player) {
         var method = AccessTools.Method(typeof(CombatManager), "IsPlayerReadyToBeginEnemyTurn", [typeof(Player)]);
         return method != null && (bool)method.Invoke(cm, [player])!;

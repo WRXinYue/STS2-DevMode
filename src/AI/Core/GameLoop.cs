@@ -1,6 +1,7 @@
 using System;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using DevMode;
 using DevMode.AI.AutoPlay.Scoring;
 using DevMode.AI.Combat;
 using DevMode.AI.Sts2;
@@ -20,6 +21,7 @@ public sealed class GameLoop
     private readonly Action<string> _log;
     private bool _running;
     private bool _endTurnPending;
+    private int _endTurnAtRound = -1;
     private string? _lastFingerprint;
     private DateTime _lastActionUtc = DateTime.MinValue;
     private string? _repeatFailFingerprint;
@@ -41,6 +43,7 @@ public sealed class GameLoop
 
     public void ResetDedupeState() {
         _endTurnPending = false;
+        _endTurnAtRound = -1;
         _lastFingerprint = null;
         _lastActionUtc = DateTime.MinValue;
         _repeatFailFingerprint = null;
@@ -131,7 +134,7 @@ public sealed class GameLoop
                 _log($"GameLoop: Action failed — {result.Message}");
                 if (decidePhase == GamePhase.Combat && action.Type == ActionType.EndTurn) {
                     if (!IsTransientCombatFailure(result.Message))
-                        _endTurnPending = true;
+                        MarkEndTurnPending();
                 }
                 else if (decidePhase == GamePhase.Combat && await TryRecoverFromRepeatedFailureAsync(fingerprint))
                     return;
@@ -144,7 +147,7 @@ public sealed class GameLoop
             _lastActionUtc = DateTime.UtcNow;
 
             if (decidePhase == GamePhase.Combat && action.Type == ActionType.EndTurn)
-                _endTurnPending = true;
+                MarkEndTurnPending();
 
             if (decidePhase == GamePhase.Combat && action.Type == ActionType.UsePotion)
                 PotionScorer.NotifyPotionUsed();
@@ -166,11 +169,16 @@ public sealed class GameLoop
 
         // Snapshot was captured on the main thread moments ago; prefer it over live reads from the poll thread.
         var playPhase = ReadSnapshotBool(snapshot, "combat", "isPlayPhaseActive");
-        if (playPhase == false) {
+        var livePlayPhase = Sts2CombatCompat.IsCombatPlayPhaseActive();
+        if (playPhase == false || !livePlayPhase) {
             _endTurnPending = false;
+            _endTurnAtRound = -1;
             reason = "playPhaseInactive";
             return true;
         }
+
+        if (_endTurnPending && TryClearEndTurnPendingForNewRound(snapshot))
+            return false;
 
         if (_endTurnPending) {
             reason = "endTurnPending";
@@ -178,6 +186,28 @@ public sealed class GameLoop
         }
 
         return false;
+    }
+
+    void MarkEndTurnPending() {
+        _endTurnPending = true;
+        _endTurnAtRound = Sts2CombatCompat.GetCombatRoundNumber();
+    }
+
+    bool TryClearEndTurnPendingForNewRound(JsonObject snapshot) {
+        if (!_endTurnPending || _endTurnAtRound < 0)
+            return false;
+
+        var round = ReadSnapshotInt(snapshot, "combat", "turnNumber");
+        if (round == null || round.Value <= _endTurnAtRound)
+            return false;
+
+        _endTurnPending = false;
+        _endTurnAtRound = -1;
+        AgentDebugLog.Write("P2", "GameLoop.OnDecisionPoint", "endTurnPending cleared", new {
+            reason = "newRound",
+            round = round.Value,
+        });
+        return true;
     }
 
     static bool IsCombatContext(GamePhase phase, JsonObject snapshot) {
@@ -233,6 +263,15 @@ public sealed class GameLoop
         }
     }
 
+    static int? ReadSnapshotInt(JsonObject snapshot, string section, string key) {
+        try {
+            return snapshot[section]?[key]?.GetValue<int>();
+        }
+        catch {
+            return null;
+        }
+    }
+
     async Task<bool> TryRecoverFromRepeatedFailureAsync(string fingerprint) {
         if (_repeatFailFingerprint == fingerprint)
             _repeatFailCount++;
@@ -252,13 +291,13 @@ public sealed class GameLoop
         var result = await _executor.ExecuteAsync(endTurn);
         if (!result.Success) {
             _log($"GameLoop: Action failed — {result.Message}");
-            _endTurnPending = true;
+            MarkEndTurnPending();
             return true;
         }
 
         _lastFingerprint = $"{GamePhase.Combat}:{ActionType.EndTurn}:-1:-1";
         _lastActionUtc = DateTime.UtcNow;
-        _endTurnPending = true;
+        MarkEndTurnPending();
         return true;
     }
 }
