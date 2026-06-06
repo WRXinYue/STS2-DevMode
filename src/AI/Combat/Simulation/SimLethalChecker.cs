@@ -86,7 +86,23 @@ public static class SimLethalChecker {
         if (ThreatModel.IncomingDamage(state) == 0)
             return ThreatModel.NetDamageAfterBlock(state) <= BlockDefensePolicy.SafeChipNetMax;
 
-        return SearchSecureKill(state, SecureKillSearchDepth, requireZeroIncoming: true);
+        if (SearchSecureKill(state, SecureKillSearchDepth, requireZeroIncoming: true))
+            return true;
+
+        for (int i = 0; i < state.Hand.Count; i++) {
+            var card = state.Hand[i];
+            if (!CombatTransformSimulator.IsHandAttackTransform(card.Profile))
+                continue;
+            if (!CombatCardCost.CanAfford(card, state))
+                continue;
+
+            var projected = CombatSimulator.Apply(
+                state, new SimCombatAction(SimActionKind.PlayCard, i, -1));
+            if (SearchSecureKill(projected, SecureKillSearchDepth - 1, requireZeroIncoming: true))
+                return true;
+        }
+
+        return false;
     }
 
     static bool SearchSecureKill(CombatState state, int depth, bool requireZeroIncoming) {

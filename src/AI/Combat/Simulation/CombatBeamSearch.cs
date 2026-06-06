@@ -121,7 +121,7 @@ public static class CombatBeamSearch {
             ? CombatSetupEvaluator.WipeOutcome(state)
             : CombatSetupEvaluator.EvaluateLine(state);
 
-        if (IsBetterLineOutcome(bestOutcome, bestPath, outcome, path)) {
+        if (IsBetterLineOutcome(root, bestOutcome, bestPath, outcome, path)) {
             bestOutcome = outcome;
             bestPath = path;
             bestDepth = depth;
@@ -136,6 +136,7 @@ public static class CombatBeamSearch {
     }
 
     static bool IsBetterLineOutcome(
+        CombatState root,
         CombatSetupEvaluator.CombatLineOutcome? currentBest,
         List<SimCombatAction>? currentPath,
         CombatSetupEvaluator.CombatLineOutcome candidate,
@@ -145,12 +146,26 @@ public static class CombatBeamSearch {
 
         int cmp = CombatSetupEvaluator.CompareLines(currentBest.Value, candidate);
         if (cmp > 0)
-            return true;
+            return !ShouldRejectBlockFirstOpener(root, currentPath, candidatePath);
         if (cmp < 0)
             return false;
 
         int currentLen = currentPath?.Count ?? 0;
         return candidatePath.Count < currentLen;
+    }
+
+    /// <summary>Secure-kill turns: do not replace a non-block opener with a block-first line.</summary>
+    static bool ShouldRejectBlockFirstOpener(
+        CombatState root,
+        List<SimCombatAction>? incumbentPath,
+        List<SimCombatAction> candidatePath) {
+        if (!BlockDefensePolicy.CanSkipBlockForKill(root))
+            return false;
+        if (incumbentPath is not { Count: > 0 } || candidatePath.Count == 0)
+            return false;
+        if (!BlockDefensePolicy.IsPureBlockOpening(root, candidatePath[0]))
+            return false;
+        return !BlockDefensePolicy.IsPureBlockOpening(root, incumbentPath[0]);
     }
 
     static int RankLine(CombatState state) {

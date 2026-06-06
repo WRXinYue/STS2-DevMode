@@ -174,7 +174,7 @@ internal static class CombatSetupEvaluator {
         int focusIdx = PrimaryAttackTargetIndex(midTurn);
         var focusMid = midTurn.Enemies.FirstOrDefault(e => e.IsAlive && e.Index == focusIdx);
         return new CombatLineOutcome(
-            ThreatModel.NetDamageAfterBlock(midTurn),
+            EffectiveIncomingForLine(midTurn),
             ThreatModel.PressureAtIntentStepKillAdjusted(afterTurn, 0, afterDrawTurnStart: true),
             ThreatModel.PressureAtIntentStep(afterTurn, 1),
             ThreatModel.PressureAtIntentStep(afterTurn, 2),
@@ -182,6 +182,15 @@ internal static class CombatSetupEvaluator {
             focusMid?.CurrentHp ?? 0,
             afterTurn.Enemies.Where(e => e.IsAlive).Sum(e => e.CurrentHp),
             afterTurn.PlayerHp);
+    }
+
+    /// <summary>Chip damage ignored when a secure-kill line exists (matches BlockDefensePolicy).</summary>
+    static int EffectiveIncomingForLine(CombatState midTurn) {
+        if (midTurn.AliveEnemyCount == 0)
+            return 0;
+        if (BlockDefensePolicy.CanSkipBlockForKill(midTurn))
+            return 0;
+        return ThreatModel.NetDamageAfterBlock(midTurn);
     }
 
     static int ScoreMidTurn(CombatState s) =>
@@ -236,7 +245,9 @@ internal static class CombatSetupEvaluator {
             playedTransform = true;
         }
 
-        s = SimulateGreedyBlock(SimulateGreedyAttacks(s, excludeHandIndex), excludeHandIndex);
+        s = SimulateGreedyAttacks(s, excludeHandIndex);
+        if (!BlockDefensePolicy.CanSkipBlockForKill(s))
+            s = SimulateGreedyBlock(s, excludeHandIndex);
         return SimulateGreedyJunkClear(s, excludeHandIndex);
     }
 

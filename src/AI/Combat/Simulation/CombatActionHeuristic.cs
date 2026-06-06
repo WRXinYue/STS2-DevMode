@@ -30,6 +30,9 @@ internal static class CombatActionHeuristic {
         if (!CombatCardCost.CanAfford(card, state))
             return int.MinValue;
 
+        if (BlockDefensePolicy.IsPureBlockCard(card, state) && BlockDefensePolicy.CanSkipBlockForKill(state))
+            return int.MinValue;
+
         if (DeckPollutionEvaluator.IsHandJunk(card)) {
             var emergency = DeckPollutionEvaluator.EmergencyJunkPlayScore(state, card, action.HandIndex);
             if (emergency > int.MinValue + 1)
