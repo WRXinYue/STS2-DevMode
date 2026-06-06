@@ -197,34 +197,7 @@ internal static class CombatSetupEvaluator {
 
         var without = EvaluateLineOutcome(withoutMid);
         var with = EvaluateLineOutcome(withMid);
-        int delta = CompareLineOutcome(without, with);
-
-        // #region agent log
-        AgentDebugLog.Write("H1", "CombatSetupEvaluator.ComputeVulnerableSetupSimDelta", "vuln sim delta", new {
-            cardId = state.Hand[handIndex].Id,
-            enemyIndex,
-            withoutIncoming = without.Incoming,
-            withIncoming = with.Incoming,
-            withoutFuture0 = without.FutureIncoming0,
-            withFuture0 = with.FutureIncoming0,
-            withoutFuture1 = without.FutureIncoming1,
-            withFuture1 = with.FutureIncoming1,
-            withoutFuture2 = without.FutureIncoming2,
-            withFuture2 = with.FutureIncoming2,
-            withoutEnemyHp = without.EnemyHp,
-            withEnemyHp = with.EnemyHp,
-            withoutPlayerHp = without.PlayerHpAfterTurn,
-            withPlayerHp = with.PlayerHpAfterTurn,
-            delta,
-            energy = state.Energy,
-            hand = state.Hand.Select(c => c.Id).ToArray(),
-            enemies = state.Enemies.Where(e => e.IsAlive).Select(e => new {
-                e.Index, e.MonsterId, e.CurrentHp, e.IsMinion, e.IntentDamage,
-            }).ToArray(),
-        });
-        // #endregion
-
-        return delta;
+        return CompareLineOutcome(without, with);
     }
 
     static CombatState SimulateGreedyPlays(CombatState state, int excludeHandIndex = -1) {
@@ -650,32 +623,6 @@ internal static class CombatSetupEvaluator {
 
             if (bestAction == null)
                 break;
-
-            // #region agent log
-            if (bestAction.EnemyIndex >= 0) {
-                var tgt = s.Enemies.FirstOrDefault(e => e.Index == bestAction.EnemyIndex);
-                AgentDebugLog.Write("H3", "CombatSetupEvaluator.SimulateGreedyAttacks", "greedy attack pick", new {
-                    cardId = s.Hand[bestAction.HandIndex].Id,
-                    enemyIndex = bestAction.EnemyIndex,
-                    monsterId = tgt?.MonsterId,
-                    isMinion = tgt?.IsMinion,
-                    hp = tgt?.CurrentHp,
-                    focusIndex = primary,
-                    focusScores = s.Enemies.Where(e => e.IsAlive).Select(e => new {
-                        e.Index,
-                        e.MonsterId,
-                        score = ThreatModel.FocusThreatScore(e, s),
-                        peak = ThreatModel.PeakScheduledDamage(e),
-                    }).ToArray(),
-                    incomingAfter = bestIncoming,
-                    future0 = bestFuture0,
-                    future1 = bestFuture1,
-                    future2 = bestFuture2,
-                    hitsPrimary = bestHitsPrimary,
-                    score = bestScore,
-                });
-            }
-            // #endregion
 
             s = CombatSimulator.Apply(s, bestAction);
         }

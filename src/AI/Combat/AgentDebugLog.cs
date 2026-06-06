@@ -14,7 +14,9 @@ internal static class AgentDebugLog {
     };
 
     public static void Write(string hypothesisId, string location, string message, object? data = null) {
-        // #region agent log
+        if (!CombatDecisionLog.VerboseEnabled)
+            return;
+
         try {
             var payload = JsonSerializer.Serialize(new {
                 sessionId = SessionId,
@@ -36,6 +38,5 @@ internal static class AgentDebugLog {
         catch {
             // ignore logging failures
         }
-        // #endregion
     }
 }

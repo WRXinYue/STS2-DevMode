@@ -10,7 +10,7 @@ using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
 namespace DevMode.UI;
 
-/// <summary>In-game AI hosting HUD — plain text stack at top-left.</summary>
+/// <summary>In-game AI hosting HUD — sim-derived telemetry at top-left.</summary>
 internal static partial class AiHudOverlayUI {
     internal const string RootName = "DevModeAiHudOverlay";
 
@@ -118,12 +118,9 @@ internal static partial class AiHudOverlayUI {
         readonly VBoxContainer _stack;
         readonly Label _titleLabel;
         readonly Label _phaseLabel;
-        readonly Label _deckLabel;
-        readonly Label _forecastLabel;
-        readonly Label _strategyLabel;
+        readonly Label _telemetryLabel;
         readonly Label _nextLabel;
-        readonly Label _paramsLabel;
-        readonly Label _scoreLabel;
+        readonly Label _auxLabel;
         readonly Timer _refreshTimer;
         string? _lastDecisionKey;
         JsonObject? _cachedSnapshot;
@@ -143,21 +140,15 @@ internal static partial class AiHudOverlayUI {
 
             _titleLabel = MakeLabel(TitleFontSize, TitleColor);
             _phaseLabel = MakeLabel(12, DevModeTheme.TextSecondary);
-            _deckLabel = MakeLabel(11, DevModeTheme.TextSecondary);
-            _forecastLabel = MakeLabel(11, DevModeTheme.TextSecondary);
-            _strategyLabel = MakeLabel(12, DevModeTheme.TextPrimary);
+            _telemetryLabel = MakeLabel(12, DevModeTheme.TextPrimary);
             _nextLabel = MakeLabel(12, DevModeTheme.TextPrimary);
-            _paramsLabel = MakeLabel(11, DevModeTheme.TextSecondary);
-            _scoreLabel = MakeLabel(10, DevModeTheme.TextSecondary);
+            _auxLabel = MakeLabel(11, DevModeTheme.TextSecondary);
 
             _stack.AddChild(_titleLabel);
             _stack.AddChild(_phaseLabel);
-            _stack.AddChild(_deckLabel);
-            _stack.AddChild(_forecastLabel);
-            _stack.AddChild(_strategyLabel);
+            _stack.AddChild(_telemetryLabel);
             _stack.AddChild(_nextLabel);
-            _stack.AddChild(_paramsLabel);
-            _stack.AddChild(_scoreLabel);
+            _stack.AddChild(_auxLabel);
             AddChild(_stack);
 
             _refreshTimer = new Timer { WaitTime = 2.0, Autostart = true };
@@ -202,11 +193,8 @@ internal static partial class AiHudOverlayUI {
                 ? ""
                 : $"{decision.Utc.Ticks}:{decision.Action}:{decision.TargetIndex}:{decision.Reason}";
 
-            AiHudRunForecast.HudContext ctx;
             JsonObject snapshot;
-            if (AiHudRunForecast.TryGetCachedContext(out ctx)
-                && _cachedSnapshot != null
-                && decisionKey == _lastDecisionKey) {
+            if (_cachedSnapshot != null && decisionKey == _lastDecisionKey) {
                 snapshot = _cachedSnapshot;
             }
             else {
@@ -217,40 +205,19 @@ internal static partial class AiHudOverlayUI {
                     snapshot = _cachedSnapshot ?? new JsonObject();
                 }
 
-                ctx = AiHudRunForecast.BuildHudContext(snapshot, phase);
                 _cachedSnapshot = snapshot;
             }
 
-            _deckLabel.Text = AiHudModel.BuildDeckProfileLine(ctx.Profile);
-            _forecastLabel.Text = AiHudModel.BuildForecastLine(ctx.Profile, ctx.Prognosis, phase);
-
-            _strategyLabel.Text = I18N.T(
-                "ai.hud.strategy.prefix",
-                "Plan: {0}",
-                AiHudModel.BuildStrategyLine(snapshot, phase, ctx));
+            _telemetryLabel.Text = AiHudModel.BuildTelemetryLine(snapshot, phase);
 
             if (decisionKey != _lastDecisionKey) {
                 _lastDecisionKey = decisionKey;
                 _nextLabel.Text = AiHudModel.BuildNextActionLine(decision, snapshot);
             }
 
-            if (SettingsStore.Current.AiHudShowParams) {
-                _paramsLabel.Text = AiHudModel.BuildParamStrip(snapshot, phase) ?? "";
-                _paramsLabel.Visible = !string.IsNullOrWhiteSpace(_paramsLabel.Text);
-            }
-            else {
-                _paramsLabel.Visible = false;
-            }
-
-            if (SettingsStore.Current.AiHudShowScoreTerms
-                && phase is GamePhase.Combat or GamePhase.CardReward) {
-                var terms = AiHudModel.BuildScoreTerms(decision, phase);
-                _scoreLabel.Text = string.IsNullOrWhiteSpace(terms) ? "" : $"[{terms}]";
-                _scoreLabel.Visible = !string.IsNullOrWhiteSpace(_scoreLabel.Text);
-            }
-            else {
-                _scoreLabel.Visible = false;
-            }
+            var aux = AiHudModel.BuildAuxLine(decision, phase);
+            _auxLabel.Text = aux ?? "";
+            _auxLabel.Visible = !string.IsNullOrWhiteSpace(aux);
 
             ApplyTheme();
         }
@@ -259,12 +226,9 @@ internal static partial class AiHudOverlayUI {
             _titleLabel.AddThemeColorOverride("font_color", TitleColor);
             _titleLabel.AddThemeFontSizeOverride("font_size", TitleFontSize);
             _phaseLabel.AddThemeColorOverride("font_color", DevModeTheme.TextSecondary);
-            _deckLabel.AddThemeColorOverride("font_color", DevModeTheme.TextSecondary);
-            _forecastLabel.AddThemeColorOverride("font_color", DevModeTheme.TextSecondary);
-            _strategyLabel.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
+            _telemetryLabel.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
             _nextLabel.AddThemeColorOverride("font_color", DevModeTheme.TextPrimary);
-            _paramsLabel.AddThemeColorOverride("font_color", DevModeTheme.TextSecondary);
-            _scoreLabel.AddThemeColorOverride("font_color", DevModeTheme.TextSecondary);
+            _auxLabel.AddThemeColorOverride("font_color", DevModeTheme.TextSecondary);
         }
 
         static Label MakeLabel(int size, Color color) {

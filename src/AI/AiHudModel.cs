@@ -1,9 +1,10 @@
 using System;
-using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using DevMode.AI.Combat;
+using DevMode.AI.Combat.Simulation;
 using DevMode.AI.Core.Schema;
+using DevMode.AI.Knowledge;
 using DevMode.AI.Planning;
 using DevMode.AI.Sts2;
 
@@ -14,6 +15,8 @@ public static class AiHudModel {
     static readonly Regex ScoreBracketRegex = new(@"\s*\[[^\]]*\]", RegexOptions.Compiled);
     static readonly Regex MarginalRegex = new(@"marginal=(-?\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     static readonly Regex NextFightRegex = new(@"nextFight=(-?\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    static readonly Regex CardScoreRegex = new(@"score=(-?\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    static readonly Regex MapScoreRegex = new(@"score=(-?\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public static string PhaseShortLabel(GamePhase phase) => phase switch {
         GamePhase.Combat => I18N.T("ai.hud.phase.combat", "Combat"),
@@ -29,286 +32,262 @@ public static class AiHudModel {
         _ => I18N.T("ai.hud.phase.other", "Other"),
     };
 
-    public static string BuildDeckProfileLine(AiHudRunForecast.DeckProfile profile) {
-        var style = AiHudRunForecast.StyleLabel(profile.Style);
-
-        if (AiHudRunForecast.MeetsOfficialBig(profile))
-            return I18N.T(
-                "ai.hud.deck.profile.big",
-                "Deck: {0} · {1} cards (≥{2})",
-                style,
-                profile.DeckSize,
-                AiHudRunForecast.OfficialBigDeckMin);
-
-        if (AiHudRunForecast.MeetsOfficialSmall(profile))
-            return I18N.T(
-                "ai.hud.deck.profile.small",
-                "Deck: {0} · {1} cards (≤{2})",
-                style,
-                profile.DeckSize,
-                AiHudRunForecast.OfficialSmallDeckMax);
-
-        return I18N.T(
-            "ai.hud.deck.profile.mid",
-            "Deck: {0} · {1} cards (21–39)",
-            style,
-            profile.DeckSize);
-    }
-
-    public static string BuildForecastLine(
-        AiHudRunForecast.DeckProfile profile,
-        AiHudRunForecast.RunPrognosis prognosis,
-        GamePhase phase) {
-        var winPct = (int)Math.Round(prognosis.WinRate * 100f);
-
-        if (phase == GamePhase.CardReward && prognosis.NextFightIncoming > 0) {
-            return I18N.T(
-                "ai.hud.forecast.cardReward",
-                "Forecast: ~{0}% win · route {1} nodes · next IN {2}",
-                winPct,
-                prognosis.RouteNodes,
-                prognosis.NextFightIncoming);
-        }
-
-        if (phase == GamePhase.Combat) {
-            return I18N.T(
-                "ai.hud.forecast.combat",
-                "Forecast: ~{0}% win · route risk {1}",
-                winPct,
-                prognosis.PathRisk);
-        }
-
-        if (prognosis.CombatsToRest > 0f) {
-            return I18N.T(
-                "ai.hud.forecast.route",
-                "Forecast: ~{0}% win · {1} nodes to boss · {2:0.#} fights to rest · risk {3}",
-                winPct,
-                prognosis.RouteNodes,
-                prognosis.CombatsToRest,
-                prognosis.PathRisk);
-        }
-
-        return I18N.T(
-            "ai.hud.forecast.default",
-            "Forecast: ~{0}% win · {1} nodes on route · risk {2}",
-            winPct,
-            prognosis.RouteNodes,
-            prognosis.PathRisk);
-    }
-
-    public static string BuildStrategyLine(JsonObject snapshot, GamePhase phase, AiHudRunForecast.HudContext? ctx = null) {
-        return phase switch {
-            GamePhase.Combat => BuildCombatStrategy(snapshot),
-            GamePhase.MapSelection => BuildMapStrategy(snapshot, ctx?.Profile),
-            GamePhase.CardReward => BuildCardRewardStrategy(snapshot, ctx?.Prognosis),
-            GamePhase.Shop => BuildShopStrategy(ctx?.Profile),
-            GamePhase.RestSite => BuildRestStrategy(snapshot, ctx?.Prognosis),
-            GamePhase.EventChoice => BuildEventStrategy(ctx?.Profile),
-            _ => I18N.T("ai.hud.strategy.default", "Follow StrongStrategy for current phase"),
-        };
-    }
+    public static string BuildTelemetryLine(JsonObject snapshot, GamePhase phase) => phase switch {
+        GamePhase.Combat => BuildCombatTelemetryLine(snapshot),
+        GamePhase.MapSelection => BuildMapTelemetryLine(snapshot),
+        GamePhase.CardReward => BuildCardRewardTelemetryLine(snapshot),
+        _ => BuildRunTelemetryLine(snapshot),
+    };
 
     public static string BuildNextActionLine(AiHudDecision? decision, JsonObject snapshot) {
         if (decision == null)
             return I18N.T("ai.hud.next.waiting", "Next: waiting for decision");
 
-        var verb = ActionVerb(decision.Action);
-        var detail = ActionDetail(decision, snapshot);
-        var reason = SanitizeReason(decision.Reason);
-        var line = string.IsNullOrWhiteSpace(detail)
-            ? $"{verb}"
-            : $"{verb} · {detail}";
+        if (decision.Phase == GamePhase.Combat)
+            return BuildCombatNextActionLine(decision, snapshot);
 
-        var scoreHint = BuildDecisionScoreHint(decision);
-        if (!string.IsNullOrWhiteSpace(scoreHint))
-            line += $" ({scoreHint})";
-
-        if (!string.IsNullOrWhiteSpace(reason))
-            line += $" — {reason}";
-
-        return I18N.T("ai.hud.next.prefix", "Next: {0}", line);
+        return BuildNonCombatNextActionLine(decision, snapshot);
     }
 
-    public static string? BuildParamStrip(JsonObject snapshot, GamePhase phase) {
+    public static string? BuildAuxLine(AiHudDecision? decision, GamePhase phase) {
+        if (decision == null)
+            return null;
+
         if (phase == GamePhase.Combat)
-            return BuildCombatParams(snapshot);
+            return BuildCombatAuxLine(decision);
 
         if (phase == GamePhase.CardReward)
-            return BuildCardRewardParams(snapshot);
+            return BuildCardRewardAuxLine(decision);
 
-        var floor = snapshot["totalFloor"]?.GetValue<int>() ?? 0;
-        var gold = snapshot["gold"]?.GetValue<int>() ?? 0;
-        var hp = snapshot["currentHp"]?.GetValue<int>() ?? 0;
-        var maxHp = snapshot["maxHp"]?.GetValue<int>() ?? 0;
-        return I18N.T("ai.hud.params.run", "F{0} G={1} HP={2}/{3}", floor, gold, hp, maxHp);
+        if (phase == GamePhase.MapSelection)
+            return BuildMapAuxLine(decision);
+
+        return null;
     }
 
-    public static string? BuildScoreTerms(AiHudDecision? decision, GamePhase phase) {
+    /// <summary>Sim-derived combat metrics aligned with <see cref="CombatDecisionLog"/>.</summary>
+    public static string BuildCombatTelemetryLine(JsonObject snapshot) {
+        var state = CombatState.FromSnapshot(snapshot);
+        int incoming = ThreatModel.IncomingDamage(state);
+        int net = ThreatModel.NetDamageAfterBlock(state);
+        int nonDamage = ThreatModel.TotalNonDamageThreat(state);
+        int nextTurn = ThreatModel.NextTurnIncoming(state);
+        int junk = DeckPollutionEvaluator.JunkCount(state);
+        int pollution = DeckPollutionEvaluator.EffectivePollutionBurden(state);
+        int playDamage = DeckPollutionEvaluator.ExpectedPlayableDamage(state);
+        int playBlock = DeckPollutionEvaluator.ExpectedPlayableBlock(state);
+        int setup = CombatSetupEvaluator.ComputeSetupDebt(state);
+
+        return I18N.T(
+            "ai.hud.telemetry.combat",
+            "HP {0}/{1} BLK {2} E {3} · IN {4} NET {5} ND {6} NXT {7} · JUNK {8} POLL {9} PLAY {10}/{11} SETUP {12}",
+            state.PlayerHp,
+            state.PlayerMaxHp,
+            state.PlayerBlock,
+            state.Energy,
+            incoming,
+            net,
+            nonDamage,
+            nextTurn,
+            junk,
+            pollution,
+            playDamage,
+            playBlock,
+            setup);
+    }
+
+    public static string? BuildCombatAuxLine(AiHudDecision? decision) {
         if (decision == null || string.IsNullOrWhiteSpace(decision.Reason))
             return null;
 
-        if (phase == GamePhase.CardReward) {
-            var marginal = MarginalRegex.Match(decision.Reason);
-            var nextFight = NextFightRegex.Match(decision.Reason);
-            if (marginal.Success || nextFight.Success) {
-                var sb = new StringBuilder();
-                if (marginal.Success)
-                    sb.Append($"marginal:{marginal.Groups[1].Value}");
-                if (nextFight.Success) {
-                    if (sb.Length > 0) sb.Append(", ");
-                    sb.Append($"nextFight:{nextFight.Groups[1].Value}");
-                }
-                return sb.ToString();
-            }
-        }
-
-        var match = Regex.Match(decision.Reason, @"\[(.+)\]\s*$");
-        if (!match.Success)
+        var beam = Regex.Match(decision.Reason, @"beam d=(\d+)", RegexOptions.IgnoreCase);
+        var score = Regex.Match(decision.Reason, @"Planner score=(-?\d+)", RegexOptions.IgnoreCase);
+        if (!beam.Success && !score.Success)
             return null;
 
-        var inner = match.Groups[1].Value;
-        return inner.Contains("block:", StringComparison.Ordinal)
-            || inner.Contains("mechanic:", StringComparison.Ordinal)
-            || inner.Contains("attack:", StringComparison.Ordinal)
-            ? inner
-            : null;
+        if (beam.Success && score.Success)
+            return I18N.T("ai.hud.beam.meta", "beam d={0} · score {1}", beam.Groups[1].Value, score.Groups[1].Value);
+        if (score.Success)
+            return I18N.T("ai.hud.beam.score", "score {0}", score.Groups[1].Value);
+        return I18N.T("ai.hud.beam.depth", "beam d={0}", beam.Groups[1].Value);
     }
 
-    static string BuildCombatStrategy(JsonObject snapshot) {
-        var incoming = IntentCalculator.TotalIncomingDamage(snapshot);
-        var net = IntentCalculator.NetDamageAfterBlock(snapshot);
-
-        if (incoming <= 0)
-            return I18N.T("ai.hud.strategy.combat.safe", "No incoming damage — beam search for lethal and setup");
-
-        if (IntentCalculator.IsFatalIfUnblocked(snapshot))
-            return I18N.T("ai.hud.strategy.combat.fatal", "Fatal incoming {0} — block first, then beam", net);
-
-        if (BlockThreatEvaluator.ShouldScoreBlock(snapshot))
-            return I18N.T("ai.hud.strategy.combat.block", "Enemy deals {0} ({1} after block) — beam favors block", incoming, net);
-
-        return I18N.T("ai.hud.strategy.combat.light", "Light threat {0} — full-depth beam balances kill and block", incoming);
-    }
-
-    static string BuildMapStrategy(JsonObject snapshot, AiHudRunForecast.DeckProfile? profile = null) {
-        var plan = MapPathPlanner.CachedPlan;
-        profile ??= AiHudRunForecast.AnalyzeDeckLight(snapshot);
-
-        if (plan == null)
-            return I18N.T("ai.hud.strategy.map.none", "Pick the best reachable node for {0}", AiHudRunForecast.StyleLabel(profile.Style));
-
-        var nextType = snapshot["mapNodes"]?[plan.NextChildIndex]?["pointType"]?.GetValue<string>() ?? "?";
-        return I18N.T(
-            "ai.hud.strategy.map.plan",
-            "Route {0} → next {1} (risk {2}, {3:0.#} fights to rest)",
-            plan.Summary,
-            nextType,
-            plan.PathRiskAtNext,
-            plan.CombatsToRestAtNext);
-    }
-
-    static string BuildCardRewardStrategy(JsonObject snapshot, AiHudRunForecast.RunPrognosis? prognosis = null) {
-        var profile = AiHudRunForecast.AnalyzeDeckLight(snapshot);
-        var preview = snapshot["nextFightPreview"]?.AsArray();
-        var fightHint = preview != null && preview.Count > 0
-            ? preview[0]?["roomType"]?.GetValue<string>() ?? "?"
-            : null;
-
-        if (AiHudRunForecast.MeetsOfficialBig(profile))
-            return I18N.T(
-                "ai.hud.strategy.reward.big",
-                "Big deck (≥40) — skip unless marginal+next-fight > 0");
-
-        if (fightHint != null)
-            return I18N.T(
-                "ai.hud.strategy.reward.nextFight",
-                "Marginal pick + next-fight preview ({0}); pick only when total > 0",
-                fightHint);
-
-        return I18N.T(
-            "ai.hud.strategy.reward.default",
-            "Marginal deck quality + next-fight preview; skip when score <= 0");
-    }
-
-    static string BuildShopStrategy(AiHudRunForecast.DeckProfile? profile) {
-        if (profile == null)
-            return I18N.T("ai.hud.strategy.shop.buy", "Buy relic/card/potion; skip bloat");
-
-        return I18N.T(
-            "ai.hud.strategy.shop.buy",
-            "Buy relic/card/potion for {0}; skip bloat",
-            AiHudRunForecast.StyleLabel(profile.Style));
-    }
-
-    static string BuildRestStrategy(JsonObject snapshot, AiHudRunForecast.RunPrognosis? prognosis = null) {
-        var hp = snapshot["currentHp"]?.GetValue<int>() ?? 0;
-        var maxHp = snapshot["maxHp"]?.GetValue<int>() ?? 1;
-        var ratio = maxHp > 0 ? (float)hp / maxHp : 1f;
-        var pathRisk = prognosis?.PathRisk ?? 0;
-
-        if (ratio < 0.55f)
-            return I18N.T(
-                "ai.hud.strategy.rest.heal",
-                "Low HP ({0}/{1}) — rest heal (route risk {2})",
-                hp,
-                maxHp,
-                pathRisk);
-
-        return I18N.T("ai.hud.strategy.rest.upgrade", "HP healthy — smith upgrade on core cards");
-    }
-
-    static string BuildEventStrategy(AiHudRunForecast.DeckProfile? profile) {
-        if (profile == null)
-            return I18N.T("ai.hud.strategy.event", "Evaluate options by deck synergy and codex priors");
-
-        if (AiHudRunForecast.MeetsOfficialBig(profile))
-            return I18N.T("ai.hud.strategy.event.big", "Big deck (≥40) — favor remove/transform; avoid bloat");
-        if (profile.IsExhaustFocused)
-            return I18N.T("ai.hud.strategy.event.small", "Small deck — favor exhaust synergies and removal");
-        return I18N.T("ai.hud.strategy.event", "Evaluate options by deck synergy and codex priors");
-    }
-
-    static string BuildCombatParams(JsonObject snapshot) {
-        var combat = snapshot["combat"]?.AsObject();
-        var hp = snapshot["currentHp"]?.GetValue<int>() ?? 0;
-        var maxHp = snapshot["maxHp"]?.GetValue<int>() ?? 0;
-        var block = combat?["playerBlock"]?.GetValue<int>() ?? 0;
-        var incoming = IntentCalculator.TotalIncomingDamage(snapshot);
-        var energy = combat?["currentEnergy"]?.GetValue<int>() ?? 0;
-        return I18N.T(
-            "ai.hud.params.combat",
-            "HP={0}/{1} BLK={2} IN={3} E={4}",
-            hp, maxHp, block, incoming, energy);
-    }
-
-    static string BuildCardRewardParams(JsonObject snapshot) {
+    static string BuildRunTelemetryLine(JsonObject snapshot) {
         var floor = snapshot["totalFloor"]?.GetValue<int>() ?? 0;
         var gold = snapshot["gold"]?.GetValue<int>() ?? 0;
         var hp = snapshot["currentHp"]?.GetValue<int>() ?? 0;
         var maxHp = snapshot["maxHp"]?.GetValue<int>() ?? 0;
+        var deckSize = snapshot["deck"]?.AsArray()?.Count ?? 0;
+        var plan = MapPathPlanner.CachedPlan;
+        int pathRisk = plan?.PathRiskAtNext ?? 0;
+        float restIn = plan?.CombatsToRestAtNext ?? 0f;
+
         return I18N.T(
-            "ai.hud.params.cardReward",
-            "F{0} G={1} HP={2}/{3}",
-            floor, gold, hp, maxHp);
+            "ai.hud.telemetry.run",
+            "F{0} G={1} HP={2}/{3} deck={4} · risk {5} restIn {6:0.#}",
+            floor, gold, hp, maxHp, deckSize, pathRisk, restIn);
     }
 
-    static string? BuildDecisionScoreHint(AiHudDecision decision) {
-        if (decision.Action is not (ActionType.PickCardReward or ActionType.SkipCardReward))
+    static string BuildMapTelemetryLine(JsonObject snapshot) {
+        var floor = snapshot["totalFloor"]?.GetValue<int>() ?? 0;
+        var gold = snapshot["gold"]?.GetValue<int>() ?? 0;
+        var hp = snapshot["currentHp"]?.GetValue<int>() ?? 0;
+        var maxHp = snapshot["maxHp"]?.GetValue<int>() ?? 0;
+        var deckSize = snapshot["deck"]?.AsArray()?.Count ?? 0;
+        var plan = MapPathPlanner.CachedPlan;
+
+        if (plan == null)
+            return BuildRunTelemetryLine(snapshot);
+
+        var nextType = snapshot["mapNodes"]?[plan.NextChildIndex]?["pointType"]?.GetValue<string>() ?? "?";
+        return I18N.T(
+            "ai.hud.telemetry.map",
+            "F{0} G={1} HP={2}/{3} deck={4} · {5} → {6} · risk {7} restIn {8:0.#}",
+            floor, gold, hp, maxHp, deckSize,
+            plan.Summary, nextType, plan.PathRiskAtNext, plan.CombatsToRestAtNext);
+    }
+
+    static string BuildCardRewardTelemetryLine(JsonObject snapshot) {
+        var floor = snapshot["totalFloor"]?.GetValue<int>() ?? 0;
+        var gold = snapshot["gold"]?.GetValue<int>() ?? 0;
+        var hp = snapshot["currentHp"]?.GetValue<int>() ?? 0;
+        var maxHp = snapshot["maxHp"]?.GetValue<int>() ?? 0;
+        var deckSize = snapshot["deck"]?.AsArray()?.Count ?? 0;
+        var preview = snapshot["nextFightPreview"]?.AsArray();
+        string room = "?";
+        int incoming = 0;
+        if (preview != null && preview.Count > 0 && preview[0] is JsonObject fight) {
+            room = fight["roomType"]?.GetValue<string>() ?? "?";
+            incoming = fight["incomingTurn1"]?.GetValue<int>() ?? 0;
+        }
+
+        return I18N.T(
+            "ai.hud.telemetry.cardReward",
+            "F{0} G={1} HP={2}/{3} deck={4} · next {5} IN {6}",
+            floor, gold, hp, maxHp, deckSize, room, incoming);
+    }
+
+    static string? BuildCardRewardAuxLine(AiHudDecision decision) {
+        if (string.IsNullOrWhiteSpace(decision.Reason))
             return null;
 
+        var score = CardScoreRegex.Match(decision.Reason);
         var marginal = MarginalRegex.Match(decision.Reason);
         var nextFight = NextFightRegex.Match(decision.Reason);
-        if (!marginal.Success && !nextFight.Success)
+        if (!score.Success && !marginal.Success && !nextFight.Success)
             return null;
 
-        var sb = new StringBuilder();
-        if (marginal.Success)
-            sb.Append($"Δdeck {marginal.Groups[1].Value}");
-        if (nextFight.Success) {
-            if (sb.Length > 0) sb.Append(", ");
-            sb.Append($"Δfight {nextFight.Groups[1].Value}");
+        var scoreVal = score.Success ? score.Groups[1].Value : "—";
+        var marginalVal = marginal.Success ? marginal.Groups[1].Value : "—";
+        var nextFightVal = nextFight.Success ? nextFight.Groups[1].Value : "—";
+        return I18N.T(
+            "ai.hud.aux.cardReward",
+            "score {0} · Δdeck {1} · Δfight {2}",
+            scoreVal, marginalVal, nextFightVal);
+    }
+
+    static string? BuildMapAuxLine(AiHudDecision decision) {
+        if (string.IsNullOrWhiteSpace(decision.Reason))
+            return null;
+
+        var score = MapScoreRegex.Match(decision.Reason);
+        if (!score.Success)
+            return null;
+
+        return I18N.T("ai.hud.aux.map", "pathScore {0}", score.Groups[1].Value);
+    }
+
+    static string BuildCombatNextActionLine(AiHudDecision decision, JsonObject snapshot) {
+        if (decision.Action == ActionType.EndTurn)
+            return I18N.T("ai.hud.next.endTurn", "Next: End turn");
+
+        if (decision.Action == ActionType.UsePotion) {
+            var slot = decision.TargetIndex;
+            var target = decision.SecondaryIndex >= 0 ? $"→e{decision.SecondaryIndex}" : "";
+            return I18N.T("ai.hud.next.potion", "Next: Potion #{0}{1}", slot, target);
         }
-        return sb.ToString();
+
+        if (decision.Action == ActionType.PlayCard) {
+            var hand = snapshot["combat"]?["hand"]?.AsArray();
+            string card = "?";
+            if (hand != null && decision.TargetIndex >= 0 && decision.TargetIndex < hand.Count)
+                card = hand[decision.TargetIndex]?["name"]?.GetValue<string>()
+                    ?? hand[decision.TargetIndex]?["id"]?.GetValue<string>()
+                    ?? "?";
+
+            if (decision.SecondaryIndex >= 0) {
+                var enemies = snapshot["combat"]?["enemies"]?.AsArray();
+                var enemy = EnemyIndexResolver.FindByCombatIndex(enemies, decision.SecondaryIndex);
+                var monsterId = enemy?["monsterId"]?.GetValue<string>();
+                var target = !string.IsNullOrWhiteSpace(monsterId)
+                    ? $"→{monsterId}"
+                    : $"→e{decision.SecondaryIndex}";
+                return I18N.T("ai.hud.next.playTarget", "Next: {0} {1}", card, target);
+            }
+
+            return I18N.T("ai.hud.next.play", "Next: {0}", card);
+        }
+
+        return I18N.T("ai.hud.next.prefix", "Next: {0}", ActionVerb(decision.Action));
+    }
+
+    static string BuildNonCombatNextActionLine(AiHudDecision decision, JsonObject snapshot) {
+        if (decision.Action == ActionType.SelectMapNode) {
+            var node = ExtractMapTarget(decision.Reason);
+            if (!string.IsNullOrWhiteSpace(node))
+                return I18N.T("ai.hud.next.map", "Next: → {0}", node);
+        }
+
+        if (decision.Action == ActionType.PickCardReward) {
+            var name = ExtractBracketName(decision.Reason);
+            if (!string.IsNullOrWhiteSpace(name))
+                return I18N.T("ai.hud.next.pickCard", "Next: Pick {0}", name);
+            return I18N.T("ai.hud.action.pickCard", "Pick card");
+        }
+
+        if (decision.Action == ActionType.SkipCardReward)
+            return I18N.T("ai.hud.next.skipCard", "Next: Skip");
+
+        if (decision.Action == ActionType.UpgradeCard) {
+            var name = ExtractBracketName(decision.Reason);
+            if (!string.IsNullOrWhiteSpace(name))
+                return I18N.T("ai.hud.next.upgrade", "Next: Upgrade {0}", name);
+        }
+
+        if (decision.Action == ActionType.RemoveCardAtShop) {
+            var name = ExtractBracketName(decision.Reason);
+            if (!string.IsNullOrWhiteSpace(name))
+                return I18N.T("ai.hud.next.remove", "Next: Remove {0}", name);
+        }
+
+        if (decision.Action == ActionType.PickRelic) {
+            var name = ExtractBracketName(decision.Reason);
+            if (!string.IsNullOrWhiteSpace(name))
+                return I18N.T("ai.hud.next.relic", "Next: Relic {0}", name);
+        }
+
+        if (decision.Action == ActionType.SelectEventChoice) {
+            var name = ExtractBracketName(decision.Reason);
+            if (!string.IsNullOrWhiteSpace(name))
+                return I18N.T("ai.hud.next.event", "Next: {0}", name);
+        }
+
+        if (decision.Action == ActionType.PurchaseShopItem) {
+            var detail = ExtractShopPurchase(decision.Reason);
+            if (!string.IsNullOrWhiteSpace(detail))
+                return I18N.T("ai.hud.next.buy", "Next: Buy {0}", detail);
+        }
+
+        if (decision.Action == ActionType.Rest)
+            return I18N.T("ai.hud.next.rest", "Next: Rest");
+
+        if (decision.Action == ActionType.Proceed)
+            return I18N.T("ai.hud.next.proceed", "Next: Proceed");
+
+        var verb = ActionVerb(decision.Action);
+        var detail2 = ActionDetail(decision, snapshot);
+        var line = string.IsNullOrWhiteSpace(detail2) ? verb : $"{verb} · {detail2}";
+        return I18N.T("ai.hud.next.prefix", "Next: {0}", line);
     }
 
     static string ActionVerb(ActionType type) => type switch {
@@ -345,39 +324,41 @@ public static class AiHudModel {
         return ExtractBracketName(decision.Reason) ?? "";
     }
 
-    static string? ExtractBracketName(string reason) {
+    static string? ExtractBracketName(string? reason) {
         if (string.IsNullOrWhiteSpace(reason))
             return null;
-
-        var pick = Regex.Match(reason, @"\[(.+?)\]");
-        if (pick.Success)
-            return pick.Groups[1].Value.Trim();
 
         var cardPick = Regex.Match(reason, @"Card pick \[(.+?)\]");
         if (cardPick.Success)
             return cardPick.Groups[1].Value.Trim();
 
-        var map = Regex.Match(reason, @"Map → (\S+)");
-        if (map.Success)
-            return map.Groups[1].Value.Trim();
+        var pick = Regex.Match(reason, @"\[(.+?)\]");
+        if (pick.Success)
+            return pick.Groups[1].Value.Trim();
 
         return null;
     }
 
-    static string SanitizeReason(string? reason) {
+    static string? ExtractMapTarget(string? reason) {
         if (string.IsNullOrWhiteSpace(reason))
-            return "";
+            return null;
 
-        var text = reason;
-        text = ScoreBracketRegex.Replace(text, "");
-        var scoreIdx = text.IndexOf(" score=", StringComparison.OrdinalIgnoreCase);
-        if (scoreIdx >= 0)
-            text = text[..scoreIdx];
+        var map = Regex.Match(reason, @"Map → (\S+)");
+        return map.Success ? map.Groups[1].Value.Trim() : null;
+    }
 
-        var marginalIdx = text.IndexOf(" marginal=", StringComparison.OrdinalIgnoreCase);
-        if (marginalIdx >= 0)
-            text = text[..marginalIdx];
+    static string? ExtractShopPurchase(string? reason) {
+        if (string.IsNullOrWhiteSpace(reason))
+            return null;
 
-        return text.Trim().TrimEnd('—', '-', ' ');
+        var buy = Regex.Match(reason, @"Buy (\S+)");
+        if (buy.Success)
+            return buy.Groups[1].Value.Trim();
+
+        var potion = Regex.Match(reason, @"potion \[(.+?)\]");
+        if (potion.Success)
+            return potion.Groups[1].Value.Trim();
+
+        return ExtractBracketName(reason);
     }
 }

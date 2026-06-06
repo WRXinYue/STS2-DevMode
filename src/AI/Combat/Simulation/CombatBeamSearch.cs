@@ -81,7 +81,7 @@ public static class CombatBeamSearch {
                 }
             }
 
-            if (depth == 0 && nextBeam.Count > 0) {
+            if (CombatDecisionLog.VerboseEnabled && depth == 0 && nextBeam.Count > 0) {
                 CombatDebugTrace.LogBeamDepthCandidates(
                     root,
                     nextBeam.OrderByDescending(n => n.Score)
@@ -128,8 +128,10 @@ public static class CombatBeamSearch {
             int rank = CombatSetupEvaluator.PackLineScore(outcome);
             if (path.Count > 0)
                 rank += SimMoveScoring.OpeningModifierBonus(root, path[0], rootSnapshot);
-            CombatDebugTrace.LogBeamLeafUpdate(
-                root, state, path, rank, depth, "line outcome");
+            if (CombatDecisionLog.VerboseEnabled) {
+                CombatDebugTrace.LogBeamLeafUpdate(
+                    root, state, path, rank, depth, "line outcome");
+            }
         }
     }
 
