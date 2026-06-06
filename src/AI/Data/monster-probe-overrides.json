@@ -29,6 +29,11 @@
     },
     "LIVING_FOG": {
       "spawnedMonsterIds": ["GAS_BOMB"]
+    },
+    "PHROG_PARASITE": {
+      "spawnedMonsterIds": ["WRIGGLER"],
+      "addFlags": ["SpawnsOnDeath"],
+      "deathSpawnCount": 2
     }
   }
 }

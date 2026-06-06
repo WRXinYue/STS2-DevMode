@@ -25,4 +25,6 @@ public enum EnemyMechanicFlags : ulong {
     HatchesInPlace = 1 << 10,
     /// <summary>StatusIntent — adds Dazed/Slimed etc. to combat piles.</summary>
     HasStatusCardIntent = 1 << 11,
+    /// <summary>Primary dies and spawns encounter minions (e.g. Phrog → Wriggler).</summary>
+    SpawnsOnDeath = 1 << 12,
 }

@@ -36,6 +36,7 @@ public static class ThreatModel {
             state.Enemies.Where(e => e.IsAlive).Sum(e => e.EffectiveHp),
             VulnerableOutlookEvaluator.Estimate(state),
             WeakMitigationEvaluator.Estimate(state),
+            0,
             PileRhythmEvaluator.DrawPileOutlook(state),
             state.PlayerHp,
             0));
@@ -423,11 +424,39 @@ public static class ThreatModel {
         return NetDamageAfterBlock(state) <= 8;
     }
 
+    /// <summary>Alive enemies plus minions that spawn when a living primary dies this turn.</summary>
+    public static int EffectiveAoeEnemyCount(CombatState state) =>
+        Math.Max(1, state.AliveEnemyCount + ImpendingDeathSpawnCount(state));
+
+    public static int ImpendingDeathSpawnCount(CombatState state) {
+        int total = 0;
+
+        foreach (var enemy in state.Enemies.Where(e => e.IsAlive && !e.IsMinion)) {
+            if (!MonsterMechanicIndex.TryGet(enemy.MonsterId, out var profile))
+                continue;
+            if (!profile.Flags.HasFlag(EnemyMechanicFlags.SpawnsOnDeath))
+                continue;
+
+            foreach (var spawnId in profile.SpawnedMonsterIds) {
+                if (state.Enemies.Any(e => e.IsAlive
+                        && string.Equals(e.MonsterId, spawnId, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+
+                total += MonsterProbeOverrides.GetDeathSpawnCount(enemy.MonsterId);
+            }
+        }
+
+        return total;
+    }
+
     public static void OnPrimaryEnemyKilled(IList<CombatEnemy> enemies, int killedIndex) {
         if (killedIndex < 0 || killedIndex >= enemies.Count) return;
-        if (enemies[killedIndex].IsMinion) return;
-        if (!MinionEngagementPolicy.ShouldSimulateMinionWipe(
-                enemies[killedIndex], enemies.ToArray()))
+        var killed = enemies[killedIndex];
+        if (killed.IsMinion) return;
+
+        CombatDeathSpawnSimulator.TrySpawnOnDeath(enemies, killed);
+
+        if (!MinionEngagementPolicy.ShouldSimulateMinionWipe(killed, enemies.ToArray()))
             return;
 
         for (int i = 0; i < enemies.Count; i++) {

@@ -54,6 +54,7 @@ public static class PotionScorer {
             return null;
 
         var plan = DeckPlanInferer.Infer(snapshot);
+        var state = CombatState.FromSnapshot(snapshot);
         var candidates = new List<(int Slot, int Score, string Label, JsonObject Potion)>();
 
         for (int i = 0; i < potions.Count; i++) {
@@ -66,10 +67,15 @@ public static class PotionScorer {
 
             int score;
             if (PotionCombatEffectData.IsSimulatable(id)) {
-                var state = CombatState.FromSnapshot(snapshot);
                 if (!PotionCombatEffectData.TryGetProfile(id, out var profile))
                     continue;
-                score = PotionUseScoring.ScoreSimProfile(state, profile, -1, ctx);
+                if (PotionUseScoring.IsAttackDebuffLowValue(state, profile))
+                    continue;
+
+                int enemyIndex = NeedsEnemyTarget(profile.TargetType)
+                    ? CombatSetupEvaluator.PrimaryAttackTargetIndex(state)
+                    : -1;
+                score = PotionUseScoring.ScoreSimProfile(state, profile, enemyIndex, ctx);
             } else {
                 score = ScoreCombatUse(potion, snapshot, plan);
             }

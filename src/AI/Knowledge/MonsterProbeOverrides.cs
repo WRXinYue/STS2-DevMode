@@ -40,6 +40,18 @@ internal static class MonsterProbeOverrides {
         return flags;
     }
 
+    public static int GetDeathSpawnCount(string? monsterId) {
+        EnsureLoaded();
+        var id = NormalizeId(monsterId);
+        if (string.IsNullOrEmpty(id))
+            return 1;
+
+        if (_root?["monsters"]?[id]?["deathSpawnCount"]?.GetValue<int>() is int count && count > 0)
+            return count;
+
+        return 1;
+    }
+
     public static IReadOnlyList<string> GetSpawnedIds(string? monsterId) {
         EnsureLoaded();
         var id = NormalizeId(monsterId);

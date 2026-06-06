@@ -84,10 +84,14 @@ public static class BlockDefensePolicy {
         return SimLethalChecker.CanSecureKillThisTurn(state);
     }
 
-    public static bool IsPureBlockCard(CombatHandCard card, CombatState state) =>
-        CombatDamageCalc.OutgoingBlock(card, state) > 0
-        && card.Damage <= 0
-        && !card.IsAttack;
+    public static bool IsPureBlockCard(CombatHandCard card, CombatState state) {
+        if (card.Profile.AppliedVulnerable > 0 || card.Profile.AppliedWeak > 0)
+            return false;
+
+        return CombatDamageCalc.OutgoingBlock(card, state) > 0
+            && card.Damage <= 0
+            && !card.IsAttack;
+    }
 
     public static bool IsPureBlockOpening(CombatState root, SimCombatAction action) {
         if (action.Kind != SimActionKind.PlayCard

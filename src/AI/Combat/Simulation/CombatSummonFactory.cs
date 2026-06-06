@@ -16,6 +16,15 @@ internal static class CombatSummonFactory {
                 && string.Equals(e.MonsterId, spawnMonsterId, StringComparison.OrdinalIgnoreCase)))
             return null;
 
+        return CreateSummonedEnemy(spawnMonsterId, newIndex, summonerIndex, existing, state);
+    }
+
+    public static CombatEnemy CreateSummonedEnemy(
+        string spawnMonsterId,
+        int newIndex,
+        int summonerIndex,
+        IReadOnlyList<CombatEnemy> existing,
+        CombatState state) {
         var profile = MonsterMechanicIndex.GetOrDefault(spawnMonsterId);
         var flags = profile.Flags | EnemyMechanicResolver.ResolveFlags(null);
         if (profile.Flags.HasFlag(EnemyMechanicFlags.HasIllusionRevive))
@@ -46,6 +55,9 @@ internal static class CombatSummonFactory {
             first?.MoveId ?? "",
             actOrder);
     }
+
+    public static int NextEnemyIndex(IReadOnlyList<CombatEnemy> enemies) =>
+        enemies.Count == 0 ? 0 : enemies.Max(e => e.Index) + 1;
 
     static int DefaultHp(string monsterId) =>
         string.Equals(monsterId, "EYE_WITH_TEETH", StringComparison.OrdinalIgnoreCase) ? 6 : 20;

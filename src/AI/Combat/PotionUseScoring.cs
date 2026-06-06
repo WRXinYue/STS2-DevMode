@@ -98,6 +98,16 @@ internal static class PotionUseScoring {
             EstimateLethalGap(snapshot, maxOffense));
     }
 
+    /// <summary>Weak/vulnerable potions are wasted when the current enemy intent is not an attack.</summary>
+    public static bool IsAttackDebuffLowValue(CombatState state, PotionCombatProfile profile) {
+        bool appliesDebuff = profile.Effects.Any(e =>
+            e.Kind == PotionCombatEffectKind.ApplyWeak
+            || e.Kind == PotionCombatEffectKind.ApplyVulnerable);
+        if (!appliesDebuff)
+            return false;
+        return ThreatModel.IncomingDamage(state) <= 0;
+    }
+
     public static int ScoreSimProfile(
         CombatState state,
         PotionCombatProfile profile,
@@ -329,9 +339,14 @@ internal static class PotionUseScoring {
     }
 
     static int ScoreWeakDebuff(Context ctx, CombatState state, int enemyIndex, int amount) {
+        if (enemyIndex < 0)
+            enemyIndex = CombatSetupEvaluator.PrimaryAttackTargetIndex(state);
+
         var target = state.Enemies.FirstOrDefault(e => e.IsAlive && e.Index == enemyIndex);
         if (target == null)
-            return ScoreDebuffEffect(ctx, amount, state, enemyIndex);
+            return 0;
+        if (ctx.Incoming <= 0)
+            return 0;
         if (target.Weak > 0)
             return Math.Max(0, amount * 2);
 

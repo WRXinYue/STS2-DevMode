@@ -26,15 +26,16 @@ internal static class PotionLineCost {
         if (!PotionCombatEffectData.TryGetProfile(potionId, out var profile))
             return 0;
 
-        bool appliesWeak = profile.Effects.Any(e => e.Kind == PotionCombatEffectKind.ApplyWeak);
-        if (!appliesWeak)
+        if (!profile.Effects.Any(e =>
+                e.Kind == PotionCombatEffectKind.ApplyWeak
+                || e.Kind == PotionCombatEffectKind.ApplyVulnerable))
             return 0;
 
         int attackPressure = ThreatModel.ScheduledAttackPressure(lineStart);
         int nonDamage = ThreatModel.TotalNonDamageThreat(lineStart);
         int penalty = 0;
 
-        if (ThreatModel.IncomingDamage(lineStart) <= 0 && attackPressure < 12)
+        if (PotionUseScoring.IsAttackDebuffLowValue(lineStart, profile))
             penalty += 40;
 
         if (nonDamage > attackPressure)

@@ -106,6 +106,8 @@ internal static class CombatActionHeuristic {
 
         if (!PotionCombatEffectData.TryGetProfile(potion.Id, out var profile) || !profile.Simulatable)
             return int.MinValue;
+        if (PotionUseScoring.IsAttackDebuffLowValue(state, profile))
+            return int.MinValue;
 
         var ctx = PotionUseScoring.FromState(state, potion.Id);
         int score = PotionUseScoring.ScoreSimProfile(state, profile, action.EnemyIndex, ctx);

@@ -9,6 +9,10 @@ namespace DevMode.AI.Combat;
 
 /// <summary>Dynamic setup-vs-attack comparison from live snapshot metrics.</summary>
 internal static class CombatSetupEvaluator {
+    const int IncomingTradeDamageMultiplier = 2;
+    const int IncomingTradeFutureReliefDivisor = 2;
+    const int IncomingTradeChipFocusDivisor = 4;
+    const int InfernoMultiTargetTradeMinRatio = 4;
     public static int ComputeVulnerableDeferValue(
         JsonObject snapshot,
         JsonArray? hand,
@@ -62,7 +66,7 @@ internal static class CombatSetupEvaluator {
         return Math.Max(0, ComputeVulnerableSetupSimDelta(state, handIndex, enemyIndex));
     }
 
-    /// <summary>Lexicographic: incoming, future pressure, pollution, focus HP, enemy HP, vuln/weak outlook, pile outlook, player HP.</summary>
+    /// <summary>Lexicographic: incoming, future pressure, pollution, focus HP, enemy HP, vuln/weak/inferno outlook, pile outlook, player HP.</summary>
     public readonly record struct CombatLineOutcome(
         int Incoming,
         int FutureIncoming0,
@@ -73,6 +77,7 @@ internal static class CombatSetupEvaluator {
         int EnemyHp,
         int VulnerableOutlook,
         int WeakOutlook,
+        int InfernoOutlook,
         int PileOutlook,
         int PlayerHpAfterTurn,
         int PotionRetainCost);
@@ -120,6 +125,9 @@ internal static class CombatSetupEvaluator {
         if (candidate.WeakOutlook != baseline.WeakOutlook)
             return candidate.WeakOutlook - baseline.WeakOutlook;
 
+        if (candidate.InfernoOutlook != baseline.InfernoOutlook)
+            return candidate.InfernoOutlook - baseline.InfernoOutlook;
+
         if (candidate.PileOutlook != baseline.PileOutlook)
             return candidate.PileOutlook - baseline.PileOutlook;
 
@@ -146,8 +154,11 @@ internal static class CombatSetupEvaluator {
         int extra = candidateIncoming - baselineIncoming;
         int futureRelief = (baselineF0 - candidateF0) + (baselineF1 - candidateF1) + (baselineF2 - candidateF2);
         int focusGain = baselineFocusHp - candidateFocusHp;
-        int benefit = focusGain + futureRelief;
-        if (extra <= benefit && benefit > 0)
+        int focusBenefit = candidateFocusHp == 0
+            ? focusGain
+            : focusGain / IncomingTradeChipFocusDivisor;
+        int benefit = focusBenefit + futureRelief / IncomingTradeFutureReliefDivisor;
+        if (extra * IncomingTradeDamageMultiplier <= benefit && benefit > 0)
             return 1;
         return baselineIncoming - candidateIncoming;
     }
@@ -165,8 +176,9 @@ internal static class CombatSetupEvaluator {
             + (cap * 10 - Math.Min(outcome.EnemyHp, cap * 10))
             + Math.Min(outcome.VulnerableOutlook, 3000)
             + Math.Min(outcome.WeakOutlook, 2000)
+            + Math.Min(outcome.InfernoOutlook, 8000)
             + Math.Min(outcome.PileOutlook, 500)
-            + Math.Min(outcome.PlayerHpAfterTurn, cap);
+            + Math.Min(outcome.PlayerHpAfterTurn, cap) * 4_000L;
         const int packedCap = int.MaxValue - 2;
         return score > packedCap ? packedCap : (int)score;
     }
@@ -186,14 +198,15 @@ internal static class CombatSetupEvaluator {
         if (action.Kind == SimActionKind.PlayCard
             && action.HandIndex >= 0
             && action.HandIndex < state.Hand.Count) {
+            var card = state.Hand[action.HandIndex];
             baseScore += AttackerKillPriority.OpenerBonus(state, action);
-            baseScore -= AttackerKillPriority.SetupOpenerPenalty(state, state.Hand[action.HandIndex]);
+            baseScore -= AttackerKillPriority.SetupOpenerPenalty(state, card);
         }
         return SimMoveScoring.WithModifiers(state, action, baseScore, rootSnapshot);
     }
 
     public static CombatLineOutcome WipeOutcome(CombatState state) =>
-        new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, state.PlayerHp, 0);
+        new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, state.PlayerHp, 0);
 
     static int CompareLineOutcome(CombatLineOutcome without, CombatLineOutcome with) =>
         CompareLines(without, with);
@@ -204,26 +217,47 @@ internal static class CombatSetupEvaluator {
             ? GreedyAttackFocusIndex(midTurn)
             : PrimaryAttackTargetIndex(midTurn);
         var focusMid = midTurn.Enemies.FirstOrDefault(e => e.IsAlive && e.Index == focusIdx);
+        int rawEnemyHp = afterTurn.Enemies.Where(e => e.IsAlive).Sum(e => e.CurrentHp);
+        int comboEnemyCredit = InfernoComboEnemyHpCredit(midTurn);
+        int focusHp = focusMid?.CurrentHp ?? 0;
+        if (comboEnemyCredit > 0)
+            focusHp = Math.Max(0, focusHp - comboEnemyCredit);
         return new CombatLineOutcome(
             EffectiveIncomingForLine(midTurn),
             ThreatModel.PressureAtIntentStepKillAdjusted(afterTurn, 0, afterDrawTurnStart: true),
             ThreatModel.PressureAtIntentStep(afterTurn, 1),
             ThreatModel.PressureAtIntentStep(afterTurn, 2),
             DeckPollutionEvaluator.EffectivePollutionBurden(afterTurn),
-            focusMid?.CurrentHp ?? 0,
-            afterTurn.Enemies.Where(e => e.IsAlive).Sum(e => e.CurrentHp),
+            focusHp,
+            Math.Max(0, rawEnemyHp - comboEnemyCredit),
             VulnerableOutlookEvaluator.Estimate(afterTurn),
             WeakMitigationEvaluator.Estimate(afterTurn),
+            0,
             PileRhythmEvaluator.DrawPileOutlook(afterTurn),
-            afterTurn.PlayerHp,
+            afterTurn.PlayerHp + InfernoLinePlayerHpCredit(afterTurn),
             potionRetainCost);
     }
 
-    /// <summary>Chip damage ignored when a secure-kill line exists (matches BlockDefensePolicy).</summary>
+    /// <summary>PackLineScore weights player HP heavily; credit inferno turn-start AOE trades on multi-target turns.</summary>
+    static int InfernoLinePlayerHpCredit(CombatState afterTurn) {
+        var buffs = afterTurn.Buffs;
+        if (buffs.InfernoRetaliation <= 0 || buffs.TurnStartSelfDamage <= 0)
+            return 0;
+
+        int enemies = ThreatModel.EffectiveAoeEnemyCount(afterTurn);
+        if (enemies < 2)
+            return 0;
+
+        int tradeValue = buffs.InfernoRetaliation * enemies;
+        if (tradeValue < buffs.TurnStartSelfDamage * InfernoMultiTargetTradeMinRatio)
+            return 0;
+
+        return buffs.TurnStartSelfDamage;
+    }
+
+    /// <summary>Net unblocked damage at end of the player line — always penalized in beam scoring.</summary>
     static int EffectiveIncomingForLine(CombatState midTurn) {
         if (midTurn.AliveEnemyCount == 0)
-            return 0;
-        if (BlockDefensePolicy.CanSkipBlockForKill(midTurn))
             return 0;
         return ThreatModel.NetDamageAfterBlock(midTurn);
     }
@@ -283,7 +317,7 @@ internal static class CombatSetupEvaluator {
         if (BlockDefensePolicy.NeedsBlock(s))
             s = SimulateGreedyBlock(s, excludeHandIndex);
 
-        if (s.Buffs.InfernoRetaliation > 0 && s.AliveEnemyCount >= 2)
+        if (s.Buffs.InfernoRetaliation > 0 && ThreatModel.EffectiveAoeEnemyCount(s) >= 2)
             s = SimulateGreedyInfernoHpLoss(s, excludeHandIndex);
 
         s = SimulateGreedyAttacks(s, excludeHandIndex);
@@ -314,19 +348,37 @@ internal static class CombatSetupEvaluator {
                     continue;
                 if (card.Profile.HpLoss <= 0)
                     continue;
-                if (card.IsAttack && card.Damage > 0)
-                    continue;
 
                 int loss = card.Profile.HpLoss;
                 if (loss >= ThreatModel.EffectiveHp(s))
                     continue;
 
-                var next = CombatSimulator.Apply(s, new SimCombatAction(SimActionKind.PlayCard, i, -1));
-                int enemyHp = AliveEnemyHp(next);
-                int score = ScoreMidTurn(next);
-                if (enemyHp < bestEnemyHp || (enemyHp == bestEnemyHp && score > bestScore)) {
-                    bestEnemyHp = enemyHp;
-                    bestScore = score;
+                if (card.IsAttack && card.Damage > 0) {
+                    foreach (var enemy in OrderEnemiesForGreedyAttacks(s)) {
+                        int dmg = CombatDamageCalc.OutgoingDamage(card, s, enemy.Vulnerable);
+                        if (dmg <= 0)
+                            continue;
+
+                        var action = new SimCombatAction(SimActionKind.PlayCard, i, enemy.Index);
+                        var next = CombatSimulator.Apply(s, action);
+                        int enemyHp = AliveEnemyHp(next);
+                        int score = ScoreMidTurn(next);
+                        if (enemyHp < bestEnemyHp || (enemyHp == bestEnemyHp && score > bestScore)) {
+                            bestEnemyHp = enemyHp;
+                            bestScore = score;
+                            bestAction = action;
+                        }
+                    }
+
+                    continue;
+                }
+
+                var skillNext = CombatSimulator.Apply(s, new SimCombatAction(SimActionKind.PlayCard, i, -1));
+                int skillEnemyHp = AliveEnemyHp(skillNext);
+                int skillScore = ScoreMidTurn(skillNext);
+                if (skillEnemyHp < bestEnemyHp || (skillEnemyHp == bestEnemyHp && skillScore > bestScore)) {
+                    bestEnemyHp = skillEnemyHp;
+                    bestScore = skillScore;
                     bestAction = new SimCombatAction(SimActionKind.PlayCard, i, -1);
                 }
             }
@@ -502,34 +554,15 @@ internal static class CombatSetupEvaluator {
 
     /// <summary>Inferno + same-turn self-damage combo available but not opened yet.</summary>
     public static int ComputeInfernoComboDebt(CombatState state) {
-        int infernoIdx = -1;
-        for (int i = 0; i < state.Hand.Count; i++) {
-            var card = state.Hand[i];
-            if (!PlayerPowerSimulator.InstallsInferno(card.Profile)) continue;
-            if (!card.CanPlay || !CombatCardCost.CanAfford(card, state)) continue;
-            infernoIdx = i;
-            break;
-        }
-
-        if (infernoIdx < 0)
+        if (!TryFindAffordableInferno(state, out int infernoIdx, out var inferno))
             return 0;
 
-        var inferno = state.Hand[infernoIdx];
         int energyAfter = state.Energy - CombatCardCost.EffectiveCost(inferno, state);
-        bool hasCombo = false;
-        for (int i = 0; i < state.Hand.Count; i++) {
-            if (i == infernoIdx) continue;
-            var card = state.Hand[i];
-            if (card.Profile.HpLoss <= 0) continue;
-            if (!card.CanPlay || card.Cost > energyAfter) continue;
-            hasCombo = true;
-            break;
-        }
-
-        if (!hasCombo)
+        if (!HasAffordableHpLossPartner(state, infernoIdx, energyAfter, handOnly: false))
             return 0;
 
-        return 10 + Math.Max(inferno.Profile.InstallAmount(PlayerPowerEffectKind.InfernoRetaliate), 6) * state.AliveEnemyCount;
+        int enemies = ThreatModel.EffectiveAoeEnemyCount(state);
+        return 10 + Math.Max(inferno.Profile.InstallAmount(PlayerPowerEffectKind.InfernoRetaliate), 6) * enemies;
     }
 
     /// <summary>Beam tie-break: prefer Inferno before same-turn self-damage triggers.</summary>
@@ -543,29 +576,182 @@ internal static class CombatSetupEvaluator {
 
         int install = Math.Max(inferno.Profile.InstallAmount(PlayerPowerEffectKind.InfernoRetaliate), 6);
         int retaliation = state.Buffs.InfernoRetaliation + install;
-        int enemies = Math.Max(1, state.AliveEnemyCount);
+        int enemies = ThreatModel.EffectiveAoeEnemyCount(state);
         int energyAfter = state.Energy - CombatCardCost.EffectiveCost(inferno, state);
 
-        int bestCombo = 0;
-        for (int i = 0; i < state.Hand.Count; i++) {
-            if (i == infernoHandIndex) continue;
-            var card = state.Hand[i];
-            if (card.Profile.HpLoss <= 0) continue;
-            if (!card.CanPlay || card.Cost > energyAfter) continue;
-
-            int combo = retaliation * enemies;
-            if (card.IsAttack && card.Damage > 0) {
-                var target = state.Enemies.FirstOrDefault(e => e.IsAlive);
-                combo += CombatDamageCalc.OutgoingDamage(card, state, target?.Vulnerable ?? 0);
-            }
-
-            bestCombo = Math.Max(bestCombo, combo);
-        }
+        int bestCombo = BestHandHpLossComboValue(state, infernoHandIndex, retaliation, enemies, energyAfter);
+        if (bestCombo <= 0)
+            bestCombo = BestPileHpLossComboValue(state, retaliation, enemies, energyAfter);
 
         if (bestCombo > 0)
             return bestCombo;
 
         return install * enemies / 4;
+    }
+
+    static bool TryFindAffordableInferno(CombatState state, out int infernoIdx, out CombatHandCard inferno) {
+        for (int i = 0; i < state.Hand.Count; i++) {
+            var card = state.Hand[i];
+            if (!PlayerPowerSimulator.InstallsInferno(card.Profile)) continue;
+            if (!card.CanPlay || !CombatCardCost.CanAfford(card, state)) continue;
+            infernoIdx = i;
+            inferno = card;
+            return true;
+        }
+
+        infernoIdx = -1;
+        inferno = null!;
+        return false;
+    }
+
+    static bool HasAffordableHpLossPartner(
+        CombatState state,
+        int infernoIdx,
+        int energyAfter,
+        bool handOnly) {
+        for (int i = 0; i < state.Hand.Count; i++) {
+            if (i == infernoIdx) continue;
+            var card = state.Hand[i];
+            if (card.Profile.HpLoss <= 0) continue;
+            if (!card.CanPlay || card.Cost > energyAfter) continue;
+            return true;
+        }
+
+        if (handOnly)
+            return false;
+
+        foreach (var pileCard in DrawPlanner.PeekTop(state, DrawPlanner.DefaultPeekCount)) {
+            if (!CardMechanicIndex.TryGet(pileCard.Id, out var profile) || profile.HpLoss <= 0)
+                continue;
+            if (CombatDamageCalc.PlanningCost(pileCard, state.Modifiers, energyAfter) > energyAfter)
+                continue;
+            return true;
+        }
+
+        foreach (var pileCard in state.DiscardPile) {
+            if (!CardMechanicIndex.TryGet(pileCard.Id, out var profile) || profile.HpLoss <= 0)
+                continue;
+            if (CombatDamageCalc.PlanningCost(pileCard, state.Modifiers, energyAfter) > energyAfter)
+                continue;
+            return true;
+        }
+
+        return false;
+    }
+
+    static int BestHandHpLossComboValue(
+        CombatState state,
+        int infernoIdx,
+        int retaliation,
+        int enemies,
+        int energyAfter) {
+        int bestCombo = 0;
+        for (int i = 0; i < state.Hand.Count; i++) {
+            if (i == infernoIdx) continue;
+            var card = state.Hand[i];
+            if (card.Profile.HpLoss <= 0) continue;
+            if (!card.CanPlay || card.Cost > energyAfter) continue;
+            bestCombo = Math.Max(bestCombo, HpLossComboDamage(card, state, retaliation, enemies));
+        }
+
+        return bestCombo;
+    }
+
+    static int BestPileHpLossComboValue(
+        CombatState state,
+        int retaliation,
+        int enemies,
+        int energyAfter) {
+        int bestCombo = 0;
+
+        foreach (var pileCard in DrawPlanner.PeekTop(state, DrawPlanner.DefaultPeekCount)) {
+            if (!CardMechanicIndex.TryGet(pileCard.Id, out var profile) || profile.HpLoss <= 0)
+                continue;
+            if (CombatDamageCalc.PlanningCost(pileCard, state.Modifiers, energyAfter) > energyAfter)
+                continue;
+
+            int combo = retaliation * enemies * 3 / 5;
+            if (profile.Damage is > 0)
+                combo += profile.Damage.Value * 3 / 5;
+            bestCombo = Math.Max(bestCombo, combo);
+        }
+
+        foreach (var pileCard in state.DiscardPile) {
+            if (!CardMechanicIndex.TryGet(pileCard.Id, out var profile) || profile.HpLoss <= 0)
+                continue;
+            if (CombatDamageCalc.PlanningCost(pileCard, state.Modifiers, energyAfter) > energyAfter)
+                continue;
+
+            int combo = retaliation * enemies / 3;
+            if (profile.Damage is > 0)
+                combo += profile.Damage.Value / 3;
+            bestCombo = Math.Max(bestCombo, combo);
+        }
+
+        return bestCombo;
+    }
+
+    static int HpLossComboDamage(CombatHandCard card, CombatState state, int retaliation, int enemies) {
+        int combo = retaliation * enemies;
+        if (card.IsAttack && card.Damage > 0) {
+            var target = state.Enemies.FirstOrDefault(e => e.IsAlive);
+            combo += CombatDamageCalc.OutgoingDamage(card, state, target?.Vulnerable ?? 0);
+        }
+
+        return combo;
+    }
+
+    /// <summary>Greedy sim only plays hand hp-loss; pile partners count as enemy HP reduction (CompareLines ranks this before InfernoOutlook).</summary>
+    static int InfernoComboEnemyHpCredit(CombatState midTurn) {
+        if (midTurn.Buffs.InfernoRetaliation <= 0)
+            return 0;
+
+        int enemies = ThreatModel.EffectiveAoeEnemyCount(midTurn);
+        if (enemies < 2)
+            return 0;
+
+        if (HasAffordableHpLossPartner(midTurn, -1, midTurn.Energy, handOnly: true))
+            return 0;
+
+        if (!HasAffordableHpLossPartner(midTurn, -1, midTurn.MaxEnergy, handOnly: false))
+            return 0;
+
+        int retaliation = Math.Max(midTurn.Buffs.InfernoRetaliation, 6);
+        return BestPileHpLossComboDamage(midTurn, retaliation, enemies, midTurn.MaxEnergy);
+    }
+
+    static int BestPileHpLossComboDamage(
+        CombatState state,
+        int retaliation,
+        int enemies,
+        int planningEnergy) {
+        int best = 0;
+
+        foreach (var pileCard in DrawPlanner.PeekTop(state, DrawPlanner.DefaultPeekCount)) {
+            if (!CardMechanicIndex.TryGet(pileCard.Id, out var profile) || profile.HpLoss <= 0)
+                continue;
+            if (CombatDamageCalc.PlanningCost(pileCard, state.Modifiers, planningEnergy) > planningEnergy)
+                continue;
+
+            int combo = retaliation * enemies;
+            if (profile.Damage is > 0)
+                combo += profile.Damage.Value;
+            best = Math.Max(best, combo);
+        }
+
+        foreach (var pileCard in state.DiscardPile) {
+            if (!CardMechanicIndex.TryGet(pileCard.Id, out var profile) || profile.HpLoss <= 0)
+                continue;
+            if (CombatDamageCalc.PlanningCost(pileCard, state.Modifiers, planningEnergy) > planningEnergy)
+                continue;
+
+            int combo = retaliation * enemies;
+            if (profile.Damage is > 0)
+                combo += profile.Damage.Value;
+            best = Math.Max(best, combo / 2);
+        }
+
+        return best;
     }
 
     /// <summary>Threat-ordered enemies for focus fire (future peak threat and HP over this-turn poke).</summary>

@@ -1,6 +1,7 @@
 using System;
 using System.Text.Json.Nodes;
 using DevMode.AI.Knowledge;
+using DevMode.AI.Planning;
 
 namespace DevMode.AI.AutoPlay.Scoring;
 
@@ -23,6 +24,7 @@ public static class PotionInventoryScorer {
         if (snapshot["hasOpenPotionSlots"]?.GetValue<bool>() == false)
             score += 2;
 
+        score += DeckSynergyBonus(category, id, DeckPlanInferer.Infer(snapshot));
         return score;
     }
 
@@ -85,5 +87,32 @@ public static class PotionInventoryScorer {
         var hp = snapshot["currentHp"]?.GetValue<int>() ?? 0;
         var maxHp = snapshot["maxHp"]?.GetValue<int>() ?? 1;
         return maxHp > 0 ? (float)hp / maxHp : 1f;
+    }
+
+    static int DeckSynergyBonus(PotionCategory category, string potionId, DeckPlan plan) =>
+        category switch {
+            PotionCategory.Buff => (int)Math.Round(plan.GetWeight(AiTag.Scaling) * 10f),
+            PotionCategory.Debuff => (int)Math.Round(plan.GetWeight(AiTag.Attack) * 8f),
+            PotionCategory.Block => (int)Math.Round(plan.GetWeight(AiTag.Block) * 8f),
+            PotionCategory.Draw => (int)Math.Round(plan.GetWeight(AiTag.Draw) * 8f),
+            PotionCategory.Energy => (int)Math.Round(
+                Math.Max(plan.GetWeight(AiTag.Energy), plan.GetWeight(AiTag.Draw) * 0.6f) * 10f),
+            PotionCategory.DamageSingle => (int)Math.Round(plan.GetWeight(AiTag.Attack) * 8f),
+            PotionCategory.DamageAoE => (int)Math.Round(
+                plan.GetWeight(AiTag.Aoe) * 8f + plan.GetWeight(AiTag.Attack) * 4f),
+            PotionCategory.Random => RandomPoolSynergy(potionId, plan),
+            PotionCategory.Heal => (int)Math.Round(plan.GetWeight(AiTag.Block) * 3f),
+            _ => 0,
+        };
+
+    static int RandomPoolSynergy(string potionId, DeckPlan plan) {
+        var upper = potionId.ToUpperInvariant();
+        if (upper.Contains("ATTACK"))
+            return (int)Math.Round(plan.GetWeight(AiTag.Attack) * 8f);
+        if (upper.Contains("POWER"))
+            return (int)Math.Round(plan.GetWeight(AiTag.Scaling) * 8f);
+        if (upper.Contains("SKILL"))
+            return (int)Math.Round(plan.GetWeight(AiTag.Block) * 4f + plan.GetWeight(AiTag.Draw) * 4f);
+        return (int)Math.Round(plan.GetWeight(AiTag.Draw) * 6f);
     }
 }
