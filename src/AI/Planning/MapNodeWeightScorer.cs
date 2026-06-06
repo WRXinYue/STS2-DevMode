@@ -65,10 +65,15 @@ public static class MapNodeWeightScorer {
     }
 
     static int ScoreRest(MapRouteContext ctx) {
-        if (ctx.HpRatio < 0.55f) return 38;
-        if (ctx.HpRatio < 0.75f) return 22;
-        if (ctx.Metrics.MeanValue >= 10f) return 10;
-        return 4;
+        int score = ctx.HpRatio switch {
+            < 0.55f => 38,
+            < 0.75f => 22,
+            _ when ctx.Metrics.MeanValue >= 10f => 10,
+            _ => 4,
+        };
+
+        score += MapUpgradeEvaluator.RestRouteBonus(ctx);
+        return score;
     }
 
     static int ScoreShop(MapRouteContext ctx) {
@@ -105,12 +110,17 @@ public static class MapNodeWeightScorer {
     static int ScoreEvent(MapRouteContext ctx) {
         int score = 12;
         score += (int)(ctx.Plan.ThinPreference * 8f);
+        if (ctx.BestUpgradeScore >= MapUpgradeEvaluator.StrongUpgradeThreshold && ctx.HpRatio >= 0.55f)
+            score -= 6;
         return score;
     }
 
     static int ScoreUnknown(MapRouteContext ctx) {
         int monster = ScoreMonster(ctx);
         int evt = ScoreEvent(ctx);
-        return (int)(monster * 0.7f + evt * 0.3f);
+        int score = (int)(monster * 0.7f + evt * 0.3f);
+        if (ctx.BestUpgradeScore >= MapUpgradeEvaluator.CriticalUpgradeThreshold && ctx.HpRatio >= 0.6f)
+            score -= 8;
+        return score;
     }
 }

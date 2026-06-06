@@ -22,6 +22,7 @@ public static class RestScorer {
         var hpRatio = maxHp > 0 ? (float)hp / maxHp : 1f;
         var plan = DeckPlanInferer.Infer(snapshot);
         var metrics = DeckEvaluator.Evaluate(snapshot, plan);
+        var upgradeScore = MapUpgradeEvaluator.BestDeckUpgradeScore(snapshot, plan);
         var eliteAhead = NextNodeIsElite();
         var pathPressure = HasPathSurvivalPressure(metrics);
 
@@ -62,11 +63,13 @@ public static class RestScorer {
             }
         }
 
-        if (smithIdx >= 0 && HasUpgradeTarget(snapshot, plan) && hpRatio >= 0.75f && !eliteAhead) {
+        if (smithIdx >= 0 && ShouldSmith(snapshot, plan, hpRatio, eliteAhead, upgradeScore)) {
             return new GameAction {
                 Type = ActionType.UpgradeCard,
                 TargetIndex = smithIdx,
-                Reason = "Open smith to upgrade",
+                Reason = upgradeScore >= MapUpgradeEvaluator.StrongUpgradeThreshold
+                    ? $"Smith priority upgradeScore={upgradeScore} HP {hp}/{maxHp}"
+                    : "Open smith to upgrade",
             };
         }
 
@@ -137,6 +140,24 @@ public static class RestScorer {
                 return opt["index"]?.GetValue<int>() ?? i;
         }
         return -1;
+    }
+
+    static bool ShouldSmith(
+        JsonObject snapshot,
+        DeckPlan plan,
+        float hpRatio,
+        bool eliteAhead,
+        int upgradeScore) {
+        if (!HasUpgradeTarget(snapshot, plan))
+            return false;
+
+        if (upgradeScore >= MapUpgradeEvaluator.CriticalUpgradeThreshold)
+            return hpRatio >= 0.6f && (!eliteAhead || hpRatio >= 0.8f);
+
+        if (upgradeScore >= MapUpgradeEvaluator.StrongUpgradeThreshold)
+            return hpRatio >= 0.65f && (!eliteAhead || hpRatio >= 0.85f);
+
+        return hpRatio >= 0.75f && !eliteAhead;
     }
 
     static bool HasUpgradeTarget(JsonObject snapshot, DeckPlan plan) {

@@ -21,7 +21,7 @@ public static class MapScorer {
                     TargetIndex = plan.NextChildIndex,
                     Reason = $"Map → {type} score={plan.PathScore} path={plan.Summary} "
                         + $"risk={plan.PathRiskAtNext} fightsToRest={plan.CombatsToRestAtNext:0.#} "
-                        + $"blockDef={routeCtx.Metrics.BlockDeficit}",
+                        + $"blockDef={routeCtx.Metrics.BlockDeficit} upgrade={routeCtx.BestUpgradeScore}",
                 };
             }
         }

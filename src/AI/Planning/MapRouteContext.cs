@@ -10,7 +10,8 @@ public sealed record MapRouteContext(
     int Ascension,
     DeckPlan Plan,
     DeckMetrics Metrics,
-    bool WantsShopRemoval
+    bool WantsShopRemoval,
+    int BestUpgradeScore
 ) {
     public static MapRouteContext FromSnapshot(JsonObject snapshot) {
         var plan = DeckPlanInferer.Infer(snapshot);
@@ -18,6 +19,7 @@ public sealed record MapRouteContext(
         var hp = snapshot["currentHp"]?.GetValue<int>() ?? 0;
         var maxHp = snapshot["maxHp"]?.GetValue<int>() ?? 1;
         var gold = snapshot["gold"]?.GetValue<int>() ?? 0;
+        var upgradeScore = MapUpgradeEvaluator.BestDeckUpgradeScore(snapshot, plan);
 
         return new MapRouteContext(
             maxHp > 0 ? (float)hp / maxHp : 1f,
@@ -29,6 +31,7 @@ public sealed record MapRouteContext(
             metrics,
             metrics.RemovalUplift >= DeckEvaluator.MinRemovalUplift && gold >= 75
             || metrics.StrikeSurplus >= 2
-            || metrics.CardsNeedingBurn >= 4);
+            || metrics.CardsNeedingBurn >= 4,
+            upgradeScore);
     }
 }
