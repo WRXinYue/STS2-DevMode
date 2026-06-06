@@ -26,6 +26,10 @@ internal static class PotionLineCost {
         if (!PotionCombatEffectData.TryGetProfile(potionId, out var profile))
             return 0;
 
+        if (profile.Effects.Any(e => e.Kind == PotionCombatEffectKind.GainEnergy)
+            && !CombatCardCost.HasAffordablePlay(lineStart))
+            return 60;
+
         if (!profile.Effects.Any(e =>
                 e.Kind == PotionCombatEffectKind.ApplyWeak
                 || e.Kind == PotionCombatEffectKind.ApplyVulnerable))

@@ -98,6 +98,25 @@ internal static class PotionUseScoring {
             EstimateLethalGap(snapshot, maxOffense));
     }
 
+    /// <summary>Energy potions are wasted when no hand card can use the gained energy this turn.</summary>
+    public static bool IsEnergyPotionLowValue(CombatState state, PotionCombatProfile profile) {
+        int gain = 0;
+        foreach (var effect in profile.Effects) {
+            if (effect.Kind == PotionCombatEffectKind.GainEnergy)
+                gain += Math.Max(1, effect.Amount);
+        }
+
+        return gain > 0 && !EnergyGainEnablesPlay(state, gain);
+    }
+
+    public static bool EnergyGainEnablesPlay(CombatState state, int gain) {
+        if (gain <= 0)
+            return false;
+
+        var withEnergy = state with { Energy = Math.Min(999, state.Energy + gain) };
+        return CombatCardCost.HasAffordablePlay(withEnergy);
+    }
+
     /// <summary>Weak/vulnerable potions are wasted when the current enemy intent is not an attack.</summary>
     public static bool IsAttackDebuffLowValue(CombatState state, PotionCombatProfile profile) {
         bool appliesDebuff = profile.Effects.Any(e =>
@@ -128,7 +147,7 @@ internal static class PotionUseScoring {
 
                 case PotionCombatEffectKind.GainEnergy:
                     blockOnly = false;
-                    score += ScoreEnergyEffect(ctx);
+                    score += ScoreEnergyEffect(ctx, state, Math.Max(1, effect.Amount));
                     break;
 
                 case PotionCombatEffectKind.DrawCards:
@@ -304,10 +323,12 @@ internal static class PotionUseScoring {
         return score;
     }
 
-    static int ScoreEnergyEffect(Context ctx) {
+    static int ScoreEnergyEffect(Context ctx, CombatState? state = null, int gain = 2) {
         if (ctx.Energy >= ctx.MaxEnergy)
             return 0;
-        if (!ctx.CanLethal && ctx.MinPlayableCost > ctx.Energy && ctx.MinPlayableCost <= ctx.Energy + 2)
+        if (state != null && !EnergyGainEnablesPlay(state, gain))
+            return ScoreSlotClearBonus(ctx) > 0 ? ScoreSlotClearBonus(ctx) / 2 : 0;
+        if (!ctx.CanLethal && ctx.MinPlayableCost > ctx.Energy && ctx.MinPlayableCost <= ctx.Energy + gain)
             return 35;
         if (ctx.CanLethal) return 10;
         return 20;

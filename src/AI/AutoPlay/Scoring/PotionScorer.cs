@@ -71,6 +71,8 @@ public static class PotionScorer {
                     continue;
                 if (PotionUseScoring.IsAttackDebuffLowValue(state, profile))
                     continue;
+                if (PotionUseScoring.IsEnergyPotionLowValue(state, profile))
+                    continue;
 
                 int enemyIndex = NeedsEnemyTarget(profile.TargetType)
                     ? CombatSetupEvaluator.PrimaryAttackTargetIndex(state)

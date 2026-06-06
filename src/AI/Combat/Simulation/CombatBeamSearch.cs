@@ -57,6 +57,10 @@ public static class CombatBeamSearch {
                 if (sw.ElapsedMilliseconds >= config.TimeBudgetMs)
                     break;
 
+                if (node.State.Energy <= 0 || !CombatCardCost.HasAffordablePlay(node.State))
+                    ConsiderLeaf(root, node.State, node.Path, depth, rootSnapshot,
+                        ref bestPath, ref bestOutcome, ref bestDepth);
+
                 foreach (var action in LegalActionGenerator.GenerateOrdered(
                     node.State, config.MaxActionsPerNode, rootSnapshot)) {
                     if (action.Kind == SimActionKind.EndTurn)
