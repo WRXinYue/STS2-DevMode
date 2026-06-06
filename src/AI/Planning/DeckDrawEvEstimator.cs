@@ -50,7 +50,7 @@ public static class DeckDrawEvEstimator {
         }
 
         int n = sampleCount;
-        return new TurnOneMetrics(
+        var result = new TurnOneMetrics(
             (int)(beamTotal / n),
             (int)(maxDamageTotal / n),
             (int)(blockTotal / n),
@@ -58,6 +58,7 @@ public static class DeckDrawEvEstimator {
             (int)(blockGapTotal / n),
             lethalCount >= n / 2,
             (int)(nonDamageTotal / n));
+        return result;
     }
 
     public static TurnOneMetrics EstimateSingle(CombatState state, int incoming) {

@@ -71,34 +71,31 @@ public static class CombatPlanner {
         if (path.Count == 0)
             return "LINE=naked-end";
 
-        var parts = new List<string>(path.Count);
+        var parts = new List<string>(Math.Min(path.Count, 5));
+        var s = state;
         foreach (var action in path.Take(5)) {
-            if (action.Kind == SimActionKind.EndTurn) {
-                parts.Add("EndTurn");
-                continue;
-            }
-
-            if (action.Kind == SimActionKind.UsePotion) {
-                var label = FormatPotionLabel(state, action);
-                parts.Add(label);
-                continue;
-            }
-
-            if (action.HandIndex < 0 || action.HandIndex >= state.Hand.Count) {
-                parts.Add("?");
-                continue;
-            }
-
-            var card = state.Hand[action.HandIndex];
-            parts.Add(action.EnemyIndex >= 0
-                ? $"{card.Id}→e{action.EnemyIndex}"
-                : card.Id);
+            parts.Add(FormatBeamStep(s, action));
+            s = CombatSimulator.Apply(s, action);
         }
 
         var line = string.Join(">", parts);
         if (path.Count > 5)
             line += $">...+{path.Count - 5}";
         return $"LINE={line}";
+    }
+
+    static string FormatBeamStep(CombatState state, SimCombatAction action) {
+        if (action.Kind == SimActionKind.EndTurn)
+            return "EndTurn";
+        if (action.Kind == SimActionKind.UsePotion)
+            return FormatPotionLabel(state, action);
+        if (action.HandIndex < 0 || action.HandIndex >= state.Hand.Count)
+            return "?";
+
+        var card = state.Hand[action.HandIndex];
+        return action.EnemyIndex >= 0
+            ? $"{card.Id}→e{action.EnemyIndex}"
+            : card.Id;
     }
 
     static string FormatPotionLabel(CombatState state, SimCombatAction action) {

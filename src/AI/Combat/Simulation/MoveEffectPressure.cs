@@ -110,22 +110,34 @@ public static class MoveEffectPressure {
     }
 
     static int StealPressure(CombatState state) {
-        int before = DeckPollutionEvaluator.ExpectedPlayableDamage(state);
+        // Vuln-aware ExpectedPlayableDamage re-enters focus threat scoring — use flat hand damage here.
+        int before = HandAttackDamage(state);
         var draw = state.DrawPile.ToList();
         var discard = state.DiscardPile.ToList();
         (draw, discard) = StealEffectSimulator.Apply(draw, discard);
         var after = state with { DrawPile = draw, DiscardPile = discard };
-        return Math.Max(0, before - DeckPollutionEvaluator.ExpectedPlayableDamage(after));
+        return Math.Max(0, before - HandAttackDamage(after));
     }
 
     static int ModifierPressure(CombatState state, MonsterMoveEffect effect) {
-        int beforeDamage = DeckPollutionEvaluator.ExpectedPlayableDamage(state);
+        int beforeDamage = HandAttackDamage(state);
         int beforeBlock = DeckPollutionEvaluator.ExpectedPlayableBlock(state);
         var modifier = PlayerCombatModifierRegistry.FromMoveEffect(effect);
         var after = state with { Modifiers = state.Modifiers.Append(modifier).ToList() };
-        int lostDamage = beforeDamage - DeckPollutionEvaluator.ExpectedPlayableDamage(after);
+        int lostDamage = beforeDamage - HandAttackDamage(after);
         int lostBlock = beforeBlock - DeckPollutionEvaluator.ExpectedPlayableBlock(after);
         return Math.Max(0, lostDamage + lostBlock);
+    }
+
+    static int HandAttackDamage(CombatState state) {
+        int total = 0;
+        foreach (var card in state.Hand) {
+            if (!card.IsAttack || card.Damage <= 0) continue;
+            if (!CombatCardCost.CanAfford(card, state)) continue;
+            total += CombatDamageCalc.OutgoingDamage(card, state, vulnerableOnTarget: 0);
+        }
+
+        return total;
     }
 
     static int SummonPressure(CombatState state, string? spawnMonsterId, int depth) {

@@ -16,6 +16,13 @@ public static class ThreatModel {
         return focus?.CurrentHp ?? 0;
     }
 
+    /// <summary>Vulnerable stacks on the current focus target for offensive EV estimates.</summary>
+    public static int FocusVulnerableStacks(CombatState state) {
+        int focusIndex = CombatSetupEvaluator.PrimaryAttackTargetIndex(state);
+        var focus = state.Enemies.FirstOrDefault(e => e.IsAlive && e.Index == focusIndex);
+        return focus?.Vulnerable ?? 0;
+    }
+
     /// <summary>Mid-turn greedy tie-break aligned with <see cref="CombatSetupEvaluator.CompareLines"/>.</summary>
     public static int MidTurnScore(CombatState state, int focusIndex) {
         var afterPhase = CombatTurnResolver.ProjectAfterEnemyPhase(state);
@@ -27,6 +34,8 @@ public static class ThreatModel {
             DeckPollutionEvaluator.EffectivePollutionBurden(state),
             FocusHp(state, focusIndex),
             state.Enemies.Where(e => e.IsAlive).Sum(e => e.EffectiveHp),
+            VulnerableOutlookEvaluator.Estimate(state),
+            PileRhythmEvaluator.DrawPileOutlook(state),
             state.PlayerHp));
     }
 
@@ -129,11 +138,13 @@ public static class ThreatModel {
         if (afterDrawTurnStart)
             return DeckPollutionEvaluator.ExpectedPlayableDamage(state);
 
-        return EstimateRemainingTurnDamage(state)
+        int vuln = FocusVulnerableStacks(state);
+        return EstimateRemainingTurnDamage(state, vuln)
             + DrawPlanner.ExpectedDrawnDamage(
                 state,
                 RelicCombatRules.PlannedHandDraw(state),
-                state.MaxEnergy);
+                state.MaxEnergy,
+                vuln);
     }
 
     /// <summary>Block playable before enemies execute intentSteps[0].</summary>
@@ -148,7 +159,8 @@ public static class ThreatModel {
                 state.MaxEnergy);
     }
 
-    public static int EstimateRemainingTurnDamage(CombatState state) {
+    public static int EstimateRemainingTurnDamage(CombatState state, int vulnerableOnFocus = -1) {
+        int vuln = vulnerableOnFocus >= 0 ? vulnerableOnFocus : FocusVulnerableStacks(state);
         int total = 0;
         int energy = state.Energy;
         foreach (var card in state.Hand.OrderByDescending(c => c.Damage)) {
@@ -162,7 +174,7 @@ public static class ThreatModel {
                 continue;
 
             energy -= cost;
-            total += CombatDamageCalc.OutgoingDamage(card, state);
+            total += CombatDamageCalc.OutgoingDamage(card, state, vuln);
         }
 
         return total;

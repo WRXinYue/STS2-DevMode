@@ -200,8 +200,9 @@ internal static class CombatPileSimulator {
         return (uint)StringHelper.GetDeterministicHashCode(string.Join(";", parts));
     }
 
-    internal static CombatHandCard PileToHand(CombatPileCard card, int index) =>
-        new(
+    internal static CombatHandCard PileToHand(CombatPileCard card, int index) {
+        var json = card.ToJson();
+        return new(
             index,
             card.Id,
             card.Name,
@@ -211,8 +212,10 @@ internal static class CombatPileSimulator {
             card.CardType,
             "",
             CanPlay: !card.IsStatus || card.Damage > 0 || card.Block > 0,
-            CardMechanicIndex.InferFromSnapshot(card.ToJson()),
+            CardMechanicIndex.InferFromSnapshot(json),
             false,
             card.HasRetain,
-            card.HasExhaust);
+            card.HasExhaust,
+            CombatCardStats.ResolveHitCount(json));
+    }
 }

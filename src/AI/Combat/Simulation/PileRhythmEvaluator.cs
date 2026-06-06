@@ -9,7 +9,8 @@ public static class PileRhythmEvaluator {
         if (deck <= 0) return 0;
 
         int horizon = Math.Min(10, deck);
-        int damage = DrawPlanner.ExpectedDrawnDamage(state, horizon, state.MaxEnergy);
+        int damage = DrawPlanner.ExpectedDrawnDamage(
+            state, horizon, state.MaxEnergy, ThreatModel.FocusVulnerableStacks(state));
         int block = DrawPlanner.ExpectedDrawnBlock(state, horizon, state.MaxEnergy);
         int pollution = DeckPollutionEvaluator.JunkCount(state) * 2;
 

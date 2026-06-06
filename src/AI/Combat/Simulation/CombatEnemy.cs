@@ -59,4 +59,11 @@ public sealed record CombatEnemy(
             NonDamageThreat = 0,
         };
 
+    /// <summary>End-of-round debuff tick before the next player turn.</summary>
+    public CombatEnemy TickDownDebuffs() =>
+        this with {
+            Vulnerable = Math.Max(0, Vulnerable - 1),
+            Weak = Math.Max(0, Weak - 1),
+        };
+
 }

@@ -18,7 +18,10 @@ public sealed record CardMechanicProfile(
     string CardType,
     IReadOnlyList<AiTag> DerivedTags,
     int AppliedVulnerable = 0,
-    int AppliedWeak = 0);
+    int AppliedWeak = 0,
+    int AttackHitCount = 1,
+    bool CostsEnergyX = false,
+    bool AttackHitsScaleWithEnergy = false);
 
 /// <summary>Indexes official card mechanics from <see cref="ModelDb.AllCards"/> at startup.</summary>
 public static class CardMechanicIndex {
@@ -75,6 +78,7 @@ public static class CardMechanicIndex {
         flags |= OfficialMechanicProbe.AnalyzeTokenBlob(id ?? "");
 
         var cost = card["cost"]?.GetValue<int>() ?? 1;
+        var costsEnergyX = card["costsX"]?.GetValue<bool>() == true;
         var derived = CardTagRules.InferTagsFromSnapshot(id, cardType, keywords);
         return new CardMechanicProfile(
             id ?? "",
@@ -84,7 +88,8 @@ public static class CardMechanicIndex {
             card["damage"]?.GetValue<int>(),
             card["block"]?.GetValue<int>(),
             cardType,
-            derived);
+            derived,
+            CostsEnergyX: costsEnergyX);
     }
 
     static CardMechanicProfile BuildProfile(CardModel card) {
@@ -107,6 +112,7 @@ public static class CardMechanicIndex {
         if (appliedVuln > 0) flags |= CardMechanicFlags.AppliesVulnerable;
         if (appliedWeak > 0) flags |= CardMechanicFlags.AppliesWeak;
 
+        var costsEnergyX = card.EnergyCost.CostsX;
         return new CardMechanicProfile(
             id,
             flags,
@@ -117,8 +123,46 @@ public static class CardMechanicIndex {
             card.Type.ToString(),
             [.. derived],
             appliedVuln,
-            appliedWeak);
+            appliedWeak,
+            ReadAttackHitCount(card),
+            costsEnergyX,
+            ReadAttackHitsScaleWithEnergy(card, costsEnergyX));
     }
+
+    static int ReadAttackHitCount(CardModel card) {
+        if (card.EnergyCost.CostsX && ReadAttackHitsScaleWithEnergy(card, costsEnergyX: true))
+            return 1;
+
+        var repeat = CardEditActions.GetDynamicVar(card, "Repeat");
+        if (repeat is > 0)
+            return repeat.Value;
+
+        return AttackHitCountByTypeName.TryGetValue(card.GetType().Name, out var hits) ? hits : 1;
+    }
+
+    static bool ReadAttackHitsScaleWithEnergy(CardModel card, bool costsEnergyX) =>
+        costsEnergyX
+        && card.Type == CardType.Attack
+        && AttackHitsScaleWithEnergyByTypeName.Contains(card.GetType().Name);
+
+    static readonly HashSet<string> AttackHitsScaleWithEnergyByTypeName =
+        new(StringComparer.Ordinal) {
+            "Skewer",
+            "Eradicate",
+            "Volley",
+            "Whirlwind",
+            "HeavenlyDrill",
+        };
+
+    static readonly Dictionary<string, int> AttackHitCountByTypeName =
+        new(StringComparer.Ordinal) {
+            ["TwinStrike"] = 2,
+            ["Uproar"] = 2,
+            ["RipAndTear"] = 2,
+            ["DaggerSpray"] = 2,
+            ["Refract"] = 2,
+            ["Maul"] = 2,
+        };
 
     static (int Vulnerable, int Weak) ReadAppliedEnemyPowers(CardModel card) {
         int vuln = 0, weak = 0;

@@ -102,7 +102,8 @@ public static class CombatDecisionLog {
         var peek = DrawPlanner.FormatPeekSummary(state);
         var reshuf = DrawPlanner.WillReshuffle(state, RelicCombatRules.PlannedHandDraw(state)) ? 1 : 0;
         var outlook = PileRhythmEvaluator.DrawPileOutlook(state);
-        return $"IN={incoming} ND={nonDamage} NXT={next} JUNK={junk} POLL={poll} PLAY={play} {peek} RESHUF={reshuf} OUTLOOK={outlook}";
+        var vulnEv = VulnerableOutlookEvaluator.Estimate(state);
+        return $"IN={incoming} ND={nonDamage} NXT={next} JUNK={junk} POLL={poll} PLAY={play} {peek} RESHUF={reshuf} VULN_EV={vulnEv} OUTLOOK={outlook}";
     }
 
     internal static string FormatPostEndTurnPreview(CombatState afterTurn) =>

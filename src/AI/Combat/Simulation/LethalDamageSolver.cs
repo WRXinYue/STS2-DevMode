@@ -40,7 +40,7 @@ public static class LethalDamageSolver {
             attacks.Add(new AttackOption(
                 i,
                 cost,
-                CombatDamageCalc.OutgoingDamage(card.Damage, state.Modifiers, vulnerable),
+                CombatDamageCalc.OutgoingDamage(card, state, vulnerable),
                 card.IsAoe));
         }
 
@@ -58,10 +58,10 @@ public static class LethalDamageSolver {
             if (hand[i] is not JsonObject card) continue;
             if (!CombatCardStats.IsAttackCard(card)) continue;
 
-            var cost = card["cost"]?.GetValue<int>() ?? 99;
+            var cost = CombatCardStats.ResolveEnergyCost(card, maxEnergy);
             if (cost > maxEnergy) continue;
 
-            var damage = CombatCardStats.ResolveDamage(card);
+            var damage = CombatCardStats.ResolveDamage(card) * CombatCardStats.ResolveHitCount(card, cost);
             if (damage <= 0) continue;
 
             var targetType = card["targetType"]?.GetValue<string>() ?? "";

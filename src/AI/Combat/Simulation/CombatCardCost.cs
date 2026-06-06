@@ -5,7 +5,7 @@ namespace DevMode.AI.Combat.Simulation;
 
 internal static class CombatCardCost {
     public static int EffectiveCost(CombatHandCard card, CombatState state) =>
-        EffectiveCostWithWaive(card, state.Modifiers, state.NextPlayCostWaive);
+        EffectiveCostWithWaive(card, state.Modifiers, state.NextPlayCostWaive, state.Energy);
 
     public static int EffectiveCost(CombatHandCard card, IReadOnlyList<PlayerCombatModifier> modifiers) =>
         EffectiveCostWithWaive(card, modifiers, NextPlayCostWaive.None);
@@ -13,7 +13,14 @@ internal static class CombatCardCost {
     static int EffectiveCostWithWaive(
         CombatHandCard card,
         IReadOnlyList<PlayerCombatModifier> modifiers,
-        NextPlayCostWaive waive) {
+        NextPlayCostWaive waive,
+        int? availableEnergy = null) {
+        if (CardPlayCostEffect.MatchesWaive(card, waive))
+            return 0;
+
+        if (card.Profile.CostsEnergyX)
+            return Math.Max(0, availableEnergy ?? 0);
+
         int cost = card.Cost;
         foreach (var mod in modifiers) {
             if (card.IsAttack)
@@ -21,9 +28,6 @@ internal static class CombatCardCost {
             if (card.IsSkill)
                 cost += mod.SkillCostPenalty;
         }
-
-        if (CardPlayCostEffect.MatchesWaive(card, waive))
-            return 0;
 
         return Math.Max(0, cost);
     }

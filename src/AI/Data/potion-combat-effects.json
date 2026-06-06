@@ -21,6 +21,13 @@
         { "kind": "GainDexterity", "amount": 2 }
       ]
     },
+    "SPEED_POTION": {
+      "simulatable": true,
+      "targetType": "AnyPlayer",
+      "effects": [
+        { "kind": "GainDexterity", "amount": 5 }
+      ]
+    },
     "WEAK_POTION": {
       "simulatable": true,
       "targetType": "AnyEnemy",

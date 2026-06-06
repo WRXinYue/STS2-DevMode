@@ -73,9 +73,7 @@ public static class NextFightRoute {
     }
 
     public static IReadOnlyList<NextFightNode> ResolveFromSnapshot(System.Text.Json.Nodes.JsonObject snapshot) {
-        if (AiPlayServices.StateProvider.TryGetRunAndPlayer(out var state, out var player))
-            return Resolve(state, player);
-
+        // Autoplay scoring runs off the main thread — snapshot preview only (no live map / Godot).
         return ParsePreview(snapshot);
     }
 

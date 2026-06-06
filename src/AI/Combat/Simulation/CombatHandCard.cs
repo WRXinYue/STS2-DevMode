@@ -15,7 +15,8 @@ public sealed record CombatHandCard(
     CardMechanicProfile Profile,
     bool IsAoe,
     bool HasRetain = false,
-    bool HasExhaust = false) {
+    bool HasExhaust = false,
+    int HitCount = 1) {
     public bool IsAttack => CombatCardStats.IsAttackCard(ToJson());
     public bool IsSkill => CombatCardStats.IsSkillCard(ToJson());
 

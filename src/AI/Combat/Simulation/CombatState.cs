@@ -174,7 +174,8 @@ public sealed record CombatState(
                 profile,
                 isAoe,
                 card["hasRetain"]?.GetValue<bool>() == true,
-                card["hasExhaust"]?.GetValue<bool>() == true));
+                card["hasExhaust"]?.GetValue<bool>() == true,
+                CombatCardStats.ResolveHitCount(card)));
         }
 
         return hand;

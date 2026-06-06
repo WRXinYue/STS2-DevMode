@@ -96,7 +96,9 @@ public static class PotionMechanicIndex {
         if (upper.Contains("WEAK") || upper.Contains("VULNERABLE") || upper is "POISONPOTION"
             || upper is "SHACKLINGPOTION" or "POTIONOFBINDING")
             return PotionCategory.Debuff;
-        if (upper is "FOULPOTION" or "SNECKOIL" or "DUPLICATOR" or "SPEEDPOTION"
+        if (upper is "SPEEDPOTION")
+            return PotionCategory.Buff;
+        if (upper is "FOULPOTION" or "SNECKOIL" or "DUPLICATOR"
             || upper is "STABLESERUM" or "LUCKYTONIC")
             return PotionCategory.Utility;
         return PotionCategory.Unknown;
@@ -120,7 +122,8 @@ public static class PotionMechanicIndex {
             || upper.Contains("MEMORIES"))
             return PotionCategory.Draw;
         if (upper.Contains("STRENGTH") || upper.Contains("DEXTERITY") || upper.Contains("FLEX")
-            || upper.Contains("POWER") || upper.Contains("FOCUS") || upper.Contains("STEW"))
+            || upper.Contains("SPEED") || upper.Contains("POWER") || upper.Contains("FOCUS")
+            || upper.Contains("STEW"))
             return PotionCategory.Buff;
         if (upper.Contains("SKILL") || upper.Contains("ATTACK") || upper.Contains("COLORLESS")
             || upper.Contains("CUNNING") || upper.Contains("GAMBLER") || upper.Contains("ENTROPIC"))

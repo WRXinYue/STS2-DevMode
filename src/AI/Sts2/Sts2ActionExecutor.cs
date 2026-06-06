@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
+using DevMode.AI;
 using DevMode.Actions;
 using DevMode.Multiplayer.PseudoCoop;
 using MegaCrit.Sts2.Core.Combat;
@@ -50,6 +51,8 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
 
     // Reward screen tracking
     private readonly HashSet<NRewardButton> _attemptedRewardButtons = new();
+    private readonly HashSet<NRewardButton> _declinedRewardButtons = new();
+    private NRewardButton? _pendingCardRewardButton;
     private NRewardsScreen? _lastRewardScreen;
 
     public Sts2ActionExecutor(Sts2StateProvider stateProvider, Action<string> log)
@@ -67,7 +70,7 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
             return action.Type switch {
                 ActionType.PlayCard => await AiMainThread.InvokeAsync(() => PlayCard(player, action.TargetIndex, action.SecondaryIndex)),
                 ActionType.EndTurn => await AiMainThread.InvokeAsync(() => Task.FromResult(EndTurn(player))),
-                ActionType.UsePotion => await AiMainThread.InvokeAsync(() => Task.FromResult(UsePotion(player, action.TargetIndex, action.SecondaryIndex))),
+                ActionType.UsePotion => await AiMainThread.InvokeAsync(() => UsePotionAsync(player, action.TargetIndex, action.SecondaryIndex)),
                 _ => ActionResult.Fail($"Unexpected combat action: {action.Type}"),
             };
         }
@@ -85,7 +88,7 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
             ActionType.LeaveShop => await LeaveShop(),
             ActionType.Rest => await SelectRestSiteOption(action.TargetIndex),
             ActionType.UpgradeCard => await SelectRestSiteOption(action.TargetIndex),
-            ActionType.UsePotion => UsePotion(player, action.TargetIndex, action.SecondaryIndex),
+            ActionType.UsePotion => await UsePotionAsync(player, action.TargetIndex, action.SecondaryIndex),
             ActionType.DiscardPotion => await DiscardPotion(player, action.TargetIndex),
             ActionType.CollectReward => await CollectReward(action.TargetIndex),
             ActionType.DismissRewards => await DismissRewards(),
@@ -304,6 +307,12 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
 
             var idx = cardIndex >= 0 && cardIndex < holders.Count ? cardIndex : 0;
             holders[idx].EmitSignal(NCardHolder.SignalName.Pressed, holders[idx]);
+            if (!await UIHelper.WaitUntil(
+                () => !OverlayPhaseHelper.HasActiveCardRewardScreen(),
+                TimeSpan.FromSeconds(10)))
+                return ActionResult.Fail("Card reward screen did not close after pick.");
+
+            _pendingCardRewardButton = null;
             return ActionResult.Ok($"Picked card reward {idx}.");
         }
 
@@ -354,22 +363,39 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
         if (screen is not NCardRewardSelectionScreen cardRewardScreen)
             return ActionResult.Fail("Card reward screen not open.");
 
-        var node = (Node)cardRewardScreen;
-        var backBtn = UIHelper.FindFirst<NBackButton>(node);
-        if (backBtn != null)
-        {
-            await UIHelper.Click(backBtn);
-            return ActionResult.Ok("Skipped card reward.");
+        // Skip is NCardRewardAlternativeButton (OPTION_SKIP), not Back/Proceed — see CardRewardAlternative.Generate.
+        // Official skip re-enables the NRewardButton; mark it declined so CollectReward does not re-open the picker.
+        await Sts2WaitHelper.ActionsSettled(TimeSpan.FromSeconds(5));
+
+        NCardRewardAlternativeButton? skipBtn = null;
+        if (!await UIHelper.WaitUntil(() => {
+            skipBtn = UIHelper.FindAll<NCardRewardAlternativeButton>((Node)cardRewardScreen)
+                .FirstOrDefault(b => GodotObject.IsInstanceValid(b) && b.Visible && b.IsEnabled);
+            return skipBtn != null;
+        }, TimeSpan.FromSeconds(2)))
+            return ActionResult.Fail("No skip button found on card reward screen.");
+
+        var altCount = UIHelper.FindAll<NCardRewardAlternativeButton>((Node)cardRewardScreen).Count;
+        _log($"SkipCardReward: clicking skip (alts={altCount} pendingCard={_pendingCardRewardButton != null})");
+
+        await UIHelper.Click(skipBtn!);
+
+        if (!await UIHelper.WaitUntil(
+            () => !OverlayPhaseHelper.HasActiveCardRewardScreen(),
+            TimeSpan.FromSeconds(10))) {
+            _log("SkipCardReward: screen still open after skip click.");
+            return ActionResult.Fail("Card reward screen did not close after skip.");
         }
 
-        var proceedBtn = UIHelper.FindFirst<NProceedButton>(node);
-        if (proceedBtn != null)
-        {
-            await UIHelper.Click(proceedBtn);
-            return ActionResult.Ok("Skipped card reward.");
+        await Sts2WaitHelper.ActionsSettled(TimeSpan.FromSeconds(5));
+
+        if (_pendingCardRewardButton != null && GodotObject.IsInstanceValid(_pendingCardRewardButton)) {
+            _declinedRewardButtons.Add(_pendingCardRewardButton);
+            _log("SkipCardReward: card reward marked declined.");
         }
 
-        return ActionResult.Fail("No skip button found on card reward screen.");
+        _pendingCardRewardButton = null;
+        return ActionResult.Ok("Skipped card reward.");
     }
 
     private async Task<ActionResult> CollectReward(int rewardIndex)
@@ -394,7 +420,9 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
         var clicked = 0;
         while (clicked < 12) {
             var btn = UIHelper.FindAll<NRewardButton>((Node)screen)
-                .FirstOrDefault(b => b.IsEnabled && !_attemptedRewardButtons.Contains(b));
+                .FirstOrDefault(b => b.IsEnabled
+                    && !_attemptedRewardButtons.Contains(b)
+                    && !_declinedRewardButtons.Contains(b));
 
             if (btn == null)
                 break;
@@ -422,7 +450,11 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
             }
 
             _attemptedRewardButtons.Add(btn);
-            _log($"CollectReward: clicking [{btn.Reward?.GetType().Name}] (attempted={_attemptedRewardButtons.Count})");
+            if (btn.Reward is CardReward)
+                _pendingCardRewardButton = btn;
+
+            var rewardKind = btn.Reward?.GetType().Name ?? "?";
+            _log($"CollectReward: clicking [{rewardKind}] (attempted={_attemptedRewardButtons.Count})");
             await UIHelper.Click(btn);
             clicked++;
 
@@ -469,6 +501,7 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
                       || NOverlayStack.Instance?.Peek() != (IOverlayScreen)screen
                       || (NMapScreen.Instance?.IsOpen ?? false),
                 TimeSpan.FromSeconds(10));
+            ResetRewardTracking();
             return ActionResult.Ok("Proceed clicked.");
         }
 
@@ -479,6 +512,8 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
     {
         _lastRewardScreen = null;
         _attemptedRewardButtons.Clear();
+        _declinedRewardButtons.Clear();
+        _pendingCardRewardButton = null;
     }
 
     /// <summary>
@@ -715,12 +750,13 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
 
     // ──────── Potions ────────
 
-    private static ActionResult UsePotion(Player player, int potionSlot, int targetIndex)
+    private static async Task<ActionResult> UsePotionAsync(Player player, int potionSlot, int targetIndex)
     {
         var potion = player.GetPotionAtSlotIndex(potionSlot);
         if (potion == null)
             return ActionResult.Fail($"No potion in slot {potionSlot}.");
 
+        var potionId = potion.Id.Entry ?? "";
         Creature? target = null;
         if (potion.TargetType.IsSingleTarget())
         {
@@ -735,7 +771,12 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
         }
 
         potion.EnqueueManualUse(target);
-        return ActionResult.Ok($"Used potion [{potion.Id.Entry}] slot {potionSlot}.");
+
+        if (!await Sts2PotionUseHelper.WaitForManualUseAsync(
+                player, potionSlot, potionId, TimeSpan.FromSeconds(8)))
+            return ActionResult.Fail($"Potion [{potionId}] use did not complete.");
+
+        return ActionResult.Ok($"Used potion [{potionId}] slot {potionSlot}.");
     }
 
     private static async Task<ActionResult> DiscardPotion(Player player, int potionSlot)

@@ -99,6 +99,11 @@ public static class CombatTurnResolver {
 
         for (int i = 0; i < enemies.Count; i++) {
             if (!enemies[i].IsAlive) continue;
+            enemies[i] = enemies[i].TickDownDebuffs();
+        }
+
+        for (int i = 0; i < enemies.Count; i++) {
+            if (!enemies[i].IsAlive) continue;
             if (enemies[i].IsMinion) continue;
             ThreatModel.OnPrimaryEnemyKilled(enemies, i);
         }

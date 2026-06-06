@@ -62,7 +62,7 @@ internal static class CombatSetupEvaluator {
         return Math.Max(0, ComputeVulnerableSetupSimDelta(state, handIndex, enemyIndex));
     }
 
-    /// <summary>Lexicographic: incoming, future pressure, deck pollution, focus HP, enemy HP, player HP.</summary>
+    /// <summary>Lexicographic: incoming, future pressure, pollution, focus HP, enemy HP, vuln outlook, pile outlook, player HP.</summary>
     public readonly record struct CombatLineOutcome(
         int Incoming,
         int FutureIncoming0,
@@ -71,6 +71,8 @@ internal static class CombatSetupEvaluator {
         int DeckPollution,
         int FocusHp,
         int EnemyHp,
+        int VulnerableOutlook,
+        int PileOutlook,
         int PlayerHpAfterTurn);
 
     /// <summary>Greedy completion of the turn from a mid-turn state, then outcome metrics.</summary>
@@ -104,6 +106,13 @@ internal static class CombatSetupEvaluator {
 
         if (candidate.EnemyHp != baseline.EnemyHp)
             return baseline.EnemyHp - candidate.EnemyHp;
+
+        if (candidate.VulnerableOutlook != baseline.VulnerableOutlook)
+            return candidate.VulnerableOutlook - baseline.VulnerableOutlook;
+
+        if (candidate.PileOutlook != baseline.PileOutlook)
+            return candidate.PileOutlook - baseline.PileOutlook;
+
         return candidate.PlayerHpAfterTurn - baseline.PlayerHpAfterTurn;
     }
 
@@ -133,19 +142,22 @@ internal static class CombatSetupEvaluator {
         return baselineIncoming - candidateIncoming;
     }
 
-    /// <summary>Fixed packing aligned with <see cref="CompareLines"/> — for beam sort and logs only.</summary>
+    /// <summary>Fixed packing aligned with <see cref="CompareLines"/> — fits in int32 without clipping.</summary>
     public static int PackLineScore(CombatLineOutcome outcome) {
         const int cap = 250;
         long score =
-            (cap - Math.Min(outcome.Incoming, cap)) * 1_000_000_000L
-            + (cap - Math.Min(outcome.FutureIncoming0, cap)) * 1_000_000L
-            + (cap - Math.Min(outcome.FutureIncoming1, cap)) * 100_000L
-            + (cap - Math.Min(outcome.FutureIncoming2, cap)) * 10_000L
-            + (cap - Math.Min(outcome.DeckPollution, cap * 4)) * 1_000L
-            + (cap - Math.Min(outcome.FocusHp, cap)) * 100L
-            + (cap * 10 - Math.Min(outcome.EnemyHp, cap * 10)) * 10L
+            (cap - Math.Min(outcome.Incoming, cap)) * 8_000_000L
+            + (cap - Math.Min(outcome.FutureIncoming0, cap)) * 8_000L
+            + (cap - Math.Min(outcome.FutureIncoming1, cap)) * 800L
+            + (cap - Math.Min(outcome.FutureIncoming2, cap)) * 80L
+            + (cap - Math.Min(outcome.DeckPollution, cap * 4)) * 8L
+            + (cap - Math.Min(outcome.FocusHp, cap))
+            + (cap * 10 - Math.Min(outcome.EnemyHp, cap * 10))
+            + Math.Min(outcome.VulnerableOutlook, 3000)
+            + Math.Min(outcome.PileOutlook, 500)
             + Math.Min(outcome.PlayerHpAfterTurn, cap);
-        return score > int.MaxValue ? int.MaxValue - 1 : (int)score;
+        const int packedCap = int.MaxValue - 2;
+        return score > packedCap ? packedCap : (int)score;
     }
 
     public static int RankPlayAction(
@@ -164,7 +176,7 @@ internal static class CombatSetupEvaluator {
     }
 
     public static CombatLineOutcome WipeOutcome(CombatState state) =>
-        new(0, 0, 0, 0, 0, 0, 0, state.PlayerHp);
+        new(0, 0, 0, 0, 0, 0, 0, 0, 0, state.PlayerHp);
 
     static int CompareLineOutcome(CombatLineOutcome without, CombatLineOutcome with) =>
         CompareLines(without, with);
@@ -181,6 +193,8 @@ internal static class CombatSetupEvaluator {
             DeckPollutionEvaluator.EffectivePollutionBurden(afterTurn),
             focusMid?.CurrentHp ?? 0,
             afterTurn.Enemies.Where(e => e.IsAlive).Sum(e => e.CurrentHp),
+            VulnerableOutlookEvaluator.Estimate(afterTurn),
+            PileRhythmEvaluator.DrawPileOutlook(afterTurn),
             afterTurn.PlayerHp);
     }
 

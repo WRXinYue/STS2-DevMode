@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text.Json.Nodes;
 using DevMode.Actions;
 using DevMode.AI.Combat.Simulation;
+using DevMode.AI.Knowledge;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Models;
 
@@ -35,6 +36,13 @@ internal static class SnapshotCardJson {
         var damage = CardEditActions.GetDamage(card);
         if (damage.HasValue)
             obj["damage"] = damage.Value;
+
+        if (CardMechanicIndex.TryGet(card.Id.Entry, out var profile)) {
+            if (profile.CostsEnergyX)
+                obj["costsX"] = true;
+            if (profile.AttackHitCount > 1 && !profile.AttackHitsScaleWithEnergy)
+                obj["hitCount"] = profile.AttackHitCount;
+        }
 
         var block = CardEditActions.GetBlock(card);
         if (block.HasValue)

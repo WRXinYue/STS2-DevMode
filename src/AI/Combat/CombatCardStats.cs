@@ -1,5 +1,6 @@
 using System;
 using System.Text.Json.Nodes;
+using DevMode.AI.Combat.Simulation;
 using DevMode.AI.Knowledge;
 
 namespace DevMode.AI.Combat;
@@ -15,6 +16,47 @@ internal static class CombatCardStats {
             return profile.Damage.Value;
 
         return 0;
+    }
+
+    public static int ResolveHitCount(JsonObject card, int energySpent = 1) {
+        var profile = ResolveProfile(card);
+        return ResolveHitCount(profile, card, energySpent);
+    }
+
+    public static int ResolveHitCount(CardMechanicProfile profile, JsonObject? card, int energySpent = 1) {
+        if (profile.AttackHitsScaleWithEnergy)
+            return ResolveEnergyScaledHits(profile.Id, Math.Max(0, energySpent));
+
+        var fromSnapshot = card?["hitCount"]?.GetValue<int>();
+        if (fromSnapshot is > 1)
+            return fromSnapshot.Value;
+
+        if (profile.AttackHitCount > 1)
+            return profile.AttackHitCount;
+
+        return Math.Max(1, fromSnapshot ?? 1);
+    }
+
+    public static int ResolveEffectiveHitCount(CombatHandCard card, CombatState state) {
+        if (card.Profile.AttackHitsScaleWithEnergy) {
+            int energySpent = CombatCardCost.EffectiveCost(card, state);
+            return ResolveEnergyScaledHits(card.Id, energySpent);
+        }
+
+        return Math.Max(1, card.HitCount);
+    }
+
+    public static int ResolveEnergyCost(JsonObject card, int availableEnergy) {
+        var profile = ResolveProfile(card);
+        if (profile.CostsEnergyX || card["costsX"]?.GetValue<bool>() == true)
+            return Math.Max(0, availableEnergy);
+        return card["cost"]?.GetValue<int>() ?? 99;
+    }
+
+    static int ResolveEnergyScaledHits(string id, int energySpent) {
+        if (string.Equals(id, "HEAVENLY_DRILL", StringComparison.OrdinalIgnoreCase) && energySpent >= 4)
+            return energySpent * 2;
+        return energySpent;
     }
 
     public static int ResolveBlock(JsonObject card) {
@@ -52,9 +94,9 @@ internal static class CombatCardStats {
         foreach (var node in hand) {
             if (node is not JsonObject card) continue;
             if (!IsAttackCard(card)) continue;
-            var cost = card["cost"]?.GetValue<int>() ?? 99;
+            var cost = ResolveEnergyCost(card, energy);
             if (cost > energy) continue;
-            attacks.Add((cost, ResolveDamage(card)));
+            attacks.Add((cost, ResolveDamage(card) * ResolveHitCount(card, cost)));
         }
 
         attacks.Sort((a, b) => b.Damage.CompareTo(a.Damage));

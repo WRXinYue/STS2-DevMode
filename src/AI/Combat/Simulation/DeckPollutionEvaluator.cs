@@ -117,12 +117,13 @@ public static class DeckPollutionEvaluator {
     }
 
     public static int ExpectedPlayableDamage(CombatState state) {
+        int vuln = ThreatModel.FocusVulnerableStacks(state);
         int total = 0;
         foreach (var card in state.Hand) {
             if (!card.IsAttack || card.Damage <= 0) continue;
             if (!CombatCardCost.CanAfford(card, state)) continue;
 
-            total += CombatDamageCalc.OutgoingDamage(card, state);
+            total += CombatDamageCalc.OutgoingDamage(card, state, vuln);
         }
 
         return total;

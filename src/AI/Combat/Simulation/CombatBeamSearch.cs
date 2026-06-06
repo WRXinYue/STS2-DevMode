@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text.Json.Nodes;
+using DevMode.AI;
 using DevMode.AI.Combat;
 using DevMode.AI.Knowledge;
 
@@ -151,7 +152,27 @@ public static class CombatBeamSearch {
             return false;
 
         int currentLen = currentPath?.Count ?? 0;
-        return candidatePath.Count < currentLen;
+        if (candidatePath.Count != currentLen)
+            return candidatePath.Count < currentLen;
+
+        if (currentPath is not { Count: > 0 })
+            return true;
+
+        return OpenerPlayScore(root, candidatePath[0]) > OpenerPlayScore(root, currentPath[0]);
+    }
+
+    static int OpenerPlayScore(CombatState root, SimCombatAction action) {
+        if (action.Kind != SimActionKind.PlayCard
+            || action.HandIndex < 0
+            || action.HandIndex >= root.Hand.Count)
+            return 0;
+
+        var card = root.Hand[action.HandIndex];
+        if (card.Damage <= 0)
+            return 0;
+
+        var target = root.Enemies.FirstOrDefault(e => e.IsAlive && e.Index == action.EnemyIndex);
+        return CombatDamageCalc.OutgoingDamage(card, root, target?.Vulnerable ?? 0);
     }
 
     /// <summary>Secure-kill turns: do not replace a non-block opener with a block-first line.</summary>

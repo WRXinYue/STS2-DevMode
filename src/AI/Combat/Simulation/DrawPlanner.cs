@@ -43,14 +43,14 @@ public static class DrawPlanner {
         return $"NEXT={string.Join(',', parts)}";
     }
 
-    public static int ExpectedDrawnDamage(CombatState state, int draws, int energy) {
+    public static int ExpectedDrawnDamage(CombatState state, int draws, int energy, int vulnerableOnFocus = 0) {
         int total = 0;
         foreach (var card in PeekTop(state, draws)) {
             if (!string.Equals(card.CardType, "Attack", StringComparison.OrdinalIgnoreCase)
                 && card.Damage <= 0)
                 continue;
             if (CombatDamageCalc.PlanningCost(card, state.Modifiers, energy) > energy) continue;
-            total += CombatDamageCalc.OutgoingDamage(card, state.Modifiers);
+            total += CombatDamageCalc.OutgoingDamage(card, state.Modifiers, vulnerableOnFocus);
         }
 
         return total;
