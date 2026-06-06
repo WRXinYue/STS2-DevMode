@@ -54,7 +54,11 @@ public sealed class GameLoop
     /// </summary>
     public async Task OnDecisionPointAsync(GamePhase? phaseOverride = null)
     {
-        if (_running) return;
+        if (_running) {
+            if ((phaseOverride ?? _state.CurrentPhase) is GamePhase.Combat or GamePhase.Unknown)
+                AgentDebugLog.Write("P2", "GameLoop.OnDecisionPoint", "blocked: running", null);
+            return;
+        }
         _running = true;
 
         try
@@ -89,11 +93,15 @@ public sealed class GameLoop
             if (!inCombat)
                 _endTurnPending = false;
 
-            if (inCombat && !IsCombatSnapshotReady(snapshot))
+            if (inCombat && !IsCombatSnapshotReady(snapshot)) {
+                AgentDebugLog.Write("P2", "GameLoop.OnDecisionPoint", "skip combat poll", new { reason = "snapshot_not_ready" });
                 return;
+            }
 
-            if (ShouldSkipCombatPoll(phase, snapshot))
+            if (ShouldSkipCombatPoll(phase, snapshot, out var skipReason)) {
+                AgentDebugLog.Write("P2", "GameLoop.OnDecisionPoint", "skip combat poll", new { reason = skipReason });
                 return;
+            }
 
             var decidePhase = inCombat && phase is GamePhase.Unknown or GamePhase.Combat
                 ? GamePhase.Combat
@@ -102,8 +110,13 @@ public sealed class GameLoop
             var action = await _decisionMaker.DecideAsync(snapshot, decidePhase);
 
             var fingerprint = $"{phase}:{action.Type}:{action.TargetIndex}:{action.SecondaryIndex}";
-            if (IsDuplicateAction(fingerprint))
+            if (IsDuplicateAction(fingerprint)) {
+                AgentDebugLog.Write("P2", "GameLoop.OnDecisionPoint", "skip duplicate action", new {
+                    fingerprint,
+                    elapsedMs = (int)(DateTime.UtcNow - _lastActionUtc).TotalMilliseconds,
+                });
                 return;
+            }
 
             _log($"GameLoop: Phase={phase} Action={action.Type} " +
                  $"Target={action.TargetIndex} Reason=[{action.Reason}]");
@@ -146,7 +159,8 @@ public sealed class GameLoop
         }
     }
 
-    bool ShouldSkipCombatPoll(GamePhase phase, JsonObject snapshot) {
+    bool ShouldSkipCombatPoll(GamePhase phase, JsonObject snapshot, out string? reason) {
+        reason = null;
         if (!IsCombatContext(phase, snapshot))
             return false;
 
@@ -154,11 +168,14 @@ public sealed class GameLoop
         var playPhase = ReadSnapshotBool(snapshot, "combat", "isPlayPhaseActive");
         if (playPhase == false) {
             _endTurnPending = false;
+            reason = "playPhaseInactive";
             return true;
         }
 
-        if (_endTurnPending)
+        if (_endTurnPending) {
+            reason = "endTurnPending";
             return true;
+        }
 
         return false;
     }

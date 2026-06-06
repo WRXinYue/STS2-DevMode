@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using DevMode;
+using DevMode.AI.Combat;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Nodes.Screens.Overlays;
@@ -14,9 +15,22 @@ internal static class Sts2PotionUseHelper {
         int potionSlot,
         string potionId,
         TimeSpan timeout) {
-        return await Sts2WaitHelper.Until(
+        var started = DateTime.UtcNow;
+        var ok = await Sts2WaitHelper.Until(
             () => IsUseStable(player, potionSlot, potionId),
             timeout);
+        var current = player.GetPotionAtSlotIndex(potionSlot);
+        AgentDebugLog.Write("P4", "Sts2PotionUseHelper.Wait", ok ? "potion wait ok" : "potion wait fail", new {
+            potionId,
+            potionSlot,
+            elapsedMs = (int)(DateTime.UtcNow - started).TotalMilliseconds,
+            slotEmpty = current == null,
+            currentId = current?.Id.Entry,
+            skipAnim = SkipAnimControl.IsSkipping,
+            actionsSettled = Sts2WaitHelper.ArePlayerDrivenActionsSettled(),
+            overlay = NOverlayStack.Instance?.Peek()?.GetType().Name,
+        });
+        return ok;
     }
 
     static bool IsUseStable(Player player, int potionSlot, string potionId) {
