@@ -431,6 +431,11 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
         bool hasPotionSlots = _stateProvider.TryGetRunAndPlayer(out _, out var player)
                               && (player?.HasOpenPotionSlots ?? false);
 
+        if (OverlayPhaseHelper.RewardsReadyForMap(screen, player, snapshot)) {
+            ResetRewardTracking();
+            return ActionResult.Ok("Rewards complete; map is open.");
+        }
+
         var clicked = 0;
         while (clicked < 12) {
             var btn = UIHelper.FindAll<NRewardButton>((Node)screen)
@@ -492,8 +497,8 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
         if (clicked > 0)
             return ActionResult.Ok($"Collected {clicked} reward(s).");
 
-        // No more buttons — click Proceed (official handler waits for overlay pop, not map preload).
-        if (RewardsOverlayInactive() && NMapScreen.Instance is { IsOpen: true }) {
+        // No more buttons — click Proceed (official RewardsScreenHandler also accepts map open).
+        if (OverlayPhaseHelper.RewardsReadyForMap(screen, player, snapshot)) {
             ResetRewardTracking();
             return ActionResult.Ok("Rewards complete; map is open.");
         }
@@ -501,35 +506,27 @@ public sealed class Sts2ActionExecutor : IGameActionExecutor
         var proceedBtn = UIHelper.FindFirst<NProceedButton>((Node)screen);
         if (proceedBtn != null)
         {
-            if (RewardsOverlayInactive() && NMapScreen.Instance is { IsOpen: true }) {
-                ResetRewardTracking();
-                return ActionResult.Ok("Map already open.");
-            }
-
             _log($"CollectReward: all rewards collected — clicking proceed (cardDeclined={_cardRewardDeclined}).");
             await UIHelper.WaitUntil(
                 () => proceedBtn.IsEnabled || screen.IsComplete,
                 TimeSpan.FromSeconds(10));
             await UIHelper.Click(proceedBtn);
-            var closed = await UIHelper.WaitUntil(
+            var settled = await UIHelper.WaitUntil(
                 () => !GodotObject.IsInstanceValid((Node)screen)
-                      || NOverlayStack.Instance?.Peek() != (IOverlayScreen)screen,
+                      || NOverlayStack.Instance?.Peek() != (IOverlayScreen)screen
+                      || (NMapScreen.Instance?.IsOpen ?? false),
                 TimeSpan.FromSeconds(15));
-            if (closed) {
+            if (settled && OverlayPhaseHelper.RewardsReadyForMap(screen, player, snapshot)) {
                 ResetRewardTracking();
                 return ActionResult.Ok("Proceed clicked.");
             }
 
-            _log("CollectReward: proceed clicked but rewards overlay still active.");
-            return ActionResult.Ok("Proceed clicked; awaiting overlay close.");
+            _log("CollectReward: proceed clicked, awaiting map transition.");
+            return ActionResult.Ok("Proceed clicked; awaiting map.");
         }
 
         return ActionResult.Fail("Rewards screen has no clickable buttons yet.");
     }
-
-    static bool RewardsOverlayInactive() =>
-        NOverlayStack.Instance?.Peek() is not NRewardsScreen
-        && !OverlayPhaseHelper.HasActiveCardRewardScreen();
 
     private void ResetRewardTracking()
     {

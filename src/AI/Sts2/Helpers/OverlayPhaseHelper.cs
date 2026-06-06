@@ -10,6 +10,8 @@ using MegaCrit.Sts2.Core.Nodes.Screens.Map;
 using MegaCrit.Sts2.Core.Nodes.Screens.Overlays;
 using MegaCrit.Sts2.Core.Nodes.Screens.RelicCollection;
 using MegaCrit.Sts2.Core.Rewards;
+using MegaCrit.Sts2.Core.Rooms;
+using MegaCrit.Sts2.Core.Runs;
 
 namespace DevMode.AI.Sts2.Helpers;
 
@@ -29,7 +31,15 @@ internal static class OverlayPhaseHelper {
         if (NMapScreen.Instance is not { IsOpen: true })
             return false;
 
+        if (HasActiveCardRewardScreen())
+            return false;
+
         if (screen.IsComplete)
+            return true;
+
+        // Combat uses terminal rewards (RewardsSet.Offer). ProceedFromTerminalRewardsScreen opens the map
+        // without popping NRewardsScreen. Skipped card picks leave an enabled NRewardButton (RewardSkipped).
+        if (RunManager.Instance?.DebugOnlyGetState()?.CurrentRoom is CombatRoom)
             return true;
 
         return !HasClickableRewards(screen, player?.HasOpenPotionSlots ?? false, snapshot);
