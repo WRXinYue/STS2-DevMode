@@ -50,12 +50,6 @@ public sealed class StrongStrategy : IDecisionMaker {
                 ?? new GameAction { Type = ActionType.EndTurn, Reason = "No combat move" };
         }
         catch (Exception ex) {
-            // #region agent log
-            DbgSessionLog.Write("F", "StrongStrategy.DecideCombat", "fallback after error", new {
-                type = ex.GetType().Name,
-                message = ex.Message,
-            });
-            // #endregion
             return CombatScorer.PickBestCombatMove(snapshot)
                 ?? new GameAction { Type = ActionType.EndTurn, Reason = $"Combat planner error: {ex.Message}" };
         }

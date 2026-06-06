@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
-using DevMode.AI;
 using DevMode.AI.Combat;
 using DevMode.AI.Core;
 using SimCombatState = DevMode.AI.Combat.Simulation.CombatState;
@@ -45,30 +44,21 @@ internal static class GameSnapshot
         try {
             obj["deck"] = CaptureDeck(player);
         }
-        catch (Exception ex) {
-            // #region agent log
-            DbgSessionLog.Write("H1", "GameSnapshot.Capture", "deck failed", new { message = ex.Message });
-            // #endregion
+        catch (Exception) {
             obj["deck"] = new JsonArray();
         }
 
         try {
             obj["relics"] = CaptureRelics(player);
         }
-        catch (Exception ex) {
-            // #region agent log
-            DbgSessionLog.Write("H1", "GameSnapshot.Capture", "relics failed", new { message = ex.Message });
-            // #endregion
+        catch (Exception) {
             obj["relics"] = new JsonArray();
         }
 
         try {
             obj["potions"] = CapturePotions(player);
         }
-        catch (Exception ex) {
-            // #region agent log
-            DbgSessionLog.Write("H1", "GameSnapshot.Capture", "potions failed", new { message = ex.Message });
-            // #endregion
+        catch (Exception) {
             obj["potions"] = new JsonArray();
         }
 
@@ -77,10 +67,7 @@ internal static class GameSnapshot
             try {
                 obj["combat"] = CaptureCombat(state, player, combatState);
             }
-            catch (Exception ex) {
-                // #region agent log
-                DbgSessionLog.Write("H1", "GameSnapshot.Capture", "combat failed", new { message = ex.Message });
-                // #endregion
+            catch (Exception) {
                 obj["combat"] = new JsonObject {
                     ["isPlayPhaseActive"] = Sts2CombatCompat.IsCombatPlayPhaseActive(),
                     ["hand"] = new JsonArray(),
