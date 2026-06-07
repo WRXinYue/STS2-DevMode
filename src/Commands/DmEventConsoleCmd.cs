@@ -65,7 +65,7 @@ public class DmEventConsoleCmd : AbstractConsoleCmd {
                 string.Equals(((AbstractModel)e).Id.Entry, eventId, StringComparison.OrdinalIgnoreCase));
 
             if (evt is AncientEventModel ancient) {
-                var tokens = AncientEventActions.GetOptionChoices(ancient)
+                var tokens = AncientEventActions.GetOptionChoices(ancient, player)
                     .Select(c => c.Token)
                     .ToList();
                 return CompleteArgument(tokens, new[] { args[0], args[1] }, args[2]);

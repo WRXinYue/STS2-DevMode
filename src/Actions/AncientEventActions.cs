@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using HarmonyLib;
+using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Events;
 using MegaCrit.Sts2.Core.Models;
 
@@ -8,6 +11,10 @@ namespace DevMode.Actions;
 
 internal static class AncientEventActions
 {
+    private static readonly PropertyInfo OwnerProperty =
+        AccessTools.Property(typeof(EventModel), nameof(EventModel.Owner))
+        ?? throw new InvalidOperationException("EventModel.Owner property not found.");
+
     internal readonly record struct AncientOptionChoice(string Token, string Label);
 
     internal readonly record struct AncientEnterChoice(
@@ -15,18 +22,19 @@ internal static class AncientEventActions
         string? Token,
         AncientEventEnterRequest Request);
 
-    internal static bool IsAncient(EventModel eventModel) => eventModel is AncientEventModel;
-
     internal static bool NeedsOptionPicker(EventModel eventModel) =>
         eventModel is AncientEventModel;
 
-    internal static IReadOnlyList<AncientOptionChoice> GetOptionChoices(AncientEventModel ancient)
+    internal static IReadOnlyList<AncientOptionChoice> GetOptionChoices(AncientEventModel ancient, Player? player)
     {
+        if (player is null)
+            return [];
+
         var choices = new List<AncientOptionChoice>();
         try
         {
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var option in ancient.AllPossibleOptions)
+            foreach (var option in PlayerScopedOptions(ancient, player))
             {
                 if (option.IsLocked)
                     continue;
@@ -60,7 +68,10 @@ internal static class AncientEventActions
                 new AncientEventEnterRequest()),
         };
 
-        foreach (var choice in GetOptionChoices(ancient))
+        if (!RunContext.TryGetRunAndPlayer(out _, out var player))
+            return enterChoices;
+
+        foreach (var choice in GetOptionChoices(ancient, player))
             enterChoices.Add(new AncientEnterChoice(
                 choice.Label,
                 choice.Token,
@@ -69,36 +80,30 @@ internal static class AncientEventActions
         return enterChoices;
     }
 
-    internal static bool IsValidChoice(AncientEventModel ancient, string token)
-    {
-        try
-        {
-            return ancient.AllPossibleOptions.Any(option =>
-                option.TextKey.Contains(token, StringComparison.OrdinalIgnoreCase));
-        }
-        catch
-        {
-            return false;
-        }
-    }
+    internal static bool IsValidChoice(AncientEventModel ancient, string token, Player player) =>
+        GetOptionChoices(ancient, player).Any(choice =>
+            choice.Token.Equals(token, StringComparison.OrdinalIgnoreCase));
 
     internal static string DescribeEnterChoice(AncientEventEnterRequest request) =>
         request.PinOptionToken
             ?? I18N.T("ancient.options.random", "Random (vanilla)");
 
-    internal static AncientEventEnterRequest? ParseEnterFlags(string[] args, int startIndex)
-    {
-        string? pin = null;
-        for (var i = startIndex; i < args.Length; i++)
-            pin = args[i].ToUpperInvariant();
-
-        return pin is null ? null : new AncientEventEnterRequest(PinOptionToken: pin);
-    }
+    internal static AncientEventEnterRequest? ParseEnterFlags(string[] args, int startIndex) =>
+        startIndex < args.Length
+            ? new AncientEventEnterRequest(PinOptionToken: args[startIndex].ToUpperInvariant())
+            : null;
 
     internal static string GetOptionToken(EventOption option)
     {
         var parts = option.TextKey.Split('.');
         return parts.Length > 0 ? parts[^1] : option.TextKey;
+    }
+
+    private static IEnumerable<EventOption> PlayerScopedOptions(AncientEventModel ancient, Player player)
+    {
+        var mutable = (AncientEventModel)(EventModel)ancient.ToMutable();
+        OwnerProperty.SetValue(mutable, player);
+        return mutable.AllPossibleOptions;
     }
 
     private static string FormatOptionLabel(EventOption option, string token)

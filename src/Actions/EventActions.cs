@@ -39,8 +39,9 @@ internal static class EventActions {
 
             if (eventModel is AncientEventModel ancient
                 && request?.PinOptionToken is string pin
-                && !AncientEventActions.IsValidChoice(ancient, pin)) {
-                MainFile.Logger.Warn($"[DevMode] ForceEnterEvent: invalid ancient choice '{pin}'.");
+                && !AncientEventActions.IsValidChoice(ancient, pin, player)) {
+                MainFile.Logger.Warn(
+                    $"[DevMode] ForceEnterEvent: invalid ancient choice '{pin}' for current run/deck.");
                 return false;
             }
 
