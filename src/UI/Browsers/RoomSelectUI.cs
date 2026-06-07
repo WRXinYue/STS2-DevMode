@@ -28,10 +28,13 @@ internal static partial class RoomSelectUI {
         });
 
         var main = BuildMainPanel(dual.MainContent);
-        var ancients = BuildAncientsPanel(dual.ExtContent, main.WarnLabel);
+        var ancients = BuildAncientsPanel(dual, main.WarnLabel, globalUi);
 
-        ancients.BackButton.Pressed += () => dual.CloseExtension();
-        main.ListHost.AddChild(BuildAncientEntryCard(dual.ToggleExtension));
+        ancients.BackButton.Pressed += ancients.OnBackPressed;
+        main.ListHost.AddChild(BuildAncientEntryCard(() => {
+            ancients.ResetToList();
+            dual.ToggleExtension();
+        }));
 
         dual.AttachToScene();
     }

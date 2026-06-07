@@ -145,7 +145,7 @@ internal static partial class RoomSelectUI {
         };
     }
 
-    private static Button BuildAncientExtensionHeader(VBoxContainer extVbox) {
+    private static Button BuildAncientExtensionHeader(VBoxContainer extVbox, out Button titleBtn) {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 8);
 
@@ -167,16 +167,16 @@ internal static partial class RoomSelectUI {
         backBtn.AddThemeFontSizeOverride("font_size", 12);
         row.AddChild(backBtn);
 
-        var tab = new Button {
+        titleBtn = new Button {
             Text = I18N.T("room.section.ancients", "Ancient Ones"),
             FocusMode = Control.FocusModeEnum.None,
             CustomMinimumSize = new Vector2(0, 32),
         };
         foreach (var s in new[] { "normal", "hover", "pressed", "focus" })
-            tab.AddThemeStyleboxOverride(s, flat);
-        tab.AddThemeColorOverride("font_color", DevModeTheme.Accent);
-        tab.AddThemeFontSizeOverride("font_size", 13);
-        row.AddChild(tab);
+            titleBtn.AddThemeStyleboxOverride(s, flat);
+        titleBtn.AddThemeColorOverride("font_color", DevModeTheme.Accent);
+        titleBtn.AddThemeFontSizeOverride("font_size", 13);
+        row.AddChild(titleBtn);
         row.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         extVbox.AddChild(row);
         extVbox.AddChild(new ColorRect {

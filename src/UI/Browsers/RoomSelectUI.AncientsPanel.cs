@@ -1,58 +1,129 @@
+using System;
 using System.Linq;
 using DevMode.Actions;
 using Godot;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
 namespace DevMode.UI;
 
 internal static partial class RoomSelectUI {
-    internal readonly record struct AncientsPanelHandle(
-        Button BackButton,
-        Label StatusLabel);
+    private enum AncientsExtView {
+        List,
+        Darv,
+    }
 
-    private static AncientsPanelHandle BuildAncientsPanel(VBoxContainer extVbox, Label warnLabel) {
-        var backBtn = BuildAncientExtensionHeader(extVbox);
+    internal sealed class AncientsPanelHandle {
+        internal required Button BackButton { get; init; }
+        internal required Label StatusLabel { get; init; }
+        internal required Action OnBackPressed { get; init; }
+        internal required Action ResetToList { get; init; }
+    }
 
-        var ancientScroll = new ScrollContainer {
+    private static AncientsPanelHandle BuildAncientsPanel(
+        DevPanelUI.DualColumnOverlayHandle dual,
+        Label warnLabel,
+        NGlobalUi globalUi) {
+        var extVbox = dual.ExtContent;
+        var backBtn = BuildAncientExtensionHeader(extVbox, out var titleBtn);
+
+        var bodyHost = new VBoxContainer {
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
-            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
-        var ancientList = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        ancientList.AddThemeConstantOverride("separation", 3);
-        ancientScroll.AddChild(ancientList);
-        extVbox.AddChild(ancientScroll);
+        bodyHost.AddThemeConstantOverride("separation", 3);
+        extVbox.AddChild(bodyHost);
 
         var extStatusLabel = new Label { Text = "", HorizontalAlignment = HorizontalAlignment.Center };
         extStatusLabel.AddThemeFontSizeOverride("font_size", 11);
         extStatusLabel.AddThemeColorOverride("font_color", DevModeTheme.Subtle);
         extVbox.AddChild(extStatusLabel);
 
-        foreach (var ancient in EventActions.GetAllAncients().OrderBy(EventActions.GetEventDisplayName)) {
-            var captured = ancient;
-            var btn = DevPanelUI.CreateListItemButton(FormatAncientListLabel(captured));
-            btn.Alignment = HorizontalAlignment.Left;
-            var epithet = GetAncientEpithet(captured);
-            if (!string.IsNullOrWhiteSpace(epithet))
-                btn.TooltipText = epithet;
-            btn.Pressed += () => {
-                if (!RoomActions.IsRunInProgress) {
-                    warnLabel.Visible = true;
-                    extStatusLabel.Text = "";
-                    return;
-                }
+        var view = AncientsExtView.List;
 
-                warnLabel.Visible = false;
-                bool ok = EventActions.TryForceEnterEvent(captured);
-                extStatusLabel.Text = ok
-                    ? I18N.T("room.entered", "Entering: {0}", EventActions.GetEventDisplayName(captured))
-                    : I18N.T("room.error", "Failed to enter room.");
+        void ShowList() {
+            view = AncientsExtView.List;
+            titleBtn.Text = I18N.T("room.section.ancients", "Ancient Ones");
+
+            foreach (var child in bodyHost.GetChildren())
+                ((Node)child).QueueFree();
+
+            var ancientScroll = new ScrollContainer {
+                SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+                HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
             };
-            ancientList.AddChild(btn);
+            var ancientList = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            ancientList.AddThemeConstantOverride("separation", 3);
+            ancientScroll.AddChild(ancientList);
+            bodyHost.AddChild(ancientScroll);
+
+            foreach (var ancient in EventActions.GetAllAncients().OrderBy(EventActions.GetEventDisplayName)) {
+                var captured = ancient;
+                var btn = DevPanelUI.CreateListItemButton(FormatAncientListLabel(captured));
+                btn.Alignment = HorizontalAlignment.Left;
+                var epithet = GetAncientEpithet(captured);
+                if (!string.IsNullOrWhiteSpace(epithet))
+                    btn.TooltipText = epithet;
+                btn.Pressed += () => OnAncientSelected(captured);
+                ancientList.AddChild(btn);
+            }
+
+            extStatusLabel.Text = I18N.T("room.ancients.count", "{0} ancients", ancientList.GetChildCount());
         }
 
-        extStatusLabel.Text = I18N.T("room.ancients.count", "{0} ancients", ancientList.GetChildCount());
+        void ShowDarvPicker(AncientEventModel ancient) {
+            view = AncientsExtView.Darv;
+            titleBtn.Text = I18N.T("ancient.darv.title", "Darv — option layout");
 
-        return new AncientsPanelHandle(backBtn, extStatusLabel);
+            foreach (var child in bodyHost.GetChildren())
+                ((Node)child).QueueFree();
+
+            AncientEventEnterUI.PopulateDarvChoices(bodyHost, request => {
+                bool ok = EventActions.TryForceEnterEvent(ancient, request);
+                extStatusLabel.Text = ok
+                    ? I18N.T("ancient.darv.entered", "Entering Darv ({0})", DescribeDarvRequest(request))
+                    : I18N.T("room.error", "Failed to enter room.");
+            });
+
+            extStatusLabel.Text = "";
+        }
+
+        void OnAncientSelected(AncientEventModel ancient) {
+            if (!RoomActions.IsRunInProgress) {
+                warnLabel.Visible = true;
+                extStatusLabel.Text = "";
+                return;
+            }
+
+            warnLabel.Visible = false;
+            if (AncientEventActions.IsDarv(ancient)) {
+                ShowDarvPicker(ancient);
+                return;
+            }
+
+            bool entered = EventActions.TryForceEnterEvent(ancient);
+            extStatusLabel.Text = entered
+                ? I18N.T("room.entered", "Entering: {0}", EventActions.GetEventDisplayName(ancient))
+                : I18N.T("room.error", "Failed to enter room.");
+        }
+
+        void OnBackPressed() {
+            if (view == AncientsExtView.Darv) {
+                ShowList();
+                return;
+            }
+
+            dual.CloseExtension();
+        }
+
+        ShowList();
+
+        return new AncientsPanelHandle {
+            BackButton = backBtn,
+            StatusLabel = extStatusLabel,
+            OnBackPressed = OnBackPressed,
+            ResetToList = ShowList,
+        };
     }
 
     private static string FormatAncientListLabel(AncientEventModel ancient) {
@@ -64,5 +135,17 @@ internal static partial class RoomSelectUI {
     private static string GetAncientEpithet(AncientEventModel ancient) {
         try { return ancient.Epithet?.GetFormattedText() ?? ""; }
         catch { return ""; }
+    }
+
+    private static string DescribeDarvRequest(AncientEventEnterRequest request) {
+        if (request.DarvIncludeDustyTome is true && request.PinFirstOptionToken is not null)
+            return I18N.T("ancient.darv.twoPlusPinTome", "2 relics + tome, pin tome first");
+        if (request.DarvIncludeDustyTome is true)
+            return I18N.T("ancient.darv.twoPlusTome", "2 boss relics + Dusty Tome");
+        if (request.DarvIncludeDustyTome is false)
+            return I18N.T("ancient.darv.threeBoss", "3 boss relics (no tome)");
+        if (request.PinFirstOptionToken is not null)
+            return I18N.T("ancient.darv.pinTome", "Pin Dusty Tome first");
+        return I18N.T("ancient.darv.random", "Random (vanilla 50%)");
     }
 }

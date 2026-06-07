@@ -213,9 +213,7 @@ internal static class DevPanel {
         TryDismissCurrent();
         DevModeState.ActivePanel = ActivePanel.Events;
 
-        EventSelectUI.Show(_globalUi, evt => {
-            EventActions.TryForceEnterEvent(evt);
-        });
+        EventSelectUI.Show(_globalUi, (evt, request) => EventActions.TryForceEnterEvent(evt, request));
     }
 
     private static void OpenRooms() {
