@@ -1,0 +1,25 @@
+# Git commit hooks — install: make hooks-install
+# Manual full run: make hooks-run
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+
+  - repo: local
+    hooks:
+      - id: dotnet-format-check
+        name: dotnet format (verify)
+        entry: make format-check
+        language: system
+        types: [c#]
+        pass_filenames: false
+
+      - id: flake8-scripts
+        name: flake8 scripts/
+        entry: make lint-scripts
+        language: system
+        files: ^scripts/.*\.py$
+        pass_filenames: false

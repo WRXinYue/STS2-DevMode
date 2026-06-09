@@ -12,6 +12,7 @@ PYTHON ?= python
 else
 PYTHON ?= python3
 endif
+UV ?= uv
 VERSION := $(shell $(PYTHON) -c "import json;print(json.load(open('KitLib.json',encoding='utf-8'))['version'])")
 
 MOD_MAIN := src/KitLib.Core/KitLib.Core.csproj
@@ -70,7 +71,7 @@ MOD_PROJECTS := src/KitLib.Core/KitLib.Core.csproj \
 	src/KitLib.Modules.Panel/KitLib.Panel.csproj
 PACKAGE_MODULES := $(PYTHON) scripts/package_modules.py
 
-.PHONY: help init icons format deps build build-all deploy sync sync-full sync-framework-mods compile pck publish nexus nuget upload-all readme-nexus zip zip-full clean \
+.PHONY: help init icons format format-check lint-scripts check hooks-install hooks-run deps build build-all deploy sync sync-full sync-framework-mods compile pck publish nexus nuget upload-all readme-nexus zip zip-full clean \
         build-beta deploy-beta sync-beta sync-beta-launch compile-beta pck-beta zip-beta nexus-beta nuget-beta publish-beta upload-all-beta \
         launch launch-beta sync-launch sync-full-launch sync-beta-run dev-session compile-tools build-tools deploy-tools sync-tools zip-mcp upload-nexus-mcp nexus-mcp \
         compile-kitlog build-kitlog zip-kitlog \
@@ -79,9 +80,14 @@ PACKAGE_MODULES := $(PYTHON) scripts/package_modules.py
 help:
 	@echo "KitLib — targets"
 	@echo ""
-	@echo "  init         detect STS2 + Godot, generate local.props + .vscode (PYTHON=... to override)"
+	@echo "  init         detect STS2 + Godot, generate local.props + .vscode + pre-commit hooks"
 	@echo "  icons        tree-shake MDI (mdi-used.json + MdiIcon.Generated.cs)"
 	@echo "  format       dotnet format KitLib.sln (EditorConfig / pre-commit)"
+	@echo "  format-check dotnet format --verify-no-changes (CI)"
+	@echo "  lint-scripts flake8 scripts/ (setup.cfg)"
+	@echo "  check        format-check + lint-scripts"
+	@echo "  hooks-install uv sync (dev) + pre-commit git hook"
+	@echo "  hooks-run    pre-commit run --all-files"
 	@echo "  deps         dotnet restore (does not touch game mods/STS2-RitsuLib by default)"
 	@echo ""
 	@echo "  sync         build Core to build/KitLib/, then copy into game mods/KitLib/ only"
@@ -134,12 +140,28 @@ help:
 
 init:
 	$(PYTHON) scripts/init.py
+	-$(MAKE) hooks-install
 
 icons:
 	$(PYTHON) scripts/shake_icons.py
 
 format:
 	$(DOTNET) format KitLib.sln --verbosity quiet
+
+format-check:
+	$(DOTNET) format KitLib.sln --verify-no-changes
+
+lint-scripts:
+	$(UV) run flake8 scripts
+
+check: format-check lint-scripts
+
+hooks-install:
+	$(UV) sync
+	$(UV) run pre-commit install
+
+hooks-run:
+	$(UV) run pre-commit run --all-files
 
 deps:
 	$(DOTNET) restore $(MOD_MAIN)

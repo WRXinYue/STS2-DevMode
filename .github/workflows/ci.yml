@@ -1,0 +1,38 @@
+# GitHub Actions — push/PR to main.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore solution
+        run: dotnet restore KitLib.sln
+
+      - name: Format check
+        run: dotnet format KitLib.sln --verify-no-changes
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Lint Python scripts
+        run: |
+          uv sync
+          uv run flake8 scripts
+
+      - name: Build KitLog CLI
+        run: dotnet build tools/KitLog.Cli/KitLog.Cli.csproj -c Release --disable-build-servers
