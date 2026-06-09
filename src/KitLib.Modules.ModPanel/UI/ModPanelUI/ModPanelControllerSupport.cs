@@ -27,6 +27,7 @@ public partial class ModPanelControllerSupport : Node {
     private Action<string>? _selectMod;
     private Control? _settingsContentRoot;
     private bool _lastUsingController;
+    private bool _tabHotkeysEnabled;
 
     public void Configure(ModPanelPageTabChrome pageTabChrome, Control hintsRow) {
         _pageTabChrome = pageTabChrome;
@@ -49,10 +50,27 @@ public partial class ModPanelControllerSupport : Node {
         _settingsContentRoot = settingsContentRoot;
     }
 
-    public override void _Ready() {
-        _refreshHintsCallable = Callable.From(RefreshHints);
+    /// <summary>Push LB/RB bindings while this submenu is active (NSettingsTabManager.Enable pattern).</summary>
+    public void EnableTabHotkeys() {
+        if (_tabHotkeysEnabled || NHotkeyManager.Instance == null)
+            return;
         NHotkeyManager.Instance.PushHotkeyPressedBinding(TabLeftHotkey, TabLeft);
         NHotkeyManager.Instance.PushHotkeyPressedBinding(TabRightHotkey, TabRight);
+        _tabHotkeysEnabled = true;
+    }
+
+    /// <summary>Pop LB/RB bindings when the submenu closes or hides.</summary>
+    public void DisableTabHotkeys() {
+        if (!_tabHotkeysEnabled || NHotkeyManager.Instance == null
+            || !GodotObject.IsInstanceValid(NHotkeyManager.Instance))
+            return;
+        NHotkeyManager.Instance.RemoveHotkeyPressedBinding(TabLeftHotkey, TabLeft);
+        NHotkeyManager.Instance.RemoveHotkeyPressedBinding(TabRightHotkey, TabRight);
+        _tabHotkeysEnabled = false;
+    }
+
+    public override void _Ready() {
+        _refreshHintsCallable = Callable.From(RefreshHints);
         if (NControllerManager.Instance != null) {
             NControllerManager.Instance.Connect(NControllerManager.SignalName.ControllerDetected,
                 _refreshHintsCallable.Value);
@@ -76,8 +94,7 @@ public partial class ModPanelControllerSupport : Node {
     }
 
     public override void _ExitTree() {
-        NHotkeyManager.Instance.RemoveHotkeyPressedBinding(TabLeftHotkey, TabLeft);
-        NHotkeyManager.Instance.RemoveHotkeyPressedBinding(TabRightHotkey, TabRight);
+        DisableTabHotkeys();
         if (_refreshHintsCallable == null)
             return;
         if (NControllerManager.Instance != null && GodotObject.IsInstanceValid(NControllerManager.Instance)) {
@@ -225,35 +242,56 @@ public partial class ModPanelControllerSupport : Node {
         SwitchTab(1);
     }
 
-    /// <summary>LB/RB from <see cref="ModPanelSubmenu._Input" /> (NStatsTabManager pattern).</summary>
+    /// <summary>LB/RB from <see cref="ModPanelSubmenu" /> input hooks (NStatsTabManager pattern).</summary>
     public bool TryHandleTabInput(InputEvent @event) {
         if (@event.IsEcho())
             return false;
-        if (_submenu == null || !GodotObject.IsInstanceValid(_submenu) || !_submenu.Visible)
+        if (!CanHandleTabHotkeys(out var skip))
             return false;
-        if (!ActiveScreenContext.Instance.IsCurrent(_submenu))
+        if (_pageTabChrome == null || _pageTabChrome.PageCount <= 1) {
+            MainFile.Logger.Info(ModPanelDiagnosticLog.FormatControllerInput(
+                "tab", handled: false, "pageTabsUnavailable", _getSelectedModId?.Invoke()));
             return false;
-        if (_pageTabChrome == null || _pageTabChrome.PageCount <= 1)
-            return false;
+        }
 
         if (@event.IsActionPressed(TabLeftHotkey)) {
+            MainFile.Logger.Info(ModPanelDiagnosticLog.FormatControllerInput(
+                "tabLeft", handled: true, null, _getSelectedModId?.Invoke()));
             SwitchTab(-1);
             return true;
         }
         if (@event.IsActionPressed(TabRightHotkey)) {
+            MainFile.Logger.Info(ModPanelDiagnosticLog.FormatControllerInput(
+                "tabRight", handled: true, null, _getSelectedModId?.Invoke()));
             SwitchTab(1);
             return true;
         }
         return false;
     }
 
+    private bool CanHandleTabHotkeys(out string? skipReason) {
+        skipReason = DescribeSkipReason();
+        if (skipReason != null)
+            return false;
+        if (_submenu == null || !GodotObject.IsInstanceValid(_submenu) || !_submenu.IsVisibleInTree())
+            return false;
+        return true;
+    }
+
     private void SwitchTab(int delta) {
         if (_pageTabChrome == null)
             return;
-        if (_submenu != null && !ActiveScreenContext.Instance.IsCurrent(_submenu))
+        if (!CanHandleTabHotkeys(out var skip)) {
+            MainFile.Logger.Info(ModPanelDiagnosticLog.FormatControllerInput(
+                delta < 0 ? "tabLeft" : "tabRight", handled: false, skip ?? "tabHotkeyBlocked",
+                _getSelectedModId?.Invoke()));
             return;
-        if (!_pageTabChrome.TrySwitchPage(delta))
+        }
+        if (!_pageTabChrome.TrySwitchPage(delta)) {
+            MainFile.Logger.Info(ModPanelDiagnosticLog.FormatControllerInput(
+                delta < 0 ? "tabLeft" : "tabRight", handled: false, "tabAtEdge", _getSelectedModId?.Invoke()));
             return;
+        }
         var tab = FindSelectedTabButton();
         if (tab != null)
             Callable.From(() => tab.TryGrabFocus()).CallDeferred();

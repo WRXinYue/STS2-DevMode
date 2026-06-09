@@ -25,8 +25,20 @@ public partial class ModPanelSubmenu : NSubmenu {
         GrowVertical = GrowDirection.Both;
         MouseFilter = MouseFilterEnum.Stop;
         SetProcessInput(true);
+        SetProcessUnhandledInput(true);
         FocusBehaviorRecursive = FocusBehaviorRecursiveEnum.Enabled;
     }
+
+    private void ForEachControllerSupport(Action<ModPanelControllerSupport> action) {
+        foreach (var child in GetChildren()) {
+            if (child is ModPanelControllerSupport support && GodotObject.IsInstanceValid(support))
+                action(support);
+        }
+    }
+
+    private void EnableTabHotkeys() => ForEachControllerSupport(s => s.EnableTabHotkeys());
+
+    private void DisableTabHotkeys() => ForEachControllerSupport(s => s.DisableTabHotkeys());
 
     public override void OnSubmenuOpened() {
         base.OnSubmenuOpened();
@@ -39,6 +51,7 @@ public partial class ModPanelSubmenu : NSubmenu {
             _signalsConnected = true;
         }
         ModPanelDiagnostics.LogControllerContext(this);
+        EnableTabHotkeys();
         Callable.From(() => {
             RefreshControllerFocus();
             RefreshControllerHints();
@@ -47,7 +60,13 @@ public partial class ModPanelSubmenu : NSubmenu {
 
     protected override void OnSubmenuShown() {
         base.OnSubmenuShown();
+        EnableTabHotkeys();
         Callable.From(RefreshControllerHints).CallDeferred();
+    }
+
+    protected override void OnSubmenuHidden() {
+        DisableTabHotkeys();
+        base.OnSubmenuHidden();
     }
 
     internal void RefreshControllerHints() {
@@ -58,6 +77,7 @@ public partial class ModPanelSubmenu : NSubmenu {
     }
 
     public override void OnSubmenuClosed() {
+        DisableTabHotkeys();
         RitsuModSettingsEmbedHost.FlushDirtyBindings();
         RitsuModSettingsEmbedHost.ClearAfterShellDisposed();
         ModPanelUI.OnSubmenuPopped(this);
@@ -67,18 +87,31 @@ public partial class ModPanelSubmenu : NSubmenu {
     public override void _Input(InputEvent @event) {
         if (!ActiveScreenContext.Instance.IsCurrent(this))
             return;
+        if (TryHandleControllerInput(@event)) {
+            GetViewport()?.SetInputAsHandled();
+            return;
+        }
+    }
+
+    public override void _UnhandledInput(InputEvent @event) {
+        if (!ActiveScreenContext.Instance.IsCurrent(this))
+            return;
+        if (TryHandleControllerInput(@event)) {
+            GetViewport()?.SetInputAsHandled();
+            return;
+        }
+    }
+
+    private bool TryHandleControllerInput(InputEvent @event) {
         foreach (var child in GetChildren()) {
             if (child is not ModPanelControllerSupport support)
                 continue;
-            if (support.TryHandleTabInput(@event)) {
-                GetViewport()?.SetInputAsHandled();
-                return;
-            }
-            if (support.TryHandleDirectionalInput(@event)) {
-                GetViewport()?.SetInputAsHandled();
-                return;
-            }
+            if (support.TryHandleTabInput(@event))
+                return true;
+            if (support.TryHandleDirectionalInput(@event))
+                return true;
         }
+        return false;
     }
 
     internal void RefreshControllerFocus() {

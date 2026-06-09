@@ -42,7 +42,27 @@ internal static class RitsuModSettingsEmbedHost {
         }
         _submenu = created;
         _pin.AddChild(_submenu);
+        MuteEmbeddedSubmenuInput(_pin);
+        MuteEmbeddedSubmenuInput(_submenu);
+        TryInvokeEmbedDisable(_submenu);
         MainFile.Logger.Info("KitLib ModPanel: RitsuModSettingsSubmenu embed host ready.");
+    }
+
+    private static void MuteEmbeddedSubmenuInput(Node node) {
+        node.SetProcessInput(false);
+        node.SetProcessUnhandledInput(false);
+    }
+
+    private static void TryInvokeEmbedDisable(Node submenu) {
+        try {
+            var disable = submenu.GetType().GetMethod("Disable",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            disable?.Invoke(submenu, null);
+        }
+        catch (Exception ex) {
+            MainFile.Logger.Info(
+                $"KitLib ModPanel: embed submenu Disable() skipped: {ex.InnerException?.Message ?? ex.Message}");
+        }
     }
     private static Node? TryInstantiateSubmenu(Type submenuType) {
         try {
