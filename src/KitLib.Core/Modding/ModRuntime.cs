@@ -84,4 +84,63 @@ public static class ModRuntime {
 
         return list.Count == 0 ? Array.Empty<string>() : list.ToArray();
     }
+
+    /// <summary>Loaded mods with manifest <c>id</c>, sorted by display name for settings UI lists.</summary>
+    public static IReadOnlyList<KitLibModInfo> GetOrderedLoadedMods() {
+        var s = Catalog.GetSnapshot();
+        if (s.Count <= 1)
+            return s;
+        var list = s.ToList();
+        list.Sort(static (a, b) =>
+            string.Compare(a.DisplayName, b.DisplayName, StringComparison.OrdinalIgnoreCase));
+        return list;
+    }
+
+    /// <summary>
+    /// Queued until all mod initializers finish, then invoked on the same thread immediately before
+    /// <c>LocManager.Initialize</c>.
+    /// </summary>
+    public static void RegisterAfterAllModsLoaded(Action registration)
+        => ModLoadCoordinator.Register(registration);
+}
+
+/// <summary>Shared coordinator for post-mod-load work (KitLib UI and third-party callbacks).</summary>
+internal static class ModLoadCoordinator {
+    private static readonly object Sync = new();
+    private static readonly List<Action> Queue = new();
+    private static bool _phaseDone;
+
+    public static void Register(Action registration) {
+        ArgumentNullException.ThrowIfNull(registration);
+
+        lock (Sync) {
+            if (_phaseDone) {
+                Run(registration);
+                return;
+            }
+
+            Queue.Add(registration);
+        }
+    }
+
+    public static void Flush() {
+        lock (Sync) {
+            if (_phaseDone)
+                return;
+
+            _phaseDone = true;
+            foreach (var action in Queue)
+                Run(action);
+            Queue.Clear();
+        }
+    }
+
+    private static void Run(Action registration) {
+        try {
+            registration();
+        }
+        catch (Exception ex) {
+            MainFile.Logger.Warn($"ModLoadCoordinator: {ex.Message}");
+        }
+    }
 }

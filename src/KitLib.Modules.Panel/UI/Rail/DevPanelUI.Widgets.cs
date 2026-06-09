@@ -1,12 +1,9 @@
 using System;
 using Godot;
 using KitLib.Icons;
-
 namespace KitLib.UI;
-
 internal static partial class DevPanelUI {
     // ── Browser-panel factory (spliced to rail, same visual language as Cards/Relics) ─────────
-
     /// <summary>
     /// Creates a panel spliced to the left rail — flat left edge, rounded right corners,
     /// slide-in from left animation.
@@ -24,7 +21,6 @@ internal static partial class DevPanelUI {
             OffsetTop = 0,
             OffsetBottom = 0
         };
-
         if (fixedWidth > 0f) {
             panel.AnchorLeft = 0; panel.AnchorRight = 0;
             panel.OffsetLeft = BrowserPanelLeft;
@@ -35,7 +31,6 @@ internal static partial class DevPanelUI {
             panel.OffsetLeft = BrowserPanelLeft;
             panel.OffsetRight = -EffectiveBrowserContentRight;
         }
-
         var style = new StyleBoxFlat {
             BgColor = ColOverlayBg,
             CornerRadiusTopLeft = 0,
@@ -56,16 +51,13 @@ internal static partial class DevPanelUI {
             ShadowOffset = new Vector2(20, 0)
         };
         panel.AddThemeStyleboxOverride("panel", style);
-
         var content = new VBoxContainer { Name = "Content" };
         content.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         content.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
         content.AddThemeConstantOverride("separation", 10);
         panel.AddChild(content);
-
         return panel;
     }
-
     /// <summary>
     /// Same chrome as <see cref="CreateBrowserPanel"/> for a fixed pixel width, but horizontal
     /// offsets are <c>0 … width</c> (parent must already account for <see cref="BrowserPanelLeft"/>).
@@ -88,7 +80,6 @@ internal static partial class DevPanelUI {
             OffsetLeft = 0,
             OffsetRight = fixedWidth,
         };
-
         int rr = joinFlushOnRight ? 0 : BrowserRailRadius;
         var style = new StyleBoxFlat {
             BgColor = ColOverlayBg,
@@ -110,16 +101,13 @@ internal static partial class DevPanelUI {
             ShadowOffset = new Vector2(20, 0)
         };
         panel.AddThemeStyleboxOverride("panel", style);
-
         var content = new VBoxContainer { Name = "Content" };
         content.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         content.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
         content.AddThemeConstantOverride("separation", 10);
         panel.AddChild(content);
-
         return panel;
     }
-
     /// <summary>
     /// Transparent full-area backdrop that closes the panel when clicking anywhere outside
     /// the rail (to the right of the rail, full height). Add this as the FIRST child of the
@@ -133,7 +121,6 @@ internal static partial class DevPanelUI {
             closed = true;
             onClose();
         }
-
         var backdrop = new ColorRect {
             Color = new Color(0, 0, 0, 0),
             MouseFilter = Control.MouseFilterEnum.Stop,
@@ -146,17 +133,13 @@ internal static partial class DevPanelUI {
             OffsetTop = 0,
             OffsetBottom = 0
         };
-
         backdrop.GuiInput += e => {
             if (e is InputEventMouseButton { Pressed: true })
                 SafeClose();
         };
-
         return backdrop;
     }
-
     // ── Shared overlay widget factories ──────────────────────────────────────
-
     /// <summary>Standard panel title label — matches relic / card browser headers.</summary>
     public static Label CreatePanelTitle(string text) {
         var lbl = new Label {
@@ -168,7 +151,6 @@ internal static partial class DevPanelUI {
         lbl.AddThemeColorOverride("font_color", KitLibTheme.TextPrimary);
         return lbl;
     }
-
     /// <summary>
     /// Standard search row with magnify icon — matches relic / card browser search bars.
     /// Returns the row container and the inner LineEdit.
@@ -176,24 +158,20 @@ internal static partial class DevPanelUI {
     public static (HBoxContainer row, LineEdit input) CreateSearchRow(string placeholder) {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 6);
-
         row.AddChild(new TextureRect {
             Texture = MdiIcon.Magnify.Texture(18, KitLibTheme.Subtle),
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             CustomMinimumSize = new Vector2(22, 22),
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter
         });
-
         var input = new LineEdit {
             PlaceholderText = placeholder,
             ClearButtonEnabled = true,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
         };
         row.AddChild(input);
-
         return (row, input);
     }
-
     /// <summary>
     /// Styled list-item button used in scroll lists (Powers, Potions, Events, etc.).
     /// Left-aligned text, subtle dark background, accent hover.
@@ -207,7 +185,6 @@ internal static partial class DevPanelUI {
             FocusMode = Control.FocusModeEnum.None,
             ClipText = true
         };
-
         StyleBoxFlat MakeStyle(Color bg, Color border) => new() {
             BgColor = bg,
             CornerRadiusTopLeft = 6,
@@ -224,22 +201,18 @@ internal static partial class DevPanelUI {
             BorderWidthBottom = 1,
             BorderColor = border
         };
-
         var accent = KitLibTheme.Accent;
         var bgNormal = KitLibTheme.ButtonBgNormal;
         btn.AddThemeStyleboxOverride("normal", MakeStyle(bgNormal, new Color(bgNormal.R, bgNormal.G, bgNormal.B, bgNormal.A * 0.8f)));
         btn.AddThemeStyleboxOverride("hover", MakeStyle(KitLibTheme.ButtonBgHover, new Color(accent.R, accent.G, accent.B, 0.30f)));
         btn.AddThemeStyleboxOverride("pressed", MakeStyle(new Color(accent.R, accent.G, accent.B, 0.15f), new Color(accent.R, accent.G, accent.B, 0.50f)));
         btn.AddThemeStyleboxOverride("focus", MakeStyle(bgNormal, new Color(bgNormal.R, bgNormal.G, bgNormal.B, bgNormal.A * 0.8f)));
-
         btn.AddThemeColorOverride("font_color", KitLibTheme.TextPrimary);
         btn.AddThemeColorOverride("font_hover_color", KitLibTheme.TextPrimary);
         btn.AddThemeColorOverride("font_pressed_color", KitLibTheme.TextPrimary);
         btn.AddThemeFontSizeOverride("font_size", 13);
-
         return btn;
     }
-
     /// <summary>Pill-shaped segment filter chip — matches relic browser rarity chips.</summary>
     public static Button CreateFilterChip(string text, bool active = false) {
         var btn = new Button {
@@ -250,7 +223,6 @@ internal static partial class DevPanelUI {
             MouseFilter = Control.MouseFilterEnum.Stop,
             CustomMinimumSize = new Vector2(0, 26)
         };
-
         StyleBoxFlat MakeStyle(Color bg) => new() {
             BgColor = bg,
             CornerRadiusTopLeft = 13,
@@ -262,27 +234,21 @@ internal static partial class DevPanelUI {
             ContentMarginTop = 2,
             ContentMarginBottom = 2
         };
-
         var accent = KitLibTheme.Accent;
         btn.AddThemeStyleboxOverride("normal", MakeStyle(KitLibTheme.ButtonBgNormal));
         btn.AddThemeStyleboxOverride("hover", MakeStyle(KitLibTheme.ButtonBgHover));
         btn.AddThemeStyleboxOverride("pressed", MakeStyle(KitLibTheme.AccentAlpha));
         btn.AddThemeStyleboxOverride("hover_pressed", MakeStyle(new Color(accent.R, accent.G, accent.B, 0.95f)));
         btn.AddThemeStyleboxOverride("focus", MakeStyle(KitLibTheme.ButtonBgNormal));
-
         btn.AddThemeColorOverride("font_color", KitLibTheme.Subtle);
         btn.AddThemeColorOverride("font_hover_color", KitLibTheme.TextPrimary);
         btn.AddThemeColorOverride("font_pressed_color", KitLibTheme.TextPrimary);
         btn.AddThemeFontSizeOverride("font_size", 11);
-
         return btn;
     }
-
     // ─────────────────────────────────────────────────────────────────────────
-
     private static Button CreateRailIcon(MdiIcon icon, string tooltip) =>
         ContextRailWidgets.CreateContextIconButton(icon, tooltip, iconSize: 20);
-
     private static Button CreateToggleButton(string text) {
         return new Button {
             Text = text,
@@ -291,7 +257,6 @@ internal static partial class DevPanelUI {
             MouseFilter = Control.MouseFilterEnum.Stop
         };
     }
-
     private static void ApplyDisabledStyle(Button btn, int cornerFlags) {
         var s = new StyleBoxFlat {
             BgColor = KitLibTheme.ButtonBgNormal,
@@ -313,7 +278,6 @@ internal static partial class DevPanelUI {
             btn.AddThemeStyleboxOverride(state, s);
         btn.AddThemeColorOverride("font_disabled_color", KitLibTheme.Subtle);
     }
-
     private static void ApplyToggleStyle(Button btn, bool active, int cornerFlags) {
         var accent = KitLibTheme.Accent;
         var s = new StyleBoxFlat {
@@ -338,7 +302,6 @@ internal static partial class DevPanelUI {
         btn.AddThemeStyleboxOverride("focus", s);
         btn.AddThemeColorOverride("font_color", active ? KitLibTheme.Accent : KitLibTheme.TextPrimary);
     }
-
     private static void ApplySmallButtonStyle(Button btn) {
         var normal = new StyleBoxFlat {
             BgColor = KitLibTheme.ButtonBgNormal,
@@ -367,7 +330,6 @@ internal static partial class DevPanelUI {
         btn.AddThemeStyleboxOverride("pressed", hover);
         btn.AddThemeStyleboxOverride("focus", normal);
     }
-
     private static void ApplySpinBoxTheme(SpinBox spinBox) {
         var lineEdit = spinBox.GetLineEdit();
         lineEdit.AddThemeColorOverride("font_color", KitLibTheme.TextPrimary);
@@ -386,13 +348,11 @@ internal static partial class DevPanelUI {
         lineEdit.AddThemeStyleboxOverride("focus", bg);
         lineEdit.AddThemeStyleboxOverride("read_only", bg);
     }
-
     private static Button CreateButton(string text, Action action, MdiIcon? icon = null) {
         var btn = CreatePlainButton(text, icon);
         btn.Pressed += action;
         return btn;
     }
-
     internal static Button CreatePlainButton(string text, MdiIcon? icon = null) {
         var btn = new Button {
             Text = text,
@@ -436,7 +396,6 @@ internal static partial class DevPanelUI {
         btn.AddThemeFontSizeOverride("font_size", 13);
         return btn;
     }
-
     private static Button CreateOverlayButton(string text, MdiIcon icon) {
         var accent = KitLibTheme.Accent;
         var btn = new Button {
@@ -477,7 +436,6 @@ internal static partial class DevPanelUI {
         btn.AddThemeColorOverride("font_color", KitLibTheme.TextPrimary);
         return btn;
     }
-
     public static HSeparator CreateOverlaySeparator() {
         var sep = new HSeparator();
         sep.AddThemeStyleboxOverride("separator", new StyleBoxFlat {
@@ -490,11 +448,9 @@ internal static partial class DevPanelUI {
         sep.AddThemeConstantOverride("separation", 4);
         return sep;
     }
-
     public static Control CreateSectionHeader(string text) {
         var container = new HBoxContainer();
         container.AddThemeConstantOverride("separation", 8);
-
         var line1 = new HSeparator {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter
@@ -507,7 +463,6 @@ internal static partial class DevPanelUI {
             ContentMarginRight = 0
         });
         line1.AddThemeConstantOverride("separation", 1);
-
         var label = new Label {
             Text = text,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -515,7 +470,6 @@ internal static partial class DevPanelUI {
         };
         label.AddThemeFontSizeOverride("font_size", 11);
         label.AddThemeColorOverride("font_color", ColSectionText);
-
         var line2 = new HSeparator {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter
@@ -528,18 +482,15 @@ internal static partial class DevPanelUI {
             ContentMarginRight = 0
         });
         line2.AddThemeConstantOverride("separation", 1);
-
         container.AddChild(line1);
         container.AddChild(label);
         container.AddChild(line2);
         return container;
     }
-
     internal static Control CreateCheatToggle(string label, string? tooltip, Func<bool> getter, Action<bool> setter) {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 4);
         row.CustomMinimumSize = new Vector2(0, 30);
-
         var lbl = new Label {
             Text = label,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
@@ -549,94 +500,75 @@ internal static partial class DevPanelUI {
         lbl.AddThemeColorOverride("font_color", KitLibTheme.TextPrimary);
         if (tooltip != null) lbl.TooltipText = tooltip;
         row.AddChild(lbl);
-
         string onText = I18N.T("cheat.off", "Off");
         string offText = I18N.T("cheat.on", "On");
-
         var offBtn = new Button { Text = onText, CustomMinimumSize = new Vector2(36, 26), FocusMode = Control.FocusModeEnum.None };
         var onBtn = new Button { Text = offText, CustomMinimumSize = new Vector2(36, 26), FocusMode = Control.FocusModeEnum.None };
-
         void Refresh() {
             bool active = getter();
             ApplyToggleStyle(offBtn, !active, 1);
             ApplyToggleStyle(onBtn, active, 2);
         }
-
         offBtn.Pressed += () => { setter(false); Refresh(); };
         onBtn.Pressed += () => { setter(true); Refresh(); };
-
         row.AddChild(offBtn);
         row.AddChild(onBtn);
         Refresh();
-
         row.VisibilityChanged += () => {
             if (row.Visible) Refresh();
         };
-
         return row;
     }
-
     private static Control CreateCheatSlider(string label, string? tooltip, float min, float max, float step,
         Func<float> getter, Action<float> setter) {
         var col = new VBoxContainer();
         col.AddThemeConstantOverride("separation", 2);
-
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 4);
-
         var lbl = new Label { Text = label, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, ClipText = true };
         lbl.AddThemeFontSizeOverride("font_size", 12);
         lbl.AddThemeColorOverride("font_color", KitLibTheme.TextPrimary);
         if (tooltip != null) lbl.TooltipText = tooltip;
         row.AddChild(lbl);
-
         var valLabel = new Label { Text = getter().ToString("0.#"), CustomMinimumSize = new Vector2(28, 0) };
         valLabel.AddThemeFontSizeOverride("font_size", 12);
         valLabel.AddThemeColorOverride("font_color", KitLibTheme.TextPrimary);
         valLabel.HorizontalAlignment = HorizontalAlignment.Right;
         row.AddChild(valLabel);
-
         col.AddChild(row);
-
-        var slider = new HSlider {
+        var slider = DevModeFormChrome.WithSliderStyle(new HSlider {
             MinValue = min,
             MaxValue = max,
             Step = step,
             Value = getter(),
-            CustomMinimumSize = new Vector2(0, 20),
+            CustomMinimumSize = new Vector2(0, 22),
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
-        };
+        });
         slider.ValueChanged += v => {
             setter((float)v);
             valLabel.Text = ((float)v).ToString("0.#");
         };
         col.AddChild(slider);
-
         col.VisibilityChanged += () => {
             if (col.Visible) {
                 slider.Value = getter();
                 valLabel.Text = getter().ToString("0.#");
             }
         };
-
         return col;
     }
-
     private static Control CreateCheatNumberEdit(string label, int min, int max, Func<int> getter, Action<int> setter) {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 4);
         row.CustomMinimumSize = new Vector2(0, 30);
-
         var lbl = new Label { Text = label, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, ClipText = true };
         lbl.AddThemeFontSizeOverride("font_size", 12);
         lbl.AddThemeColorOverride("font_color", KitLibTheme.TextPrimary);
         row.AddChild(lbl);
-
         var minusBtn = new Button { CustomMinimumSize = new Vector2(26, 26), FocusMode = Control.FocusModeEnum.None };
         minusBtn.Icon = MdiIcon.Minus.Texture(14, KitLibTheme.TextPrimary);
         ApplySmallButtonStyle(minusBtn);
         row.AddChild(minusBtn);
-
         var spinBox = new SpinBox {
             MinValue = min,
             MaxValue = max,
@@ -648,12 +580,10 @@ internal static partial class DevPanelUI {
         };
         ApplySpinBoxTheme(spinBox);
         row.AddChild(spinBox);
-
         var plusBtn = new Button { CustomMinimumSize = new Vector2(26, 26), FocusMode = Control.FocusModeEnum.None };
         plusBtn.Icon = MdiIcon.Plus.Texture(14, KitLibTheme.TextPrimary);
         ApplySmallButtonStyle(plusBtn);
         row.AddChild(plusBtn);
-
         var applyBtn = new Button { CustomMinimumSize = new Vector2(26, 26), FocusMode = Control.FocusModeEnum.None };
         applyBtn.Icon = MdiIcon.Check.Texture(14, KitLibTheme.TextPrimary);
         var applyStyle = new StyleBoxFlat {
@@ -671,22 +601,17 @@ internal static partial class DevPanelUI {
         applyBtn.AddThemeStyleboxOverride("hover", applyStyle);
         applyBtn.AddThemeStyleboxOverride("pressed", applyStyle);
         row.AddChild(applyBtn);
-
         minusBtn.Pressed += () => spinBox.Value = Math.Max(min, spinBox.Value - 1);
         plusBtn.Pressed += () => spinBox.Value = Math.Min(max, spinBox.Value + 1);
         applyBtn.Pressed += () => setter((int)spinBox.Value);
-
         row.VisibilityChanged += () => {
             if (row.Visible) spinBox.Value = getter();
         };
-
         return row;
     }
-
     private static Control CreateRuntimeToggle(string label, string? tooltip, Func<bool> getter, Action<bool> setter) {
         return CreateCheatToggle(label, tooltip, getter, setter);
     }
-
     private static Control CreateStatLockRow(string label, int min, int max,
         Func<bool> lockGetter, Action<bool> lockSetter,
         Func<int> valueGetter, Action<int> valueSetter,
@@ -694,14 +619,12 @@ internal static partial class DevPanelUI {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 4);
         row.CustomMinimumSize = new Vector2(0, 30);
-
         var check = new CheckBox { Text = label, ButtonPressed = lockGetter() };
         check.AddThemeFontSizeOverride("font_size", 12);
         check.AddThemeColorOverride("font_color", KitLibTheme.TextPrimary);
         check.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         check.ClipText = true;
         row.AddChild(check);
-
         var spinBox = new SpinBox {
             MinValue = min,
             MaxValue = max,
@@ -713,7 +636,6 @@ internal static partial class DevPanelUI {
         };
         ApplySpinBoxTheme(spinBox);
         row.AddChild(spinBox);
-
         check.Toggled += v => {
             if (v && liveValueGetter != null) {
                 int live = liveValueGetter();
@@ -723,7 +645,6 @@ internal static partial class DevPanelUI {
             lockSetter(v);
         };
         spinBox.ValueChanged += v => valueSetter((int)v);
-
         row.VisibilityChanged += () => {
             if (row.Visible) {
                 check.ButtonPressed = lockGetter();
@@ -733,7 +654,6 @@ internal static partial class DevPanelUI {
                     spinBox.Value = valueGetter();
             }
         };
-
         return row;
     }
-}
+}

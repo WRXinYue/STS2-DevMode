@@ -118,6 +118,9 @@ public sealed partial class KitLibSettings {
     /// <summary>Prompt to export feedback when an unhandled error or abnormal exit is detected.</summary>
     public bool PromptOnCrashFeedback { get; set; } = true;
 
+    /// <summary>Whether the mod panel sidebar scope blurb is expanded.</summary>
+    public bool ModPanelScopeStripExpanded { get; set; } = true;
+
     /// <summary>Enable in-game keyboard shortcuts for the DevMode sidebar shell.</summary>
     public bool HotkeysEnabled { get; set; } = true;
 
