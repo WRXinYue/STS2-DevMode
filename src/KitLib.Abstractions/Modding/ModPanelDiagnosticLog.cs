@@ -57,6 +57,35 @@ public static class ModPanelDiagnosticLog {
         return warnings;
     }
 
+    public static string FormatControllerContext(ModPanelControllerContext context)
+        => $"{Prefix} controller: {FormatControllerContextPayload(context)}";
+
+    public static string FormatControllerContextPayload(ModPanelControllerContext context) {
+        var sb = new StringBuilder();
+        sb.Append($"submenusOpen={context.SubmenusOpen}");
+        sb.Append($", stackPeek={context.StackPeekType}");
+        sb.Append($", isCurrent={context.IsCurrentSelf}");
+        sb.Append($", usingController={context.UsingController}");
+        sb.Append($", sidebarRows={context.SidebarRowCount}");
+        if (!string.IsNullOrWhiteSpace(context.SelectedModId))
+            sb.Append($", selectedMod={context.SelectedModId}");
+        if (!string.IsNullOrWhiteSpace(context.FocusOwnerPath))
+            sb.Append($", focus={context.FocusOwnerPath}");
+        if (!string.IsNullOrWhiteSpace(context.MainMenuButtonsVisible))
+            sb.Append($", mainMenuButtons={context.MainMenuButtonsVisible}");
+        return sb.ToString();
+    }
+
+    public static string FormatControllerInput(string action, bool handled, string? skipReason, string? selectedModId) {
+        var sb = new StringBuilder();
+        sb.Append($"{Prefix} controllerInput: action={action}, handled={handled}");
+        if (!string.IsNullOrWhiteSpace(skipReason))
+            sb.Append($", reason={skipReason}");
+        if (!string.IsNullOrWhiteSpace(selectedModId))
+            sb.Append($", selectedMod={selectedModId}");
+        return sb.ToString();
+    }
+
     public static IReadOnlyList<string> CollectLayoutWarnings(
         ModPanelOpenReport openReport,
         ModPanelLayoutSnapshot layout) {
@@ -85,6 +114,16 @@ public readonly record struct ModPanelOpenReport(
     int CatalogSnapshotCount,
     ModPanelEmbedHostProbeResult EmbedProbe,
     bool SubmenuAlive);
+
+public readonly record struct ModPanelControllerContext(
+    bool SubmenusOpen,
+    string StackPeekType,
+    bool IsCurrentSelf,
+    bool UsingController,
+    int SidebarRowCount,
+    string? SelectedModId,
+    string? FocusOwnerPath,
+    string? MainMenuButtonsVisible);
 
 public readonly record struct ModPanelLayoutSnapshot(
     string ShellSize,

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using KitLib.Abstractions.Modding;
 using MegaCrit.Sts2.Core.ControllerInput;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.Screens.ScreenContext;
@@ -21,7 +22,7 @@ public partial class ModPanelControllerSupport : Node {
     private TextureRect? _tabLeftIcon;
     private TextureRect? _tabRightIcon;
     private Callable? _refreshHintsCallable;
-    private ModPanelShellRoot? _shell;
+    private ModPanelSubmenu? _submenu;
     private IReadOnlyList<SidebarModRowVm> _sidebarRows = [];
     private Func<string>? _getSelectedModId;
     private Action<string>? _selectMod;
@@ -39,8 +40,8 @@ public partial class ModPanelControllerSupport : Node {
         _tabRightIcon = hintsRow.GetNodeOrNull<TextureRect>("TabRightHotkeyIcon");
     }
 
-    internal void BindShell(ModPanelShellRoot shell) {
-        _shell = shell;
+    internal void BindSubmenu(ModPanelSubmenu submenu) {
+        _submenu = submenu;
     }
 
     internal void ConfigureSidebar(IReadOnlyList<SidebarModRowVm> rows, Func<string> getSelectedModId,
@@ -81,37 +82,70 @@ public partial class ModPanelControllerSupport : Node {
             NInputManager.Instance.Disconnect(NInputManager.SignalName.InputRebound, _refreshHintsCallable.Value);
     }
 
-    /// <summary>Handled from <see cref="ModPanelShellRoot._Input" /> (RitsuModSettingsSubmenu pattern).</summary>
+    /// <summary>Handled from <see cref="ModPanelSubmenu._Input" /> (RitsuModSettingsSubmenu pattern).</summary>
     public bool TryHandleDirectionalInput(InputEvent @event) {
-        if (_shell == null || !GodotObject.IsInstanceValid(_shell) || !_shell.Visible)
-            return false;
-        if (!ActiveScreenContext.Instance.IsCurrent(_shell))
-            return false;
-        if (NControllerManager.Instance?.IsUsingController != true)
-            return false;
-        if (@event.IsEcho())
+        if (!IsDirectionalPress(@event, out var delta, out var action))
             return false;
 
-        int delta = 0;
-        if (@event.IsActionPressed("ui_up") || @event.IsActionPressed(MegaInput.up))
-            delta = -1;
-        else if (@event.IsActionPressed("ui_down") || @event.IsActionPressed(MegaInput.down))
-            delta = 1;
-        else
+        var skip = DescribeSkipReason();
+        if (skip != null) {
+            MainFile.Logger.Info(ModPanelDiagnosticLog.FormatControllerInput(
+                action, handled: false, skip, _getSelectedModId?.Invoke()));
             return false;
-
-        if (_sidebarRows.Count == 0 || _getSelectedModId == null || _selectMod == null)
-            return false;
+        }
 
         var focus = GetViewport()?.GuiGetFocusOwner() as Control;
         if (focus != null && _settingsContentRoot != null && GodotObject.IsInstanceValid(_settingsContentRoot)
-            && _settingsContentRoot.IsAncestorOf(focus))
+            && _settingsContentRoot.IsAncestorOf(focus)) {
+            MainFile.Logger.Info(ModPanelDiagnosticLog.FormatControllerInput(
+                action, handled: false, "focusInSettingsContent", _getSelectedModId?.Invoke()));
             return false;
+        }
 
-        if (!CycleSidebarMod(delta))
+        if (!CycleSidebarMod(delta)) {
+            MainFile.Logger.Info(ModPanelDiagnosticLog.FormatControllerInput(
+                action, handled: false, "cycleBlocked", _getSelectedModId?.Invoke()));
             return false;
+        }
+
+        MainFile.Logger.Info(ModPanelDiagnosticLog.FormatControllerInput(
+            action, handled: true, null, _getSelectedModId?.Invoke()));
         RefreshHints();
         return true;
+    }
+
+    private static bool IsDirectionalPress(InputEvent @event, out int delta, out string action) {
+        delta = 0;
+        action = "";
+        if (@event.IsEcho())
+            return false;
+        if (@event.IsActionPressed("ui_up") || @event.IsActionPressed(MegaInput.up)) {
+            delta = -1;
+            action = "up";
+            return true;
+        }
+        if (@event.IsActionPressed("ui_down") || @event.IsActionPressed(MegaInput.down)) {
+            delta = 1;
+            action = "down";
+            return true;
+        }
+        return false;
+    }
+
+    private string? DescribeSkipReason() {
+        if (_submenu == null || !GodotObject.IsInstanceValid(_submenu))
+            return "submenuMissing";
+        if (!_submenu.Visible)
+            return "submenuNotVisible";
+        if (!ActiveScreenContext.Instance.IsCurrent(_submenu)) {
+            var current = ActiveScreenContext.Instance.GetCurrentScreen();
+            return $"notCurrent(screen={current?.GetType().Name ?? "null"})";
+        }
+        if (NControllerManager.Instance?.IsUsingController != true)
+            return "mouseMode";
+        if (_sidebarRows.Count == 0 || _getSelectedModId == null || _selectMod == null)
+            return "sidebarNotReady";
+        return null;
     }
 
     public void RefreshHints() {
@@ -168,7 +202,7 @@ public partial class ModPanelControllerSupport : Node {
     private void SwitchTab(int delta) {
         if (_pageTabRow == null || _getPageId == null || _switchPage == null)
             return;
-        if (_shell != null && !ActiveScreenContext.Instance.IsCurrent(_shell))
+        if (_submenu != null && !ActiveScreenContext.Instance.IsCurrent(_submenu))
             return;
         var tabs = CollectTabs();
         if (tabs.Count <= 1)

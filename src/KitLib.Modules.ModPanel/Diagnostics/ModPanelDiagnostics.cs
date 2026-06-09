@@ -3,7 +3,12 @@ using Godot;
 using KitLib.Abstractions.Modding;
 using KitLib.Integration;
 using KitLib.Modding;
+using KitLib.UI;
 using MegaCrit.Sts2.Core.Modding;
+using MegaCrit.Sts2.Core.Nodes;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using MegaCrit.Sts2.Core.Nodes.Screens.MainMenu;
+using MegaCrit.Sts2.Core.Nodes.Screens.ScreenContext;
 
 namespace KitLib.ModPanel.Diagnostics;
 
@@ -35,6 +40,32 @@ internal static class ModPanelDiagnostics {
         if (shellRoot == null)
             return;
         Callable.From(() => LogSidebarLayout(shellRoot, openReport)).CallDeferred();
+    }
+
+    public static void LogControllerContext(ModPanelSubmenu submenu) {
+        MainFile.Logger.Info(ModPanelDiagnosticLog.FormatControllerContext(CaptureControllerContext(submenu)));
+    }
+
+    public static ModPanelControllerContext CaptureControllerContext(ModPanelSubmenu submenu) {
+        var stack = submenu.GetParent() as NSubmenuStack;
+        var peek = stack?.Peek();
+        var focus = submenu.GetViewport()?.GuiGetFocusOwner();
+        var rowCount = CountDescendantsNamed(submenu, "SidebarModSection_");
+        string? mainMenuButtons = null;
+        if (NGame.Instance?.MainMenu != null && GodotObject.IsInstanceValid(NGame.Instance.MainMenu)) {
+            var buttons = NGame.Instance.MainMenu.GetNodeOrNull<Control>("MainMenuTextButtons");
+            if (buttons != null)
+                mainMenuButtons = buttons.Visible ? "visible" : "hidden";
+        }
+        return new ModPanelControllerContext(
+            stack?.SubmenusOpen ?? false,
+            peek?.GetType().Name ?? "null",
+            ActiveScreenContext.Instance.IsCurrent(submenu),
+            NControllerManager.Instance?.IsUsingController == true,
+            rowCount,
+            null,
+            focus?.GetPath().ToString(),
+            mainMenuButtons);
     }
 
     public static void LogSidebarLayout(Control shellRoot, ModPanelOpenReport? openReport = null) {

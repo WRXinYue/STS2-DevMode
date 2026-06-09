@@ -19,9 +19,8 @@ namespace KitLib.UI;
 /// <c>RitsuModSettingsSubmenu</c> layout (Apr 2026); options body stays DevMode-owned.
 /// </summary>
 public static partial class ModPanelUI {
-    private const string RootName = "KitLibModPanelShell";
     private const int ZOrder = 2000;
-    private static ModPanelShellRoot? _root;
+    private static ModPanelSubmenu? _root;
     private static NMainMenu? _hostMainMenu;
 
     public static bool TryGetScreenContext(out IScreenContext? context) {
@@ -35,44 +34,29 @@ public static partial class ModPanelUI {
     public static void Show(NMainMenu mainMenu) {
         MainFile.Logger.Info("KitLib: Opening mod panel…");
         TeardownShell();
-        // Same parent as vanilla submenus (main_menu.tscn %Submenus): full-rect Control under NMainMenu, not Window root.
-        var parent = (Control)mainMenu.SubmenuStack;
-        parent.GetNodeOrNull<Control>(RootName)?.QueueFree();
         _hostMainMenu = mainMenu;
-        _hostMainMenu.EnableBackstop();
-        _root = BuildRoot();
-        parent.AddChild(_root);
-        parent.MoveChild(_root, parent.GetChildCount() - 1);
+        _root = mainMenu.SubmenuStack.PushSubmenuType<ModPanelSubmenu>();
         var openReport = BuildOpenReport();
         ModPanelDiagnostics.LogOpenReport(openReport);
         ModPanelDiagnostics.LogSidebarLayoutDeferred(_root, openReport);
-        Callable.From(RefitShellDeferred).CallDeferred();
-        _root.AddChild(new ShellInputForwarder(TeardownShell) {
-            ProcessMode = Node.ProcessModeEnum.Always,
-        });
-    }
-    private static void RefitShellDeferred() {
-        if (_root == null || !GodotObject.IsInstanceValid(_root))
-            return;
-        _root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        _root.GrowHorizontal = Control.GrowDirection.Both;
-        _root.GrowVertical = Control.GrowDirection.Both;
     }
     public static void Hide() => TeardownShell();
     /// <summary>Back button, input forwarder, and re-open <see cref="Show" /> all use this one exit path.</summary>
     private static void TeardownShell() {
         if (_hostMainMenu != null && GodotObject.IsInstanceValid(_hostMainMenu)) {
-            _hostMainMenu.DisableBackstop();
+            if (_hostMainMenu.SubmenuStack.Peek() is ModPanelSubmenu)
+                _hostMainMenu.SubmenuStack.Pop();
             _hostMainMenu = null;
         }
-        RitsuModSettingsEmbedHost.FlushDirtyBindings();
-        if (_root != null && GodotObject.IsInstanceValid(_root)) {
-            _root.QueueFree();
-            _root = null;
-        }
-        RitsuModSettingsEmbedHost.ClearAfterShellDisposed();
+        _root = null;
     }
-    public static bool IsVisible => _root != null && GodotObject.IsInstanceValid(_root);
+    internal static void OnSubmenuPopped(ModPanelSubmenu submenu) {
+        if (_root == submenu)
+            _root = null;
+        _hostMainMenu = null;
+    }
+    public static bool IsVisible =>
+        _root != null && GodotObject.IsInstanceValid(_root) && _root.Visible;
     private static string ResolveShowcaseModId()
         => ModPanelSidebarPlanner.ResolveShowcaseModId(
             ModRuntime.Catalog.GetSnapshot(),
@@ -94,15 +78,7 @@ public static partial class ModPanelUI {
             ModPanelDiagnostics.CountRawLoadedMods(),
             snapshot.Count);
     }
-    private static ModPanelShellRoot BuildRoot() {
-        var root = new ModPanelShellRoot {
-            Name = RootName,
-            ZIndex = ZOrder,
-        };
-        root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        root.GrowHorizontal = Control.GrowDirection.Both;
-        root.GrowVertical = Control.GrowDirection.Both;
-        root.MouseFilter = Control.MouseFilterEnum.Stop;
+    internal static void BuildInto(ModPanelSubmenu root) {
         // Backdrop: NMainMenu.EnableBackstop (BlurBackstop + shader), same as vanilla settings / submenu stack.
         var frame = new MarginContainer {
             Name = "Frame",
@@ -146,9 +122,10 @@ public static partial class ModPanelUI {
         backButton.ZIndex = ZOrder + 50;
         backButton.MouseFilter = Control.MouseFilterEnum.Stop;
         root.AddChild(backButton);
-        backButton.Connect(NClickableControl.SignalName.Released, Callable.From<NButton>(_ => TeardownShell()));
-        Callable.From(backButton.Enable).CallDeferred();
-        return root;
+        root.AddChild(new ShellInputForwarder(TeardownShell) {
+            Name = "ShellInputForwarder",
+            ProcessMode = Node.ProcessModeEnum.Always,
+        });
     }
     /// <summary>Controller pane hotkeys row; icons filled by <see cref="ModPanelControllerSupport" />.</summary>
     private static HBoxContainer CreatePaneHotkeyHintsRow() {
@@ -179,7 +156,7 @@ public static partial class ModPanelUI {
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
         };
     }
-    private static Control BuildSidebarPanel(ModPanelShellRoot shell, HBoxContainer hintsRow,
+    private static Control BuildSidebarPanel(ModPanelSubmenu shell, HBoxContainer hintsRow,
         VBoxContainer ritsuContentList, HBoxContainer pageTabRow) {
         var showcaseModId = ResolveShowcaseModId();
         var panel = new Panel {
@@ -458,15 +435,14 @@ public static partial class ModPanelUI {
         sidebarLower.AddChild(scopeStrip);
         mainVBox.AddChild(sidebarLower);
         shell.AddChild(controllerSupport);
-        controllerSupport.BindShell(shell);
+        controllerSupport.BindSubmenu(shell);
         controllerSupport.ConfigureSidebar(modRows, () => selectedModId, SelectMod, ritsuContentList);
         if (modRows.Count > 0) {
             Callable.From(() => {
                 ModPanelFocusWiring.Wire(modRows, selectedModId, contentState.PageId, pageTabRow, ritsuContentList,
                     scopeFocusTarget);
-                shell.SetDefaultFocusedControl(null);
-                ActiveScreenContext.Instance.Update();
-                shell.RefreshScreenContextFocus();
+                shell.SetInitialFocusedControl(null);
+                shell.RefreshControllerFocus();
                 controllerSupport.RefreshHints();
             }).CallDeferred();
         }

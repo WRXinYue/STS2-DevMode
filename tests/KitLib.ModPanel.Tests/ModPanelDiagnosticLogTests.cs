@@ -84,6 +84,32 @@ public sealed class ModPanelDiagnosticLogTests {
     }
 
     [Fact]
+    public void FormatControllerContext_includes_stack_and_focus_fields() {
+        var ctx = new ModPanelControllerContext(
+            SubmenusOpen: true,
+            StackPeekType: "ModPanelSubmenu",
+            IsCurrentSelf: true,
+            UsingController: true,
+            SidebarRowCount: 5,
+            SelectedModId: "KitLib",
+            FocusOwnerPath: "/root/MainMenu/Submenus/ModPanelSubmenu",
+            MainMenuButtonsVisible: "hidden");
+        var line = ModPanelDiagnosticLog.FormatControllerContext(ctx);
+        Assert.StartsWith("[ModPanelDiag] controller:", line, StringComparison.Ordinal);
+        Assert.Contains("submenusOpen=True", line, StringComparison.Ordinal);
+        Assert.Contains("stackPeek=ModPanelSubmenu", line, StringComparison.Ordinal);
+        Assert.Contains("isCurrent=True", line, StringComparison.Ordinal);
+        Assert.Contains("mainMenuButtons=hidden", line, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FormatControllerInput_reports_skip_reason() {
+        var line = ModPanelDiagnosticLog.FormatControllerInput("up", handled: false, "notCurrent(screen=NMainMenu)", "KitLib");
+        Assert.Contains("controllerInput:", line, StringComparison.Ordinal);
+        Assert.Contains("reason=notCurrent", line, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CollectLayoutWarnings_flags_invisible_scroll() {
         var open = SampleOpen(expectedRows: 1, modIds: ["A"]);
         var layout = new ModPanelLayoutSnapshot(
