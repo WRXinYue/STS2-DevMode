@@ -32,7 +32,8 @@ internal static class RitsuModSettingsEmbedHost {
             MouseFilter = Control.MouseFilterEnum.Ignore,
         };
         shellRoot.AddChild(_pin);
-        if (Activator.CreateInstance(submenuType) is not Node created) {
+        var created = TryInstantiateSubmenu(submenuType);
+        if (created == null) {
             MainFile.Logger.Warn($"KitLib ModPanel: failed to instantiate {SubmenuFullName}");
             _pin.QueueFree();
             _pin = null;
@@ -40,6 +41,27 @@ internal static class RitsuModSettingsEmbedHost {
         }
         _submenu = created;
         _pin.AddChild(_submenu);
+        MainFile.Logger.Info("KitLib ModPanel: RitsuModSettingsSubmenu embed host ready.");
+    }
+    private static Node? TryInstantiateSubmenu(Type submenuType) {
+        try {
+            if (Activator.CreateInstance(submenuType) is Node node)
+                return node;
+        }
+        catch (Exception ex) {
+            MainFile.Logger.Warn(
+                $"KitLib ModPanel: Activator.CreateInstance({submenuType.Name}) failed: {ex.InnerException?.Message ?? ex.Message}");
+        }
+        try {
+            if (ClassDB.ClassExists(submenuType.Name)
+                && ClassDB.Instantiate(submenuType.Name).AsGodotObject() is Node classDbNode)
+                return classDbNode;
+        }
+        catch (Exception ex) {
+            MainFile.Logger.Warn(
+                $"KitLib ModPanel: ClassDB.Instantiate({submenuType.Name}) failed: {ex.InnerException?.Message ?? ex.Message}");
+        }
+        return null;
     }
     public static void SyncSubmenuSelection(string modId, string pageId) {
         if (_submenu == null || !GodotObject.IsInstanceValid(_submenu))

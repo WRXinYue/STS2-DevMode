@@ -122,10 +122,11 @@ public static partial class ModPanelUI {
         };
         body.AddThemeConstantOverride("separation", 20);
         outer.AddChild(body);
+        // Embed host must exist before sidebar builds content (SelectMod → RebuildRitsuRightPane).
+        RitsuModSettingsEmbedHost.EnsureAttached(root);
         var (contentPanel, ritsuContentList, pageTabRow) = BuildContentPanel();
         body.AddChild(BuildSidebarPanel(root, hintsRow, ritsuContentList, pageTabRow));
         body.AddChild(contentPanel);
-        RitsuModSettingsEmbedHost.EnsureAttached(root);
         // Same control as NSubmenu: NBackButton starts off-screen until Enable() (see NSubmenu.OnScreenVisibilityChange).
         var backButton = PreloadManager.Cache.GetScene(SceneHelper.GetScenePath("ui/back_button"))
             .Instantiate<NBackButton>(PackedScene.GenEditState.Disabled);
