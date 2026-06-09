@@ -1,0 +1,22 @@
+<Project Sdk="Godot.NET.Sdk/4.5.1">
+  <Import Project="$(RepoRoot)eng\KitLib.Mod.Shared.props" />
+  <Import Project="$(RepoRoot)eng\KitLib.SatelliteMod.targets" />
+  <PropertyGroup>
+    <ModId>KitLib.Cheat</ModId>
+    <AssemblyName>KitLib.Cheat</AssemblyName>
+    <RootNamespace>KitLib</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <Import Project="$(RepoRoot)eng\KitLib.Satellite.Compile.props" />
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>KitLib.AI</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>KitLib.Panel</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>KitLib.Dev</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+</Project>

@@ -3,13 +3,7 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="$(RepoRoot)src\MainFile.cs" />
-    <Compile Include="$(RepoRoot)src\KitLibState.cs" />
-    <Compile Include="$(RepoRoot)src\I18N.cs" />
-    <Compile Include="$(RepoRoot)src\Host\**\*.cs" />
-    <Compile Include="$(RepoRoot)src\Companion\CompanionBridge.cs" />
-    <Compile Include="$(RepoRoot)src\Companion\CompanionSpawnRequest.cs" />
-    <Compile Include="$(RepoRoot)src\Companion\CompanionSpawnResult.cs" />
-    <Compile Include="$(RepoRoot)src\Companion\CompanionInfo.cs" />
+    <Compile Include="$(MSBuildProjectDirectory)\**\*.cs"
+               Exclude="$(MSBuildProjectDirectory)\.godot\**\*.cs;$(MSBuildProjectDirectory)\.no-godot\**\*.cs" />
   </ItemGroup>
 </Project>

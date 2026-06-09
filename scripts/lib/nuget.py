@@ -51,7 +51,7 @@ def run_pack(
     cmd = [
         "dotnet",
         "pack",
-        str(repo_root / "KitLib.csproj"),
+        str(repo_root / "src" / "KitLib.Core" / "KitLib.Core.csproj"),
         "-c",
         configuration,
         "--no-build",

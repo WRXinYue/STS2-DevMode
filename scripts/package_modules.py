@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package KitLib Core, Features, satellites, and Full distribution zips."""
+"""Package KitLib as a single mods/KitLib/ release zip (satellite DLLs under modules/)."""
 
 from __future__ import annotations
 
@@ -14,38 +14,18 @@ from pathlib import Path
 
 _REPO = Path(__file__).resolve().parent.parent
 
-MOD_PROJECTS = [
-    "KitLib.csproj",
-    "KitLib.Shared/KitLib.Shared.csproj",
-    "KitLib.Features/KitLib.Features.csproj",
-    "KitLib.User/KitLib.User.csproj",
-    "KitLib.Cheat/KitLib.Cheat.csproj",
-    "KitLib.Dev/KitLib.Dev.csproj",
-    "KitLib.AI/KitLib.AI.csproj",
-    "KitLib.Panel/KitLib.Panel.csproj",
-]
+BUNDLE_ID = "KitLib"
+MODULES_SUBDIR = "modules"
 
-SATELLITE_IDS = [
-    "KitLib",
-    "KitLib.Shared",
-    "KitLib.Features",
+BUNDLE_DLLS = [
     "KitLib.User",
+    "KitLib.Panel",
     "KitLib.Cheat",
     "KitLib.Dev",
     "KitLib.AI",
-    "KitLib.Panel",
 ]
 
-FULL_MODULES = [
-    "KitLib",
-    "KitLib.Shared",
-    "KitLib.Features",
-    "KitLib.User",
-    "KitLib.Cheat",
-    "KitLib.Dev",
-    "KitLib.AI",
-    "KitLib.Panel",
-]
+OPTIONAL_MODULE_IDS = BUNDLE_DLLS
 
 
 def _read_version() -> str:
@@ -61,22 +41,90 @@ def _dotnet_build() -> None:
     )
 
 
-def _stage_mod(mod_id: str, dist_root: Path) -> Path:
-    src = _REPO / "build" / mod_id
-    flat_dll = _REPO / "build" / f"{mod_id}.dll"
-    dst = dist_root / mod_id
+def _resolve_dll(mod_id: str) -> Path | None:
+    bundled = _REPO / "build" / BUNDLE_ID / MODULES_SUBDIR / f"{mod_id}.dll"
+    subdir = _REPO / "build" / mod_id / f"{mod_id}.dll"
+    flat = _REPO / "build" / f"{mod_id}.dll"
+    if bundled.is_file():
+        return bundled
+    if subdir.is_file():
+        return subdir
+    if flat.is_file():
+        return flat
+    return None
+
+
+def _stage_bundle(dist_root: Path) -> Path:
+    dst = dist_root / BUNDLE_ID
     if dst.exists():
         shutil.rmtree(dst)
-    if src.is_dir():
-        shutil.copytree(src, dst)
-    elif flat_dll.is_file():
-        dst.mkdir(parents=True)
-        shutil.copy2(flat_dll, dst / f"{mod_id}.dll")
-        manifest_src = _REPO / mod_id / f"{mod_id}.json"
-        if manifest_src.is_file():
-            shutil.copy2(manifest_src, dst / "mod_manifest.json")
+    dst.mkdir(parents=True)
+    modules_dst = dst / MODULES_SUBDIR
+    modules_dst.mkdir(parents=True)
+
+    core_src = _REPO / "build" / BUNDLE_ID
+    if core_src.is_dir() and any(core_src.iterdir()):
+        for item in core_src.iterdir():
+            if item.name == MODULES_SUBDIR and item.is_dir():
+                for module_file in item.iterdir():
+                    if module_file.is_file():
+                        shutil.copy2(module_file, modules_dst / module_file.name)
+                continue
+            if item.suffix.lower() == ".dll" and item.stem in BUNDLE_DLLS:
+                continue
+            target = dst / item.name
+            if item.is_dir():
+                shutil.copytree(item, target)
+            else:
+                shutil.copy2(item, target)
     else:
-        raise FileNotFoundError(f"Missing build output for {mod_id}: {src} or {flat_dll}")
+        core_dll = _resolve_dll(BUNDLE_ID)
+        if core_dll is None:
+            raise FileNotFoundError("Missing Core build output")
+        shutil.copy2(core_dll, dst / "KitLib.dll")
+        shutil.copy2(_REPO / "KitLib.json", dst / "mod_manifest.json")
+
+    abstractions = _REPO / "build" / "KitLib.Abstractions.dll"
+    if not abstractions.is_file():
+        abstractions = _REPO / "build" / BUNDLE_ID / "KitLib.Abstractions.dll"
+    if abstractions.is_file():
+        shutil.copy2(abstractions, dst / "KitLib.Abstractions.dll")
+
+    for mod_id in BUNDLE_DLLS:
+        dll = _resolve_dll(mod_id)
+        if dll is not None:
+            shutil.copy2(dll, modules_dst / f"{mod_id}.dll")
+
+    readme = dst / "INSTALL.txt"
+    readme.write_text(
+        "KitLib single-mod install\n"
+        "=======================\n"
+        "Extract this KitLib/ folder into your STS2 mods directory:\n"
+        "  mods/KitLib/\n\n"
+        "Satellite module DLLs live under mods/KitLib/modules/. Core hot-loads\n"
+        "them at startup; a module is skipped when missing, conflicting, or\n"
+        "failing to initialize.\n\n"
+        "Optional: delete individual DLLs under modules/ to disable features\n"
+        "(e.g. remove modules/KitLib.AI.dll to disable AI host).\n",
+        encoding="utf-8",
+    )
+    return dst
+
+
+def _stage_optional_module(mod_id: str, dist_root: Path) -> Path | None:
+    dll = _resolve_dll(mod_id)
+    if dll is None:
+        return None
+    dst = dist_root / mod_id
+    modules_dst = dst / MODULES_SUBDIR
+    modules_dst.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(dll, modules_dst / f"{mod_id}.dll")
+    readme = dst / "INSTALL.txt"
+    readme.write_text(
+        f"Optional KitLib module: {mod_id}\n"
+        f"Copy modules/{mod_id}.dll into mods/KitLib/modules/.\n",
+        encoding="utf-8",
+    )
     return dst
 
 
@@ -93,7 +141,7 @@ def _zip_dir(src_dir: Path, zip_path: Path) -> None:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Package modular KitLib releases.")
+    ap = argparse.ArgumentParser(description="Package KitLib single-mod releases.")
     ap.add_argument("--version", default="", help="Override version (default: KitLib.json)")
     ap.add_argument("--skip-build", action="store_true", help="Use existing build/ artifacts")
     args = ap.parse_args()
@@ -107,52 +155,22 @@ def main() -> int:
     if not args.skip_build:
         _dotnet_build()
 
-    for mod_id in SATELLITE_IDS:
-        _stage_mod(mod_id, dist)
+    bundle_dir = _stage_bundle(dist)
 
-    # Per-module zips
-    for mod_id in SATELLITE_IDS:
-        if mod_id == "KitLib":
-            zip_name = f"KitLib-v{version}.zip"
-        else:
-            zip_name = f"{mod_id}-v{version}.zip"
-        _zip_dir(dist / mod_id, _REPO / "build" / zip_name)
-
-    # Full bundle
-    full_root = dist / "KitLib-Full"
-    if full_root.exists():
-        shutil.rmtree(full_root)
-    full_root.mkdir(parents=True)
-    readme = full_root / "MODULAR_INSTALL.txt"
-    readme.write_text(
-        "KitLib modular install\n"
-        "======================\n"
-        "Extract each subfolder into your STS2 mods directory:\n"
-        "  mods/KitLib/\n"
-        "  mods/KitLib.Shared/\n"
-        "  mods/KitLib.Features/\n"
-        "  mods/KitLib.User/ (recommended)\n"
-        "  mods/KitLib.Panel/\n"
-        "  mods/KitLib.Cheat/\n"
-        "  mods/KitLib.Dev/\n"
-        "  mods/KitLib.AI/ (optional)\n\n"
-        "Minimum for content-mod bridges: KitLib + KitLib.Shared + KitLib.Features\n"
-        "Recommended player set: above + KitLib.User\n"
-        "Full dev experience: all folders in this archive.\n",
-        encoding="utf-8",
-    )
-    for mod_id in FULL_MODULES:
-        shutil.copytree(dist / mod_id, full_root / mod_id)
+    main_zip = _REPO / "build" / f"KitLib-v{version}.zip"
+    _zip_dir(bundle_dir, main_zip)
 
     full_zip = _REPO / "build" / f"KitLib-Full-v{version}.zip"
-    _zip_dir(full_root, full_zip)
+    _zip_dir(bundle_dir, full_zip)
 
-    print(f"Packaged Core zip: build/KitLib-v{version}.zip")
-    for mod_id in SATELLITE_IDS:
-        if mod_id == "KitLib":
+    for mod_id in OPTIONAL_MODULE_IDS:
+        optional = _stage_optional_module(mod_id, dist)
+        if optional is None:
             continue
-        print(f"Packaged: build/{mod_id}-v{version}.zip")
-    print(f"Packaged Full zip: {full_zip.name}")
+        _zip_dir(optional, _REPO / "build" / f"{mod_id}-v{version}.zip")
+
+    print(f"Packaged main zip: {main_zip.name}")
+    print(f"Packaged full zip: {full_zip.name}")
     return 0
 
 

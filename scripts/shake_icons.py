@@ -2,10 +2,10 @@
 """
 Pre-build icon tree-shaker for DevMode.
 Scans src/**/*.cs for MdiIcon usages, extracts icons from icons/mdi/icons.json,
-writes src/Icons/mdi-used.json and src/Icons/MdiIcon.Generated.cs.
+writes src/KitLib.Modules.Panel/Icons/mdi-used.json and MdiIcon.Generated.cs.
 
 Run:  python scripts/shake_icons.py
-MSBuild: KitLib.csproj ShakeIcons target (python scripts/shake_icons.py).
+MSBuild: KitLib.Core.csproj ShakeIcons target (python scripts/shake_icons.py).
 """
 
 from __future__ import annotations
@@ -124,8 +124,9 @@ def main() -> int:
 
     repo_root: Path = args.repo_root.resolve()
     full_json = args.full_json or (repo_root / "icons" / "mdi" / "icons.json")
-    out_json = args.out_json or (repo_root / "src" / "Icons" / "mdi-used.json")
-    out_gen = repo_root / "src" / "Icons" / "MdiIcon.Generated.cs"
+    icons_dir = repo_root / "src" / "KitLib.Modules.Panel" / "Icons"
+    out_json = args.out_json or (icons_dir / "mdi-used.json")
+    out_gen = icons_dir / "MdiIcon.Generated.cs"
     src_dir = repo_root / "src"
 
     if not full_json.is_file():

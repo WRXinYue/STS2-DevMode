@@ -14,7 +14,7 @@ PYTHON ?= python3
 endif
 VERSION := $(shell $(PYTHON) -c "import json;print(json.load(open('KitLib.json',encoding='utf-8'))['version'])")
 
-MOD_MAIN := KitLib.csproj
+MOD_MAIN := src/KitLib.Core/KitLib.Core.csproj
 MCP_PROJECT := tools/DevMode.Mcp/KitLib.Mcp.csproj
 
 # Runtime identifier for self-contained tool publish (override: make build-tools TOOLS_RID=linux-x64)
@@ -57,9 +57,10 @@ ZIP_MCP_NAME := build/KitLib.Mcp-v$(VERSION)-$(TOOLS_RID).zip
 MCP_PUBLISH_EXE := $(TOOLS_PUBLISH_DIR)/KitLib.Mcp.exe
 MCP_PUBLISH_BIN := $(TOOLS_PUBLISH_DIR)/KitLib.Mcp
 
-MOD_PROJECTS := KitLib.csproj KitLib.Shared/KitLib.Shared.csproj KitLib.Features/KitLib.Features.csproj \
-	KitLib.User/KitLib.User.csproj KitLib.Cheat/KitLib.Cheat.csproj KitLib.Dev/KitLib.Dev.csproj \
-	KitLib.AI/KitLib.AI.csproj KitLib.Panel/KitLib.Panel.csproj
+MOD_PROJECTS := src/KitLib.Core/KitLib.Core.csproj \
+	src/KitLib.Modules.User/KitLib.User.csproj src/KitLib.Modules.Cheat/KitLib.Cheat.csproj \
+	src/KitLib.Modules.Dev/KitLib.Dev.csproj src/KitLib.Modules.AI/KitLib.AI.csproj \
+	src/KitLib.Modules.Panel/KitLib.Panel.csproj
 PACKAGE_MODULES := $(PYTHON) scripts/package_modules.py
 
 .PHONY: help init icons format deps build build-all deploy sync sync-full sync-framework-mods compile pck publish nexus nuget upload-all readme-nexus zip zip-full clean \
@@ -76,8 +77,8 @@ help:
 	@echo "  deps         dotnet restore (does not touch game mods/STS2-RitsuLib by default)"
 	@echo ""
 	@echo "  sync         build Core to build/KitLib/, then copy into game mods/KitLib/ only"
-	@echo "  sync-full    build-all + deploy every KitLib* mod into game mods/"
-	@echo "  build-all    dotnet build solution (Core + Features + satellites)"
+	@echo "  sync-full    build-all + deploy mods/KitLib/ (satellite DLLs under modules/)"
+	@echo "  build-all    dotnet build solution (Core + satellites)"
 	@echo "  zip-full     build-all + package Core/Full/per-module zips under build/"
 	@echo "  sync-launch  sync + launch game"
 	@echo "  dev-session  sync + launch + wait for MCP bridge (agent bootstrap)"

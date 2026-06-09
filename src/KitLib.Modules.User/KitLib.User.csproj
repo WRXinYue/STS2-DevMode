@@ -1,0 +1,26 @@
+<Project Sdk="Godot.NET.Sdk/4.5.1">
+  <Import Project="$(RepoRoot)eng\KitLib.Mod.Shared.props" />
+  <Import Project="$(RepoRoot)eng\KitLib.SatelliteMod.targets" />
+  <PropertyGroup>
+    <ModId>KitLib.User</ModId>
+    <AssemblyName>KitLib.User</AssemblyName>
+    <RootNamespace>KitLib</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <Import Project="$(RepoRoot)eng\KitLib.Satellite.Compile.props" />
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>KitLib.AI</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>KitLib.Dev</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>KitLib.Panel</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(RepoRoot)manual\eng\**\*" LogicalName="KitLib.Manual.eng.%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(RepoRoot)manual\zhs\**\*" LogicalName="KitLib.Manual.zhs.%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

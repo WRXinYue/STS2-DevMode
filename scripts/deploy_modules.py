@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deploy all KitLib module build outputs into the game mods/ folder."""
+"""Deploy KitLib as a single mods/KitLib/ bundle (satellite DLLs under modules/)."""
 
 from __future__ import annotations
 
@@ -16,16 +16,18 @@ from lib.steam import read_sts2_dir_from_local_props  # noqa: E402
 
 _REPO = _SCRIPT_DIR.parent
 
-MOD_IDS = [
-    "KitLib",
-    "KitLib.Shared",
-    "KitLib.Features",
+BUNDLE_ID = "KitLib"
+MODULES_SUBDIR = "modules"
+
+BUNDLE_DLLS = [
     "KitLib.User",
+    "KitLib.Panel",
     "KitLib.Cheat",
     "KitLib.Dev",
     "KitLib.AI",
-    "KitLib.Panel",
 ]
+
+LEGACY_MOD_FOLDERS = [BUNDLE_ID, *BUNDLE_DLLS]
 
 
 def _mods_root(game_root: Path) -> Path:
@@ -35,44 +37,96 @@ def _mods_root(game_root: Path) -> Path:
     return game_root / "mods"
 
 
-def _resolve_build_source(mod_id: str) -> Path:
-    subdir = _REPO / "build" / mod_id
-    flat_dll = _REPO / "build" / f"{mod_id}.dll"
-    if subdir.is_dir() and any(subdir.iterdir()):
+def _resolve_dll(mod_id: str) -> Path | None:
+    subdir = _REPO / "build" / mod_id / f"{mod_id}.dll"
+    flat = _REPO / "build" / f"{mod_id}.dll"
+    bundled = _REPO / "build" / BUNDLE_ID / MODULES_SUBDIR / f"{mod_id}.dll"
+    if bundled.is_file():
+        return bundled
+    if subdir.is_file():
         return subdir
-    if flat_dll.is_file():
-        return flat_dll
-    raise FileNotFoundError(f"Missing build output for {mod_id}: {subdir} or {flat_dll}")
+    if flat.is_file():
+        return flat
+    return None
 
 
-def _deploy_mod(mod_id: str, mods_root: Path) -> None:
-    src = _resolve_build_source(mod_id)
-    dst = mods_root / mod_id
+def _copy_core_bundle(src_dir: Path, dst: Path) -> None:
+    for item in src_dir.iterdir():
+        if item.name == MODULES_SUBDIR and item.is_dir():
+            continue
+        if item.suffix.lower() == ".dll" and item.stem in BUNDLE_DLLS:
+            continue
+        target = dst / item.name
+        if item.is_dir():
+            if target.exists():
+                shutil.rmtree(target)
+            shutil.copytree(item, target)
+        else:
+            shutil.copy2(item, target)
+
+
+def _clean_legacy_root_dlls(bundle_dir: Path) -> None:
+    for mod_id in BUNDLE_DLLS:
+        legacy = bundle_dir / f"{mod_id}.dll"
+        if legacy.is_file():
+            legacy.unlink()
+            print(f"Removed legacy root DLL: {legacy.name}")
+
+
+def _deploy_bundle(mods_root: Path) -> None:
+    dst = mods_root / BUNDLE_ID
     if dst.exists():
         shutil.rmtree(dst)
     dst.mkdir(parents=True)
+    modules_dst = dst / MODULES_SUBDIR
+    modules_dst.mkdir(parents=True)
 
-    if src.is_dir():
-        for item in src.iterdir():
-            target = dst / item.name
-            if item.is_dir():
-                shutil.copytree(item, target)
-            else:
-                shutil.copy2(item, target)
+    core_src = _REPO / "build" / BUNDLE_ID
+    if core_src.is_dir() and any(core_src.iterdir()):
+        _copy_core_bundle(core_src, dst)
+        bundled_modules = core_src / MODULES_SUBDIR
+        if bundled_modules.is_dir():
+            for item in bundled_modules.iterdir():
+                if item.is_file():
+                    shutil.copy2(item, modules_dst / item.name)
     else:
-        shutil.copy2(src, dst / f"{mod_id}.dll")
-        manifest = _REPO / mod_id / f"{mod_id}.json"
+        core_dll = _resolve_dll(BUNDLE_ID)
+        if core_dll is None:
+            raise FileNotFoundError(f"Missing Core build output under build/{BUNDLE_ID}/ or build/KitLib.dll")
+        shutil.copy2(core_dll, dst / "KitLib.dll")
+        manifest = _REPO / "KitLib.json"
         if manifest.is_file():
             shutil.copy2(manifest, dst / "mod_manifest.json")
 
-    if mod_id == "KitLib":
-        abstractions = _REPO / "build" / "KitLib.Abstractions.dll"
-        if abstractions.is_file():
-            shutil.copy2(abstractions, dst / "KitLib.Abstractions.dll")
+    abstractions = _REPO / "build" / "KitLib.Abstractions.dll"
+    if not abstractions.is_file():
+        abstractions = _REPO / "build" / BUNDLE_ID / "KitLib.Abstractions.dll"
+    if abstractions.is_file():
+        shutil.copy2(abstractions, dst / "KitLib.Abstractions.dll")
+
+    copied = 0
+    for mod_id in BUNDLE_DLLS:
+        dll = _resolve_dll(mod_id)
+        if dll is None:
+            print(f"Note: optional module DLL missing, skipped: {mod_id}.dll")
+            continue
+        shutil.copy2(dll, modules_dst / f"{mod_id}.dll")
+        copied += 1
+
+    _clean_legacy_root_dlls(dst)
+    print(f"Deployed bundle -> {dst} ({copied} satellite DLL(s) in {MODULES_SUBDIR}/)")
+
+
+def _remove_legacy_folders(mods_root: Path) -> None:
+    for mod_id in BUNDLE_DLLS:
+        legacy = mods_root / mod_id
+        if legacy.exists() and legacy.is_dir():
+            shutil.rmtree(legacy)
+            print(f"Removed legacy mod folder: {legacy}")
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Deploy KitLib modules to game mods/.")
+    ap = argparse.ArgumentParser(description="Deploy KitLib bundle to game mods/KitLib/.")
     ap.add_argument("--game-root", type=Path, default=None, help="STS2 install dir (default: local.props Sts2Dir)")
     args = ap.parse_args()
 
@@ -86,11 +140,9 @@ def main() -> int:
     mods_root = _mods_root(game_root.resolve())
     mods_root.mkdir(parents=True, exist_ok=True)
 
-    for mod_id in MOD_IDS:
-        _deploy_mod(mod_id, mods_root)
-        print(f"Deployed {mod_id} -> {mods_root / mod_id}")
-
-    print(f"Done: {len(MOD_IDS)} modules -> {mods_root}")
+    _remove_legacy_folders(mods_root)
+    _deploy_bundle(mods_root)
+    print(f"Done: single mod at {mods_root / BUNDLE_ID} (hot-load from {MODULES_SUBDIR}/)")
     return 0
 
 

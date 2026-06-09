@@ -16,28 +16,38 @@ All-in-one in-game toolkit for Slay the Spire 2 — test builds, cheat, script, 
 
 Install from [Releases](https://github.com/WRXinYue/STS2-DevMode/releases) or build from source (`python scripts/init.py`, then `make sync-full`). Steam **beta** builds need the matching beta mod package.
 
-### Modular install (0.13+)
+### Install layout (0.13+)
 
-KitLib is split into a minimal **Core** plus optional satellite mods:
+KitLib installs as **one game mod**. Satellite modules are DLLs under `mods/KitLib/modules/`; Core hot-loads them at startup (missing or conflicting modules are skipped).
 
-| Mod folder | Role |
+```text
+mods/KitLib/
+  mod_manifest.json
+  KitLib.dll
+  KitLib.Abstractions.dll
+  modules/
+    KitLib.User.dll
+    KitLib.Panel.dll
+    KitLib.Cheat.dll
+    KitLib.Dev.dll
+    KitLib.AI.dll
+```
+
+| Module DLL | Role |
 |------------|------|
-| `KitLib` | Core host (`KitLibHost`) — no UI, no patches |
-| `KitLib.Shared` | Icons and shared panel types |
-| `KitLib.Features` | Shared gameplay/UI/AI implementation (required for any dev feature) |
 | `KitLib.User` | Logs, progress guard, manual, crash recovery |
 | `KitLib.Panel` | Dev rail + title-screen entry |
 | `KitLib.Cheat` | Cheat tab registration + runtime hooks |
 | `KitLib.Dev` | Hooks, scripts, Harmony/MCP tools |
 | `KitLib.AI` | AI Host, autoplay, companions |
 
-**Recommended packages**
+**Packages**
 
-- **KitLib-Full** zip — same experience as the legacy monolith; extract all subfolders into `mods/`.
-- **Core + User** — progress protection and logs without dev panels.
-- **Content-mod authors** — NuGet `STS2.KitLib.Abstractions` + runtime `KitLib` + `KitLib.Shared` + `KitLib.Features`.
+- **KitLib** or **KitLib-Full** zip — extract the single `KitLib/` folder into `mods/`.
+- **Optional modules** — delete DLLs under `modules/` to disable features (e.g. remove `KitLib.AI.dll`).
+- **Content-mod authors** — NuGet `STS2.KitLib.Abstractions`; runtime needs `KitLib.dll` + any satellite DLLs you depend on under `modules/`.
 
-Build all modules: `make build-all`. Package zips: `make zip-full`.
+Build and deploy: `make sync-full`. Package zips: `make zip-full`.
 
 ## Panels
 
@@ -261,7 +271,7 @@ CompanionBridge.RegisterStrategy(netId, overrideStrategy);
 
 ### DeckPlan and character packs
 
-`DeckPlanInferer` builds a weight vector (thin/thick, attack, block, exhaust, scaling, …) from deck + relics + ascension. Vanilla characters register `IDeckPlanContributor` packs under `src/AI/Characters/Vanilla/`.
+`DeckPlanInferer` builds a weight vector (thin/thick, attack, block, exhaust, scaling, …) from deck + relics + ascension. Vanilla characters register `IDeckPlanContributor` packs under `src/KitLib.Modules.AI/AI/Characters/Vanilla/`.
 
 Mods can adjust deck planning and card tags:
 

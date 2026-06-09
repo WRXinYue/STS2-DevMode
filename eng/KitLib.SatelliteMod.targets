@@ -6,23 +6,6 @@
     <OutputPath>$(RepoBuildDir)\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
-  <ItemGroup>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-      <_Parameter1>KitLib.Panel</_Parameter1>
-    </AssemblyAttribute>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-      <_Parameter1>KitLib.AI</_Parameter1>
-    </AssemblyAttribute>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-      <_Parameter1>KitLib.Cheat</_Parameter1>
-    </AssemblyAttribute>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-      <_Parameter1>KitLib.Dev</_Parameter1>
-    </AssemblyAttribute>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-      <_Parameter1>KitLib.User</_Parameter1>
-    </AssemblyAttribute>
-  </ItemGroup>
   <Target Name="ForceModOutputPath" BeforeTargets="CoreCompile">
     <PropertyGroup>
       <OutputPath>$(RepoBuildDir)\</OutputPath>
@@ -32,9 +15,9 @@
     <MakeDir Directories="$(RepoBuildDir);$(RepoBuildDir)\obj" />
   </Target>
   <Target Name="CopySatelliteManifest" AfterTargets="Build">
-    <Copy SourceFiles="$(RepoRoot)$(ModId)\$(ModId).json"
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\$(ModId).json"
           DestinationFiles="$(PublishDir)\mod_manifest.json"
           SkipUnchangedFiles="true"
-          Condition="Exists('$(RepoRoot)$(ModId)\$(ModId).json')" />
+          Condition="Exists('$(MSBuildProjectDirectory)\$(ModId).json')" />
   </Target>
 </Project>

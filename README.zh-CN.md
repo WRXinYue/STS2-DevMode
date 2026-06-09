@@ -14,7 +14,26 @@
 - **设置 → 游戏（Game）** — **局内右侧边栏**（战斗快捷 + 统计 rail）、游戏速度、跳过动画、overlay 开关。
 - **普通 run** — 标题 **KITLIB** 中切换 **Normal run: 关闭 / 工具箱 / 作弊模式**，在非测试局也保留侧栏。
 
-可从 [Releases](https://github.com/WRXinYue/STS2-DevMode/releases) 安装，或源码构建（`python scripts/init.py`，再 `make sync-full` 部署全部模块）。Steam **beta** 分支需使用对应的 beta mod 包。推荐发布包 **KitLib-Full**（与旧版单体功能等价）。
+可从 [Releases](https://github.com/WRXinYue/STS2-DevMode/releases) 安装，或源码构建（`python scripts/init.py`，再 `make sync-full`）。Steam **beta** 分支需使用对应的 beta mod 包。
+
+### 安装布局（0.13+）
+
+游戏内只显示 **一个** mod：`mods/KitLib/`。子模块 DLL 位于 `mods/KitLib/modules/`，由 Core 启动时热加载（缺失或冲突的模块会自动跳过）。
+
+```text
+mods/KitLib/
+  mod_manifest.json
+  KitLib.dll
+  KitLib.Abstractions.dll
+  modules/
+    KitLib.User.dll
+    KitLib.Panel.dll
+    KitLib.Cheat.dll
+    KitLib.Dev.dll
+    KitLib.AI.dll
+```
+
+发布包 **KitLib** 或 **KitLib-Full** 解压到 `mods/` 即可。删除 `modules/` 下某个 DLL 可禁用对应功能（例如删掉 `KitLib.AI.dll` 关闭 AI）。
 
 ## 面板一览
 

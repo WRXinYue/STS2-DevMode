@@ -16,9 +16,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)KitLib.Abstractions\KitLib.Abstractions.csproj" />
-    <ProjectReference Include="$(RepoRoot)KitLib.csproj" />
-    <ProjectReference Include="$(RepoRoot)KitLib.Shared\KitLib.Shared.csproj" />
+    <ProjectReference Include="$(RepoRoot)src\KitLib.Abstractions\KitLib.Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)src\KitLib.Core\KitLib.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.3">

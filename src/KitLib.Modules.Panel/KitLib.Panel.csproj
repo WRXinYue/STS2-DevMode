@@ -1,0 +1,36 @@
+<Project Sdk="Godot.NET.Sdk/4.5.1">
+  <Import Project="$(RepoRoot)eng\KitLib.Mod.Shared.props" />
+  <Import Project="$(RepoRoot)eng\KitLib.SatelliteMod.targets" />
+  <PropertyGroup>
+    <ModId>KitLib.Panel</ModId>
+    <AssemblyName>KitLib.Panel</AssemblyName>
+    <RootNamespace>KitLib</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GodotExportPreset>BasicExport</GodotExportPreset>
+    <RunPckExport>false</RunPckExport>
+    <ModPckPath>$(PublishDir)\$(ModId).pck</ModPckPath>
+  </PropertyGroup>
+  <Import Project="$(RepoRoot)eng\KitLib.Satellite.Compile.props" />
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>KitLib.Dev</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\KitLib.Modules.Cheat\KitLib.Cheat.csproj" />
+    <ProjectReference Include="..\KitLib.Modules.AI\KitLib.AI.csproj" />
+    <ProjectReference Include="..\KitLib.Modules.Dev\KitLib.Dev.csproj" />
+    <ProjectReference Include="..\KitLib.Modules.User\KitLib.User.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Icons\mdi-used.json" LogicalName="KitLib.Icons.mdi-used.json"
+                      Condition="Exists('Icons\mdi-used.json')" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Assets\**" LinkBase="KitLib" />
+  </ItemGroup>
+  <Target Name="ExportPanelPck" AfterTargets="Build" Condition="'$(RunPckExport)' == 'true' and Exists('$(GodotExe)')">
+    <Exec Command="&quot;$(GodotExe)&quot; --headless --path &quot;$(RepoRoot)&quot; --export-pack &quot;$(GodotExportPreset)&quot; &quot;$(ModPckPath)&quot;"
+          EnvironmentVariables="STS2_SKIP_PCK_EXPORT=1" />
+  </Target>
+</Project>

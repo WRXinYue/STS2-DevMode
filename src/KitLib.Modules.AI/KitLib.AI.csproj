@@ -1,0 +1,26 @@
+<Project Sdk="Godot.NET.Sdk/4.5.1">
+  <Import Project="$(RepoRoot)eng\KitLib.Mod.Shared.props" />
+  <Import Project="$(RepoRoot)eng\KitLib.SatelliteMod.targets" />
+  <PropertyGroup>
+    <ModId>KitLib.AI</ModId>
+    <AssemblyName>KitLib.AI</AssemblyName>
+    <RootNamespace>KitLib</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <Import Project="$(RepoRoot)eng\KitLib.Satellite.Compile.props" />
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>KitLib.Dev</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>KitLib.Panel</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\KitLib.Modules.Cheat\KitLib.Cheat.csproj" />
+    <ProjectReference Include="..\KitLib.Modules.User\KitLib.User.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="AI\Data\*.json" LogicalName="KitLib.AI.%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

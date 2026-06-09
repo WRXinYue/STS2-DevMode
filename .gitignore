@@ -31,7 +31,7 @@ local.props
 /icons/
 
 # Generated tree-shaken icon set (rebuilt on each build)
-src/Icons/mdi-used.json
+src/KitLib.Modules.Panel/Icons/mdi-used.json
 
 # Other
 .DS_Store
