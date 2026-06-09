@@ -274,6 +274,27 @@ public static partial class ModPanelUI {
         listFrame.AddThemeConstantOverride("margin_top", 0);
         listFrame.AddThemeConstantOverride("margin_right", ModPanelUiMetrics.SidebarContentMarginH);
         listFrame.AddThemeConstantOverride("margin_bottom", 0);
+        var listHeader = new VBoxContainer {
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+        };
+        listHeader.AddThemeConstantOverride("separation", 6);
+        listFrame.AddChild(listHeader);
+        var gameBuild = ModPanelModBanner.TryResolveGameBuildVersion();
+        if (!string.IsNullOrWhiteSpace(gameBuild)) {
+            var buildLabel = new Label {
+                MouseFilter = Control.MouseFilterEnum.Ignore,
+                Text = string.Format(
+                    I18N.T("modpanel.sidebar.gameBuild", "Game build: {0}"), gameBuild),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                LabelSettings = new LabelSettings {
+                    FontSize = 12,
+                    FontColor = new Color(0.62f, 0.58f, 0.52f, 0.92f),
+                },
+            };
+            listHeader.AddChild(buildLabel);
+        }
         var scroll = SidebarModListScrollBuilder.Create(out var scrollInner);
         scrollInner.AddThemeConstantOverride("separation", 10);
         var modButtonList = new VBoxContainer {
@@ -346,9 +367,13 @@ public static partial class ModPanelUI {
         }
         else {
             foreach (var info in ordered) {
-                var tip = string.IsNullOrWhiteSpace(info.Version)
-                    ? info.Id
-                    : $"{info.Id} · {info.Version}";
+                var tipParts = new List<string> { info.DisplayName, info.Id };
+                if (!string.IsNullOrWhiteSpace(info.Version))
+                    tipParts.Add(info.Version);
+                if (!string.IsNullOrWhiteSpace(gameBuild))
+                    tipParts.Add(string.Format(
+                        I18N.T("modpanel.sidebar.gameBuild.short", "build {0}"), gameBuild));
+                var tip = string.Join(" · ", tipParts);
                 var isSel = string.Equals(info.Id, initialSelectedId, StringComparison.OrdinalIgnoreCase);
                 var section = new VBoxContainer {
                     Name = $"SidebarModSection_{info.Id}",
@@ -375,7 +400,7 @@ public static partial class ModPanelUI {
                 var rowHost = new Control {
                     SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
                     MouseFilter = Control.MouseFilterEnum.Stop,
-                    MouseDefaultCursorShape = Control.CursorShape.PointingHand,
+                    MouseDefaultCursorShape = Control.CursorShape.Arrow,
                     CustomMinimumSize = new Vector2(0f, 62f),
                     FocusMode = Control.FocusModeEnum.All,
                 };
@@ -387,25 +412,35 @@ public static partial class ModPanelUI {
                 bgPanel.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
                 bgPanel.AddThemeStyleboxOverride("panel", innerStyle);
                 rowHost.AddChild(bgPanel);
+                var rowContent = new HBoxContainer {
+                    MouseFilter = Control.MouseFilterEnum.Ignore,
+                };
+                rowContent.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+                rowContent.AddThemeConstantOverride("separation", 8);
+                var labelLeft = 18 + (int)ModPanelUiMetrics.SidebarModAccentBarWidth +
+                                ModPanelUiMetrics.SidebarModAccentTextGutter;
+                rowContent.OffsetLeft = labelLeft;
+                rowContent.OffsetRight = -12;
+                rowContent.OffsetTop = 10;
+                rowContent.OffsetBottom = -10;
                 var titleLbl = new Label {
                     MouseFilter = Control.MouseFilterEnum.Ignore,
                     Text = info.DisplayName,
                     TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
                     HorizontalAlignment = HorizontalAlignment.Left,
                     VerticalAlignment = VerticalAlignment.Center,
+                    SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+                    SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
                     LabelSettings = new LabelSettings {
                         FontSize = 22,
                         FontColor = ModPanelUiPalette.LabelPrimary,
                     },
                 };
-                titleLbl.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-                var labelLeft = 18 + (int)ModPanelUiMetrics.SidebarModAccentBarWidth +
-                                ModPanelUiMetrics.SidebarModAccentTextGutter;
-                titleLbl.OffsetLeft = labelLeft;
-                titleLbl.OffsetRight = -18;
-                titleLbl.OffsetTop = 10;
-                titleLbl.OffsetBottom = -10;
-                rowHost.AddChild(titleLbl);
+                rowContent.AddChild(titleLbl);
+                var versionChip = CreateSidebarModListVersionChip(info.Version);
+                if (versionChip != null)
+                    rowContent.AddChild(versionChip);
+                rowHost.AddChild(rowContent);
                 var vm = new SidebarModRowVm {
                     Id = info.Id,
                     InnerStyle = innerStyle,
@@ -435,7 +470,7 @@ public static partial class ModPanelUI {
             }
             SelectMod(initialSelectedId);
         }
-        listFrame.AddChild(scroll);
+        listHeader.AddChild(scroll);
         SidebarModListScrollBuilder.ResetScrollTopDeferred(scroll);
         var sidebarLower = new VBoxContainer {
             Name = "ModPanelSidebarLower",

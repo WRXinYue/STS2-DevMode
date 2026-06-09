@@ -3,6 +3,7 @@ using System.IO;
 using System.Reflection;
 using Godot;
 using MegaCrit.Sts2.Core.Assets;
+using MegaCrit.Sts2.Core.Debug;
 using MegaCrit.Sts2.Core.Modding;
 using KitLib.Modding;
 namespace KitLib.UI;
@@ -79,6 +80,8 @@ internal static class ModPanelModBanner {
             t = t[1..].TrimStart();
         return $"V{t}".ToUpperInvariant();
     }
+    internal static string? TryResolveGameBuildVersion()
+        => ReleaseInfoManager.Instance.ReleaseInfo?.Version;
     private static Texture2D? TryLoadVanillaModImageRes(string manifestId) {
         var path = $"res://{manifestId}/mod_image.png";
         try {
@@ -110,4 +113,4 @@ internal static class ModPanelModBanner {
         }
         return null;
     }
-}
+}

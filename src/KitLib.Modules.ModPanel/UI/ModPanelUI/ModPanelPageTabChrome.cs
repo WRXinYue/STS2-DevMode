@@ -228,7 +228,7 @@ public partial class ModPanelPageTabChrome : Control {
             Name = name,
             Visible = false,
             MouseFilter = MouseFilterEnum.Stop,
-            MouseDefaultCursorShape = CursorShape.PointingHand,
+            MouseDefaultCursorShape = CursorShape.Arrow,
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
         };

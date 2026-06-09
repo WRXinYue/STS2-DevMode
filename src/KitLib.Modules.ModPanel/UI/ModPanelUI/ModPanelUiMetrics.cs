@@ -27,6 +27,7 @@ public static class ModPanelUiMetrics {
     public const float SidebarScrollTopDividerHeight = 2f;
     public const int SidebarListDividerPadSymmetric = 8;
     public const int SidebarModVersionBadgeFontSize = 12;
+    public const int SidebarModListVersionBadgeFontSize = 11;
     public const float ModSidebarPreviewOuterSize = 96f;
     /// <summary>Fixed height for the selected-mod banner (preview + title block) at the top of the DevMode sidebar.</summary>
     public const int SidebarModBannerFixedHeight = 232;

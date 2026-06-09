@@ -84,7 +84,7 @@ public static partial class ModPanelUI {
             Color = new Color(1f, 1f, 1f, alpha),
         };
     }
-    private static StyleBoxFlat CreateSidebarModVersionBadgeStyle() {
+    private static StyleBoxFlat CreateSidebarModVersionBadgeStyle(bool compact = false) {
         var accent = ModPanelUiPalette.SidebarModActiveAccent;
         return new StyleBoxFlat {
             BgColor = new Color(0.058f, 0.052f, 0.045f, 0.96f),
@@ -93,16 +93,40 @@ public static partial class ModPanelUI {
             BorderWidthTop = 1,
             BorderWidthRight = 1,
             BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 6,
-            CornerRadiusTopRight = 6,
-            CornerRadiusBottomRight = 6,
-            CornerRadiusBottomLeft = 6,
-            ContentMarginLeft = 10,
-            ContentMarginTop = 4,
-            ContentMarginRight = 10,
-            ContentMarginBottom = 4,
+            CornerRadiusTopLeft = compact ? 4 : 6,
+            CornerRadiusTopRight = compact ? 4 : 6,
+            CornerRadiusBottomRight = compact ? 4 : 6,
+            CornerRadiusBottomLeft = compact ? 4 : 6,
+            ContentMarginLeft = compact ? 6 : 10,
+            ContentMarginTop = compact ? 2 : 4,
+            ContentMarginRight = compact ? 6 : 10,
+            ContentMarginBottom = compact ? 2 : 4,
             ShadowSize = 0,
         };
+    }
+    internal static PanelContainer? CreateSidebarModListVersionChip(string? version) {
+        if (string.IsNullOrWhiteSpace(version))
+            return null;
+        var badge = ModPanelModBanner.FormatVersionBadgeText(version);
+        if (badge.Length == 0)
+            return null;
+        var chip = new PanelContainer {
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+        };
+        chip.AddThemeStyleboxOverride("panel", CreateSidebarModVersionBadgeStyle(compact: true));
+        chip.AddChild(new Label {
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            Text = badge,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            LabelSettings = new LabelSettings {
+                FontSize = ModPanelUiMetrics.SidebarModListVersionBadgeFontSize,
+                FontColor = ModPanelUiPalette.SidebarModActiveAccent,
+            },
+        });
+        return chip;
     }
     private static StyleBoxFlat CreateModSidebarPreviewFrameStyle() {
         return new StyleBoxFlat {
@@ -215,7 +239,7 @@ public static partial class ModPanelUI {
             Text = label,
             ToggleMode = false,
             FocusMode = Control.FocusModeEnum.All,
-            MouseDefaultCursorShape = Control.CursorShape.PointingHand,
+            MouseDefaultCursorShape = Control.CursorShape.Arrow,
             SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin,
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
             TextOverrunBehavior = TextServer.OverrunBehavior.NoTrimming,
@@ -290,7 +314,7 @@ public static partial class ModPanelUI {
         var collapseBtn = new Button {
             Name = "ModPanelScopeCollapse",
             FocusMode = Control.FocusModeEnum.All,
-            MouseDefaultCursorShape = Control.CursorShape.PointingHand,
+            MouseDefaultCursorShape = Control.CursorShape.Arrow,
             CustomMinimumSize = new Vector2(26, 26),
             Icon = MdiIcon.Minus.Texture(14, ModPanelUiPalette.RichTextMuted),
             TooltipText = I18N.T(collapseKey, collapseFallback),
@@ -309,7 +333,7 @@ public static partial class ModPanelUI {
         var collapsedBtn = new Button {
             Name = "ModPanelScopeCollapsed",
             FocusMode = Control.FocusModeEnum.All,
-            MouseDefaultCursorShape = Control.CursorShape.PointingHand,
+            MouseDefaultCursorShape = Control.CursorShape.Arrow,
             Flat = true,
             Text = I18N.T(collapsedSummaryKey, collapsedSummaryFallback),
             Icon = MdiIcon.ChevronRight.Texture(16, ModPanelUiPalette.RichTextMuted),
