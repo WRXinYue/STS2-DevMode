@@ -13,8 +13,6 @@ namespace KitLib.UI;
 public partial class ModPanelPageTabChrome : Control {
     public readonly record struct PageEntry(string Id, string Label);
 
-    private const int FillWidthMaxTabs = 6;
-    private const float TabMinWidth = 96f;
     private const float TabMinHeight = 28f;
     private const float TriggerWidth = 40f;
     private const float TriggerHeight = 28f;
@@ -84,18 +82,13 @@ public partial class ModPanelPageTabChrome : Control {
             child.QueueFree();
         }
         Visible = _pages.Count > 1;
-        var fillWidth = _pages.Count <= FillWidthMaxTabs;
-        _tabRow.SizeFlagsHorizontal = fillWidth ? SizeFlags.ExpandFill : SizeFlags.ShrinkBegin;
         foreach (var entry in _pages) {
             var capturedId = entry.Id;
             var selected = string.Equals(capturedId, selectedPageId, StringComparison.OrdinalIgnoreCase);
             var tab = ModPanelUI.CreateDevModePageTab(capturedId, entry.Label, selected,
                 () => SelectPage(capturedId, fromUser: true));
-            tab.CustomMinimumSize = new Vector2(TabMinWidth, TabMinHeight);
-            if (fillWidth) {
-                tab.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-                tab.SizeFlagsStretchRatio = 1f;
-            }
+            tab.CustomMinimumSize = new Vector2(0f, TabMinHeight);
+            tab.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
             _tabRow.AddChild(tab);
         }
         RefreshTabStyles();

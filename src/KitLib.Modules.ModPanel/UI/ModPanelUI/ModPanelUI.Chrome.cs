@@ -216,9 +216,10 @@ public static partial class ModPanelUI {
             ToggleMode = false,
             FocusMode = Control.FocusModeEnum.All,
             MouseDefaultCursorShape = Control.CursorShape.PointingHand,
+            SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin,
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
-            TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
-            ClipText = true,
+            TextOverrunBehavior = TextServer.OverrunBehavior.NoTrimming,
+            ClipText = false,
         };
         b.SetMeta("pageId", pageId);
         ApplyDevModeTabButtonStyle(b, selected);
