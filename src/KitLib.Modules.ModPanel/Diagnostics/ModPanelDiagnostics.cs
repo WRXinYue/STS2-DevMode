@@ -111,6 +111,8 @@ internal static class ModPanelDiagnostics {
         return n;
     }
 
+    public static int CountAllMods() => ModManager.Mods.Count;
+
     static int CountDescendantsNamed(Node root, string namePrefix) {
         var n = 0;
         if (root.Name.ToString().StartsWith(namePrefix, System.StringComparison.Ordinal))

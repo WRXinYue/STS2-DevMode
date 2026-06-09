@@ -1,5 +1,6 @@
 using Godot;
 using KitLib.Integration;
+using KitLib.Modding;
 using KitLib.ModPanel.Diagnostics;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.Screens.MainMenu;
@@ -78,6 +79,7 @@ public partial class ModPanelSubmenu : NSubmenu {
 
     public override void OnSubmenuClosed() {
         DisableTabHotkeys();
+        ModRuntime.LoadSettings.Persist();
         RitsuModSettingsEmbedHost.FlushDirtyBindings();
         RitsuModSettingsEmbedHost.ClearAfterShellDisposed();
         ModPanelUI.OnSubmenuPopped(this);

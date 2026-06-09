@@ -25,7 +25,7 @@ public sealed class ModCatalog : IModCatalog {
             if (string.IsNullOrEmpty(id)) continue;
             var name = string.IsNullOrEmpty(man.name) ? id : man.name;
             var ver = man.version ?? "";
-            list.Add(new KitLibModInfo(id, name, ver, CopyDependencies(man)));
+            list.Add(new KitLibModInfo(id, name, ver, Sts2ModCatalogDeps.CopyDependencies(man)));
         }
 
         return list;
@@ -43,32 +43,15 @@ public sealed class ModCatalog : IModCatalog {
         return set;
     }
 
-    static string[] CopyDependencies(ModManifest manifest) {
-        var deps = manifest.dependencies;
-        if (deps == null || deps.Count == 0)
-            return [];
-
-        var list = new List<string>(deps.Count);
-#if STS2_BETA
-        foreach (var dep in deps) {
-            if (string.IsNullOrEmpty(dep.id))
-                continue;
-            list.Add(string.IsNullOrEmpty(dep.minVersion) ? dep.id : $"{dep.id}>={dep.minVersion}");
-        }
-#else
-        foreach (var dep in deps) {
-            if (!string.IsNullOrEmpty(dep))
-                list.Add(dep);
-        }
-#endif
-
-        return list.Count == 0 ? [] : list.ToArray();
-    }
 }
 
 /// <summary>Game-backed mod catalog; safe to call from main thread after mod load.</summary>
 public static class ModRuntime {
     public static IModCatalog Catalog => ModCatalog.Default;
+
+    public static IModRegistry Registry => Sts2ModRegistry.Default;
+
+    public static IModLoadSettings LoadSettings => Sts2ModLoadSettings.Default;
 
     /// <summary>Loaded mods with manifest <c>id</c>, sorted by display name for settings UI lists.</summary>
     public static IReadOnlyList<KitLibModInfo> GetOrderedLoadedMods() {

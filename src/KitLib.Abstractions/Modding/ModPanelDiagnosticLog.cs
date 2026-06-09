@@ -50,7 +50,9 @@ public static class ModPanelDiagnosticLog {
     public static IReadOnlyList<string> CollectOpenWarnings(ModPanelOpenReport report) {
         var warnings = new List<string>();
         if (report.ExpectedRowCount == 0 && report.RawLoadedModCount > 0)
-            warnings.Add($"{Prefix} loaded mods exist but catalog snapshot is empty — check manifest id fields.");
+            warnings.Add($"{Prefix} loaded mods exist but registry snapshot is empty — check manifest id fields.");
+        if (report.CatalogSnapshotCount > report.RawLoadedModCount)
+            warnings.Add($"{Prefix} registry lists disabled/failed mods — enable in sidebar and restart to load.");
         if (report.ExpectedRowCount > 0 && report.EmbedProbe.Status != ModPanelEmbedHostStatus.Ready)
             warnings.Add(
                 $"{Prefix} sidebar expects {report.ExpectedRowCount} rows but embed host is {report.EmbedProbe.Status}.");

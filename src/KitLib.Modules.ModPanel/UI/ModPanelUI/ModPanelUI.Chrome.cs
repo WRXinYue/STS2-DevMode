@@ -1,4 +1,5 @@
 using System;
+using KitLib.Abstractions.Modding;
 using KitLib.ModPanel.Icons;
 using KitLib.Settings;
 using Godot;
@@ -10,6 +11,13 @@ public static partial class ModPanelUI {
         label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         return label;
     }
+    internal static Color ResolveSidebarModTitleColor(ModEntryLoadStatus status) => status switch {
+        ModEntryLoadStatus.Loaded => ModPanelUiPalette.LabelPrimary,
+        ModEntryLoadStatus.Failed => new Color(0.92f, 0.38f, 0.34f, 1f),
+        ModEntryLoadStatus.Disabled => new Color(0.55f, 0.52f, 0.48f, 0.95f),
+        ModEntryLoadStatus.AddedAtRuntime => new Color(0.55f, 0.52f, 0.48f, 0.95f),
+        _ => new Color(0.62f, 0.52f, 0.72f, 0.95f),
+    };
     internal static void ApplySidebarModGroupInnerRowStyle(StyleBoxFlat box, bool selected, bool pressed,
         bool focused = false) {
         var a = ModPanelUiMetrics.SidebarModListSubtleAlpha;

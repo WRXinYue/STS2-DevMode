@@ -57,26 +57,28 @@ public static partial class ModPanelUI {
     }
     public static bool IsVisible =>
         _root != null && GodotObject.IsInstanceValid(_root) && _root.Visible;
+    private static bool IsSelectableSidebarMod(KitLibModEntry entry) => entry.IsLoaded;
+
     private static string ResolveShowcaseModId()
         => ModPanelSidebarPlanner.ResolveShowcaseModId(
-            ModRuntime.Catalog.GetSnapshot(),
+            ModRuntime.Registry.GetAllEntries(),
             typeof(ModPanelUI).Assembly.GetName().Name,
             RitsuModSettingsBridge.IsRitsuFrameworkModId,
-            id => ModPanelModBanner.TryFindMod(id) != null);
+            IsSelectableSidebarMod);
 
     private static ModPanelOpenReport BuildOpenReport() {
-        var snapshot = ModRuntime.Catalog.GetSnapshot();
+        var registry = ModRuntime.Registry.GetAllEntries();
         var plan = ModPanelSidebarPlanner.Plan(
-            snapshot,
+            registry,
             typeof(ModPanelUI).Assembly.GetName().Name,
             RitsuModSettingsBridge.IsRitsuFrameworkModId,
-            id => ModPanelModBanner.TryFindMod(id) != null);
+            IsSelectableSidebarMod);
         var embedProbe = ModPanelEmbedHostProbe.Probe(RitsuModSettingsBridge.TryGetRitsuAssembly());
         return ModPanelDiagnostics.BuildOpenReport(
             plan,
             embedProbe,
             ModPanelDiagnostics.CountRawLoadedMods(),
-            snapshot.Count);
+            registry.Count);
     }
     internal static void BuildInto(ModPanelSubmenu root) {
         // Backdrop: NMainMenu.EnableBackstop (BlurBackstop + shader), same as vanilla settings / submenu stack.
@@ -295,6 +297,18 @@ public static partial class ModPanelUI {
             };
             listHeader.AddChild(buildLabel);
         }
+        var pendingRestartBanner = new Label {
+            Name = "ModPanelPendingRestartBanner",
+            Visible = false,
+            AutowrapMode = TextServer.AutowrapMode.Word,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            LabelSettings = new LabelSettings {
+                FontSize = 12,
+                FontColor = new Color(0.95f, 0.78f, 0.42f, 0.98f),
+            },
+        };
+        listHeader.AddChild(pendingRestartBanner);
         var scroll = SidebarModListScrollBuilder.Create(out var scrollInner);
         scrollInner.AddThemeConstantOverride("separation", 10);
         var modButtonList = new VBoxContainer {
@@ -305,11 +319,19 @@ public static partial class ModPanelUI {
         modButtonList.AddThemeConstantOverride("separation", 8);
         scrollInner.AddChild(modButtonList);
         var sidebarPlan = ModPanelSidebarPlanner.Plan(
-            ModRuntime.Catalog.GetSnapshot(),
+            ModRuntime.Registry.GetAllEntries(),
             showcaseModId,
             RitsuModSettingsBridge.IsRitsuFrameworkModId,
-            id => ModPanelModBanner.TryFindMod(id) != null);
-        var ordered = new List<KitLibModInfo>(sidebarPlan.OrderedMods);
+            IsSelectableSidebarMod);
+        var ordered = new List<KitLibModEntry>(sidebarPlan.OrderedMods);
+        void RefreshPendingRestartBanner() {
+            var pending = ModRuntime.LoadSettings.HasPendingRestartChanges();
+            pendingRestartBanner.Visible = pending;
+            if (pending) {
+                pendingRestartBanner.Text = I18N.T("modpanel.sidebar.pendingRestart",
+                    "Restart the game to apply mod enable/disable changes.");
+            }
+        }
         var modRows = new List<SidebarModRowVm>();
         var initialSelectedId = sidebarPlan.InitialSelectedModId;
         var selectedModId = initialSelectedId;
@@ -340,13 +362,25 @@ public static partial class ModPanelUI {
         }
         void SelectMod(string id) {
             selectedModId = id;
-            var pagesForMod = RitsuModSettingsBridge.GetAllPageObjects(id);
-            contentState.PageId = pagesForMod.Count > 0 ? RitsuModSettingsBridge.GetPageId(pagesForMod[0]) : "";
             RefreshModRowChrome();
+            var rowEntry = modRows.Find(r => string.Equals(r.Id, id, StringComparison.OrdinalIgnoreCase))?.Entry;
             var m = ModPanelModBanner.TryFindMod(id);
-            ApplySidebarTexts(m, id, modTitleLabel, versionBadgePanel, versionLabel, metaLabel, descLabel);
-            var tex = ModPanelModBanner.TryLoadModIcon(m, id);
-            ApplyPreviewState(tex, m == null, modIcon, previewPlaceholder, previewCaption);
+            if (m != null) {
+                ApplySidebarTexts(m, id, modTitleLabel, versionBadgePanel, versionLabel, metaLabel, descLabel);
+                var tex = ModPanelModBanner.TryLoadModIcon(m, id);
+                ApplyPreviewState(tex, false, modIcon, previewPlaceholder, previewCaption);
+            }
+            else if (rowEntry != null) {
+                ApplySidebarTextsFromEntry(rowEntry.Value, modTitleLabel, versionBadgePanel, versionLabel,
+                    metaLabel, descLabel);
+                ApplyPreviewState(null, true, modIcon, previewPlaceholder, previewCaption);
+            }
+            else {
+                ApplySidebarTexts(null, id, modTitleLabel, versionBadgePanel, versionLabel, metaLabel, descLabel);
+                ApplyPreviewState(null, true, modIcon, previewPlaceholder, previewCaption);
+            }
+            var pagesForMod = rowEntry?.IsLoaded == true ? RitsuModSettingsBridge.GetAllPageObjects(id) : [];
+            contentState.PageId = pagesForMod.Count > 0 ? RitsuModSettingsBridge.GetPageId(pagesForMod[0]) : "";
             RebuildRitsuRightPane();
             var selectedRow = modRows.Find(r => string.Equals(r.Id, id, StringComparison.OrdinalIgnoreCase));
             if (selectedRow != null) {
@@ -367,14 +401,18 @@ public static partial class ModPanelUI {
         }
         else {
             foreach (var info in ordered) {
-                var tipParts = new List<string> { info.DisplayName, info.Id };
+                var tipParts = new List<string> { info.DisplayName, info.Id, info.LoadStatus.ToString() };
                 if (!string.IsNullOrWhiteSpace(info.Version))
                     tipParts.Add(info.Version);
+                tipParts.Add(info.IsEnabledInSettings
+                    ? I18N.T("modpanel.sidebar.enabled", "enabled")
+                    : I18N.T("modpanel.sidebar.disabled", "disabled"));
                 if (!string.IsNullOrWhiteSpace(gameBuild))
                     tipParts.Add(string.Format(
                         I18N.T("modpanel.sidebar.gameBuild.short", "build {0}"), gameBuild));
                 var tip = string.Join(" · ", tipParts);
                 var isSel = string.Equals(info.Id, initialSelectedId, StringComparison.OrdinalIgnoreCase);
+                var captured = info;
                 var section = new VBoxContainer {
                     Name = $"SidebarModSection_{info.Id}",
                     SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
@@ -417,15 +455,21 @@ public static partial class ModPanelUI {
                 };
                 rowContent.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
                 rowContent.AddThemeConstantOverride("separation", 8);
-                var labelLeft = 18 + (int)ModPanelUiMetrics.SidebarModAccentBarWidth +
+                var labelLeft = 8 + (int)ModPanelUiMetrics.SidebarModAccentBarWidth +
                                 ModPanelUiMetrics.SidebarModAccentTextGutter;
                 rowContent.OffsetLeft = labelLeft;
                 rowContent.OffsetRight = -12;
                 rowContent.OffsetTop = 10;
                 rowContent.OffsetBottom = -10;
+                var enableTickbox = ModPanelEnableTickbox.Create(captured.IsEnabledInSettings);
+                enableTickbox.Toggled += tick => {
+                    ModRuntime.LoadSettings.SetEnabled(captured.Id, captured.Source, tick.IsTicked);
+                    RefreshPendingRestartBanner();
+                };
+                rowContent.AddChild(enableTickbox);
                 var titleLbl = new Label {
                     MouseFilter = Control.MouseFilterEnum.Ignore,
-                    Text = info.DisplayName,
+                    Text = captured.DisplayName,
                     TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
                     HorizontalAlignment = HorizontalAlignment.Left,
                     VerticalAlignment = VerticalAlignment.Center,
@@ -433,18 +477,19 @@ public static partial class ModPanelUI {
                     SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
                     LabelSettings = new LabelSettings {
                         FontSize = 22,
-                        FontColor = ModPanelUiPalette.LabelPrimary,
+                        FontColor = ResolveSidebarModTitleColor(captured.LoadStatus),
                     },
                 };
                 rowContent.AddChild(titleLbl);
-                var versionChip = CreateSidebarModListVersionChip(info.Version);
+                var versionChip = CreateSidebarModListVersionChip(captured.Version);
                 if (versionChip != null)
                     rowContent.AddChild(versionChip);
                 rowHost.AddChild(rowContent);
                 var vm = new SidebarModRowVm {
-                    Id = info.Id,
+                    Entry = captured,
                     InnerStyle = innerStyle,
                     Host = rowHost,
+                    EnableTickbox = enableTickbox,
                 };
                 modRows.Add(vm);
                 rowHost.FocusEntered += () => {
@@ -470,6 +515,7 @@ public static partial class ModPanelUI {
             }
             SelectMod(initialSelectedId);
         }
+        RefreshPendingRestartBanner();
         listHeader.AddChild(scroll);
         SidebarModListScrollBuilder.ResetScrollTopDeferred(scroll);
         var sidebarLower = new VBoxContainer {
@@ -558,6 +604,22 @@ public static partial class ModPanelUI {
         previewCaption.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
         captionMargin.AddChild(previewCaption);
         return (previewFrame, modIcon, previewPlaceholder, previewCaption);
+    }
+    private static void ApplySidebarTextsFromEntry(KitLibModEntry entry, MegaRichTextLabel titleLabel,
+        PanelContainer versionBadgePanel, Label versionLabel, MegaRichTextLabel metaLabel,
+        MegaRichTextLabel descLabel) {
+        titleLabel.SetTextAutoSize(entry.DisplayName);
+        if (string.IsNullOrWhiteSpace(entry.Version)) {
+            versionBadgePanel.Visible = false;
+            versionLabel.Text = "";
+        }
+        else {
+            versionBadgePanel.Visible = true;
+            versionLabel.Text = ModPanelModBanner.FormatVersionBadgeText(entry.Version);
+        }
+        metaLabel.SetTextAutoSize($"{entry.Id} · {entry.LoadStatus}");
+        descLabel.Visible = false;
+        descLabel.SetTextAutoSize("");
     }
     private static void ApplySidebarTexts(Mod? mod, string modId, MegaRichTextLabel titleLabel,
         PanelContainer versionBadgePanel, Label versionLabel, MegaRichTextLabel metaLabel,
@@ -687,6 +749,11 @@ public static partial class ModPanelUI {
         ModPanelContentState state, Action rebuild) {
         ClearContainerChildren(list);
         pageTabChrome.ClearPages();
+        if (ModPanelModBanner.TryFindMod(modId) == null) {
+            list.AddChild(CreateInlineDescription(I18N.T("modpanel.content.modNotLoaded",
+                "This mod is disabled or failed to load. Enable it in the list and restart the game to edit settings here.")));
+            return;
+        }
         if (!RitsuModSettingsBridge.IsAvailable) {
             MainFile.Logger.Warn("KitLib ModPanel: STS2-RitsuLib assembly not loaded.");
             list.AddChild(CreateInlineDescription(I18N.T("modpanel.content.ritsuNotLoaded",

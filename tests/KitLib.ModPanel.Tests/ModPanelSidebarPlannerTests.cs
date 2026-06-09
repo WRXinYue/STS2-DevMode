@@ -3,14 +3,21 @@ using KitLib.Abstractions.Modding;
 namespace KitLib.ModPanel.Tests;
 
 public sealed class ModPanelSidebarPlannerTests {
-    static readonly KitLibModInfo ModA = new("AlphaMod", "Zulu Pack", "1.0", []);
-    static readonly KitLibModInfo ModB = new("BetaMod", "Alpha Pack", "2.0", []);
-    static readonly KitLibModInfo Ritsu = new("STS2-RitsuLib", "RitsuLib", "0.1", []);
+    static KitLibModEntry ModA => Entry("AlphaMod", "Zulu Pack");
+    static KitLibModEntry ModB => Entry("BetaMod", "Alpha Pack");
+    static KitLibModEntry Ritsu => Entry("STS2-RitsuLib", "RitsuLib");
+    static KitLibModEntry DisabledMod => Entry("OffMod", "Off", ModEntryLoadStatus.Disabled, enabled: false);
+
+    static KitLibModEntry Entry(string id, string name, ModEntryLoadStatus status = ModEntryLoadStatus.Loaded,
+        bool enabled = true)
+        => new(id, name, "1.0", [], status, ModEntrySource.ModsDirectory, enabled);
 
     static bool IsRitsuFramework(string? id) =>
         string.Equals(id, "STS2-RitsuLib", StringComparison.OrdinalIgnoreCase)
         || string.Equals(id, "RitsuLib", StringComparison.OrdinalIgnoreCase)
         || string.Equals(id, "com.ritsukage.sts2-RitsuLib", StringComparison.OrdinalIgnoreCase);
+
+    static bool IsLoaded(KitLibModEntry e) => e.IsLoaded;
 
     [Fact]
     public void OrderForSidebar_sorts_by_display_name() {
@@ -25,17 +32,17 @@ public sealed class ModPanelSidebarPlannerTests {
             [ModA, ModB, Ritsu],
             "KitLib.ModPanel",
             IsRitsuFramework,
-            _ => true);
+            IsLoaded);
         Assert.Equal(3, plan.ExpectedRowCount);
     }
 
     [Fact]
     public void Plan_empty_snapshot_yields_zero_rows() {
         var plan = ModPanelSidebarPlanner.Plan(
-            Array.Empty<KitLibModInfo>(),
+            Array.Empty<KitLibModEntry>(),
             "KitLib.ModPanel",
             IsRitsuFramework,
-            _ => true);
+            IsLoaded);
         Assert.Equal(0, plan.ExpectedRowCount);
     }
 
@@ -45,7 +52,7 @@ public sealed class ModPanelSidebarPlannerTests {
             [Ritsu, ModA],
             "STS2-RitsuLib",
             IsRitsuFramework,
-            mid => string.Equals(mid, "AlphaMod", StringComparison.OrdinalIgnoreCase));
+            IsLoaded);
         Assert.Equal("AlphaMod", id);
     }
 
@@ -55,19 +62,19 @@ public sealed class ModPanelSidebarPlannerTests {
             [ModB, ModA],
             "MissingMod",
             IsRitsuFramework,
-            mid => string.Equals(mid, "BetaMod", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(mid, "AlphaMod", StringComparison.OrdinalIgnoreCase));
+            IsLoaded);
         Assert.Equal("BetaMod", plan.InitialSelectedModId);
         Assert.Equal(2, plan.ExpectedRowCount);
     }
 
     [Fact]
-    public void Raw_loaded_greater_than_snapshot_indicates_manifest_id_gap() {
-        // Documents the runtime warning: rawLoaded > catalogSnapshot with expectedRows=0.
-        var plan = ModPanelSidebarPlanner.Plan([], "KitLib", IsRitsuFramework, _ => true);
-        Assert.Equal(0, plan.ExpectedRowCount);
-        const int rawLoaded = 5;
-        const int catalogSnapshot = 0;
-        Assert.True(rawLoaded > catalogSnapshot);
+    public void Plan_includes_disabled_mods_in_row_count() {
+        var plan = ModPanelSidebarPlanner.Plan(
+            [ModA, DisabledMod],
+            "KitLib",
+            IsRitsuFramework,
+            IsLoaded);
+        Assert.Equal(2, plan.ExpectedRowCount);
+        Assert.Equal("AlphaMod", plan.InitialSelectedModId);
     }
 }

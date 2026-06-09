@@ -1,10 +1,17 @@
 using Godot;
+using KitLib.Abstractions.Modding;
+using KitLib.Integration;
 
 namespace KitLib.UI;
 
 internal sealed class SidebarModRowVm {
-    public required string Id { get; init; }
+    public required KitLibModEntry Entry { get; init; }
     public required StyleBoxFlat InnerStyle { get; init; }
     public required Control Host { get; init; }
+    public ModPanelEnableTickbox? EnableTickbox { get; init; }
     public bool Pressing;
+
+    public string Id => Entry.Id;
+
+    public bool IsSelectable => Entry.IsLoaded;
 }

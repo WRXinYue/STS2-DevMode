@@ -22,6 +22,8 @@ public static class ModPanelUiMetrics {
     public const int SidebarContentMarginH = 16;
     public const float SidebarModAccentBarWidth = 6f;
     public const int SidebarModAccentTextGutter = 6;
+    public const float SidebarModEnableToggleHitSize = 22f;
+    public const float SidebarModEnableToggleRadius = 4f;
     public const float SidebarModListSubtleAlpha = 0.04f;
     public const int SidebarModListBottomBorderWidth = 1;
     public const float SidebarScrollTopDividerHeight = 2f;
@@ -32,4 +34,4 @@ public static class ModPanelUiMetrics {
     /// <summary>Fixed height for the selected-mod banner (preview + title block) at the top of the DevMode sidebar.</summary>
     public const int SidebarModBannerFixedHeight = 232;
     public const int ContentScrollRightGutter = 12;
-}
+}
