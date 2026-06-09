@@ -29,6 +29,11 @@ BUNDLE_DLLS = [
 
 LEGACY_MOD_FOLDERS = [BUNDLE_ID, *BUNDLE_DLLS]
 
+# Build artifacts that must not land in mods/KitLib/ (game treats some as mod manifests).
+_SKIP_DEPLOY_SUFFIXES = {".pdb"}
+_SKIP_DEPLOY_NAME_SUFFIXES = (".deps.json", ".runtimeconfig.json")
+_SKIP_DEPLOY_NAMES: set[str] = set()
+
 
 def _mods_root(game_root: Path) -> Path:
     mac = game_root / "SlayTheSpire2.app" / "Contents" / "MacOS" / "mods"
@@ -50,11 +55,24 @@ def _resolve_dll(mod_id: str) -> Path | None:
     return None
 
 
+def _should_deploy_root_item(item: Path) -> bool:
+    if item.name == MODULES_SUBDIR and item.is_dir():
+        return False
+    if item.name in _SKIP_DEPLOY_NAMES:
+        return False
+    lower = item.name.lower()
+    if any(lower.endswith(suffix) for suffix in _SKIP_DEPLOY_NAME_SUFFIXES):
+        return False
+    if item.suffix.lower() in _SKIP_DEPLOY_SUFFIXES:
+        return False
+    if item.suffix.lower() == ".dll" and item.stem in BUNDLE_DLLS:
+        return False
+    return True
+
+
 def _copy_core_bundle(src_dir: Path, dst: Path) -> None:
     for item in src_dir.iterdir():
-        if item.name == MODULES_SUBDIR and item.is_dir():
-            continue
-        if item.suffix.lower() == ".dll" and item.stem in BUNDLE_DLLS:
+        if not _should_deploy_root_item(item):
             continue
         target = dst / item.name
         if item.is_dir():
@@ -114,6 +132,11 @@ def _deploy_bundle(mods_root: Path) -> None:
         copied += 1
 
     _clean_legacy_root_dlls(dst)
+
+    manifest = _REPO / "KitLib.json"
+    if manifest.is_file():
+        shutil.copy2(manifest, dst / "mod_manifest.json")
+
     print(f"Deployed bundle -> {dst} ({copied} satellite DLL(s) in {MODULES_SUBDIR}/)")
 
 

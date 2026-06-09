@@ -28,11 +28,14 @@ internal static class SatelliteModuleLoader {
     internal static void LoadBundledModules() {
         var modDir = Path.GetDirectoryName(typeof(MainFile).Assembly.Location);
         if (string.IsNullOrEmpty(modDir)) {
-            MainFile.Logger.Warn("[KitLib] Satellite loader: cannot resolve mod directory.");
+            MainFile.Logger.Warn("Satellite loader: cannot resolve mod directory.");
             return;
         }
 
+        ModAssemblyLoader.EnsureResolveHook(modDir);
+        MainFile.Logger.Info($"Satellite loader: modDir={modDir}");
         foreach (var spec in LoadOrder) {
+            MainFile.Logger.Info($"Satellite loader: trying {spec.ModuleId} ({spec.AssemblyName}.dll).");
             TryLoadModule(modDir, spec);
         }
     }
@@ -111,20 +114,13 @@ internal static class SatelliteModuleLoader {
                 $"[KitLib] Loading {assemblyName} from mod root (legacy layout). Run make sync-full to move it under {ModulesSubdir}/.");
         }
 
-        var loaded = AppDomain.CurrentDomain.GetAssemblies()
-            .FirstOrDefault(a => string.Equals(a.GetName().Name, assemblyName, StringComparison.OrdinalIgnoreCase));
-
-        if (loaded != null) {
-            var loadedPath = loaded.Location;
-            if (!string.IsNullOrEmpty(loadedPath)
-                && !PathsEqual(loadedPath, path)) {
-                throw new InvalidOperationException(
-                    $"assembly already loaded from {loadedPath} (wanted {path})");
-            }
-            return loaded;
+        try {
+            return ModAssemblyLoader.LoadFromModPath(path);
         }
-
-        return Assembly.LoadFrom(path);
+        catch (ReflectionTypeLoadException ex) {
+            var details = string.Join("; ", ex.LoaderExceptions?.Select(e => e?.Message) ?? []);
+            throw new InvalidOperationException($"Failed to load {assemblyName} from {path}: {details}", ex);
+        }
     }
 
     static bool IsExternallyInstalled(string moduleId) {
@@ -153,6 +149,4 @@ internal static class SatelliteModuleLoader {
         return (IEnumerable<Mod>)method.Invoke(null, null)!;
     }
 
-    static bool PathsEqual(string a, string b) =>
-        string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
 }

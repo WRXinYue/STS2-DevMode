@@ -1,5 +1,6 @@
 <Project>
   <PropertyGroup>
+    <GodotProjectDir>$(MSBuildProjectDirectory)\.no-godot</GodotProjectDir>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <KitLibPython Condition="'$(KitLibPython)' == '' and '$(OS)' == 'Windows_NT'">python</KitLibPython>
     <KitLibPython Condition="'$(KitLibPython)' == '' and '$(OS)' != 'Windows_NT'">python3</KitLibPython>
@@ -20,6 +21,11 @@
     <ProjectReference Include="$(RepoRoot)src\KitLib.Core\KitLib.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="GodotSharp" Version="4.5.1">
+      <PrivateAssets>all</PrivateAssets>
+      <ExcludeAssets>runtime;analyzers;build;buildtransitive;native</ExcludeAssets>
+      <IncludeAssets>compile</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.3">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

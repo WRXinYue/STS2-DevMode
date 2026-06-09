@@ -1,6 +1,6 @@
 <Project>
   <ItemGroup>
     <Compile Include="$(MSBuildProjectDirectory)\**\*.cs"
-               Exclude="$(MSBuildProjectDirectory)\.godot\**\*.cs" />
+               Exclude="$(MSBuildProjectDirectory)\.godot\**\*.cs;$(MSBuildProjectDirectory)\.no-godot\**\*.cs;$(MSBuildProjectDirectory)\obj\**\*.cs" />
   </ItemGroup>
 </Project>

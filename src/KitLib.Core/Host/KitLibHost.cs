@@ -25,7 +25,9 @@ public static class KitLibHost {
     public static void Bootstrap() {
         if (_bootstrapped) return;
         _bootstrapped = true;
+        MainFile.Logger.Info("KitLib host bootstrap starting.");
         ModuleCatalog.Announce(KitLibModuleIds.Core);
+        MainFile.Logger.Info("KitLib core module announced; loading bundled satellites.");
         SatelliteModuleLoader.LoadBundledModules();
         MainFile.Logger.Info("KitLib Core host ready.");
     }

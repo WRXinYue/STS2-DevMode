@@ -14,6 +14,13 @@
     </PropertyGroup>
     <MakeDir Directories="$(RepoBuildDir);$(RepoBuildDir)\obj" />
   </Target>
+  <Target Name="StripGodotSdkArtifacts" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <Analyzer Remove="@(Analyzer)" Condition="$([System.String]::Copy('%(Identity)').Contains('Godot'))" />
+      <Compile Remove="@(Compile)" Condition="$([System.String]::Copy('%(Identity)').Contains('Godot.SourceGenerators'))" />
+      <Compile Remove="@(Compile)" Condition="$([System.String]::Copy('%(Identity)').Contains('GodotPlugins'))" />
+    </ItemGroup>
+  </Target>
   <Target Name="CopySatelliteManifest" AfterTargets="Build">
     <Copy SourceFiles="$(MSBuildProjectDirectory)\$(ModId).json"
           DestinationFiles="$(PublishDir)\mod_manifest.json"
