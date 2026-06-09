@@ -14,9 +14,7 @@ public partial class ModPanelControllerSupport : Node {
     private static readonly StringName TabLeftHotkey = MegaInput.viewDeckAndTabLeft;
     private static readonly StringName TabRightHotkey = MegaInput.viewExhaustPileAndTabRight;
 
-    private HBoxContainer? _pageTabRow;
-    private Func<string>? _getPageId;
-    private Action<string>? _switchPage;
+    private ModPanelPageTabChrome? _pageTabChrome;
     private Control? _hintsRow;
     private TextureRect? _backIcon;
     private TextureRect? _selectIcon;
@@ -30,11 +28,8 @@ public partial class ModPanelControllerSupport : Node {
     private Control? _settingsContentRoot;
     private bool _lastUsingController;
 
-    public void Configure(HBoxContainer pageTabRow, Func<string> getPageId, Action<string> switchPage,
-        Control hintsRow) {
-        _pageTabRow = pageTabRow;
-        _getPageId = getPageId;
-        _switchPage = switchPage;
+    public void Configure(ModPanelPageTabChrome pageTabChrome, Control hintsRow) {
+        _pageTabChrome = pageTabChrome;
         _hintsRow = hintsRow;
         _backIcon = hintsRow.GetNodeOrNull<TextureRect>("BackHotkeyIcon");
         _selectIcon = hintsRow.GetNodeOrNull<TextureRect>("SelectHotkeyIcon");
@@ -68,14 +63,16 @@ public partial class ModPanelControllerSupport : Node {
             NInputManager.Instance.Connect(NInputManager.SignalName.InputRebound, _refreshHintsCallable.Value);
         _lastUsingController = NControllerManager.Instance?.IsUsingController == true;
         RefreshHints();
+        _pageTabChrome?.RefreshTriggerIcons();
     }
 
     public override void _Process(double delta) {
         var usingController = NControllerManager.Instance?.IsUsingController == true;
-        if (usingController == _lastUsingController)
-            return;
-        _lastUsingController = usingController;
-        RefreshHints();
+        if (usingController != _lastUsingController) {
+            _lastUsingController = usingController;
+            RefreshHints();
+            _pageTabChrome?.RefreshTriggerIcons();
+        }
     }
 
     public override void _ExitTree() {
@@ -188,7 +185,7 @@ public partial class ModPanelControllerSupport : Node {
         var usingController = NControllerManager.Instance?.IsUsingController == true;
         _hintsRow.Visible = usingController;
         MainFile.Logger.Info(ModPanelDiagnosticLog.FormatControllerHints(
-            usingController, _hintsRow.Visible, CountPageTabs()));
+            usingController, _hintsRow.Visible, _pageTabChrome?.PageCount ?? 0));
         if (!usingController)
             return;
         if (_backIcon != null) {
@@ -197,18 +194,11 @@ public partial class ModPanelControllerSupport : Node {
         }
         if (_selectIcon != null)
             _selectIcon.Visible = false;
-        var tabCount = CountPageTabs();
-        var showTabs = tabCount > 1;
-        if (_tabLeftIcon != null) {
-            _tabLeftIcon.Visible = showTabs;
-            if (showTabs)
-                _tabLeftIcon.Texture = NInputManager.Instance.GetHotkeyIcon(TabLeftHotkey);
-        }
-        if (_tabRightIcon != null) {
-            _tabRightIcon.Visible = showTabs;
-            if (showTabs)
-                _tabRightIcon.Texture = NInputManager.Instance.GetHotkeyIcon(TabRightHotkey);
-        }
+        if (_tabLeftIcon != null)
+            _tabLeftIcon.Visible = false;
+        if (_tabRightIcon != null)
+            _tabRightIcon.Visible = false;
+        _pageTabChrome?.RefreshTriggerIcons();
     }
 
     private bool CycleSidebarMod(int delta) {
@@ -236,43 +226,12 @@ public partial class ModPanelControllerSupport : Node {
     }
 
     private void SwitchTab(int delta) {
-        if (_pageTabRow == null || _getPageId == null || _switchPage == null)
+        if (_pageTabChrome == null)
             return;
         if (_submenu != null && !ActiveScreenContext.Instance.IsCurrent(_submenu))
             return;
-        var tabs = CollectTabs();
-        if (tabs.Count <= 1)
+        if (!_pageTabChrome.TrySwitchPage(delta))
             return;
-        var currentId = _getPageId();
-        var idx = 0;
-        for (var i = 0; i < tabs.Count; i++) {
-            if (!tabs[i].HasMeta("pageId"))
-                continue;
-            if (string.Equals(tabs[i].GetMeta("pageId").AsString(), currentId, StringComparison.OrdinalIgnoreCase)) {
-                idx = i;
-                break;
-            }
-        }
-        var next = Mathf.Clamp(idx + delta, 0, tabs.Count - 1);
-        if (next == idx)
-            return;
-        if (!tabs[next].HasMeta("pageId"))
-            return;
-        _switchPage(tabs[next].GetMeta("pageId").AsString());
-        Callable.From(() => ((Control)tabs[next]).GrabFocus()).CallDeferred();
         RefreshHints();
-    }
-
-    private int CountPageTabs() => CollectTabs().Count;
-
-    private List<Button> CollectTabs() {
-        var tabs = new List<Button>();
-        if (_pageTabRow == null)
-            return tabs;
-        foreach (var child in _pageTabRow.GetChildren()) {
-            if (child is Button b && b.Visible)
-                tabs.Add(b);
-        }
-        return tabs;
     }
 }

@@ -112,8 +112,8 @@ public static partial class ModPanelUI {
         outer.AddChild(body);
         // Embed host must exist before sidebar builds content (SelectMod → RebuildRitsuRightPane).
         RitsuModSettingsEmbedHost.EnsureAttached(root);
-        var (contentPanel, ritsuContentList, pageTabRow) = BuildContentPanel();
-        body.AddChild(BuildSidebarPanel(root, hintsRow, ritsuContentList, pageTabRow));
+        var (contentPanel, ritsuContentList, pageTabChrome) = BuildContentPanel();
+        body.AddChild(BuildSidebarPanel(root, hintsRow, ritsuContentList, pageTabChrome));
         body.AddChild(contentPanel);
         // Same control as NSubmenu: NBackButton starts off-screen until Enable() (see NSubmenu.OnScreenVisibilityChange).
         var backButton = PreloadManager.Cache.GetScene(SceneHelper.GetScenePath("ui/back_button"))
@@ -157,7 +157,7 @@ public static partial class ModPanelUI {
         };
     }
     private static Control BuildSidebarPanel(ModPanelSubmenu shell, HBoxContainer hintsRow,
-        VBoxContainer ritsuContentList, HBoxContainer pageTabRow) {
+        VBoxContainer ritsuContentList, ModPanelPageTabChrome pageTabChrome) {
         var showcaseModId = ResolveShowcaseModId();
         var panel = new Panel {
             Name = "ModPanelSidebarPanel",
@@ -295,19 +295,20 @@ public static partial class ModPanelUI {
         var contentState = new ModPanelContentState();
         Control? scopeFocusTarget = null;
         ModPanelControllerSupport controllerSupport = new();
+        pageTabChrome.PageSelected += id => {
+            contentState.PageId = id;
+            RebuildRitsuRightPane();
+        };
         void RebuildRitsuRightPane() {
-            RefreshRitsuSettingsContent(ritsuContentList, pageTabRow, selectedModId, contentState, RebuildRitsuRightPane);
+            RefreshRitsuSettingsContent(ritsuContentList, pageTabChrome, selectedModId, contentState, RebuildRitsuRightPane);
             Callable.From(() => {
-                ModPanelFocusWiring.Wire(modRows, selectedModId, contentState.PageId, pageTabRow, ritsuContentList,
-                    scopeFocusTarget);
+                ModPanelFocusWiring.Wire(modRows, selectedModId, ritsuContentList, scopeFocusTarget);
+                pageTabChrome.RefreshTriggerIcons();
                 if (GodotObject.IsInstanceValid(controllerSupport))
                     controllerSupport.RefreshHints();
             }).CallDeferred();
         }
-        controllerSupport.Configure(pageTabRow, () => contentState.PageId, id => {
-            contentState.PageId = id;
-            RebuildRitsuRightPane();
-        }, hintsRow);
+        controllerSupport.Configure(pageTabChrome, hintsRow);
         void RefreshModRowChrome() {
             foreach (var row in modRows) {
                 var sel = string.Equals(row.Id, selectedModId, StringComparison.OrdinalIgnoreCase);
@@ -453,8 +454,8 @@ public static partial class ModPanelUI {
         controllerSupport.ConfigureSidebar(modRows, () => selectedModId, SelectMod, ritsuContentList);
         Callable.From(() => {
             if (modRows.Count > 0) {
-                ModPanelFocusWiring.Wire(modRows, selectedModId, contentState.PageId, pageTabRow, ritsuContentList,
-                    scopeFocusTarget);
+                ModPanelFocusWiring.Wire(modRows, selectedModId, ritsuContentList, scopeFocusTarget);
+                pageTabChrome.RefreshTriggerIcons();
                 var selectedRow = modRows.Find(r =>
                     string.Equals(r.Id, selectedModId, StringComparison.OrdinalIgnoreCase));
                 shell.SetInitialFocusedControl(selectedRow?.Host);
@@ -577,7 +578,7 @@ public static partial class ModPanelUI {
             : I18N.T("modpanel.sidebar.modPreview.noImage", "No resources");
         previewCaption.SetTextAutoSize(caption);
     }
-    private static (Control Panel, VBoxContainer ContentList, HBoxContainer PageTabRow) BuildContentPanel() {
+    private static (Control Panel, VBoxContainer ContentList, ModPanelPageTabChrome PageTabChrome) BuildContentPanel() {
         var panel = new Panel {
             Name = "ModPanelContentPanel",
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
@@ -604,22 +605,10 @@ public static partial class ModPanelUI {
         };
         root.AddThemeConstantOverride("separation", 10);
         frame.AddChild(root);
-        var pageTabScroll = new ScrollContainer {
-            Name = "ModPanelPageTabScroll",
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            SizeFlagsVertical = Control.SizeFlags.ShrinkBegin,
-            HorizontalScrollMode = ScrollContainer.ScrollMode.Auto,
-            VerticalScrollMode = ScrollContainer.ScrollMode.Disabled,
-            MouseFilter = Control.MouseFilterEnum.Ignore,
+        var pageTabChrome = new ModPanelPageTabChrome {
+            Visible = false,
         };
-        var pageTabRow = new HBoxContainer {
-            SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin,
-            SizeFlagsVertical = Control.SizeFlags.ShrinkBegin,
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        };
-        pageTabRow.AddThemeConstantOverride("separation", 8);
-        pageTabScroll.AddChild(pageTabRow);
-        root.AddChild(pageTabScroll);
+        root.AddChild(pageTabChrome);
         var scroll = new ScrollContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
@@ -648,7 +637,7 @@ public static partial class ModPanelUI {
         };
         contentList.AddThemeConstantOverride("separation", 8);
         contentScrollFrame.AddChild(contentList);
-        return (panel, contentList, pageTabRow);
+        return (panel, contentList, pageTabChrome);
     }
     private static void ClearContainerChildren(Node container) {
         while (container.GetChildCount() > 0) {
@@ -657,18 +646,12 @@ public static partial class ModPanelUI {
             c.QueueFree();
         }
     }
-    private static void SetPageTabChromeVisible(HBoxContainer pageTabRow, bool visible) {
-        pageTabRow.Visible = visible;
-        if (pageTabRow.GetParent() is Control chrome)
-            chrome.Visible = visible;
-    }
-    private static void RefreshRitsuSettingsContent(VBoxContainer list, HBoxContainer pageTabRow, string modId,
+    private static void RefreshRitsuSettingsContent(VBoxContainer list, ModPanelPageTabChrome pageTabChrome, string modId,
         ModPanelContentState state, Action rebuild) {
         ClearContainerChildren(list);
-        ClearContainerChildren(pageTabRow);
+        pageTabChrome.ClearPages();
         if (!RitsuModSettingsBridge.IsAvailable) {
             MainFile.Logger.Warn("KitLib ModPanel: STS2-RitsuLib assembly not loaded.");
-            SetPageTabChromeVisible(pageTabRow, false);
             list.AddChild(CreateInlineDescription(I18N.T("modpanel.content.ritsuNotLoaded",
                 "STS2-RitsuLib is not loaded. Install/enable it to scan registered mod settings here.")));
             return;
@@ -676,32 +659,18 @@ public static partial class ModPanelUI {
         var pages = RitsuModSettingsBridge.GetAllPageObjects(modId);
         if (pages.Count == 0) {
             MainFile.Logger.Info($"KitLib ModPanel: no registered settings pages for mod '{modId}'.");
-            SetPageTabChromeVisible(pageTabRow, false);
             return;
         }
         var validIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var p in pages)
-            validIds.Add(RitsuModSettingsBridge.GetPageId(p));
+        var entries = new List<ModPanelPageTabChrome.PageEntry>(pages.Count);
+        foreach (var p in pages) {
+            var pid = RitsuModSettingsBridge.GetPageId(p);
+            validIds.Add(pid);
+            entries.Add(new ModPanelPageTabChrome.PageEntry(pid, RitsuModSettingsBridge.GetPageTabLabel(p, modId)));
+        }
         if (string.IsNullOrWhiteSpace(state.PageId) || !validIds.Contains(state.PageId))
-            state.PageId = RitsuModSettingsBridge.GetPageId(pages[0]);
-        SetPageTabChromeVisible(pageTabRow, pages.Count > 1);
-        foreach (var pageObj in pages) {
-            var pid = RitsuModSettingsBridge.GetPageId(pageObj);
-            var title = RitsuModSettingsBridge.GetPageTabLabel(pageObj, modId);
-            var sel = string.Equals(pid, state.PageId, StringComparison.OrdinalIgnoreCase);
-            var capturedId = pid;
-            var tab = CreateDevModePageTab(pid, title, sel, () => {
-                state.PageId = capturedId;
-                rebuild();
-            });
-            pageTabRow.AddChild(tab);
-        }
-        foreach (var child in pageTabRow.GetChildren()) {
-            if (child is Button b && b.HasMeta("pageId")) {
-                var id = b.GetMeta("pageId").AsString();
-                ApplyDevModeTabButtonStyle(b, string.Equals(id, state.PageId, StringComparison.OrdinalIgnoreCase));
-            }
-        }
+            state.PageId = entries[0].Id;
+        pageTabChrome.SetPages(entries, state.PageId);
         object? activePage = null;
         foreach (var p in pages) {
             if (string.Equals(RitsuModSettingsBridge.GetPageId(p), state.PageId, StringComparison.OrdinalIgnoreCase)) {
