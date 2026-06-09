@@ -73,6 +73,26 @@ def _find_publish_exe(publish_dir: Path, names: tuple[str, ...]) -> Path | None:
     return None
 
 
+def _newest_source_mtime(project: Path) -> float:
+    root = project.parent
+    newest = project.stat().st_mtime
+    for path in root.rglob("*"):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() not in {".cs", ".csproj"}:
+            continue
+        newest = max(newest, path.stat().st_mtime)
+    return newest
+
+
+def _publish_is_stale(spec: dict, tools_rid: str) -> bool:
+    publish_dir = _publish_dir(spec, tools_rid)
+    exe = _find_publish_exe(publish_dir, spec["deploy_names"])
+    if exe is None:
+        return True
+    return _newest_source_mtime(spec["project"]) > exe.stat().st_mtime
+
+
 def _dotnet_publish(project: Path, tools_rid: str, publish_dir: Path) -> None:
     publish_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
@@ -100,7 +120,10 @@ def _deploy_tool(
     publish_dir = _publish_dir(spec, tools_rid)
     exe = _find_publish_exe(publish_dir, spec["deploy_names"])
 
-    if exe is None and (build or build_if_missing):
+    stale = _publish_is_stale(spec, tools_rid)
+    if (exe is None or stale) and (build or build_if_missing):
+        if stale and exe is not None:
+            print(f"Rebuilding stale tool: {spec['publish_folder']}")
         _dotnet_publish(spec["project"], tools_rid, publish_dir)
         exe = _find_publish_exe(publish_dir, spec["deploy_names"])
 

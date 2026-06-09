@@ -7,13 +7,15 @@ namespace KitLib.UI;
 internal sealed partial class SaveSlotFullscreenShell : Control, ISaveSlotDialogRoot {
     private ColorRect? _bg;
     private SaveSlotPanel? _panel;
+    private bool _presentationStarted;
 
     internal SaveSlotFullscreenShell(
         bool saveMode,
         Action<int> onConfirm,
         Action? onEmbeddedCancel,
         Action? onEmbeddedAfterLoadClose) {
-        ZIndex = 200;
+        // Match DevMainMenuOverlay (2000); z=200 was drawn under the title screen.
+        ZIndex = 2000;
         SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         MouseFilter = Control.MouseFilterEnum.Stop;
 
@@ -31,6 +33,13 @@ internal sealed partial class SaveSlotFullscreenShell : Control, ISaveSlotDialog
 
     public override void _Ready() {
         if (_bg == null || _panel == null) return;
+
+        BeginPresentation();
+    }
+
+    internal void BeginPresentation() {
+        if (_presentationStarted || _bg == null || _panel == null) return;
+        _presentationStarted = true;
 
         ApplyViewportMinHeight();
         GetViewport().SizeChanged += OnViewportSizeChanged;

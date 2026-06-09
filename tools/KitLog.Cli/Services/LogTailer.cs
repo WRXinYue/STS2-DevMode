@@ -12,6 +12,8 @@ internal sealed class LogTailOptions {
     public string? FilterPattern { get; init; }
     public ParsedLogLevel? MinimumLevel { get; init; }
     public bool Color { get; init; } = true;
+    public bool SyncViewer { get; init; }
+    public int? Pid { get; init; }
 }
 
 internal static class LogTailer {
@@ -32,6 +34,14 @@ internal static class LogTailer {
             }
         }
 
+        LogViewerFilterWatcher? viewerWatcher = null;
+        if (options.SyncViewer) {
+            var profilePath = Sts2LogPathResolver.ResolveFilterProfilePath(options.Pid, options.FilePath);
+            viewerWatcher = new LogViewerFilterWatcher(profilePath);
+            if (viewerWatcher.PollForChanges(out _))
+                AnsiConsole.MarkupLine("[grey]Synced in-game log viewer filters.[/]");
+        }
+
         using var fs = new FileStream(
             options.FilePath,
             FileMode.Open,
@@ -39,6 +49,7 @@ internal static class LogTailer {
             FileShare.ReadWrite);
 
         var startPosition = SeekTailStart(fs, options.TailLines);
+        var boundaryTracker = new LogViewerBoundaryTracker(options.FilePath, startPosition);
         fs.Seek(startPosition, SeekOrigin.Begin);
 
         using var reader = new StreamReader(fs, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
@@ -48,13 +59,13 @@ internal static class LogTailer {
 
         string? line;
         while ((line = await reader.ReadLineAsync(ct)) != null) {
-            if (!PassesFilter(line, filter))
+            if (viewerWatcher?.PollForChanges(out var changed) == true && changed)
+                AnsiConsole.MarkupLine("[grey]── log viewer filters updated ──[/]");
+
+            if (!ShouldEmitLine(line, filter, options, viewerWatcher, boundaryTracker))
                 continue;
 
             var parsed = LogLineParser.Parse(line);
-            if (!LogLineParser.MeetsMinimumLevel(parsed.Level, options.MinimumLevel))
-                continue;
-
             LogLineRenderer.WriteLine(parsed, options.Color);
         }
 
@@ -62,26 +73,54 @@ internal static class LogTailer {
             return 0;
 
         while (!ct.IsCancellationRequested) {
+            if (viewerWatcher?.PollForChanges(out var changed) == true && changed)
+                AnsiConsole.MarkupLine("[grey]── log viewer filters updated ──[/]");
+
             line = await reader.ReadLineAsync(ct);
             if (line == null) {
                 await Task.Delay(200, ct);
                 continue;
             }
 
-            if (!PassesFilter(line, filter))
+            if (!ShouldEmitLine(line, filter, options, viewerWatcher, boundaryTracker))
                 continue;
 
             var parsed = LogLineParser.Parse(line);
-            if (!LogLineParser.MeetsMinimumLevel(parsed.Level, options.MinimumLevel))
-                continue;
-
             LogLineRenderer.WriteLine(parsed, options.Color);
         }
 
         return 0;
     }
 
-    static bool PassesFilter(string line, Regex? filter)
+    static bool ShouldEmitLine(
+        string line,
+        Regex? regexFilter,
+        LogTailOptions options,
+        LogViewerFilterWatcher? viewerWatcher,
+        LogViewerBoundaryTracker boundaryTracker) {
+        boundaryTracker.OnLine(line);
+
+        if (!PassesRegexFilter(line, regexFilter))
+            return false;
+
+        if (options.SyncViewer && viewerWatcher != null) {
+            var viewerState = viewerWatcher.Current;
+            var parsed = LogLineParser.Parse(line);
+            if (!LogViewerFilterMatcher.ShouldShow(
+                    line,
+                    parsed,
+                    viewerState,
+                    boundaryTracker.ApplyViewerFilters))
+                return false;
+
+            return true;
+        }
+
+        var fallbackParsed = LogLineParser.Parse(line);
+        return LogLineParser.MeetsMinimumLevel(fallbackParsed.Level, options.MinimumLevel);
+    }
+
+    static bool PassesRegexFilter(string line, Regex? filter)
         => filter == null || filter.IsMatch(line);
 
     static long SeekTailStart(FileStream fs, int tailLines) {

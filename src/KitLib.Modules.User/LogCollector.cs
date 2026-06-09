@@ -55,6 +55,7 @@ internal static class LogCollector {
     public static void Initialize() {
         Log.LogCallback += OnLogReceived;
         MainFile.Logger.Info(KitLibInstance.SessionBoundaryMarker);
+        LogViewerFilterSync.PublishDefaults();
     }
 
     /// <summary>

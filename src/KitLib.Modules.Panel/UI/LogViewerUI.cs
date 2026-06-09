@@ -478,6 +478,7 @@ internal static class LogViewerUI {
             // Update stats panel + pie chart
             pieChart.SetData(modStats);
             RefreshStatsPanel(statsVBox, modStats);
+            LogViewerFilterSync.Publish(minLevel, textFilter, modVisible, loadedModIds, modIdAliases);
 
             ((SceneTree)Engine.GetMainLoop()).CreateTimer(0.05).Timeout += ScrollToBottom;
         }

@@ -114,6 +114,27 @@ internal static class Sts2LogPathResolver {
         return ResolveGodotLogPath();
     }
 
+    public static string? ResolveFilterProfilePath(int? pid, string? logPath = null) {
+        if (pid is int id) {
+            foreach (var root in UserDataRoots()) {
+                var steamDir = Path.Combine(root, "steam");
+                if (!Directory.Exists(steamDir))
+                    continue;
+
+                foreach (var accountDir in Directory.EnumerateDirectories(steamDir))
+                    return Path.Combine(accountDir, "mod_data", "KitLib", "instances", id.ToString(), LogViewerFilterContract.FileName);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(logPath)) {
+            var dir = Path.GetDirectoryName(logPath);
+            if (!string.IsNullOrEmpty(dir))
+                return Path.Combine(dir, LogViewerFilterContract.FileName);
+        }
+
+        return null;
+    }
+
     public static bool TailContainsSessionMarker(string path) {
         try {
             using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);

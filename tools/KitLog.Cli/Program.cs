@@ -25,6 +25,9 @@ var levelOption = new Option<string?>("--level") {
 var noColorOption = new Option<bool>("--no-color") {
     Description = "Disable colored output.",
 };
+var syncViewerOption = new Option<bool>("--sync-viewer") {
+    Description = "Mirror in-game log viewer filters (level, text, mod source, suppress rules).",
+};
 
 var pathCmd = new Command("path", "Print resolved session.log path") {
     pidOption,
@@ -69,6 +72,7 @@ var tailCmd = new Command("tail", "Tail a KitLib session log") {
     filterOption,
     levelOption,
     noColorOption,
+    syncViewerOption,
 };
 tailCmd.SetAction(async (parseResult, ct) => {
     var pid = parseResult.GetValue(pidOption);
@@ -98,6 +102,8 @@ tailCmd.SetAction(async (parseResult, ct) => {
         FilterPattern = FilterPresets.Resolve(parseResult.GetValue(filterOption)),
         MinimumLevel = minLevel,
         Color = !parseResult.GetValue(noColorOption),
+        SyncViewer = parseResult.GetValue(syncViewerOption),
+        Pid = pid,
     }, ct);
 });
 

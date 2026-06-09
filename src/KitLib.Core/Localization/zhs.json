@@ -1235,7 +1235,7 @@
   "log.copyAll": "复制全部",
   "log.openFolder": "打开文件夹",
   "log.openKitlog": "kitlog",
-  "log.openKitlogTip": "在系统终端中打开 kitlog，实时跟踪本窗口 session 日志",
+  "log.openKitlogTip": "在系统终端中打开 kitlog，实时同步本查看器的筛选规则",
   "log.openFolderTip": "在系统文件管理器中打开游戏日志目录（user://logs/）",
   "log.openFolderTipInstance": "打开本窗口日志目录（mod_data/KitLib/instances/{0}/）",
   "log.count": "{0} 条",

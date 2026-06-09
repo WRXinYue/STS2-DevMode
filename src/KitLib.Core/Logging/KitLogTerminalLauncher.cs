@@ -7,7 +7,7 @@ namespace KitLib;
 
 /// <summary>Launches the optional <c>kitlog</c> CLI in a system terminal.</summary>
 public static class KitLogTerminalLauncher {
-    const string SessionTailArgsTemplate = "tail -f --tail 40 --pid {0}";
+    const string SessionTailArgsTemplate = "tail -f --tail 40 --sync-viewer --pid {0}";
     const string AiTailArgsTemplate = "tail -f --tail 40 --filter ai --pid {0}";
 
     public static bool TryOpenSessionTail(out string? error)
@@ -35,16 +35,7 @@ public static class KitLogTerminalLauncher {
         var args = string.Format(tailArgsTemplate, KitLibInstance.ProcessId);
 
         try {
-            var startInfo = new ProcessStartInfo {
-                FileName = executable,
-                Arguments = args,
-                UseShellExecute = true,
-            };
-
-            if (OperatingSystem.IsWindows())
-                startInfo.CreateNoWindow = false;
-
-            Process.Start(startInfo);
+            Process.Start(BuildStartInfo(executable, args));
             return true;
         }
         catch (Exception ex) {
@@ -53,6 +44,29 @@ public static class KitLogTerminalLauncher {
             return false;
         }
     }
+
+    static ProcessStartInfo BuildStartInfo(string executable, string args) {
+        if (OperatingSystem.IsWindows()) {
+            var command = QuoteWindowsArg(executable);
+            if (!string.IsNullOrEmpty(args))
+                command += " " + args;
+
+            return new ProcessStartInfo {
+                FileName = "cmd.exe",
+                Arguments = $"/c start \"KitLog\" cmd /k {command}",
+                UseShellExecute = true,
+            };
+        }
+
+        return new ProcessStartInfo {
+            FileName = executable,
+            Arguments = args,
+            UseShellExecute = true,
+        };
+    }
+
+    static string QuoteWindowsArg(string value)
+        => value.Contains(' ') || value.Contains('"') ? $"\"{value.Replace("\"", "\\\"")}\"" : value;
 
     static string? ResolveKitLogExecutable() {
         var modDir = Path.GetDirectoryName(typeof(MainFile).Assembly.Location);

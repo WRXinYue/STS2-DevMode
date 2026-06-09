@@ -1203,7 +1203,7 @@
   "log.copyAll": "Copy All",
   "log.openFolder": "Open Folder",
   "log.openKitlog": "kitlog",
-  "log.openKitlogTip": "Open kitlog in a system terminal to tail this session live",
+  "log.openKitlogTip": "Open kitlog in a system terminal; mirrors this viewer's filters live",
   "log.openFolderTip": "Open the game log folder (user://logs/) in the system file manager",
   "log.openFolderTipInstance": "Open this window's log folder (mod_data/KitLib/instances/{0}/)",
   "log.count": "{0} entries",

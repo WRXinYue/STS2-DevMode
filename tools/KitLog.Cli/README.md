@@ -22,6 +22,7 @@ Package: `make zip-kitlog` → `build/KitLog.Cli-vX.X.X-<rid>.zip`
 kitlog list
 kitlog path [--pid 12345]
 kitlog tail -f --tail 40 --filter ai --pid 12345
+kitlog tail -f --tail 40 --sync-viewer --pid 12345
 kitlog tail --file "C:/path/to/session.log" --level warn
 ```
 
@@ -42,7 +43,9 @@ Falls back to `logs/godot.log` when no instance log exists.
 
 ## In-game integration
 
-The AI panel **Open kitlog tail** button launches `kitlog` when it is on `PATH` or in `mods/KitLib/tools/`. If not installed, the UI shows the command and session log path.
+The in-game log viewer **kitlog** button launches `kitlog tail -f --sync-viewer` so the terminal mirrors viewer filters (level, text, mod source, suppress rules). Filter changes in-game are written to `instances/{pid}/log-viewer-filter.json` and picked up live by `kitlog`.
+
+The AI panel **Open kitlog tail** button uses `--filter ai` instead. Both launch `kitlog` from `PATH` or `mods/KitLib/tools/`.
 
 ## Content mods
 

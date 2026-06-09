@@ -38,6 +38,7 @@ internal static class SaveSlotUI {
             var shell = new SaveSlotFullscreenShell(saveMode, onConfirm, onEmbeddedCancel, onEmbeddedAfterLoadClose);
             shell.Name = SaveSlotDialogRootId.NodeName;
             parent.AddChild(shell);
+            shell.BeginPresentation();
         }
     }
 
