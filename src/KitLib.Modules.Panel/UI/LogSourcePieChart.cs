@@ -209,17 +209,26 @@ internal static class LogSourceColors {
         new(0.62f, 0.60f, 0.95f, 1f),
     };
 
-    internal static Color GetSliceColor(string name, int paletteIndex) {
+    internal static Color GetSliceColor(string name, int _) {
         if (name == "Game")
             return new Color(KitLibTheme.Subtle.R, KitLibTheme.Subtle.G, KitLibTheme.Subtle.B, 0.95f);
-        return ModPalette[paletteIndex % ModPalette.Length];
+        return ModPalette[GetModPaletteIndex(name) % ModPalette.Length];
     }
 
     internal static Color GetModHighlightColor(string canonicalModId) {
         if (string.IsNullOrEmpty(canonicalModId) || canonicalModId == "Game")
             return KitLibTheme.Subtle;
 
-        return KitLibTheme.Accent;
+        return ModPalette[GetModPaletteIndex(canonicalModId) % ModPalette.Length];
+    }
+
+    internal static int GetModPaletteIndex(string modId) {
+        unchecked {
+            int hash = 17;
+            foreach (char c in modId)
+                hash = hash * 31 + c;
+            return Math.Abs(hash);
+        }
     }
 
     internal static string ColorToBbHex(Color c) {

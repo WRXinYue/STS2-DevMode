@@ -36,7 +36,16 @@ internal sealed class LogViewerBoundaryTracker {
             _applyViewerFilters = true;
     }
 
-    static long FindLastBoundaryEndOffset(string logPath) {
+    internal static bool IsInstanceSessionLog(string path) {
+        if (string.IsNullOrEmpty(path))
+            return false;
+
+        var normalized = path.Replace('\\', '/');
+        return normalized.Contains("/mod_data/KitLib/instances/", StringComparison.OrdinalIgnoreCase)
+               && normalized.EndsWith("/session.log", StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static long FindLastBoundaryEndOffset(string logPath) {
         try {
             using var fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             using var reader = new StreamReader(fs, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
@@ -57,12 +66,4 @@ internal sealed class LogViewerBoundaryTracker {
         }
     }
 
-    static bool IsInstanceSessionLog(string path) {
-        if (string.IsNullOrEmpty(path))
-            return false;
-
-        var normalized = path.Replace('\\', '/');
-        return normalized.Contains("/mod_data/KitLib/instances/", StringComparison.OrdinalIgnoreCase)
-               && normalized.EndsWith("/session.log", StringComparison.OrdinalIgnoreCase);
-    }
 }

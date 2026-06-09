@@ -56,11 +56,15 @@ internal static class LogViewerFilterMatcher {
             : "Game";
     }
 
-    static bool TryFindModTag(
+    public static bool TryFindModTagSpan(
         string text,
         HashSet<string> loadedModIds,
         Dictionary<string, string> modIdAliases,
+        out int tagStart,
+        out int tagEndExclusive,
         out string modId) {
+        tagStart = 0;
+        tagEndExclusive = 0;
         modId = "";
         int i = 0;
         while (i < text.Length) {
@@ -75,8 +79,11 @@ internal static class LogViewerFilterMatcher {
             }
 
             string inner = text.Substring(open + 1, close - open - 1);
-            if (TryResolveModId(inner, loadedModIds, modIdAliases, out modId))
+            if (TryResolveModId(inner, loadedModIds, modIdAliases, out modId)) {
+                tagStart = open;
+                tagEndExclusive = close + 1;
                 return true;
+            }
 
             i = close + 1;
         }
@@ -84,12 +91,26 @@ internal static class LogViewerFilterMatcher {
         return false;
     }
 
+    static bool TryFindModTag(
+        string text,
+        HashSet<string> loadedModIds,
+        Dictionary<string, string> modIdAliases,
+        out string modId)
+        => TryFindModTagSpan(text, loadedModIds, modIdAliases, out _, out _, out modId);
+
+    static readonly HashSet<string> LogLevelBracketTags = new(StringComparer.OrdinalIgnoreCase) {
+        "INFO", "WARN", "WARNING", "ERROR", "DEBUG", "LOAD", "VERYDEBUG", "VDB", "DBG",
+    };
+
     static bool TryResolveModId(
         string candidate,
         HashSet<string> loadedModIds,
         Dictionary<string, string> modIdAliases,
         out string modId) {
         modId = "";
+
+        if (LogLevelBracketTags.Contains(candidate))
+            return false;
 
         if (loadedModIds.Contains(candidate)) {
             modId = candidate;

@@ -248,7 +248,8 @@ internal static class GameLogFileHydrator {
         if (!TryParseLevel(levelToken, out var level))
             return false;
 
-        entry = new LogCollector.Entry(level, line, time, IsFromFile: true, HasWallClockTime: hasWallClockTime);
+        string messageText = match.Groups["text"].Value;
+        entry = new LogCollector.Entry(level, messageText, time, IsFromFile: true, HasWallClockTime: hasWallClockTime);
         return true;
     }
 

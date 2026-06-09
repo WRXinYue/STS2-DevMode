@@ -185,6 +185,7 @@ internal static class LogViewerUI {
             BbcodeEnabled = true,
             SelectionEnabled = true,
             ScrollActive = true,
+            ScrollFollowing = false,
             FitContent = false,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
@@ -378,6 +379,15 @@ internal static class LogViewerUI {
             }
         }
 
+        const double ScrollFollowThreshold = 12.0;
+
+        bool IsFollowingTail() {
+            var bar = richText.GetVScrollBar();
+            if (bar == null || bar.MaxValue <= 0)
+                return true;
+            return bar.Value >= bar.MaxValue - ScrollFollowThreshold;
+        }
+
         void ScrollToBottom() {
             int lines = richText.GetLineCount();
             if (lines > 0)
@@ -385,6 +395,19 @@ internal static class LogViewerUI {
             var bar = richText.GetVScrollBar();
             if (bar != null)
                 bar.Value = bar.MaxValue;
+        }
+
+        void RestoreScrollAfterRepopulate(bool followTail, double prevScroll, double prevMax) {
+            if (followTail) {
+                ScrollToBottom();
+                return;
+            }
+
+            var bar = richText.GetVScrollBar();
+            if (bar == null || prevMax <= 0)
+                return;
+
+            bar.Value = Math.Clamp(prevMax > 0 ? prevScroll / prevMax * bar.MaxValue : prevScroll, 0, bar.MaxValue);
         }
 
         string BuildBbCode(
@@ -446,6 +469,11 @@ internal static class LogViewerUI {
         }
 
         void Repopulate() {
+            var scrollBar = richText.GetVScrollBar();
+            bool followTail = IsFollowingTail();
+            double prevScroll = scrollBar?.Value ?? 0;
+            double prevMax = scrollBar?.MaxValue ?? 0;
+
             var entries = LogCollector.GetSnapshot();
             LogCollector.MarkClean();
 
@@ -480,7 +508,7 @@ internal static class LogViewerUI {
             RefreshStatsPanel(statsVBox, modStats);
             LogViewerFilterSync.Publish(minLevel, textFilter, modVisible, loadedModIds, modIdAliases);
 
-            ((SceneTree)Engine.GetMainLoop()).CreateTimer(0.05).Timeout += ScrollToBottom;
+            Callable.From(() => RestoreScrollAfterRepopulate(followTail, prevScroll, prevMax)).CallDeferred();
         }
 
         // ── Level chip logic ──
@@ -625,14 +653,27 @@ internal static class LogViewerUI {
     /// </summary>
     private static Dictionary<string, string> BuildModIdAliasLookup(HashSet<string> loadedModIds) {
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var id in loadedModIds) {
-            var key = NormalizeModIdKey(id);
-            if (!map.ContainsKey(key))
-                map[key] = id;
+        foreach (var mod in ModRuntime.Catalog.GetSnapshot()) {
+            RegisterModAlias(map, mod.Id, mod.Id);
+            if (!string.IsNullOrEmpty(mod.DisplayName))
+                RegisterModAlias(map, mod.DisplayName, mod.Id);
         }
+
+        foreach (var id in loadedModIds)
+            RegisterModAlias(map, id, id);
 
         return map;
     }
+
+    static void RegisterModAlias(Dictionary<string, string> map, string alias, string canonicalId) {
+        var key = NormalizeModIdKey(alias);
+        if (!map.ContainsKey(key))
+            map[key] = canonicalId;
+    }
+
+    private static readonly HashSet<string> LogLevelBracketTags = new(StringComparer.OrdinalIgnoreCase) {
+        "INFO", "WARN", "WARNING", "ERROR", "DEBUG", "LOAD", "VERYDEBUG", "VDB", "DBG",
+    };
 
     private static bool TryResolveModId(
         string candidate,
@@ -640,6 +681,9 @@ internal static class LogViewerUI {
         Dictionary<string, string> modIdAliases,
         out string modId) {
         modId = "";
+
+        if (LogLevelBracketTags.Contains(candidate))
+            return false;
 
         if (loadedModIds.Contains(candidate)) {
             modId = candidate;
@@ -739,12 +783,11 @@ internal static class LogViewerUI {
             return b.Value.CompareTo(a.Value);
         });
 
-        int paletteIdx = 0;
         foreach (var (source, count) in sorted) {
             var row = new HBoxContainer();
             row.AddThemeConstantOverride("separation", 4);
 
-            Color sliceCol = LogSourceColors.GetSliceColor(source, paletteIdx++);
+            Color sliceCol = LogSourceColors.GetSliceColor(source, 0);
 
             var nameLabel = new Label {
                 Text = source,

@@ -73,13 +73,22 @@ internal static class LogViewerFilterSync {
 
     static Dictionary<string, string> BuildModIdAliasLookup(HashSet<string> loadedModIds) {
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var id in loadedModIds) {
-            var key = NormalizeModIdKey(id);
-            if (!map.ContainsKey(key))
-                map[key] = id;
+        foreach (var mod in ModRuntime.Catalog.GetSnapshot()) {
+            RegisterModAlias(map, mod.Id, mod.Id);
+            if (!string.IsNullOrEmpty(mod.DisplayName))
+                RegisterModAlias(map, mod.DisplayName, mod.Id);
         }
 
+        foreach (var id in loadedModIds)
+            RegisterModAlias(map, id, id);
+
         return map;
+    }
+
+    static void RegisterModAlias(Dictionary<string, string> map, string alias, string canonicalId) {
+        var key = NormalizeModIdKey(alias);
+        if (!map.ContainsKey(key))
+            map[key] = canonicalId;
     }
 
     static string NormalizeModIdKey(string id)

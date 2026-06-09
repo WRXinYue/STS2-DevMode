@@ -10,7 +10,7 @@ var followOption = new Option<bool>("-f", "--follow") {
     Description = "Keep reading as the file grows.",
 };
 var tailLinesOption = new Option<int>("--tail") {
-    Description = "Number of existing lines to show first.",
+    Description = "Existing lines to show first (0 = full session with --sync-viewer).",
     DefaultValueFactory = _ => 40,
 };
 var fileOption = new Option<string?>("--file") {

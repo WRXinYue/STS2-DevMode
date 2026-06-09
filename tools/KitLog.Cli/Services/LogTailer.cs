@@ -48,7 +48,7 @@ internal static class LogTailer {
             FileAccess.Read,
             FileShare.ReadWrite);
 
-        var startPosition = SeekTailStart(fs, options.TailLines);
+        var startPosition = ResolveStartPosition(fs, options);
         var boundaryTracker = new LogViewerBoundaryTracker(options.FilePath, startPosition);
         fs.Seek(startPosition, SeekOrigin.Begin);
 
@@ -66,7 +66,7 @@ internal static class LogTailer {
                 continue;
 
             var parsed = LogLineParser.Parse(line);
-            LogLineRenderer.WriteLine(parsed, options.Color);
+            LogLineRenderer.WriteLine(parsed, options.Color, viewerWatcher?.Current);
         }
 
         if (!options.Follow)
@@ -86,10 +86,23 @@ internal static class LogTailer {
                 continue;
 
             var parsed = LogLineParser.Parse(line);
-            LogLineRenderer.WriteLine(parsed, options.Color);
+            LogLineRenderer.WriteLine(parsed, options.Color, viewerWatcher?.Current);
         }
 
         return 0;
+    }
+
+    static long ResolveStartPosition(FileStream fs, LogTailOptions options) {
+        if (options.SyncViewer) {
+            if (LogViewerBoundaryTracker.IsInstanceSessionLog(options.FilePath))
+                return 0;
+
+            var boundary = LogViewerBoundaryTracker.FindLastBoundaryEndOffset(options.FilePath);
+            if (boundary >= 0)
+                return boundary;
+        }
+
+        return SeekTailStart(fs, options.TailLines);
     }
 
     static bool ShouldEmitLine(

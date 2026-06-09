@@ -152,11 +152,18 @@ internal static class LogCollector {
                 merged.Add(fileEntries[i]);
 
             if (liveEntries.Length > 0) {
+                var postBoundary = new List<Entry>(fileEntries.Count - fileBoundaryIndex);
+                for (int i = fileBoundaryIndex; i < fileEntries.Count; i++) {
+                    var entry = fileEntries[i];
+                    postBoundary.Add(IsSessionBoundary(entry) ? entry : PromoteFileEntryToSession(entry));
+                }
+
+                AppendUnique(merged, postBoundary);
                 AppendUnique(merged, liveEntries);
             }
             else {
                 for (int i = fileBoundaryIndex; i < fileEntries.Count; i++)
-                    merged.Add(fileEntries[i]);
+                    merged.Add(PromoteFileEntryToSession(fileEntries[i]));
             }
         }
 
@@ -229,4 +236,8 @@ internal static class LogCollector {
 
     private static string Fingerprint(Entry entry)
         => $"{(int)entry.Level}|{entry.Text.Trim()}";
+
+    /// <summary>Post-boundary file lines are current-session history and get live formatting in the viewer.</summary>
+    private static Entry PromoteFileEntryToSession(Entry entry)
+        => entry.IsFromFile ? entry with { IsFromFile = false } : entry;
 }
