@@ -74,10 +74,8 @@ public partial class ModPanelControllerSupport : Node {
             _backIcon.Visible = true;
             _backIcon.Texture = NInputManager.Instance.GetHotkeyIcon(MegaInput.cancel);
         }
-        if (_selectIcon != null) {
-            _selectIcon.Visible = true;
-            _selectIcon.Texture = NInputManager.Instance.GetHotkeyIcon(MegaInput.select);
-        }
+        if (_selectIcon != null)
+            _selectIcon.Visible = false;
         var tabCount = CountPageTabs();
         var showTabs = tabCount > 1;
         if (_tabLeftIcon != null) {

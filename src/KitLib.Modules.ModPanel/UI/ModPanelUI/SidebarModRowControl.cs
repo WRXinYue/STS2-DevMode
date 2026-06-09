@@ -1,11 +1,13 @@
 using System;
 using Godot;
-using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
 namespace KitLib.UI;
 
-/// <summary>Focusable sidebar mod row; mirrors vanilla <c>NModMenuRow</c> controller behavior.</summary>
-public partial class SidebarModRowControl : NClickableControl {
+/// <summary>Sidebar mod row: mouse click via <see cref="Control.GuiInput" />; controller up/down selects on focus.</summary>
+public partial class SidebarModRowControl : Control {
+    private static readonly StyleBoxEmpty BlankFocusStyle = new();
+
     private Panel _bgPanel = null!;
     private StyleBoxFlat _innerStyle = null!;
     private Action? _onSelect;
@@ -19,10 +21,12 @@ public partial class SidebarModRowControl : NClickableControl {
         _innerStyle = innerStyle;
         _onSelect = onSelect;
         FocusMode = FocusModeEnum.All;
+        MouseFilter = MouseFilterEnum.Stop;
         SizeFlagsHorizontal = SizeFlags.ExpandFill;
         MouseDefaultCursorShape = CursorShape.PointingHand;
         CustomMinimumSize = new Vector2(0f, 62f);
         TooltipText = tooltip;
+        AddThemeStyleboxOverride("focus", BlankFocusStyle);
 
         _bgPanel = new Panel {
             MouseFilter = MouseFilterEnum.Ignore,
@@ -54,7 +58,11 @@ public partial class SidebarModRowControl : NClickableControl {
     }
 
     public override void _Ready() {
-        ConnectSignals();
+        GuiInput += OnGuiInput;
+        Connect(Control.SignalName.FocusEntered, Callable.From(OnFocusEntered));
+        Connect(Control.SignalName.FocusExited, Callable.From(RefreshChrome));
+        Connect(Control.SignalName.MouseEntered, Callable.From(RefreshChrome));
+        Connect(Control.SignalName.MouseExited, Callable.From(RefreshChrome));
         RefreshChrome();
     }
 
@@ -65,19 +73,25 @@ public partial class SidebarModRowControl : NClickableControl {
         RefreshChrome();
     }
 
-    protected override void OnFocus() => RefreshChrome();
-
-    protected override void OnUnfocus() => RefreshChrome();
-
-    protected override void OnPress() {
-        _pressing = true;
+    private void OnFocusEntered() {
         RefreshChrome();
+        if (NControllerManager.Instance?.IsUsingController == true)
+            _onSelect?.Invoke();
     }
 
-    protected override void OnRelease() {
-        _pressing = false;
-        _onSelect?.Invoke();
-        RefreshChrome();
+    private void OnGuiInput(InputEvent @event) {
+        if (@event is not InputEventMouseButton mb || mb.ButtonIndex != MouseButton.Left)
+            return;
+        if (mb.Pressed) {
+            _pressing = true;
+            RefreshChrome();
+        }
+        else {
+            _pressing = false;
+            _onSelect?.Invoke();
+            RefreshChrome();
+        }
+        AcceptEvent();
     }
 
     private void RefreshChrome() {
