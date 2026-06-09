@@ -225,6 +225,28 @@ public partial class ModPanelControllerSupport : Node {
         SwitchTab(1);
     }
 
+    /// <summary>LB/RB from <see cref="ModPanelSubmenu._Input" /> (NStatsTabManager pattern).</summary>
+    public bool TryHandleTabInput(InputEvent @event) {
+        if (@event.IsEcho())
+            return false;
+        if (_submenu == null || !GodotObject.IsInstanceValid(_submenu) || !_submenu.Visible)
+            return false;
+        if (!ActiveScreenContext.Instance.IsCurrent(_submenu))
+            return false;
+        if (_pageTabChrome == null || _pageTabChrome.PageCount <= 1)
+            return false;
+
+        if (@event.IsActionPressed(TabLeftHotkey)) {
+            SwitchTab(-1);
+            return true;
+        }
+        if (@event.IsActionPressed(TabRightHotkey)) {
+            SwitchTab(1);
+            return true;
+        }
+        return false;
+    }
+
     private void SwitchTab(int delta) {
         if (_pageTabChrome == null)
             return;
@@ -232,6 +254,23 @@ public partial class ModPanelControllerSupport : Node {
             return;
         if (!_pageTabChrome.TrySwitchPage(delta))
             return;
+        var tab = FindSelectedTabButton();
+        if (tab != null)
+            Callable.From(() => tab.TryGrabFocus()).CallDeferred();
         RefreshHints();
+    }
+
+    private Button? FindSelectedTabButton() {
+        if (_pageTabChrome == null)
+            return null;
+        var selectedId = _pageTabChrome.GetSelectedPageId();
+        if (selectedId == null)
+            return null;
+        foreach (var child in _pageTabChrome.TabRow.GetChildren()) {
+            if (child is Button b && b.HasMeta("pageId")
+                && string.Equals(b.GetMeta("pageId").AsString(), selectedId, StringComparison.OrdinalIgnoreCase))
+                return b;
+        }
+        return null;
     }
 }

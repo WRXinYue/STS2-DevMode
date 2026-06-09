@@ -70,8 +70,14 @@ public partial class ModPanelSubmenu : NSubmenu {
         foreach (var child in GetChildren()) {
             if (child is not ModPanelControllerSupport support)
                 continue;
-            if (support.TryHandleDirectionalInput(@event))
+            if (support.TryHandleTabInput(@event)) {
                 GetViewport()?.SetInputAsHandled();
+                return;
+            }
+            if (support.TryHandleDirectionalInput(@event)) {
+                GetViewport()?.SetInputAsHandled();
+                return;
+            }
         }
     }
 

@@ -302,7 +302,8 @@ public static partial class ModPanelUI {
         void RebuildRitsuRightPane() {
             RefreshRitsuSettingsContent(ritsuContentList, pageTabChrome, selectedModId, contentState, RebuildRitsuRightPane);
             Callable.From(() => {
-                ModPanelFocusWiring.Wire(modRows, selectedModId, ritsuContentList, scopeFocusTarget);
+                ModPanelFocusWiring.Wire(modRows, selectedModId, contentState.PageId, pageTabChrome, ritsuContentList,
+                    scopeFocusTarget);
                 pageTabChrome.RefreshTriggerIcons();
                 if (GodotObject.IsInstanceValid(controllerSupport))
                     controllerSupport.RefreshHints();
@@ -454,7 +455,8 @@ public static partial class ModPanelUI {
         controllerSupport.ConfigureSidebar(modRows, () => selectedModId, SelectMod, ritsuContentList);
         Callable.From(() => {
             if (modRows.Count > 0) {
-                ModPanelFocusWiring.Wire(modRows, selectedModId, ritsuContentList, scopeFocusTarget);
+                ModPanelFocusWiring.Wire(modRows, selectedModId, contentState.PageId, pageTabChrome, ritsuContentList,
+                    scopeFocusTarget);
                 pageTabChrome.RefreshTriggerIcons();
                 var selectedRow = modRows.Find(r =>
                     string.Equals(r.Id, selectedModId, StringComparison.OrdinalIgnoreCase));

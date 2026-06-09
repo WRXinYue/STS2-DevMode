@@ -181,7 +181,7 @@ public static partial class ModPanelUI {
         label.AddThemeFontOverride("bold_italics_font", f);
         label.AddThemeFontOverride("mono_font", f);
     }
-    private static void ApplyDevModeTabButtonStyle(Button b, bool selected) {
+    internal static void ApplyDevModeTabButtonStyle(Button b, bool selected) {
         var accent = ModPanelUiPalette.SidebarModActiveAccent;
         var selectedFill = new Color(accent.R, accent.G, accent.B, 0.20f);
         var flat = new StyleBoxFlat {
@@ -210,7 +210,7 @@ public static partial class ModPanelUI {
         b.AddThemeFontSizeOverride("font_size", 11);
         b.AddThemeColorOverride("font_color", selected ? KitLibTheme.TextPrimary : KitLibTheme.TextSecondary);
     }
-    private static Button CreateDevModePageTab(string pageId, string label, bool selected, Action onSelect) {
+    internal static Button CreateDevModePageTab(string pageId, string label, bool selected, Action onSelect) {
         var b = new Button {
             Text = label,
             ToggleMode = false,

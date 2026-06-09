@@ -6,7 +6,7 @@ using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
 namespace KitLib.UI;
 
-/// <summary>LB/RB trigger page switcher (official settings tab manager pattern; one title at a time).</summary>
+/// <summary>Official settings layout: LB/RB flanking a full row of page tabs.</summary>
 public partial class ModPanelPageTabChrome : Control {
     public readonly record struct PageEntry(string Id, string Label);
 
@@ -15,60 +15,52 @@ public partial class ModPanelPageTabChrome : Control {
 
     private TextureRect _leftTrigger = null!;
     private TextureRect _rightTrigger = null!;
-    private Label _titleLabel = null!;
-    private Label _indexLabel = null!;
+    private ScrollContainer _tabScroll = null!;
+    private HBoxContainer _tabRow = null!;
     private readonly List<PageEntry> _pages = [];
-    private int _selectedIndex;
+    private string _selectedPageId = "";
 
     public event Action<string>? PageSelected;
 
     public int PageCount => _pages.Count;
+
+    public HBoxContainer TabRow => _tabRow;
 
     public ModPanelPageTabChrome() {
         Name = "ModPanelPageTabChrome";
         MouseFilter = MouseFilterEnum.Ignore;
         SizeFlagsHorizontal = SizeFlags.ExpandFill;
         SizeFlagsVertical = SizeFlags.ShrinkBegin;
-        CustomMinimumSize = new Vector2(0f, 48f);
+        CustomMinimumSize = new Vector2(0f, 44f);
 
         var row = new HBoxContainer {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Alignment = BoxContainer.AlignmentMode.Center,
+            Alignment = BoxContainer.AlignmentMode.Begin,
             MouseFilter = MouseFilterEnum.Ignore,
         };
-        row.AddThemeConstantOverride("separation", 14);
+        row.AddThemeConstantOverride("separation", 10);
         AddChild(row);
 
         _leftTrigger = CreateTriggerIcon("LeftTriggerIcon");
         _leftTrigger.GuiInput += ev => OnTriggerGuiInput(ev, -1);
         row.AddChild(_leftTrigger);
 
-        var titleWrap = new PanelContainer {
-            SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
+        _tabScroll = new ScrollContainer {
+            Name = "ModPanelPageTabScroll",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ShrinkBegin,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Auto,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Disabled,
             MouseFilter = MouseFilterEnum.Ignore,
         };
-        titleWrap.AddThemeStyleboxOverride("panel", CreateTitlePanelStyle());
-        var titleVBox = new VBoxContainer {
+        _tabRow = new HBoxContainer {
+            Name = "ModPanelPageTabRow",
+            SizeFlagsVertical = SizeFlags.ShrinkBegin,
             MouseFilter = MouseFilterEnum.Ignore,
         };
-        titleVBox.AddThemeConstantOverride("separation", 2);
-        _titleLabel = new Label {
-            HorizontalAlignment = HorizontalAlignment.Center,
-            TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
-            MouseFilter = MouseFilterEnum.Ignore,
-        };
-        _titleLabel.AddThemeFontSizeOverride("font_size", 15);
-        _titleLabel.AddThemeColorOverride("font_color", ModPanelUiPalette.LabelPrimary);
-        titleVBox.AddChild(_titleLabel);
-        _indexLabel = new Label {
-            HorizontalAlignment = HorizontalAlignment.Center,
-            MouseFilter = MouseFilterEnum.Ignore,
-        };
-        _indexLabel.AddThemeFontSizeOverride("font_size", 11);
-        _indexLabel.AddThemeColorOverride("font_color", ModPanelUiPalette.RichTextSecondary);
-        titleVBox.AddChild(_indexLabel);
-        titleWrap.AddChild(titleVBox);
-        row.AddChild(titleWrap);
+        _tabRow.AddThemeConstantOverride("separation", 8);
+        _tabScroll.AddChild(_tabRow);
+        row.AddChild(_tabScroll);
 
         _rightTrigger = CreateTriggerIcon("RightTriggerIcon");
         _rightTrigger.GuiInput += ev => OnTriggerGuiInput(ev, 1);
@@ -78,67 +70,114 @@ public partial class ModPanelPageTabChrome : Control {
     public void SetPages(IReadOnlyList<PageEntry> pages, string selectedPageId) {
         _pages.Clear();
         _pages.AddRange(pages);
-        _selectedIndex = 0;
-        for (var i = 0; i < _pages.Count; i++) {
-            if (string.Equals(_pages[i].Id, selectedPageId, StringComparison.OrdinalIgnoreCase)) {
-                _selectedIndex = i;
-                break;
-            }
+        _selectedPageId = selectedPageId;
+        while (_tabRow.GetChildCount() > 0) {
+            var child = _tabRow.GetChild(0);
+            _tabRow.RemoveChild(child);
+            child.QueueFree();
         }
         Visible = _pages.Count > 1;
-        UpdateDisplay();
+        foreach (var entry in _pages) {
+            var capturedId = entry.Id;
+            var selected = string.Equals(capturedId, selectedPageId, StringComparison.OrdinalIgnoreCase);
+            var tab = ModPanelUI.CreateDevModePageTab(capturedId, entry.Label, selected, () => SelectPage(capturedId, fromUser: true));
+            _tabRow.AddChild(tab);
+        }
+        RefreshTabStyles();
         RefreshTriggerIcons();
+        ScrollSelectedTabIntoViewDeferred();
     }
 
     public void ClearPages() {
         _pages.Clear();
-        _selectedIndex = 0;
+        _selectedPageId = "";
+        while (_tabRow.GetChildCount() > 0) {
+            var child = _tabRow.GetChild(0);
+            _tabRow.RemoveChild(child);
+            child.QueueFree();
+        }
         Visible = false;
-        _titleLabel.Text = "";
-        _indexLabel.Text = "";
+        _leftTrigger.Visible = false;
+        _rightTrigger.Visible = false;
     }
 
-    public string? GetSelectedPageId()
-        => _pages.Count == 0 ? null : _pages[_selectedIndex].Id;
+    public string? GetSelectedPageId() => string.IsNullOrEmpty(_selectedPageId) ? null : _selectedPageId;
 
     public bool TrySwitchPage(int delta) {
         if (_pages.Count <= 1)
             return false;
-        var next = Mathf.Clamp(_selectedIndex + delta, 0, _pages.Count - 1);
-        if (next == _selectedIndex)
+        var idx = FindSelectedIndex();
+        var next = Mathf.Clamp(idx + delta, 0, _pages.Count - 1);
+        if (next == idx)
             return false;
-        SelectIndex(next);
+        SelectPage(_pages[next].Id, fromUser: true);
         return true;
     }
 
     public void RefreshTriggerIcons() {
         var show = _pages.Count > 1;
-        _leftTrigger.Visible = show;
-        _rightTrigger.Visible = show;
-        if (!show)
-            return;
-        var usingController = NControllerManager.Instance?.IsUsingController == true;
-        _leftTrigger.Texture = NInputManager.Instance.GetHotkeyIcon(TabLeftHotkey);
-        _rightTrigger.Texture = NInputManager.Instance.GetHotkeyIcon(TabRightHotkey);
-        var modulate = usingController ? Colors.White : new Color(1f, 1f, 1f, 0.45f);
-        _leftTrigger.Modulate = modulate;
-        _rightTrigger.Modulate = modulate;
-    }
-
-    private void SelectIndex(int index) {
-        _selectedIndex = index;
-        UpdateDisplay();
-        PageSelected?.Invoke(_pages[index].Id);
-    }
-
-    private void UpdateDisplay() {
-        if (_pages.Count == 0) {
-            _titleLabel.Text = "";
-            _indexLabel.Text = "";
+        if (!show) {
+            _leftTrigger.Visible = false;
+            _rightTrigger.Visible = false;
             return;
         }
-        _titleLabel.Text = _pages[_selectedIndex].Label;
-        _indexLabel.Text = _pages.Count > 1 ? $"{_selectedIndex + 1} / {_pages.Count}" : "";
+        var usingController = NControllerManager.Instance?.IsUsingController == true;
+        _leftTrigger.Visible = usingController;
+        _rightTrigger.Visible = usingController;
+        if (!usingController)
+            return;
+        _leftTrigger.Texture = NInputManager.Instance.GetHotkeyIcon(TabLeftHotkey);
+        _rightTrigger.Texture = NInputManager.Instance.GetHotkeyIcon(TabRightHotkey);
+        _leftTrigger.Modulate = Colors.White;
+        _rightTrigger.Modulate = Colors.White;
+    }
+
+    private void SelectPage(string pageId, bool fromUser) {
+        if (string.IsNullOrEmpty(pageId))
+            return;
+        var changed = !string.Equals(_selectedPageId, pageId, StringComparison.OrdinalIgnoreCase);
+        _selectedPageId = pageId;
+        RefreshTabStyles();
+        ScrollSelectedTabIntoViewDeferred();
+        if (changed && fromUser)
+            PageSelected?.Invoke(pageId);
+    }
+
+    private void RefreshTabStyles() {
+        foreach (var child in _tabRow.GetChildren()) {
+            if (child is not Button b || !b.HasMeta("pageId"))
+                continue;
+            var id = b.GetMeta("pageId").AsString();
+            ModPanelUI.ApplyDevModeTabButtonStyle(b,
+                string.Equals(id, _selectedPageId, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    private int FindSelectedIndex() {
+        for (var i = 0; i < _pages.Count; i++) {
+            if (string.Equals(_pages[i].Id, _selectedPageId, StringComparison.OrdinalIgnoreCase))
+                return i;
+        }
+        return 0;
+    }
+
+    private Button? FindSelectedTabButton() {
+        foreach (var child in _tabRow.GetChildren()) {
+            if (child is Button b && b.HasMeta("pageId")
+                && string.Equals(b.GetMeta("pageId").AsString(), _selectedPageId, StringComparison.OrdinalIgnoreCase))
+                return b;
+        }
+        return null;
+    }
+
+    private void ScrollSelectedTabIntoViewDeferred() {
+        Callable.From(ScrollSelectedTabIntoView).CallDeferred();
+    }
+
+    private void ScrollSelectedTabIntoView() {
+        var tab = FindSelectedTabButton();
+        if (tab != null && GodotObject.IsInstanceValid(_tabScroll))
+            _tabScroll.EnsureControlVisible(tab);
     }
 
     private void OnTriggerGuiInput(InputEvent ev, int delta) {
@@ -157,26 +196,6 @@ public partial class ModPanelPageTabChrome : Control {
             MouseDefaultCursorShape = CursorShape.PointingHand,
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-        };
-    }
-
-    private static StyleBoxFlat CreateTitlePanelStyle() {
-        var accent = ModPanelUiPalette.SidebarModActiveAccent;
-        return new StyleBoxFlat {
-            BgColor = new Color(accent.R, accent.G, accent.B, 0.12f),
-            BorderColor = new Color(accent.R, accent.G, accent.B, 0.55f),
-            BorderWidthLeft = 1,
-            BorderWidthRight = 1,
-            BorderWidthTop = 1,
-            BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 8,
-            CornerRadiusTopRight = 8,
-            CornerRadiusBottomLeft = 8,
-            CornerRadiusBottomRight = 8,
-            ContentMarginLeft = 18,
-            ContentMarginRight = 18,
-            ContentMarginTop = 8,
-            ContentMarginBottom = 8,
         };
     }
 }
