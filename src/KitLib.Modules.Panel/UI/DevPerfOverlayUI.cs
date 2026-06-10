@@ -8,8 +8,8 @@ namespace KitLib.UI;
 internal static class DevPerfOverlayUI {
     internal const string RootName = "KitLibDevPerfOverlay";
 
-    const float MarginRight = 12f;
-    const float MarginTop = 10f;
+    const float MarginRight = 95f;
+    const float MarginTop = 150f;
     const float MpOverlayOffset = 220f;
     const float MaxLineWidth = 360f;
 
