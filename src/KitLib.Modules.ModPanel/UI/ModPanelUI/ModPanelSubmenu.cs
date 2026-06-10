@@ -43,6 +43,7 @@ public partial class ModPanelSubmenu : NSubmenu {
 
     public override void OnSubmenuOpened() {
         base.OnSubmenuOpened();
+        RitsuModSettingsEmbedHost.Ensure();
         if (!_uiBuilt) {
             ModPanelUI.BuildInto(this);
             _uiBuilt = true;
@@ -81,7 +82,6 @@ public partial class ModPanelSubmenu : NSubmenu {
         DisableTabHotkeys();
         ModRuntime.LoadSettings.Persist();
         RitsuModSettingsEmbedHost.FlushDirtyBindings();
-        RitsuModSettingsEmbedHost.ClearAfterShellDisposed();
         ModPanelUI.OnSubmenuPopped(this);
         base.OnSubmenuClosed();
     }

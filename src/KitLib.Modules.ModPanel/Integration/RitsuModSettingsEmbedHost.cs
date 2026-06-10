@@ -2,37 +2,57 @@ using System;
 using System.Reflection;
 using Godot;
 using KitLib.Abstractions.Modding;
+
 namespace KitLib.Integration;
+
 /// <summary>
-/// Keeps a hidden <c>RitsuModSettingsSubmenu</c> alive so <c>ModSettingsUiContext</c> can bind saves/refreshes
-/// while DevMode renders settings in its own shell.
+/// Keeps a hidden <c>RitsuModSettingsSubmenu</c> on the scene root so
+/// <c>ModSettingsUiContext</c> can bind saves/refreshes while KitLib renders settings in its own shell.
 /// </summary>
 internal static class RitsuModSettingsEmbedHost {
     private const string SubmenuFullName = ModPanelEmbedHostProbe.SubmenuFullName;
     private static Control? _pin;
     private static Node? _submenu;
-    public static Node? TryGetSubmenu() => _submenu;
-    public static void EnsureAttached(Control shellRoot) {
-        if (_submenu != null && GodotObject.IsInstanceValid(_submenu))
+
+    public static Node? TryGetSubmenu() => HasLiveSubmenu() ? _submenu : null;
+
+    public static void Ensure() {
+        if (HasLiveSubmenu())
             return;
+
+        if (Engine.GetMainLoop() is not SceneTree tree) {
+            MainFile.Logger.Warn("KitLib ModPanel: embed host skipped (no SceneTree).");
+            return;
+        }
+
+        var hostRoot = tree.Root;
+        if (hostRoot == null || !GodotObject.IsInstanceValid(hostRoot)) {
+            MainFile.Logger.Warn("KitLib ModPanel: embed host skipped (invalid scene root).");
+            return;
+        }
+
         var asm = RitsuModSettingsBridge.TryGetRitsuAssembly();
         if (asm == null) {
             MainFile.Logger.Warn("KitLib ModPanel: STS2-RitsuLib assembly missing for embed host.");
             return;
         }
+
         var submenuType = asm.GetType(SubmenuFullName);
         if (submenuType == null) {
             MainFile.Logger.Warn($"KitLib ModPanel: type not found: {SubmenuFullName}");
             return;
         }
+
         _pin = new Control {
             Name = "KitLibRitsuSettingsEnginePin",
             CustomMinimumSize = new Vector2(1f, 1f),
             Size = new Vector2(1f, 1f),
             Visible = false,
             MouseFilter = Control.MouseFilterEnum.Ignore,
+            ProcessMode = Node.ProcessModeEnum.Always,
         };
-        shellRoot.AddChild(_pin);
+        hostRoot.AddChild(_pin);
+
         var created = TryInstantiateSubmenu(submenuType);
         if (created == null) {
             MainFile.Logger.Warn($"KitLib ModPanel: failed to instantiate {SubmenuFullName}");
@@ -40,12 +60,27 @@ internal static class RitsuModSettingsEmbedHost {
             _pin = null;
             return;
         }
+
         _submenu = created;
         _pin.AddChild(_submenu);
         MuteEmbeddedSubmenuInput(_pin);
         MuteEmbeddedSubmenuInput(_submenu);
         TryInvokeEmbedDisable(_submenu);
         MainFile.Logger.Info("KitLib ModPanel: RitsuModSettingsSubmenu embed host ready.");
+    }
+
+    static bool HasLiveSubmenu() {
+        if (_submenu != null && GodotObject.IsInstanceValid(_submenu))
+            return true;
+        DropStaleRefs();
+        return false;
+    }
+
+    static void DropStaleRefs() {
+        if (_submenu != null && !GodotObject.IsInstanceValid(_submenu))
+            _submenu = null;
+        if (_pin != null && !GodotObject.IsInstanceValid(_pin))
+            _pin = null;
     }
 
     private static void MuteEmbeddedSubmenuInput(Node node) {
@@ -64,6 +99,7 @@ internal static class RitsuModSettingsEmbedHost {
                 $"KitLib ModPanel: embed submenu Disable() skipped: {ex.InnerException?.Message ?? ex.Message}");
         }
     }
+
     private static Node? TryInstantiateSubmenu(Type submenuType) {
         try {
             if (Activator.CreateInstance(submenuType) is Node node)
@@ -84,17 +120,19 @@ internal static class RitsuModSettingsEmbedHost {
         }
         return null;
     }
+
     public static void SyncSubmenuSelection(string modId, string pageId) {
-        if (_submenu == null || !GodotObject.IsInstanceValid(_submenu))
+        if (!HasLiveSubmenu())
             return;
-        var t = _submenu.GetType();
+        var t = _submenu!.GetType();
         t.GetField("_selectedModId", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(_submenu, modId);
         t.GetField("_selectedPageId", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(_submenu, pageId);
     }
+
     public static void FlushDirtyBindings() {
-        if (_submenu == null || !GodotObject.IsInstanceValid(_submenu))
+        if (!HasLiveSubmenu())
             return;
-        var m = _submenu.GetType().GetMethod("FlushDirtyBindings",
+        var m = _submenu!.GetType().GetMethod("FlushDirtyBindings",
             BindingFlags.Instance | BindingFlags.NonPublic);
         try {
             m?.Invoke(_submenu, null);
@@ -102,9 +140,5 @@ internal static class RitsuModSettingsEmbedHost {
         catch {
             // ignored
         }
-    }
-    public static void ClearAfterShellDisposed() {
-        _pin = null;
-        _submenu = null;
     }
 }

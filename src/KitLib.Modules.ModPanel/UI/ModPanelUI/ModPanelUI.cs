@@ -112,8 +112,6 @@ public static partial class ModPanelUI {
         };
         body.AddThemeConstantOverride("separation", 20);
         outer.AddChild(body);
-        // Embed host must exist before sidebar builds content (SelectMod → RebuildRitsuRightPane).
-        RitsuModSettingsEmbedHost.EnsureAttached(root);
         var (contentPanel, ritsuContentList, pageTabChrome) = BuildContentPanel();
         body.AddChild(BuildSidebarPanel(root, hintsRow, ritsuContentList, pageTabChrome));
         body.AddChild(contentPanel);
@@ -792,8 +790,10 @@ public static partial class ModPanelUI {
             return;
         var submenu = RitsuModSettingsEmbedHost.TryGetSubmenu();
         if (submenu == null) {
+            var embedProbe = ModPanelEmbedHostProbe.Probe(RitsuModSettingsBridge.TryGetRitsuAssembly());
             MainFile.Logger.Warn(
-                $"KitLib ModPanel: RitsuModSettingsSubmenu embed host failed for mod '{modId}', page '{state.PageId}'.");
+                $"KitLib ModPanel: RitsuModSettingsSubmenu embed host failed for mod '{modId}', page '{state.PageId}' " +
+                $"(embed={embedProbe.Status}, detail={embedProbe.Detail ?? "—"}).");
             list.AddChild(CreateInlineDescription(I18N.T("modpanel.content.embedHostFailed",
                 "Could not initialize the RitsuLib settings host.")));
             return;
