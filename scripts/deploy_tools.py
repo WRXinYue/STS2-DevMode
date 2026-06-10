@@ -27,7 +27,7 @@ TOOL_SPECS = [
         "deploy_names": ("kitlog.exe", "kitlog"),
     },
     {
-        "project": _REPO / "tools" / "DevMode.Mcp" / "KitLib.Mcp.csproj",
+        "project": _REPO / "tools" / "KitLib.Mcp" / "KitLib.Mcp.csproj",
         "publish_folder": "KitLib.Mcp",
         "deploy_names": ("KitLib.Mcp.exe", "KitLib.Mcp"),
     },

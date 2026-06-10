@@ -19,7 +19,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitLib.Dev", "src\KitLib.Mo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitLib.AI", "src\KitLib.Modules.AI\KitLib.AI.csproj", "{C0000000-0000-0000-0000-000000000015}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitLib.Mcp", "tools\DevMode.Mcp\KitLib.Mcp.csproj", "{B0000000-0000-0000-0000-000000000002}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitLib.Mcp", "tools\KitLib.Mcp\KitLib.Mcp.csproj", "{B0000000-0000-0000-0000-000000000002}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KitLog.Cli", "tools\KitLog.Cli\KitLog.Cli.csproj", "{B0000000-0000-0000-0000-000000000003}"
 EndProject

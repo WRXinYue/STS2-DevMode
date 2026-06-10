@@ -16,7 +16,7 @@ UV ?= uv
 VERSION := $(shell $(PYTHON) -c "import json;print(json.load(open('KitLib.json',encoding='utf-8'))['version'])")
 
 MOD_MAIN := src/KitLib.Core/KitLib.Core.csproj
-MCP_PROJECT := tools/DevMode.Mcp/KitLib.Mcp.csproj
+MCP_PROJECT := tools/KitLib.Mcp/KitLib.Mcp.csproj
 KITLOG_PROJECT := tools/KitLog.Cli/KitLog.Cli.csproj
 
 # Runtime identifier for self-contained tool publish (override: make build-tools TOOLS_RID=linux-x64)

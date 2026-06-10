@@ -9,7 +9,7 @@
 ## Scope
 
 - [ ] KitLib mod / modules (`src/`)
-- [ ] Tools (`tools/KitLog.Cli`, `tools/DevMode.Mcp`)
+- [ ] Tools (`tools/KitLog.Cli`, `tools/KitLib.Mcp`)
 - [ ] Repo tooling only (scripts, CI, docs)
 
 ## Checklist

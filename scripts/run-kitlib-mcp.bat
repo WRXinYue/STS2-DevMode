@@ -2,9 +2,9 @@
 setlocal
 cd /d "%~dp0.."
 
-set "MCP_DLL=tools\DevMode.Mcp\bin\Release\net8.0\KitLib.Mcp.dll"
+set "MCP_DLL=tools\KitLib.Mcp\bin\Release\net8.0\KitLib.Mcp.dll"
 if not exist "%MCP_DLL%" (
-  dotnet build tools\DevMode.Mcp\KitLib.Mcp.csproj -c Release -v q
+  dotnet build tools\KitLib.Mcp\KitLib.Mcp.csproj -c Release -v q
   if errorlevel 1 exit /b 1
 )
 
