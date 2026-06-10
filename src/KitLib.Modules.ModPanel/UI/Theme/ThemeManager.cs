@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Godot;
 using KitLib.Settings;
 
 namespace KitLib.UI;
@@ -11,6 +12,8 @@ namespace KitLib.UI;
 /// to change the theme; all UI components subscribed to <see cref="OnThemeChanged"/> will update.
 /// </summary>
 internal static class ThemeManager {
+    public static readonly Color DefaultAccent = Color.FromHtml("#EA9104");
+
     // ── Available theme names per mode ──────────────────────────────────
     public static IReadOnlyList<string> DarkThemes { get; } = new[] { ThemeNames.Dark, ThemeNames.Oled };
     public static IReadOnlyList<string> LightThemes { get; } = new[] { ThemeNames.Light, ThemeNames.Warm };
@@ -23,9 +26,11 @@ internal static class ThemeManager {
         get {
             var s = SettingsStore.Current;
             var name = s.DarkMode ? s.DarkThemeName : s.LightThemeName;
-            return ThemeDefinition.FromName(name);
+            return ThemeDefinition.FromName(name).WithAccent(ParseAccentColor(s.AccentColorHex));
         }
     }
+
+    public static Color AccentColor => ParseAccentColor(SettingsStore.Current.AccentColorHex);
 
     public static bool IsDarkMode => SettingsStore.Current.DarkMode;
 
@@ -72,5 +77,24 @@ internal static class ThemeManager {
         var next = themes[(idx + 1) % themes.Count];
         SetLightTheme(next);
         return next;
+    }
+
+    /// <summary>Persists and applies the user accent color across DevMode and ModPanel UI.</summary>
+    public static void SetAccentColor(Color accent) {
+        SettingsStore.Current.AccentColorHex = accent.ToHtml(false);
+        SettingsStore.Save();
+        OnThemeChanged?.Invoke();
+    }
+
+    internal static Color ParseAccentColor(string? hex) {
+        if (string.IsNullOrWhiteSpace(hex))
+            return DefaultAccent;
+        try {
+            var color = Color.FromHtml(hex.Trim());
+            return color.A <= 0f ? DefaultAccent : color;
+        }
+        catch {
+            return DefaultAccent;
+        }
     }
 }

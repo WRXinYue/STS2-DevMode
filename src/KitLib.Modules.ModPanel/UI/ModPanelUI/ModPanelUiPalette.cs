@@ -10,5 +10,5 @@ public static class ModPanelUiPalette {
     public static readonly Color LabelPrimary = new(0.99f, 0.975f, 0.94f);
     public static readonly Color LabelSecondary = new(0.86f, 0.825f, 0.755f, 0.98f);
     public static readonly Color SidebarSection = new(0.88f, 0.855f, 0.795f);
-    public static readonly Color SidebarModActiveAccent = Color.FromHtml("#EA9104");
+    public static Color SidebarModActiveAccent => KitLibTheme.Accent;
 }

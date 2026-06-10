@@ -34,4 +34,20 @@ internal static class KitLibNativeModSettingsUi {
                 "Controls whether the DevPanel rail and cheat tools are available during normal (non test) runs."),
             ob);
     }
+
+    internal static Control CreateAccentColorRow() {
+        var cp = new ColorPickerButton {
+            CustomMinimumSize = new Vector2(DevModeFormChrome.Metrics.ColorSwatchSize,
+                DevModeFormChrome.Metrics.ColorSwatchSize),
+            EditAlpha = false,
+            Color = ThemeManager.AccentColor,
+            FocusMode = Control.FocusModeEnum.All,
+        };
+        cp.ColorChanged += ThemeManager.SetAccentColor;
+        return DevModeFormChrome.CreateLabeledValueRow(
+            I18N.T("modpanel.kitlib.accentColor.title", "Accent color"),
+            I18N.T("modpanel.kitlib.accentColor.desc",
+                "Highlight color for DevPanel and Mod settings (tabs, toggles, sidebar selection)."),
+            cp);
+    }
 }

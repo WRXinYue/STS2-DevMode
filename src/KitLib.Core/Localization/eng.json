@@ -22,6 +22,8 @@
   "modpanel.kitlib.page.general": "General",
   "modpanel.kitlib.page.performance": "Performance",
   "modpanel.kitlib.page.hotkeys": "Hotkeys",
+  "modpanel.kitlib.accentColor.title": "Accent color",
+  "modpanel.kitlib.accentColor.desc": "Highlight color for DevPanel and Mod settings (tabs, toggles, sidebar selection).",
   "modpanel.kitlib.diagnosticMode": "Mod panel diagnostic mode",
   "modpanel.kitlib.diagnosticMode.desc": "Log [ModPanelPerf] timings and verbose sidebar diagnostics to the main log.",
   "modpanel.kitlib.normalRun.title": "In-run DevMode level",

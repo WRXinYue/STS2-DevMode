@@ -112,6 +112,12 @@ internal sealed record ThemeDefinition(
 
     // ── Lookup ────────────────────────────────────────────────────────────
 
+    public ThemeDefinition WithAccent(Color accent) => this with {
+        Accent = accent,
+        AccentAlpha = new Color(accent.R, accent.G, accent.B, 0.85f),
+        IconActiveBg = new Color(accent.R, accent.G, accent.B, 0.15f),
+    };
+
     public static ThemeDefinition FromName(string name) => name switch {
         ThemeNames.Oled => Oled,
         ThemeNames.Light => Light,

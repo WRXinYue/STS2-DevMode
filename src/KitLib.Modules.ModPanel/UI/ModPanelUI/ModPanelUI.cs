@@ -23,6 +23,13 @@ public static partial class ModPanelUI {
     private const int ZOrder = 2000;
     private static ModPanelSubmenu? _root;
     private static NMainMenu? _hostMainMenu;
+    private static Action? _themeRefresh;
+
+    internal static void RegisterThemeRefresh(Action refresh) => _themeRefresh = refresh;
+
+    internal static void ClearThemeRefresh() => _themeRefresh = null;
+
+    internal static void HandleThemeChanged() => _themeRefresh?.Invoke();
 
     public static bool TryGetScreenContext(out IScreenContext? context) {
         if (_root != null && GodotObject.IsInstanceValid(_root)) {
@@ -550,6 +557,12 @@ public static partial class ModPanelUI {
         shell.AddChild(controllerSupport);
         controllerSupport.BindSubmenu(shell);
         controllerSupport.ConfigureSidebar(modRows, () => selectedModId, SelectMod, ritsuContentList);
+        void OnThemeRefresh() {
+            RefreshModRowChrome();
+            RebuildRitsuRightPane();
+        }
+        RegisterThemeRefresh(OnThemeRefresh);
+        shell.TreeExiting += () => ClearThemeRefresh();
         Callable.From(() => {
             if (modRows.Count > 0) {
                 ModPanelFocusWiring.Wire(modRows, selectedModId, contentState.PageId, pageTabChrome, ritsuContentList,

@@ -44,6 +44,7 @@ public partial class ModPanelSubmenu : NSubmenu {
 
     public override void OnSubmenuOpened() {
         base.OnSubmenuOpened();
+        ThemeManager.OnThemeChanged += OnKitLibThemeChanged;
         RitsuModSettingsEmbedHost.Ensure();
         if (!_uiBuilt) {
             ModPanelUI.BuildInto(this);
@@ -81,6 +82,7 @@ public partial class ModPanelSubmenu : NSubmenu {
 
     public override void OnSubmenuClosed() {
         DisableTabHotkeys();
+        ThemeManager.OnThemeChanged -= OnKitLibThemeChanged;
         KitLibHotkeySettingsUi.CancelCapture();
         ModRuntime.LoadSettings.Persist();
         RitsuModSettingsEmbedHost.FlushDirtyBindings();
@@ -129,4 +131,6 @@ public partial class ModPanelSubmenu : NSubmenu {
         GetViewport()?.GuiReleaseFocus();
         ActiveScreenContext.Instance.FocusOnDefaultControl();
     }
+
+    private static void OnKitLibThemeChanged() => ModPanelUI.HandleThemeChanged();
 }

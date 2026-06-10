@@ -36,6 +36,7 @@ internal static class KitLibNativeModSettingsBootstrap {
 
     static Control BuildGeneralPage() {
         var stack = CreatePageStack();
+        stack.AddChild(KitLibNativeModSettingsUi.CreateAccentColorRow());
         stack.AddChild(KitLibNativeModSettingsUi.CreateNormalRunModeRow());
         stack.AddChild(KitLibNativeModSettingsUi.CreateBoolToggle(
             I18N.T("settings.gameContextPane", "In-game right sidebar"),
