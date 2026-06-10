@@ -30,6 +30,11 @@ public static class ModuleEntry {
         KitLibPanelOps.OnPanelSync = ui => AiHudOverlayUI.SyncState(ui);
         KitLibPanelOps.OnPanelDetach = ui => AiHudOverlayUI.Detach(ui);
         KitLibHost.SyncAiHudOverlay = () => AiHudOverlayUI.SyncState();
+        KitLibHost.SyncPerfHudOverlay = () => {
+            KitLibRootServices.EnsureRootServicesNode();
+            DevPerfOverlayUI.SyncVisibility();
+        };
+        KitLibHost.NotifyGameContextPaneChanged = DevPanelUI.OnGameContextPaneSettingChanged;
 
         DevPerfBuiltinProviders.RegisterAll();
 

@@ -31,18 +31,22 @@ internal static class ModPanelDiagnostics {
     }
 
     public static void LogOpenReport(ModPanelOpenReport report) {
+        if (!ModPanelPerf.IsEnabled)
+            return;
         MainFile.Logger.Info(ModPanelDiagnosticLog.FormatOpen(report));
         foreach (var warning in ModPanelDiagnosticLog.CollectOpenWarnings(report))
             MainFile.Logger.Warn(warning);
     }
 
     public static void LogSidebarLayoutDeferred(Control? shellRoot, ModPanelOpenReport? openReport = null) {
-        if (shellRoot == null)
+        if (!ModPanelPerf.IsEnabled || shellRoot == null)
             return;
         Callable.From(() => LogSidebarLayout(shellRoot, openReport)).CallDeferred();
     }
 
     public static void LogControllerContext(ModPanelSubmenu submenu) {
+        if (!ModPanelPerf.IsEnabled)
+            return;
         MainFile.Logger.Info(ModPanelDiagnosticLog.FormatControllerContext(CaptureControllerContext(submenu)));
     }
 

@@ -83,6 +83,11 @@ public static class SettingsStore {
         Save();
     }
 
+    public static void SetModPanelDiagnosticMode(bool enabled) {
+        Current.ModPanelDiagnosticMode = enabled;
+        Save();
+    }
+
     public static void SetHotkeysEnabled(bool enabled) {
         Current.HotkeysEnabled = enabled;
         Save();

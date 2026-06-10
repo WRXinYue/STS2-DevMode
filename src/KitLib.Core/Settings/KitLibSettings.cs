@@ -127,6 +127,9 @@ public sealed partial class KitLibSettings {
     /// <summary>Append structured perf events to instances/{pid}/perf-trace.log.</summary>
     public bool PerfHudTraceToFile { get; set; }
 
+    /// <summary>Log ModPanel open/refresh timings and verbose sidebar diagnostics.</summary>
+    public bool ModPanelDiagnosticMode { get; set; }
+
     /// <summary>Enable in-game keyboard shortcuts for the DevMode sidebar shell.</summary>
     public bool HotkeysEnabled { get; set; } = true;
 

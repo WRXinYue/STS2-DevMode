@@ -33,33 +33,9 @@ internal static partial class DevPanelUI {
         inner.AddChild(CreateSectionHeader(I18N.T("appearance.title", "Appearance")));
         inner.AddChild(CreateAppearanceSection(() => ShowSettingsOverlay(globalUi, actions)));
 
-        // ── Section: Game ──
+        // ── Section: Game (in-run controls only; KitLib prefs → Main Menu → Mods → KitLib) ──
         inner.AddChild(CreateSectionHeader(I18N.T("panel.section.game", "Game")));
-
-        inner.AddChild(CreateCheatToggle(
-            I18N.T("settings.gameContextPane", "In-game right sidebar"),
-            I18N.T("settings.gameContextPane.desc", "Show the right combat sidebar during fights (stats, enemy intent, combat tools)"),
-            () => SettingsStore.Current.GameContextPaneEnabled,
-            enabled => {
-                SettingsStore.SetGameContextPaneEnabled(enabled);
-                DevPanelUI.OnGameContextPaneSettingChanged();
-            }));
-
-        inner.AddChild(CreateCheatToggle(
-            I18N.T("perfHud.enabled", "Performance overlay"),
-            I18N.T("perfHud.enabled.desc", "Fixed top-right debug text for transitions, warmup, and frame spikes. Toggle with the hotkey below."),
-            () => SettingsStore.Current.PerfHudEnabled,
-            enabled => {
-                SettingsStore.SetPerfHudEnabled(enabled);
-                KitLib.DevPerf.KitLibRootServices.EnsureRootServicesNode();
-                DevPerfOverlayUI.SyncVisibility();
-            }));
-
-        inner.AddChild(CreateCheatToggle(
-            I18N.T("perfHud.traceToFile", "Write perf trace to file"),
-            I18N.T("perfHud.traceToFile.desc", "Append CSV lines to instances/{pid}/perf-trace.log when transitions or frame spikes are logged."),
-            () => SettingsStore.Current.PerfHudTraceToFile,
-            enabled => SettingsStore.SetPerfHudTraceToFile(enabled)));
+        inner.AddChild(CreateModPanelPrefsHint());
 
         var gameSpeedBtn = CreatePlainButton(I18N.T("panel.speed", "Speed: {0}", actions.GetGameSpeedLabel()), MdiIcon.SpeedometerMedium);
         gameSpeedBtn.Pressed += () => {
@@ -185,6 +161,18 @@ internal static partial class DevPanelUI {
         col.AddChild(resetWidthBtn);
 
         return col;
+    }
+
+    private static Control CreateModPanelPrefsHint() {
+        var hint = new Label {
+            Text = I18N.T("settings.modPanelPrefsHint",
+                "DevMode level, performance HUD, combat sidebar, and diagnostics: Main Menu → Mods → KitLib."),
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        hint.AddThemeFontSizeOverride("font_size", 11);
+        hint.AddThemeColorOverride("font_color", KitLibTheme.Subtle);
+        return hint;
     }
 
     private static Control CreateRailLayoutSection(NGlobalUi globalUi, DevPanelActions actions) {

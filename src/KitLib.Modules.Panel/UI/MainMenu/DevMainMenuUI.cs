@@ -87,13 +87,6 @@ internal static class DevMainMenuUI {
         if (!anySlot)
             loadBtn.SetEnabled(false);
 
-        NMainMenuTextButton? persistNormalRunBtn = null;
-        persistNormalRunBtn = AddButton(container, template, GetPersistNormalRunModeLabel(), () => {
-            AdvanceNormalRunMode();
-            if (persistNormalRunBtn?.label != null)
-                persistNormalRunBtn.label.Text = GetPersistNormalRunModeLabel();
-        });
-
         AddButton(container, template, I18N.T("devmenu.multiplayer", "Multiplayer"), ShowMultiplayerMenu);
 
         AddButton(container, template, I18N.T("devmenu.unlockAll", "Unlock All Progress"), () => {
@@ -459,29 +452,10 @@ internal static class DevMainMenuUI {
         seedInput.GrabFocus();
     }
 
-    private static void AdvanceNormalRunMode() {
-        var next = KitLibState.NormalRunMode switch {
-            NormalRunMode.Disabled => NormalRunMode.DevPanel,
-            NormalRunMode.DevPanel => NormalRunMode.Cheat,
-            NormalRunMode.Cheat => NormalRunMode.Disabled,
-            _ => NormalRunMode.Disabled,
-        };
-        SettingsStore.SetNormalRunMode(next);
-    }
-
     private static string GetMultiplayerCheatOptInLabel() =>
         SettingsStore.Current.MultiplayerCheatOptIn
             ? I18N.T("devmenu.mpCheat.on", "Multiplayer cheat: ON")
             : I18N.T("devmenu.mpCheat.off", "Multiplayer cheat: OFF");
-
-    private static string GetPersistNormalRunModeLabel() {
-        return KitLibState.NormalRunMode switch {
-            NormalRunMode.Disabled => I18N.T("devmenu.persistNormalRun.disabled", "Normal run: disabled"),
-            NormalRunMode.DevPanel => I18N.T("devmenu.persistNormalRun.devMode", "Normal run: Dev Mode"),
-            NormalRunMode.Cheat => I18N.T("devmenu.persistNormalRun.cheatMode", "Normal run: Cheat Mode"),
-            _ => "",
-        };
-    }
 
     private static NMainMenuTextButton AddButton(Control container, NMainMenuTextButton template, string text, Action action) {
         var btn = MainMenuTextButtonFactory.CreateFrom(

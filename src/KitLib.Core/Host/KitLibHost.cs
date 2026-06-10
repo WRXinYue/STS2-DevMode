@@ -181,6 +181,8 @@ public static class KitLibHost {
     public static Action? OnCompanionRunEnded { get; set; }
     public static Func<bool>? IsDualInstanceActive { get; set; }
     public static Action? SyncAiHudOverlay { get; set; }
+    public static Action? SyncPerfHudOverlay { get; set; }
+    public static Action? NotifyGameContextPaneChanged { get; set; }
     public static Func<Creature, IReadOnlyList<Creature>, object, JsonArray>? CaptureMonsterIntentSteps { get; set; }
 
     public static void RegisterDeckPlanContributor(object contributor) =>

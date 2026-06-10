@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Godot;
 using MegaCrit.Sts2.Core.Assets;
 using MegaCrit.Sts2.Core.Modding;
@@ -32,13 +33,19 @@ public static partial class ModPanelUI {
         return false;
     }
     public static void Show(NMainMenu mainMenu) {
+        var perf = ModPanelPerf.Start();
         MainFile.Logger.Info("KitLib: Opening mod panel…");
         TeardownShell();
+        RitsuModSettingsEmbedHost.Ensure();
         _hostMainMenu = mainMenu;
         _root = mainMenu.SubmenuStack.PushSubmenuType<ModPanelSubmenu>();
+        ModPanelPerf.Log("open.pushSubmenu", perf);
+        var reportSw = ModPanelPerf.Start();
         var openReport = BuildOpenReport();
         ModPanelDiagnostics.LogOpenReport(openReport);
+        ModPanelPerf.Log("open.buildReport", reportSw);
         ModPanelDiagnostics.LogSidebarLayoutDeferred(_root, openReport);
+        ModPanelPerf.Log("open.total", perf);
     }
     public static void Hide() => TeardownShell();
     /// <summary>Back button, input forwarder, and re-open <see cref="Show" /> all use this one exit path.</summary>
@@ -341,7 +348,7 @@ public static partial class ModPanelUI {
             RebuildRitsuRightPane();
         };
         void RebuildRitsuRightPane() {
-            RefreshRitsuSettingsContent(ritsuContentList, pageTabChrome, selectedModId, contentState, RebuildRitsuRightPane);
+            RefreshSettingsContent(ritsuContentList, pageTabChrome, selectedModId, contentState, RebuildRitsuRightPane);
             Callable.From(() => {
                 ModPanelFocusWiring.Wire(modRows, selectedModId, contentState.PageId, pageTabChrome, ritsuContentList,
                     scopeFocusTarget);
@@ -377,8 +384,10 @@ public static partial class ModPanelUI {
                 ApplySidebarTexts(null, id, modTitleLabel, versionBadgePanel, versionLabel, metaLabel, descLabel);
                 ApplyPreviewState(null, true, modIcon, previewPlaceholder, previewCaption);
             }
-            var pagesForMod = rowEntry?.IsLoaded == true ? RitsuModSettingsBridge.GetAllPageObjects(id) : [];
-            contentState.PageId = pagesForMod.Count > 0 ? RitsuModSettingsBridge.GetPageId(pagesForMod[0]) : "";
+            var pagesForMod = rowEntry?.IsLoaded == true
+                ? ResolveInitialPageId(id)
+                : "";
+            contentState.PageId = pagesForMod;
             RebuildRitsuRightPane();
             var selectedRow = modRows.Find(r => string.Equals(r.Id, id, StringComparison.OrdinalIgnoreCase));
             if (selectedRow != null) {
@@ -393,9 +402,17 @@ public static partial class ModPanelUI {
                 descLabel);
             var tex0 = ModPanelModBanner.TryLoadModIcon(fallback, showcaseModId);
             ApplyPreviewState(tex0, fallback == null, modIcon, previewPlaceholder, previewCaption);
-            var pagesShowcase = RitsuModSettingsBridge.GetAllPageObjects(showcaseModId);
-            contentState.PageId = pagesShowcase.Count > 0 ? RitsuModSettingsBridge.GetPageId(pagesShowcase[0]) : "";
-            RebuildRitsuRightPane();
+            var pagesShowcase = KitLibModSettingsRegistry.HasPages(showcaseModId)
+                ? KitLibModSettingsRegistry.GetPages(showcaseModId)
+                : null;
+            if (pagesShowcase is { Count: > 0 }) {
+                contentState.PageId = pagesShowcase[0].PageId;
+            }
+            else {
+                var ritsuPages = RitsuModSettingsBridge.GetAllPageObjects(showcaseModId);
+                contentState.PageId = ritsuPages.Count > 0 ? RitsuModSettingsBridge.GetPageId(ritsuPages[0]) : "";
+            }
+            Callable.From(RebuildRitsuRightPane).CallDeferred();
         }
         else {
             foreach (var info in ordered) {
@@ -511,7 +528,8 @@ public static partial class ModPanelUI {
                 };
                 cardContent.AddChild(rowHost);
             }
-            SelectMod(initialSelectedId);
+            var deferredInitial = initialSelectedId;
+            Callable.From(() => SelectMod(deferredInitial)).CallDeferred();
         }
         RefreshPendingRestartBanner();
         listHeader.AddChild(scroll);
@@ -749,22 +767,93 @@ public static partial class ModPanelUI {
             c.QueueFree();
         }
     }
-    private static void RefreshRitsuSettingsContent(VBoxContainer list, ModPanelPageTabChrome pageTabChrome, string modId,
+    private static string ResolveInitialPageId(string modId) {
+        if (KitLibModSettingsRegistry.HasPages(modId)) {
+            var pages = KitLibModSettingsRegistry.GetPages(modId);
+            return pages.Count > 0 ? pages[0].PageId : "";
+        }
+        var ritsuPages = RitsuModSettingsBridge.GetAllPageObjects(modId);
+        return ritsuPages.Count > 0 ? RitsuModSettingsBridge.GetPageId(ritsuPages[0]) : "";
+    }
+
+    private static void RefreshSettingsContent(VBoxContainer list, ModPanelPageTabChrome pageTabChrome, string modId,
         ModPanelContentState state, Action rebuild) {
+        var perf = ModPanelPerf.Start();
         ClearContainerChildren(list);
         pageTabChrome.ClearPages();
         if (ModPanelModBanner.TryFindMod(modId) == null) {
             list.AddChild(CreateInlineDescription(I18N.T("modpanel.content.modNotLoaded",
                 "This mod is disabled or failed to load. Enable it in the list and restart the game to edit settings here.")));
+            ModPanelPerf.Log("refresh.modNotLoaded", perf, $"modId={modId}");
             return;
         }
+        if (TryRefreshNativeSettingsContent(list, pageTabChrome, modId, state, perf))
+            return;
+        RefreshRitsuSettingsContent(list, pageTabChrome, modId, state, perf);
+        ModPanelPerf.Log("refresh.total", perf, $"modId={modId} pageId={state.PageId} path=ritsu");
+    }
+
+    private static bool TryRefreshNativeSettingsContent(VBoxContainer list, ModPanelPageTabChrome pageTabChrome,
+        string modId, ModPanelContentState state, Stopwatch perf) {
+        if (!KitLibModSettingsRegistry.HasPages(modId))
+            return false;
+        var pages = KitLibModSettingsRegistry.GetPages(modId);
+        if (pages.Count == 0)
+            return false;
+
+        var validIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var entries = new List<ModPanelPageTabChrome.PageEntry>(pages.Count);
+        foreach (var p in pages) {
+            validIds.Add(p.PageId);
+            entries.Add(new ModPanelPageTabChrome.PageEntry(p.PageId, p.Title));
+        }
+        if (string.IsNullOrWhiteSpace(state.PageId) || !validIds.Contains(state.PageId))
+            state.PageId = entries[0].Id;
+        pageTabChrome.SetPages(entries, state.PageId);
+
+        KitLibModSettingsPageRegistration? active = null;
+        foreach (var p in pages) {
+            if (string.Equals(p.PageId, state.PageId, StringComparison.OrdinalIgnoreCase)) {
+                active = p;
+                break;
+            }
+        }
+        if (active == null)
+            return true;
+
+        var buildSw = ModPanelPerf.Start();
+        var built = active.BuildBody();
+        ModPanelPerf.Log("refresh.nativeBuildBody", buildSw, $"pageId={state.PageId}");
+        if (built is not Control body) {
+            list.AddChild(CreateInlineDescription(string.Format(
+                I18N.T("modpanel.content.buildFailed", "Could not build panel UI: {0}"),
+                "Native page body was not a Control.")));
+            ModPanelPerf.Log("refresh.total", perf, $"modId={modId} pageId={state.PageId} path=native invalidBody");
+            return true;
+        }
+        list.AddChild(body);
+        var bodyRef = body;
+        Callable.From(() => {
+            if (!GodotObject.IsInstanceValid(bodyRef))
+                return;
+            ModSettingsRitsuFormDevTheme.ApplyToSubtree(bodyRef);
+        }).CallDeferred();
+        ModPanelPerf.Log("refresh.total", perf, $"modId={modId} pageId={state.PageId} path=native");
+        return true;
+    }
+
+    private static void RefreshRitsuSettingsContent(VBoxContainer list, ModPanelPageTabChrome pageTabChrome, string modId,
+        ModPanelContentState state, Stopwatch perf) {
         if (!RitsuModSettingsBridge.IsAvailable) {
             MainFile.Logger.Warn("KitLib ModPanel: STS2-RitsuLib assembly not loaded.");
             list.AddChild(CreateInlineDescription(I18N.T("modpanel.content.ritsuNotLoaded",
                 "STS2-RitsuLib is not loaded. Install/enable it to scan registered mod settings here.")));
+            ModPanelPerf.Log("refresh.ritsuMissing", perf, $"modId={modId}");
             return;
         }
+        var reflectSw = ModPanelPerf.Start();
         var pages = RitsuModSettingsBridge.GetAllPageObjects(modId);
+        ModPanelPerf.Log("refresh.ritsuEnumerate", reflectSw, $"count={pages.Count}");
         if (pages.Count == 0) {
             MainFile.Logger.Info($"KitLib ModPanel: no registered settings pages for mod '{modId}'.");
             return;
@@ -802,7 +891,9 @@ public static partial class ModPanelUI {
         if (string.IsNullOrWhiteSpace(ritsuPageModId))
             ritsuPageModId = modId;
         RitsuModSettingsEmbedHost.SyncSubmenuSelection(ritsuPageModId, state.PageId);
+        var buildSw = ModPanelPerf.Start();
         var body = RitsuModSettingsBridge.TryCreateInteractivePageBody(submenu, ritsuPageModId, activePage, out var err);
+        ModPanelPerf.Log("refresh.ritsuBuildBody", buildSw, $"pageId={state.PageId}");
         if (body == null) {
             MainFile.Logger.Warn(
                 $"KitLib ModPanel: page body build failed for mod '{ritsuPageModId}', page '{state.PageId}': {err ?? "—"}");

@@ -40,9 +40,14 @@ internal static class DevModeFormChrome {
             left.AddChild(CreateDescriptionLabel(description));
         value.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
         value.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
-        value.CustomMinimumSize = new Vector2(
-            Mathf.Max(value.CustomMinimumSize.X, Metrics.ValueColumnMinWidth),
-            Mathf.Max(value.CustomMinimumSize.Y, Metrics.ValueColumnMinHeight));
+        if (value is CheckBox) {
+            value.CustomMinimumSize = new Vector2(28, 28);
+        }
+        else {
+            value.CustomMinimumSize = new Vector2(
+                Mathf.Max(value.CustomMinimumSize.X, Metrics.ValueColumnMinWidth),
+                Mathf.Max(value.CustomMinimumSize.Y, Metrics.ValueColumnMinHeight));
+        }
         row.AddChild(left);
         row.AddChild(value);
         return row;
@@ -173,6 +178,9 @@ internal static class DevModeFormChrome {
         cb.AddThemeColorOverride("font_color", KitLibTheme.TextPrimary);
         cb.AddThemeColorOverride("font_pressed_color", KitLibTheme.Accent);
         cb.AddThemeColorOverride("font_hover_color", KitLibTheme.TextPrimary);
+        var noFocus = new StyleBoxEmpty();
+        cb.AddThemeStyleboxOverride("focus", noFocus);
+        cb.AddThemeStyleboxOverride("hover", noFocus);
     }
     public static void ApplyOptionButton(OptionButton ob) {
         var n = RoundedField(false);
@@ -332,4 +340,4 @@ internal static class DevModeFormChrome {
             Mathf.Lerp(baseBorder.B, t.B, 0.28f),
             Mathf.Clamp(baseBorder.A * 1.45f + 0.1f, 0.3f, 0.5f));
     }
-}
+}
