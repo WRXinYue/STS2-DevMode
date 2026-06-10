@@ -10,11 +10,16 @@ namespace KitLib.Host;
 /// </summary>
 internal static class SatelliteModuleLoader {
     internal const string ModulesSubdir = "modules";
+    private static Assembly? _devAssembly;
     sealed record ModuleSpec(
         string ModuleId,
         string AssemblyName,
         string? EntryTypeName,
         string[] Requires);
+
+    static readonly (string AssemblyName, string[] BeforeModuleIds)[] PreloadBeforeInit = [
+        ("KitLib.Cheat", [ModuleIds.Ai, ModuleIds.Panel]),
+    ];
 
     static readonly ModuleSpec[] LoadOrder = [
         new(ModuleIds.User, "KitLib.User", "KitLib.User.ModuleEntry", []),
@@ -38,14 +43,45 @@ internal static class SatelliteModuleLoader {
         var loaded = new List<string>();
         foreach (var spec in LoadOrder) {
             MainFile.Logger.Info($"Satellite loader: trying {spec.ModuleId} ({spec.AssemblyName}.dll).");
+            PreloadSatelliteDependencies(modDir, spec.ModuleId);
             if (TryLoadModule(modDir, spec))
                 loaded.Add(spec.ModuleId);
+        }
+
+        if (ModuleCatalog.IsLoaded(ModuleIds.Dev)) {
+            WireDevModuleDelegates(_devAssembly ?? ModAssemblyLoader.GetLoadedAssembly("KitLib.Dev"));
+            KitLibHost.TryEnsureDevHarmonyApplied();
         }
 
         if (loaded.Count == 0)
             MainFile.Logger.Info("Satellite loader done: no bundled modules loaded.");
         else
             MainFile.Logger.Info($"Satellite loader done: loaded {loaded.Count} — {string.Join(", ", loaded)}.");
+    }
+
+    static void PreloadSatelliteDependencies(string modDir, string moduleId) {
+        foreach (var (assemblyName, beforeModuleIds) in PreloadBeforeInit) {
+            if (!Array.Exists(beforeModuleIds, id => string.Equals(id, moduleId, StringComparison.OrdinalIgnoreCase)))
+                continue;
+            TryPreloadAssembly(modDir, assemblyName);
+        }
+    }
+
+    static void TryPreloadAssembly(string modDir, string assemblyName) {
+        var modulesDir = Path.Combine(modDir, ModulesSubdir);
+        var path = Path.Combine(modulesDir, assemblyName + ".dll");
+        if (!File.Exists(path)) {
+            path = Path.Combine(modDir, assemblyName + ".dll");
+            if (!File.Exists(path))
+                return;
+        }
+
+        try {
+            ModAssemblyLoader.LoadFromModPath(path);
+        }
+        catch (Exception ex) {
+            MainFile.Logger.Warn($"[KitLib] Preload {assemblyName} failed — {ex.Message}");
+        }
     }
 
     static bool TryLoadModule(string modDir, ModuleSpec spec) {
@@ -75,9 +111,11 @@ internal static class SatelliteModuleLoader {
         }
 
         try {
+            MainFile.Logger.Info($"[KitLib] Satellite loader: loading {spec.AssemblyName}.dll assembly file.");
             var assembly = LoadAssembly(modDir, spec.AssemblyName, spec.ModuleId);
             if (assembly == null)
                 return false;
+            MainFile.Logger.Info($"[KitLib] Satellite loader: {spec.AssemblyName} assembly loaded.");
 
             if (spec.EntryTypeName == null) {
                 ModuleCatalog.Announce(spec.ModuleId);
@@ -85,6 +123,7 @@ internal static class SatelliteModuleLoader {
                 return true;
             }
 
+            MainFile.Logger.Info($"[KitLib] Satellite loader: resolving entry {spec.EntryTypeName}.");
             var entryType = assembly.GetType(spec.EntryTypeName, throwOnError: false);
             if (entryType == null) {
                 MainFile.Logger.Warn($"[KitLib] Module {spec.ModuleId} skipped — entry type {spec.EntryTypeName} not found.");
@@ -102,7 +141,15 @@ internal static class SatelliteModuleLoader {
                 return false;
             }
 
-            init.Invoke(null, null);
+            if (spec.ModuleId == ModuleIds.Dev) {
+            }
+
+            InvokeModuleInitialize(spec.ModuleId, init);
+
+            if (spec.ModuleId == ModuleIds.Dev) {
+                _devAssembly = assembly;
+            }
+
             if (!ModuleCatalog.IsLoaded(spec.ModuleId))
                 ModuleCatalog.Announce(spec.ModuleId);
             return ModuleCatalog.IsLoaded(spec.ModuleId);
@@ -115,6 +162,55 @@ internal static class SatelliteModuleLoader {
         catch (Exception ex) {
             MainFile.Logger.Warn($"[KitLib] Module {spec.ModuleId} load conflict — skipped ({ex.Message}).");
             return false;
+        }
+    }
+
+    static void WireDevModuleDelegates(Assembly? devAssembly) {
+        if (devAssembly == null) {
+            MainFile.Logger.Warn("[KitLib] KitLib.Dev assembly not resolved — Dev runtime wiring skipped.");
+            return;
+        }
+
+        var bootstrap = devAssembly.GetType("KitLib.Dev.ModuleBootstrap", throwOnError: false);
+        if (bootstrap == null) {
+            MainFile.Logger.Warn("[KitLib] KitLib.Dev.ModuleBootstrap not found.");
+            return;
+        }
+
+        var complete = bootstrap.GetMethod(
+            "Complete",
+            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+        var ensure = bootstrap.GetMethod(
+            "EnsureHarmonyApplied",
+            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+
+        if (complete != null)
+            KitLibHost.RequestDevBootstrap = () => complete.Invoke(null, null);
+        if (ensure != null)
+            KitLibHost.EnsureDevHarmonyApplied = () => ensure.Invoke(null, null);
+
+        var adopt = bootstrap.GetMethod(
+            "AdoptPinnedModDataDir",
+            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+        if (adopt != null) {
+            if (!DataPaths.TryGetPinnedBaseDir(out var modDataDir))
+                modDataDir = KitLibHost.ModDataDir;
+            adopt.Invoke(null, [modDataDir]);
+        }
+
+        DataPaths.TryGetPinnedBaseDir(out var wiredDir);
+    }
+
+    static void InvokeModuleInitialize(string moduleId, MethodInfo init) {
+        try {
+            init.Invoke(null, null);
+        }
+        catch (TargetInvocationException ex) {
+            MainFile.Logger.Warn(
+                $"[KitLib] Module {moduleId} init failed — skipped ({ex.InnerException?.Message ?? ex.Message}).");
+        }
+        catch (Exception ex) {
+            MainFile.Logger.Warn($"[KitLib] Module {moduleId} init failed — skipped ({ex.Message}).");
         }
     }
 

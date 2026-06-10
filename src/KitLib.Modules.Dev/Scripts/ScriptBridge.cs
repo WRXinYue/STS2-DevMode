@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using KitLib;
 using System.Net;
 using System.Net.WebSockets;
 using System.Text;
@@ -26,16 +27,19 @@ internal static class ScriptBridge {
 
     public static void Start() {
         if (IsRunning) return;
+        ThreadPool.QueueUserWorkItem(_ => StartCore());
+    }
+
+    internal static void StartCore() {
+        if (IsRunning) return;
         try {
             _cts = new CancellationTokenSource();
             _listener = new HttpListener();
             _listener.Prefixes.Add($"http://localhost:{Port}/");
             _listener.Start();
             Task.Run(() => AcceptLoop(_cts.Token));
-            MainFile.Logger.Info($"[ScriptBridge] Listening on ws://localhost:{Port}");
         }
         catch (Exception ex) {
-            MainFile.Logger.Warn($"[ScriptBridge] Failed to start: {ex.Message}");
             _listener = null;
         }
     }

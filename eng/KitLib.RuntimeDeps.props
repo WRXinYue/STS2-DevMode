@@ -8,7 +8,7 @@
     <_AbstractionsDll>$(MSBuildProjectDirectory)\..\KitLib.Abstractions\bin\$(Configuration)\net9.0\KitLib.Abstractions.dll</_AbstractionsDll>
     <_IlRepackExe>$(PkgILRepack)\tools\ILRepack.exe</_IlRepackExe>
     <_KitLibBundleDir>$(_KitLibRepoRoot)build\KitLib\</_KitLibBundleDir>
-    <_MergedKitLibDll>$(_KitLibBundleDir)KitLib.merged.dll</_MergedKitLibDll>
+    <_KitLibUnmergedDll>$(_KitLibBundleDir)KitLib.unmerged.dll</_KitLibUnmergedDll>
   </PropertyGroup>
   <Target Name="CopyKitLibAbstractionsRuntimeDeps" AfterTargets="Build">
     <Copy SourceFiles="$(_SemverDll)" DestinationFolder="$(_KitLibBundleDir)" SkipUnchangedFiles="true" Condition="Exists('$(_SemverDll)')" />
@@ -18,9 +18,9 @@
   <Target Name="MergeKitLibCoreDependencies" AfterTargets="CopyKitLibAbstractionsRuntimeDeps" Condition="Exists('$(_IlRepackExe)')">
     <Error Condition="!Exists('$(_KitLibBundleDir)KitLib.dll')" Text="Missing $(_KitLibBundleDir)KitLib.dll before ILRepack merge." />
     <Error Condition="!Exists('$(_KitLibBundleDir)KitLib.Abstractions.dll')" Text="Missing $(_KitLibBundleDir)KitLib.Abstractions.dll before ILRepack merge." />
+    <Move SourceFiles="$(_KitLibBundleDir)KitLib.dll" DestinationFiles="$(_KitLibUnmergedDll)" />
     <Exec
-      Command="&quot;$(_IlRepackExe)&quot; /ndebug /lib:&quot;$(Sts2DataDir)&quot; /out:&quot;$(_MergedKitLibDll)&quot; &quot;$(_KitLibBundleDir)KitLib.dll&quot; &quot;$(_KitLibBundleDir)KitLib.Abstractions.dll&quot; &quot;$(_KitLibBundleDir)Semver.dll&quot; &quot;$(_KitLibBundleDir)Microsoft.Extensions.Primitives.dll&quot;" />
-    <Delete Files="$(_KitLibBundleDir)KitLib.dll" />
-    <Move SourceFiles="$(_MergedKitLibDll)" DestinationFiles="$(_KitLibBundleDir)KitLib.dll" />
+      Command="&quot;$(_IlRepackExe)&quot; /ndebug /lib:&quot;$(Sts2DataDir)&quot; /out:&quot;$(_KitLibBundleDir)KitLib.dll&quot; &quot;$(_KitLibUnmergedDll)&quot; &quot;$(_KitLibBundleDir)KitLib.Abstractions.dll&quot; &quot;$(_KitLibBundleDir)Semver.dll&quot; &quot;$(_KitLibBundleDir)Microsoft.Extensions.Primitives.dll&quot;" />
+    <Delete Files="$(_KitLibUnmergedDll)" />
   </Target>
 </Project>

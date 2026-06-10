@@ -4,10 +4,10 @@ namespace KitLib.ModPanel.Tests;
 
 public sealed class Sts2ProfileMapTests {
     [Fact]
-    public void Resolve_stable_1059_windows() {
+    public void Resolve_stable_1033_windows() {
         Assert.Equal(
             Sts2GameProfile.StablePre106,
-            Sts2ProfileMap.Resolve("0.105.9", Sts2Platform.Windows));
+            Sts2ProfileMap.Resolve("0.103.3", Sts2Platform.Windows));
     }
 
     [Fact]
@@ -25,7 +25,10 @@ public sealed class Sts2ProfileMapTests {
     }
 
     [Fact]
-    public void Resolve_outside_supported_range_unknown() {
+    public void Resolve_unpinned_versions_unknown() {
+        Assert.Equal(
+            Sts2GameProfile.Unknown,
+            Sts2ProfileMap.Resolve("0.105.9", Sts2Platform.Windows));
         Assert.Equal(
             Sts2GameProfile.Unknown,
             Sts2ProfileMap.Resolve("0.108.0", Sts2Platform.Windows));
@@ -42,9 +45,14 @@ public sealed class Sts2ProfileMapTests {
     }
 
     [Fact]
-    public void Resolve_android_outside_pc_ranges_unknown() {
+    public void Resolve_android_unknown_even_when_pinned() {
         Assert.Equal(
             Sts2GameProfile.Unknown,
             Sts2ProfileMap.Resolve("0.106.1", Sts2Platform.Android));
+    }
+
+    [Fact]
+    public void PinnedGameVersions_lists_exact_pins() {
+        Assert.Equal(["0.103.3", "0.106.1"], Sts2ProfileMap.PinnedGameVersions);
     }
 }

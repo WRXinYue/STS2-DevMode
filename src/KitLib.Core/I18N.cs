@@ -64,7 +64,6 @@ public static class I18N {
         lang ??= ResolveLanguage();
         _translations = Load(lang);
         _loadedLang = lang;
-        MainFile.Logger.Info($"[KitLib.I18N] Loaded {_translations.Count} strings for '{lang}'.");
     }
 
     private static Dictionary<string, string> Load(string lang) {
@@ -75,8 +74,8 @@ public static class I18N {
                 var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(fsPath));
                 if (dict != null) return dict;
             }
-            catch (Exception ex) {
-                MainFile.Logger.Warn($"[KitLib.I18N] Failed to load '{fsPath}': {ex.Message}");
+            catch {
+                // ignore corrupt external locale file
             }
         }
 
@@ -89,16 +88,14 @@ public static class I18N {
                 var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(reader.ReadToEnd());
                 if (dict != null) return dict;
             }
-            catch (Exception ex) {
-                MainFile.Logger.Warn($"[KitLib.I18N] Failed to load embedded '{resourceName}': {ex.Message}");
+            catch {
+                // ignore corrupt embedded locale resource
             }
         }
 
         // 3. If non-English locale not found, fall back to eng
-        if (!string.Equals(lang, "eng", StringComparison.OrdinalIgnoreCase)) {
-            MainFile.Logger.Info($"[KitLib.I18N] No translations for '{lang}', falling back to 'eng'.");
+        if (!string.Equals(lang, "eng", StringComparison.OrdinalIgnoreCase))
             return Load("eng");
-        }
 
         return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     }
@@ -124,8 +121,8 @@ public static class I18N {
         try {
             LocManager.Instance?.SubscribeToLocaleChange(OnLocaleChanged);
         }
-        catch (Exception ex) {
-            MainFile.Logger.Info($"[KitLib.I18N] Could not subscribe to locale changes: {ex.Message}");
+        catch {
+            // locale subscription optional
         }
     }
 

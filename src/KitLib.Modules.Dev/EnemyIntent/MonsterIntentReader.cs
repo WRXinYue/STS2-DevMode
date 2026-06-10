@@ -32,7 +32,8 @@ internal sealed record MonsterIntentEntry(
 
 internal static class MonsterIntentReader {
     private const int MaxPredictedTurns = 12;
-    private static readonly Rng DummyRng = new(0);
+    private static Rng? _dummyRng;
+    private static Rng DummyRng => _dummyRng ??= new Rng(0);
 
     internal static bool IsOverlayCombatReady(CombatState? state) {
         if (state == null || !CombatManager.Instance.IsInProgress)

@@ -35,8 +35,7 @@ internal static class ProgressLossPromptUI {
         if (pending == null)
             return false;
 
-        MainFile.Logger.Info("[ProgressGuard] Showing mod character progress loss prompt.");
-        Callable.From(() => Show(mainMenu, pending)).CallDeferred();
+        Show(mainMenu, pending);
         return true;
     }
 

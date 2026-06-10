@@ -1,7 +1,6 @@
 using System;
 using Godot;
 using HarmonyLib;
-using KitLib.Feedback;
 using KitLib.UI;
 using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 using MegaCrit.Sts2.Core.Nodes.Screens.CharacterSelect;
@@ -18,14 +17,11 @@ public static class MainMenuPatch {
     [HarmonyPatch("_Ready")]
     public static void AddDevModeButtonPrefix(NMainMenu __instance) {
         KitLib.DevPerf.KitLibRootServices.EnsureRootServicesNode();
-        CrashRecoveryHooks.EnsureLifecycleNode();
         _mainMenuRef = __instance;
 
         var settingsBtn = __instance.GetNodeOrNull<NMainMenuTextButton>("MainMenuTextButtons/SettingsButton");
-        if (settingsBtn == null) {
-            MainFile.Logger.Warn("KitLib: Could not find Settings button.");
+        if (settingsBtn == null)
             return;
-        }
 
         var container = settingsBtn.GetParent();
 
@@ -33,14 +29,12 @@ public static class MainMenuPatch {
             settingsBtn,
             container,
             "KitLibButton",
-            I18N.T("menu.developerMode", "DEVMODE"),
+            "DEVMODE",
             OnDevModeButtonPressed);
 
         var quitBtn = __instance.GetNodeOrNull<NMainMenuTextButton>("MainMenuTextButtons/QuitButton");
         int insertAt = quitBtn != null ? quitBtn.GetIndex() : container.GetChildCount();
         container.MoveChild(_devModeButton, insertAt);
-
-        MainFile.Logger.Info("KitLib: Main menu Developer Mode button added.");
     }
 
     [HarmonyPostfix]
@@ -68,13 +62,13 @@ public static class MainMenuPatch {
         if (CrashRecoveryPromptUI.TryShowStartupPrompt(__instance))
             return;
 
+
         if (_devModeButton == null || !GodotObject.IsInstanceValid(_devModeButton))
             return;
 
         if (KitLibState.AutoProceedToCharSelect) {
             KitLibState.AutoProceedToCharSelect = false;
             KitLibState.InDevRun = true;
-            MainFile.Logger.Info("KitLib: Auto-proceeding to character select (Restart with Seed).");
             var charSelect = __instance.SubmenuStack.GetSubmenuType<NCharacterSelectScreen>();
             charSelect.InitializeSingleplayer();
             __instance.SubmenuStack.Push(charSelect);
@@ -96,8 +90,6 @@ public static class MainMenuPatch {
 
     private static void OnDevModeButtonPressed(NButton _) {
         if (_mainMenuRef == null) return;
-
-        MainFile.Logger.Info("KitLib: Opening dev mode menu...");
 
         DevMainMenuUI.Show(_mainMenuRef, new DevMainMenuActions {
             OnNewTest = () => {

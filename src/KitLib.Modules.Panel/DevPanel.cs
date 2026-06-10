@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Godot;
 using KitLib.Actions;
+using KitLib.Dev;
 using KitLib.Actions.CardModes;
 using KitLib.Host;
 using KitLib.Icons;
@@ -181,6 +182,7 @@ internal static class DevPanel {
 
     internal static void OpenScripts() {
         if (_globalUi == null) return;
+        ModuleBootstrap.EnsureBridgesStarted();
         TryDismissCurrent();
         KitLibState.ActivePanel = ActivePanel.Scripts;
 

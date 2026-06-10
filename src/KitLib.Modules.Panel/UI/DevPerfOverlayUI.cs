@@ -91,11 +91,8 @@ internal static class DevPerfOverlayUI {
         public void SyncVisibility() {
             var show = ShouldShow();
             Visible = show;
-            if (show != _lastVisible) {
+            if (show != _lastVisible)
                 _lastVisible = show;
-                MainFile.Logger.Info(
-                    $"[Perf] Overlay visibility={(show ? "visible" : "hidden")} enabled={SettingsStore.Current.PerfHudEnabled} active={KitLibState.IsActive}");
-            }
 
             if (show) {
                 MoveToFront();

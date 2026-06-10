@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using KitLib.Dev;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -24,7 +25,7 @@ internal sealed class CrashReport {
 }
 
 /// <summary>
-/// Persists session markers and pending crash reports under <see cref="DataPaths.BaseDir"/>.
+/// Persists session markers and pending crash reports under adopted <see cref="DevModDataPaths.Root"/>.
 /// Thread-safe for calls from the unhandled-exception handler.
 /// </summary>
 internal static class CrashRecoveryStore {
@@ -36,10 +37,12 @@ internal static class CrashRecoveryStore {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    private static string PendingReportPath => Path.Combine(DataPaths.BaseDir, "pending-crash-report.json");
+    private static string ModDataRoot => DevModDataPaths.Root;
+
+    private static string PendingReportPath => Path.Combine(ModDataRoot, "pending-crash-report.json");
 
     private static string SessionActivePath =>
-        Path.Combine(DataPaths.BaseDir, "instances", KitLibInstance.ProcessId.ToString(), "session.active");
+        Path.Combine(ModDataRoot, "instances", KitLibInstance.ProcessId.ToString(), "session.active");
 
     internal static void MarkSessionStarted() {
         lock (FileLock) {
@@ -50,8 +53,8 @@ internal static class CrashRecoveryStore {
                     Directory.CreateDirectory(dir);
                 File.WriteAllText(SessionActivePath, $"{DateTime.UtcNow:O}\n{KitLibInstance.ProcessId}");
             }
-            catch (Exception ex) {
-                MainFile.Logger.Warn($"[KitLib CrashRecovery] Failed to mark session started: {ex.Message}");
+            catch {
+                // Best-effort session marker; startup prompt is the fallback.
             }
         }
     }
@@ -151,7 +154,7 @@ internal static class CrashRecoveryStore {
     }
 
     private static void DetectOrphanSessionsLocked() {
-        var instancesDir = Path.Combine(DataPaths.BaseDir, "instances");
+        var instancesDir = Path.Combine(ModDataRoot, "instances");
         if (!Directory.Exists(instancesDir))
             return;
 

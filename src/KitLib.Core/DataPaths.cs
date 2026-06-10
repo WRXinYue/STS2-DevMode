@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Godot;
+using KitLib.Host;
 using MegaCrit.Sts2.Core.Saves;
 
 namespace KitLib;
@@ -17,28 +18,67 @@ public static class DataPaths {
     private static string? _baseDir;
 
     /// <summary>Absolute filesystem path to the KitLib user-data root.</summary>
-    public static string BaseDir => _baseDir ??= ResolveBaseDir();
+    public static string BaseDir => ResolvedBaseDir();
 
-    public static string SettingsFile => Path.Combine(BaseDir, "settings.json");
-    public static string SnapshotsDir => Path.Combine(BaseDir, "snapshots");
-    public static string PresetsDir => Path.Combine(BaseDir, "presets");
-    public static string ScriptsDir => Path.Combine(BaseDir, "scripts");
-    public static string FingerprintFile => Path.Combine(BaseDir, "last_mod_fingerprint.json");
-    public static string ProfileBackupsDir => Path.Combine(BaseDir, "profile_backups");
+    /// <summary>Pin paths during mod init; scene-ready bootstrap must not re-call Godot path APIs (H28).</summary>
+    public static void EnsurePinnedOnMainThread() {
+        if (_baseDir == null)
+            _baseDir = ResolveBaseDir();
+        KitLibHost.PinModDataDir(_baseDir);
+    }
+
+    internal static bool TryGetPinnedBaseDir(out string path) {
+        if (_baseDir != null) {
+            path = _baseDir;
+            return true;
+        }
+        if (!string.IsNullOrEmpty(KitLibHost.ModDataDir)) {
+            path = KitLibHost.ModDataDir;
+            _baseDir = path;
+            return true;
+        }
+        path = "";
+        return false;
+    }
+
+    internal static string GetPinnedBaseDir() {
+        if (TryGetPinnedBaseDir(out var path))
+            return path;
+        throw new InvalidOperationException("DataPaths not pinned — call EnsurePinnedOnMainThread during mod init.");
+    }
+
+    public static string SettingsFile => Path.Combine(ResolvedBaseDir(), "settings.json");
+    public static string SnapshotsDir => Path.Combine(ResolvedBaseDir(), "snapshots");
+    public static string PresetsDir => Path.Combine(ResolvedBaseDir(), "presets");
+    public static string ScriptsDir => Path.Combine(ResolvedBaseDir(), "scripts");
+    public static string FingerprintFile => Path.Combine(ResolvedBaseDir(), "last_mod_fingerprint.json");
+    public static string ProfileBackupsDir => Path.Combine(ResolvedBaseDir(), "profile_backups");
+
+    private static string ResolvedBaseDir() {
+        if (TryGetPinnedBaseDir(out var path))
+            return path;
+        return _baseDir ??= ResolveBaseDir();
+    }
 
     private static string ResolveBaseDir() {
         var kitLibPath = UserDataPathProvider.GetAccountScopedBasePath(ModDataSubdir);
         var kitLibDir = ProjectSettings.GlobalizePath(kitLibPath);
-        TryMigrateLegacyDataDir(kitLibDir);
+        var legacyPath = UserDataPathProvider.GetAccountScopedBasePath(LegacyModDataSubdir);
+        var legacyDir = ProjectSettings.GlobalizePath(legacyPath);
+        try {
+            Directory.CreateDirectory(kitLibDir);
+        }
+        catch (Exception) {
+        }
+        TryMigrateLegacyDataDir(kitLibDir, legacyDir);
+        KitLibHost.PinModDataDir(kitLibDir);
         return kitLibDir;
     }
 
-    private static void TryMigrateLegacyDataDir(string kitLibDir) {
+    private static void TryMigrateLegacyDataDir(string kitLibDir, string legacyDir) {
         if (Directory.Exists(kitLibDir) && Directory.EnumerateFileSystemEntries(kitLibDir).GetEnumerator().MoveNext())
             return;
 
-        var legacyPath = UserDataPathProvider.GetAccountScopedBasePath(LegacyModDataSubdir);
-        var legacyDir = ProjectSettings.GlobalizePath(legacyPath);
         if (!Directory.Exists(legacyDir))
             return;
 
@@ -47,10 +87,8 @@ public static class DataPaths {
             if (Directory.Exists(kitLibDir))
                 Directory.Delete(kitLibDir, recursive: true);
             Directory.Move(legacyDir, kitLibDir);
-            MainFile.Logger.Info($"[KitLib] Migrated user data from {LegacyModDataSubdir} to {ModDataSubdir}.");
         }
-        catch (Exception ex) {
-            MainFile.Logger.Warn($"[KitLib] Legacy data migration failed: {ex.Message}");
+        catch (Exception) {
         }
     }
 }

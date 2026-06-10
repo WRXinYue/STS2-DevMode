@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using KitLib;
 using System.Linq;
 using Godot;
 using MegaCrit.Sts2.Core.Combat;
@@ -13,14 +14,27 @@ namespace KitLib.EnemyIntent;
 internal static class MonsterIntentOverrides {
     private static readonly Dictionary<string, Dictionary<int, string>> _overrides = new(StringComparer.Ordinal);
     private static bool _initialized;
+    private static bool _wired;
 
     internal static void Initialize() {
         if (_initialized)
             return;
         _initialized = true;
+    }
 
-        CombatManager.Instance.CombatEnded += _ => ClearAll();
-        CombatManager.Instance.TurnStarted += OnTurnStarted;
+    internal static void EnsureWired() {
+        if (_wired) return;
+        try {
+            var combatManager = CombatManager.Instance;
+            if (combatManager == null)
+                return;
+
+            combatManager.CombatEnded += _ => ClearAll();
+            combatManager.TurnStarted += OnTurnStarted;
+            _wired = true;
+        }
+        catch (Exception) {
+        }
     }
 
     internal static bool HasOverride(string enemyKey, int turnIndex) =>

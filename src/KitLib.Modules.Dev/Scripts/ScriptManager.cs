@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
+using KitLib;
+using KitLib.Dev;
 using KitLib.Hooks;
 using MegaCrit.Sts2.Core.Entities.Players;
 
@@ -48,12 +51,15 @@ internal static class ScriptManager {
         if (_initialized) return;
         _initialized = true;
 
-        ScriptsDir = DataPaths.ScriptsDir;
-
-        Reload();
-        StartWatcher();
-
-        MainFile.Logger.Info($"[ScriptManager] Initialized — {_scripts.Count} script(s) from {ScriptsDir}");
+        ThreadPool.QueueUserWorkItem(_ => {
+            try {
+                ScriptsDir = DevModDataPaths.ScriptsDir;
+                Reload();
+                StartWatcher();
+            }
+            catch (Exception) {
+        }
+        });
     }
 
     public static void Shutdown() {
@@ -130,13 +136,11 @@ internal static class ScriptManager {
                             ParseError = ex.Message,
                         });
                         LastError = $"{Path.GetFileName(file)}: {ex.Message}";
-                        MainFile.Logger.Warn($"[ScriptManager] Parse error in {Path.GetFileName(file)}: {ex.Message}");
                     }
                 }
             }
             catch (Exception ex) {
                 LastError = ex.Message;
-                MainFile.Logger.Warn($"[ScriptManager] Reload failed: {ex.Message}");
             }
 
             _scripts = next;

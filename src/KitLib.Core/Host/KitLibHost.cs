@@ -19,6 +19,11 @@ public static class KitLibHost {
     static readonly Dictionary<ulong, object> NetIdStrategies = [];
     static bool _bootstrapped;
 
+    /// <summary>Pinned mod_data root; shared across satellite assemblies (H29).</summary>
+    public static string ModDataDir { get; private set; } = "";
+
+    internal static void PinModDataDir(string path) => ModDataDir = path;
+
     internal static Func<object>? CatalogAccessor;
 
     public static void Bootstrap() {
@@ -185,6 +190,29 @@ public static class KitLibHost {
     public static Action? NotifyGameContextPaneChanged { get; set; }
     public static Action? NotifyHotkeySettingsChanged { get; set; }
     public static Func<Creature, IReadOnlyList<Creature>, object, JsonArray>? CaptureMonsterIntentSteps { get; set; }
+
+    /// <summary>Registered by <c>KitLib.Dev.ModuleEntry</c>; invoked from <c>KitLibProcessNode</c> when SceneTree is ready.</summary>
+    public static Action? RequestDevBootstrap { get; set; }
+
+    /// <summary>Registered by <c>KitLib.Dev.ModuleEntry</c>; Dev Harmony applied after satellite load returns.</summary>
+    public static Action? EnsureDevHarmonyApplied { get; set; }
+
+    public static void TryEnsureDevHarmonyApplied() {
+        try {
+            EnsureDevHarmonyApplied?.Invoke();
+        }
+        catch (Exception ex) {
+            MainFile.Logger.Warn($"[KitLib] Dev Harmony apply failed: {ex.Message}");
+        }
+    }
+
+    public static void TryRunDevBootstrap() {
+        try {
+            RequestDevBootstrap?.Invoke();
+        }
+        catch (Exception) {
+        }
+    }
 
     public static void RegisterDeckPlanContributor(object contributor) =>
         RegisterDeckPlanContributorHandler?.Invoke(contributor);

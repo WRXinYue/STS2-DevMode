@@ -125,6 +125,11 @@ internal static class ModAssemblyLoader {
         return null;
     }
 
+    internal static bool IsAbstractionsMergedIntoCore(Assembly? core = null) {
+        core ??= FindLoaded("KitLib");
+        return core?.GetType("KitLib.Abstractions.Compat.Sts2ProfileMap", throwOnError: false) != null;
+    }
+
     static Assembly PreloadIntoContext(AssemblyLoadContext context, string path) {
         var simple = AssemblyName.GetAssemblyName(path).Name;
         var existing = FindLoadedInContext(context, simple);
@@ -133,6 +138,8 @@ internal static class ModAssemblyLoader {
 
         return context.LoadFromAssemblyPath(path);
     }
+
+    internal static Assembly? GetLoadedAssembly(string? simpleName) => FindLoaded(simpleName);
 
     static Assembly? FindLoaded(string? simpleName) {
         if (string.IsNullOrEmpty(simpleName))

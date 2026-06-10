@@ -1,5 +1,7 @@
 using Godot;
+using KitLib.Dev;
 using KitLib.Feedback;
+using KitLib.Host;
 using KitLib.Hotkeys;
 using KitLib.Mcp;
 using KitLib.Patches;
@@ -22,6 +24,8 @@ internal partial class KitLibProcessNode : Node {
         Instance = this;
         ProcessPriority = 128;
         SetProcessInput(true);
+        if (!ModuleBootstrap.IsBootstrapComplete)
+            KitLibHost.TryRunDevBootstrap();
     }
 
     public override void _Input(InputEvent @event) {

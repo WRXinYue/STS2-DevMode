@@ -1,5 +1,8 @@
 using System;
 using HarmonyLib;
+using KitLib;
+using KitLib.CombatStats;
+using KitLib.EnemyIntent;
 using KitLib.Hooks;
 using KitLib.Scripts;
 using MegaCrit.Sts2.Core.Combat;
@@ -24,6 +27,10 @@ public static class HookCombatSetupPatch {
     private static Action<CombatRoom>? _combatEndHandler;
 
     public static void Postfix(CombatManager __instance) {
+        CombatStatsTracker.EnsureWired();
+        MonsterIntentOverlayTracker.EnsureWired();
+        MonsterIntentOverrides.EnsureWired();
+
         if (!KitLibState.IsActive) return;
 
         // Unsubscribe stale handlers from a previous combat session
@@ -126,14 +133,11 @@ public static class ScriptCardPlayedPatch {
             try {
                 var postfix = new HarmonyMethod(typeof(ScriptCardPlayedPatch), nameof(Postfix));
                 harmony.Patch(method, postfix: postfix);
-                MainFile.Logger.Info($"[HookPatches] OnCardPlayed bound to CombatManager.{name}");
                 return;
             }
             catch (System.Exception ex) {
-                MainFile.Logger.Warn($"[HookPatches] Failed to patch CombatManager.{name}: {ex.Message}");
             }
         }
-        MainFile.Logger.Info("[HookPatches] OnCardPlayed: no matching method found — trigger disabled.");
     }
 
     public static void Postfix() {
@@ -145,13 +149,26 @@ public static class ScriptCardPlayedPatch {
     }
 }
 
-/// <summary>Fire OnShuffle when the draw pile is shuffled.</summary>
-[HarmonyPatch(typeof(CardPileCmd), nameof(CardPileCmd.Shuffle))]
+/// <summary>Fire OnShuffle when the draw pile is shuffled (manual patch — see <see cref="TryApply"/>).</summary>
 public static class ScriptShufflePatch {
-    public static void Postfix() {
+    public static void TryApply(HarmonyLib.Harmony harmony) {
+        var method = AccessTools.Method(
+            typeof(CardPileCmd),
+            nameof(CardPileCmd.Shuffle),
+            [typeof(PlayerChoiceContext), typeof(Player)]);
+        if (method == null) {
+            return;
+        }
+
+        try {
+            harmony.Patch(method, postfix: new HarmonyMethod(typeof(ScriptShufflePatch), nameof(Postfix)));
+        }
+        catch (Exception) {
+        }
+    }
+
+    public static void Postfix(Player player) {
         if (!KitLibState.IsActive) return;
-        Player? player = null;
-        RunContext.TryGetRunAndPlayer(out _, out player);
         HookManager.Fire(TriggerType.OnShuffle, player);
         ScriptManager.Fire(TriggerType.OnShuffle, player);
     }

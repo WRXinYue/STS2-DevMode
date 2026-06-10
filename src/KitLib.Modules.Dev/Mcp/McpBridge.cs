@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using KitLib;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -21,6 +22,13 @@ internal static class McpBridge {
     public static bool IsRunning => _listener?.IsListening ?? false;
 
     public static void Start() {
+        if (_listener != null)
+            return;
+
+        ThreadPool.QueueUserWorkItem(_ => StartCore());
+    }
+
+    internal static void StartCore() {
         if (_listener != null)
             return;
 
@@ -49,11 +57,8 @@ internal static class McpBridge {
             _listener.Prefixes.Add($"http://127.0.0.1:{McpConfig.Port}/");
             _listener.Start();
             _ = Task.Run(() => ListenLoop(_cts.Token));
-            MainFile.Logger.Info(
-                $"[McpBridge] Listening on http://localhost:{McpConfig.Port}/ (tools: {string.Join(", ", Tools.ListToolNames())})");
         }
         catch (Exception ex) {
-            MainFile.Logger.Warn($"[McpBridge] Failed to start: {ex.Message}");
             _listener = null;
             _cts?.Dispose();
             _cts = null;

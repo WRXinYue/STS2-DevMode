@@ -18,6 +18,8 @@ internal static class ModDependencyLoader {
         if (string.IsNullOrEmpty(modDir))
             return false;
 
+        ModAssemblyLoader.EnsureResolveHook(modDir);
+
         var abstractions = Path.Combine(modDir, AbstractionsFileName);
         if (!File.Exists(abstractions)) {
             if (log)
@@ -25,7 +27,6 @@ internal static class ModDependencyLoader {
             return false;
         }
 
-        ModAssemblyLoader.EnsureResolveHook(modDir);
         foreach (var fileName in AbstractionsRuntimeDeps) {
             var path = Path.Combine(modDir, fileName);
             if (!File.Exists(path)) {

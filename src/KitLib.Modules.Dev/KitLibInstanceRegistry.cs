@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+
+using KitLib.Dev;
 
 namespace KitLib;
 
@@ -14,7 +17,7 @@ internal static class KitLibInstanceRegistry {
     private static readonly TimeSpan MaxInstanceLogAge = TimeSpan.FromDays(14);
     private const int MaxRetainedInstanceLogs = 30;
 
-    private static string InstancesDir => Path.Combine(DataPaths.BaseDir, "instances");
+    private static string InstancesDir => DevModDataPaths.InstancesDir;
     private static string LockPath => Path.Combine(InstancesDir, $"{KitLibInstance.ProcessId}.lock");
 
     public static void Register() {
@@ -22,10 +25,18 @@ internal static class KitLibInstanceRegistry {
             Directory.CreateDirectory(InstancesDir);
             WriteLock();
             CleanupStaleLocks();
+            // Heavy folder deletes during bootstrap hard-crash the process (H14); defer to background.
+            ThreadPool.QueueUserWorkItem(_ => SafeCleanupStaleInstanceLogs());
+        }
+        catch (Exception) {
+        }
+    }
+
+    static void SafeCleanupStaleInstanceLogs() {
+        try {
             CleanupStaleInstanceLogs();
         }
-        catch (Exception ex) {
-            MainFile.Logger.Warn($"[KitLib] Instance registry register failed: {ex.Message}");
+        catch (Exception) {
         }
     }
 
@@ -129,8 +140,8 @@ internal static class KitLibInstanceRegistry {
                 removed++;
         }
 
-        if (removed > 0)
-            MainFile.Logger.Info($"[KitLib] Cleaned {removed} stale instance log folder(s).");
+        if (removed > 0) {
+        }
     }
 
     private static bool IsLockFresh(int pid, DateTime now) {
@@ -169,7 +180,6 @@ internal static class KitLibInstanceRegistry {
             return true;
         }
         catch (Exception ex) {
-            MainFile.Logger.Warn($"[KitLib] Instance log cleanup failed for {path}: {ex.Message}");
             return false;
         }
     }

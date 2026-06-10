@@ -1,4 +1,6 @@
 using Godot;
+using KitLib.Feedback;
+using KitLib.Host;
 using KitLib.Hotkeys;
 using KitLib.UI;
 
@@ -11,29 +13,25 @@ internal static class KitLibRootServices {
     internal static KitLibRootServicesNode? Instance { get; set; }
 
     internal static void EnsureRootServicesNode() {
-        if (Engine.GetMainLoop() is not SceneTree tree) {
-            MainFile.Logger.Debug("[Perf] EnsureRootServicesNode skipped (no SceneTree).");
+        if (Engine.GetMainLoop() is not SceneTree tree)
             return;
-        }
 
         var root = tree.Root;
-        if (root == null || !GodotObject.IsInstanceValid(root)) {
-            MainFile.Logger.Debug("[Perf] EnsureRootServicesNode skipped (invalid root).");
+        if (root == null || !GodotObject.IsInstanceValid(root))
             return;
-        }
 
         var existing = root.GetNodeOrNull<KitLibRootServicesNode>(RootNodeName);
         if (existing != null && GodotObject.IsInstanceValid(existing)) {
             Instance = existing;
-            existing.EnsureOverlayAttached();
             DevPerfOverlayUI.SyncVisibility();
+            KitLibHost.TryRunDevBootstrap();
             return;
         }
 
         var node = new KitLibRootServicesNode { Name = RootNodeName };
         root.AddChild(node);
         Instance = node;
-        MainFile.Logger.Info("[Perf] Root services CanvasLayer attached.");
+        KitLibHost.TryRunDevBootstrap();
     }
 }
 
@@ -48,6 +46,7 @@ internal partial class KitLibRootServicesNode : CanvasLayer {
         SetProcess(true);
         SetProcessUnhandledInput(true);
         Callable.From(EnsureOverlayAttached).CallDeferred();
+        Callable.From(() => CrashRecoveryHooks.EnsureLifecycleNode(this)).CallDeferred();
     }
 
     public override void _ExitTree() {

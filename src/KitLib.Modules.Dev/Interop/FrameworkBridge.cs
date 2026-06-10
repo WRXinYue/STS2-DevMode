@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using KitLib;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -55,10 +56,8 @@ public static class FrameworkBridge {
 
     /// <summary>Subscribe once to RitsuLib lifecycle (replayable) and log a one-line snapshot.</summary>
     public static void Initialize() {
-        if (!IsAvailable) {
-            MainFile.Logger.Info("[KitLib Bridge] RitsuLib not present — bridge disabled.");
+        if (!IsAvailable)
             return;
-        }
 
         try {
             // RitsuLibFramework.SubscribeLifecycle<FrameworkInitializedEvent>(handler)
@@ -77,20 +76,9 @@ public static class FrameworkBridge {
                 }
             }
         }
-        catch (Exception ex) {
-            MainFile.Logger.Warn($"[KitLib Bridge] RitsuLib lifecycle subscribe failed: {ex.Message}");
+        catch (Exception) {
         }
 
-        try {
-            var s = CaptureSnapshot();
-            MainFile.Logger.Info(
-                $"[KitLib Bridge] Ritsu init={s.RitsuLibInitialized} active={s.RitsuLibActive} " +
-                $"pages={s.RitsuLibModSettingsPageCount} mods={s.RitsuLibDistinctOwningModCount} | " +
-                $"harmony methods={s.HarmonyStats.PatchedMethodCount}");
-        }
-        catch (Exception ex) {
-            MainFile.Logger.Warn($"[KitLib Bridge] snapshot failed: {ex.Message}");
-        }
     }
 
     public static FrameworkBridgeSnapshot CaptureSnapshot() {
@@ -236,15 +224,6 @@ public static class FrameworkBridge {
     }
 
     private static void LogFrameworkEvent<T>(T evt) {
-        try {
-            var type = typeof(T);
-            string modId = type.GetProperty("FrameworkModId")?.GetValue(evt) as string ?? "?";
-            bool isActive = (bool)(type.GetProperty("IsActive")?.GetValue(evt) ?? false);
-            MainFile.Logger.Info(
-                $"[KitLib Bridge] RitsuLib event: modId={modId}, active={isActive}");
-        }
-        catch (Exception ex) {
-            MainFile.Logger.Warn($"[KitLib Bridge] event log failed: {ex.Message}");
-        }
+        // Snapshot on demand via CaptureSnapshot(); avoid MainFile.Logger on event path.
     }
 }

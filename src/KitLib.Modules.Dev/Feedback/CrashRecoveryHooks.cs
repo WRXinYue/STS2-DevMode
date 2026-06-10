@@ -7,34 +7,42 @@ namespace KitLib.Feedback;
 internal static class CrashRecoveryHooks {
     private const string LifecycleNodeName = "KitLibCrashRecoveryLifecycle";
 
-    private static bool _registered;
+    private static bool _handlersRegistered;
 
-    internal static void Register() {
-        if (_registered)
+    internal static void RegisterHandlers() {
+        if (_handlersRegistered)
             return;
-        _registered = true;
+        _handlersRegistered = true;
 
         AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
         AppDomain.CurrentDomain.ProcessExit += (_, _) => CrashRecoveryStore.MarkSessionCleanExit();
-        Callable.From(EnsureLifecycleNode).CallDeferred();
+    }
+
+    internal static void Register() {
+        RegisterHandlers();
+        Callable.From(() => EnsureLifecycleNode()).CallDeferred();
     }
 
     /// <summary>
     /// Hooks Godot shutdown so <see cref="CrashRecoveryStore.MarkSessionCleanExit"/> runs
     /// even when <see cref="AppDomain.ProcessExit"/> does not (common on normal game quit).
     /// </summary>
-    internal static void EnsureLifecycleNode() {
-        if (Engine.GetMainLoop() is not SceneTree tree)
+    internal static void EnsureLifecycleNode(Node? parent = null) {
+        if (parent == null || !GodotObject.IsInstanceValid(parent)) {
+            if (Engine.GetMainLoop() is not SceneTree tree)
+                return;
+            var root = tree.Root;
+            if (root == null || !GodotObject.IsInstanceValid(root))
+                return;
+            parent = root.GetNodeOrNull<Node>("KitLibRootServices");
+            if (parent == null || !GodotObject.IsInstanceValid(parent))
+                return;
+        }
+
+        if (parent.GetNodeOrNull<Node>(LifecycleNodeName) != null)
             return;
 
-        var root = tree.Root;
-        if (root == null || !GodotObject.IsInstanceValid(root))
-            return;
-
-        if (root.GetNodeOrNull<Node>(LifecycleNodeName) != null)
-            return;
-
-        root.AddChild(new CrashRecoveryLifecycleNode { Name = LifecycleNodeName });
+        parent.AddChild(new CrashRecoveryLifecycleNode { Name = LifecycleNodeName });
     }
 
     private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs e) {

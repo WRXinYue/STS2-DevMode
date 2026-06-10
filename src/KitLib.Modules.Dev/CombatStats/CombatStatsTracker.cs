@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using KitLib;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Combat.History.Entries;
 using MegaCrit.Sts2.Core.Entities.Cards;
@@ -19,13 +20,16 @@ namespace KitLib.CombatStats;
 internal static class CombatStatsTracker {
     private const int MaxEventsPerPlayer = 200;
 
-    private static readonly CombatHistoryTailer _tailer = new();
+    private static CombatHistoryTailer? _tailer;
     private static bool _initialized;
+    private static bool _wired;
 
-    private static CombatStatsSnapshot _current = new();
+    private static CombatStatsSnapshot? _current;
     private static CombatStatsSnapshot? _last;
-    private static CombatStatsSnapshot _runTotal = new();
+    private static CombatStatsSnapshot? _runTotal;
     private static int _runCombatCount;
+
+    private static CombatHistoryTailer Tailer => _tailer ??= new CombatHistoryTailer();
 
     /// <summary>Maps (receiver creature, power id) → player stats key who applied it.</summary>
     private static readonly Dictionary<(string ReceiverKey, string PowerId), string> _powerAppliers = new();
@@ -34,19 +38,32 @@ internal static class CombatStatsTracker {
 
     public static event Action? Changed;
 
-    public static CombatStatsSnapshot Current => _current;
+    public static CombatStatsSnapshot Current => _current ??= new CombatStatsSnapshot();
     public static CombatStatsSnapshot? Last => _last;
-    public static CombatStatsSnapshot RunTotal => _runTotal;
+    public static CombatStatsSnapshot RunTotal => _runTotal ??= new CombatStatsSnapshot();
     public static int RunCombatCount => _runCombatCount;
-    public static bool IsTracking => _current.IsActive;
+    public static bool IsTracking => _current?.IsActive ?? false;
 
     public static void Initialize() {
         if (_initialized) return;
         _initialized = true;
+    }
 
-        RunManager.Instance.RunStarted += OnRunStarted;
-        CombatManager.Instance.CombatSetUp += OnCombatSetUp;
-        CombatManager.Instance.CombatEnded += OnCombatEnded;
+    internal static void EnsureWired() {
+        if (_wired) return;
+        try {
+            var runManager = RunManager.Instance;
+            var combatManager = CombatManager.Instance;
+            if (runManager == null || combatManager == null)
+                return;
+
+            runManager.RunStarted += OnRunStarted;
+            combatManager.CombatSetUp += OnCombatSetUp;
+            combatManager.CombatEnded += OnCombatEnded;
+            _wired = true;
+        }
+        catch (Exception) {
+        }
     }
 
     private static void OnRunStarted(RunState state) {
@@ -70,16 +87,16 @@ internal static class CombatStatsTracker {
                 GetOrCreate(player.Creature);
         }
 
-        _tailer.Attach(CombatManager.Instance.History, state);
+        Tailer.Attach(CombatManager.Instance.History, state);
         NotifyChanged();
     }
 
     private static void OnCombatEnded(CombatRoom room) {
-        _tailer.Detach();
+        Tailer.Detach();
         PendingPowerDamage = PowerDamageContext.None;
         _powerAppliers.Clear();
 
-        if (!_current.IsActive) return;
+        if (_current is not { IsActive: true }) return;
 
         _current.IsActive = false;
         _last = _current.Clone();
@@ -96,7 +113,7 @@ internal static class CombatStatsTracker {
         CardModel? cardSource,
         int roundNumber,
         CombatSide currentSide) {
-        if (!_current.IsActive) return;
+        if (_current is not { IsActive: true }) return;
 
         _current.MaxTurn = Math.Max(_current.MaxTurn, roundNumber);
 
@@ -179,7 +196,7 @@ internal static class CombatStatsTracker {
     }
 
     internal static void RecordBlockGained(Creature receiver, int amount, CardPlay? cardPlay, int roundNumber) {
-        if (!_current.IsActive || amount <= 0 || !receiver.IsPlayer) return;
+        if (_current is not { IsActive: true } || amount <= 0 || !receiver.IsPlayer) return;
 
         var stats = GetOrCreate(receiver);
         stats.BlockGained += amount;
@@ -193,7 +210,7 @@ internal static class CombatStatsTracker {
     }
 
     internal static void RecordCardPlay(CardPlay cardPlay, int roundNumber) {
-        if (!_current.IsActive) return;
+        if (_current is not { IsActive: true }) return;
 
         var owner = cardPlay.Card.Owner?.Creature;
         if (owner == null || !owner.IsPlayer) return;
@@ -214,7 +231,7 @@ internal static class CombatStatsTracker {
     }
 
     internal static void RecordEnergySpent(int amount, Creature playerCreature, int roundNumber) {
-        if (!_current.IsActive || amount <= 0 || !playerCreature.IsPlayer) return;
+        if (_current is not { IsActive: true } || amount <= 0 || !playerCreature.IsPlayer) return;
 
         var stats = GetOrCreate(playerCreature);
         stats.EnergySpent += amount;
@@ -222,7 +239,7 @@ internal static class CombatStatsTracker {
     }
 
     internal static void RecordPotionUsed(PotionModel potion, int roundNumber) {
-        if (!_current.IsActive) return;
+        if (_current is not { IsActive: true }) return;
 
         var owner = potion.Owner?.Creature;
         if (owner == null || !owner.IsPlayer) return;
@@ -240,7 +257,7 @@ internal static class CombatStatsTracker {
         Creature? applier,
         int roundNumber,
         int stacks) {
-        if (!_current.IsActive) return;
+        if (_current is not { IsActive: true }) return;
         if (power.Type != PowerType.Debuff) return;
 
         // Only score debuffs applied by players (or their pets), not enemy debuffs on players.
@@ -266,7 +283,7 @@ internal static class CombatStatsTracker {
         Creature? applier,
         int roundNumber,
         int stacks) {
-        if (!_current.IsActive) return;
+        if (_current is not { IsActive: true }) return;
         if (power.Type != PowerType.Buff) return;
         if (!IsTrackablePower(power, stacks)) return;
 
@@ -365,7 +382,7 @@ internal static class CombatStatsTracker {
     }
 
     internal static void RecordEnemyMove(MonsterModel monster, int roundNumber) {
-        if (!_current.IsActive) return;
+        if (_current is not { IsActive: true }) return;
 
         var player = ResolvePrimaryPlayerCreature();
         if (player == null) return;
