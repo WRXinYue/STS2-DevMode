@@ -2,6 +2,7 @@ using Godot;
 using KitLib;
 using KitLib.Settings;
 using KitLib.UI;
+using AbstractionsKitLogLevel = KitLib.Logging.KitLogLevel;
 
 namespace KitLib.Integration;
 
@@ -14,6 +15,29 @@ internal static class KitLibNativeModSettingsUi {
         DevModeFormChrome.ApplyToggle(cb);
         cb.Toggled += on => set(on);
         return DevModeFormChrome.CreateLabeledValueRow(title, description, cb);
+    }
+
+    internal static Control CreateLogLevelRow(
+        string title,
+        string? description,
+        Func<AbstractionsKitLogLevel> get,
+        Action<AbstractionsKitLogLevel> set) {
+        var ob = new OptionButton {
+            FocusMode = Control.FocusModeEnum.All,
+            CustomMinimumSize = new Vector2(DevModeFormChrome.Metrics.ChoiceRowMinWidth,
+                DevModeFormChrome.Metrics.ValueColumnMinHeight),
+        };
+        DevModeFormChrome.ApplyOptionButton(ob);
+        ob.AddItem(I18N.T("modlog.level.debug", "Debug"), (int)AbstractionsKitLogLevel.Debug);
+        ob.AddItem(I18N.T("modlog.level.info", "Info"), (int)AbstractionsKitLogLevel.Info);
+        ob.AddItem(I18N.T("modlog.level.warn", "Warn"), (int)AbstractionsKitLogLevel.Warn);
+        ob.AddItem(I18N.T("modlog.level.error", "Error"), (int)AbstractionsKitLogLevel.Error);
+        var idx = (int)get();
+        if (idx < (int)AbstractionsKitLogLevel.Debug || idx > (int)AbstractionsKitLogLevel.Error)
+            idx = (int)AbstractionsKitLogLevel.Info;
+        ob.Selected = idx;
+        ob.ItemSelected += selected => set((AbstractionsKitLogLevel)(int)selected);
+        return DevModeFormChrome.CreateLabeledValueRow(title, description, ob);
     }
 
     internal static Control CreateNormalRunModeRow() {

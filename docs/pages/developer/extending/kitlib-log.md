@@ -209,6 +209,102 @@ Log.Scope("Combat").Info("turn start");
 - 需要更底层控制时，仍可直接使用上一节的 `KitLibLog` / `KitLibLogScope`。
 :::
 
+## Mod settings: log level row{lang="en"}
+
+## Mod 设置页：日志级别行{lang="zh-CN"}
+
+::: en
+
+When **KitLib.ModPanel** is loaded, add a standard log-level dropdown to your native settings page via **`KitLibModSettingsUiOps.BuildLogLevelRow`** (namespace `KitLib.Abstractions.Modding`). Wire the same getter into **`ModLog`** or **`ModLogSettings`**.
+
+Optional JSON helper:
+
+```csharp
+using KitLib.Abstractions.Modding;
+using KitLib.Logging;
+
+static readonly string LogSettingsPath = Path.Combine(modDataDir, "log-settings.json");
+static ModLogSettings _logSettings = ModLogSettings.Load(LogSettingsPath);
+static readonly ModLog Log = _logSettings.CreateModLog(Main.ModID, WriteFallback);
+```
+
+In `KitLibModSettingsRegistry.Register` → `BuildBody`:
+
+```csharp
+using Godot;
+using KitLib.Abstractions.Modding;
+
+static object BuildLoggingPage() {
+    var stack = new VBoxContainer();
+    var row = KitLibModSettingsUiOps.BuildLogLevelRow?.Invoke(
+        I18N.T("modlog.settings.level.title", "Minimum log level"),
+        I18N.T("modlog.settings.level.desc",
+            "Local filter before KitLib or fallback logging."),
+        () => _logSettings.MinimumLevel,
+        level => {
+            _logSettings.MinimumLevel = level;
+            _logSettings.Save(LogSettingsPath);
+        });
+    if (row is Control c)
+        stack.AddChild(c);
+    return stack;
+}
+```
+
+Notes:
+
+- Delegate is **`null`** when ModPanel is not loaded — use `?.Invoke` and skip or provide your own UI.
+- Level labels use shared keys `modlog.level.*` (Debug / Info / Warn / Error).
+- Changing the level takes effect on the **next log call**; no restart required.
+- If you already have a config type, pass `() => Config.MinKitLogLevel` / `level => { …; Config.Save(); }` instead of `ModLogSettings`.
+:::
+
+::: zh-CN
+
+加载 **KitLib.ModPanel** 后，可通过 **`KitLibModSettingsUiOps.BuildLogLevelRow`**（命名空间 `KitLib.Abstractions.Modding`）在 native 设置页加入标准日志级别下拉框，并与 **`ModLog`** 或 **`ModLogSettings`** 共用同一 getter。
+
+可选 JSON 辅助类：
+
+```csharp
+using KitLib.Abstractions.Modding;
+using KitLib.Logging;
+
+static readonly string LogSettingsPath = Path.Combine(modDataDir, "log-settings.json");
+static ModLogSettings _logSettings = ModLogSettings.Load(LogSettingsPath);
+static readonly ModLog Log = _logSettings.CreateModLog(Main.ModID, WriteFallback);
+```
+
+在 `KitLibModSettingsRegistry.Register` → `BuildBody` 中：
+
+```csharp
+using Godot;
+using KitLib.Abstractions.Modding;
+
+static object BuildLoggingPage() {
+    var stack = new VBoxContainer();
+    var row = KitLibModSettingsUiOps.BuildLogLevelRow?.Invoke(
+        I18N.T("modlog.settings.level.title", "最低日志级别"),
+        I18N.T("modlog.settings.level.desc",
+            "低于此级别的消息在 KitLib 或 fallback 输出前于本地过滤。"),
+        () => _logSettings.MinimumLevel,
+        level => {
+            _logSettings.MinimumLevel = level;
+            _logSettings.Save(LogSettingsPath);
+        });
+    if (row is Control c)
+        stack.AddChild(c);
+    return stack;
+}
+```
+
+说明：
+
+- 未加载 ModPanel 时 delegate 为 **`null`** — 请用 `?.Invoke`，或自行实现 UI。
+- 下拉项标签使用共享键 `modlog.level.*`（Debug / Info / Warn / Error）。
+- 修改级别在 **下一次写日志** 时生效，无需重启。
+- 若已有配置类型，可改用 `() => Config.MinKitLogLevel` / `level => { …; Config.Save(); }`，不必使用 `ModLogSettings`。
+:::
+
 ## Dependencies{lang="en"}
 
 ## 依赖{lang="zh-CN"}

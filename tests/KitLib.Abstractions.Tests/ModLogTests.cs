@@ -101,6 +101,19 @@ public class ModLogTests {
     }
 
     [Fact]
+    public void CreateModLog_from_settings_respects_minimum_level() {
+        var settings = new ModLogSettings { MinimumLevel = KitLogLevel.Warn };
+        var count = 0;
+        var log = settings.CreateModLog("my-mod", (_, _) => count++);
+
+        log.Debug("skip");
+        log.Info("skip");
+        log.Warn("keep");
+
+        Assert.Equal(1, count);
+    }
+
+    [Fact]
     public void Constructor_requires_mod_id_and_fallback() {
         Assert.Throws<ArgumentException>(() => new ModLog("  ", () => KitLogLevel.Info, (_, _) => { }));
         Assert.Throws<ArgumentNullException>(() => new ModLog("mod", () => KitLogLevel.Info, null!));
