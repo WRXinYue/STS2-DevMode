@@ -1,5 +1,4 @@
 using KitLog.Cli.Services;
-using Spectre.Console;
 
 namespace KitLog.Cli.Rendering;
 
@@ -10,52 +9,36 @@ internal static class LogLineRenderer {
             return;
         }
 
-        try {
-            AnsiConsole.MarkupLine(BuildMarkup(line, viewerState));
-        }
-        catch (Exception) {
-            Console.WriteLine(line.DisplayText);
-        }
+        Console.WriteLine(BuildAnsiLine(line, viewerState));
     }
 
-    static string BuildMarkup(ParsedLogLine line, LogViewerFilterState? viewerState) {
-        var levelColor = LevelColor(line.Level);
-        var body = BuildBodyMarkup(line.RawLine, viewerState);
-        return $"[{levelColor}]{body}[/]";
-    }
+    static string BuildAnsiLine(ParsedLogLine line, LogViewerFilterState? viewerState) {
+        var levelAnsi = AnsiCodes.ForLevel(line.Level);
+        var reset = AnsiCodes.Reset;
 
-    static string BuildBodyMarkup(string rawLine, LogViewerFilterState? viewerState) {
         if (viewerState == null
             || viewerState.LoadedModIds.Count == 0
             || !LogViewerFilterMatcher.TryFindModTagSpan(
-                rawLine,
+                line.RawLine,
                 viewerState.LoadedModIds,
                 viewerState.ModIdAliases,
                 out int tagStart,
                 out int tagEnd,
                 out var modId)) {
-            return Markup.Escape(rawLine);
+            return $"{levelAnsi}{line.RawLine}{reset}";
         }
 
-        var modHex = LogModColors.ForId(modId);
-        var prefix = Markup.Escape(rawLine[..tagStart]);
-        var tag = Markup.Escape(rawLine[tagStart..tagEnd]);
-        var suffix = Markup.Escape(rawLine[tagEnd..]);
+        var modAnsi = AnsiCodes.TrueColorFg(LogModColors.ForId(modId));
+        var prefix = line.RawLine[..tagStart];
+        var tag = line.RawLine[tagStart..tagEnd];
+        var suffix = line.RawLine[tagEnd..];
 
         if (tagStart == 0)
-            return $"[#{modHex}]{tag}[/]{suffix}";
+            return $"{modAnsi}{tag}{reset}{levelAnsi}{suffix}{reset}";
 
-        if (tagEnd >= rawLine.Length)
-            return $"{prefix}[#{modHex}]{tag}[/]";
+        if (tagEnd >= line.RawLine.Length)
+            return $"{levelAnsi}{prefix}{modAnsi}{tag}{reset}";
 
-        return $"{prefix}[#{modHex}]{tag}[/]{suffix}";
+        return $"{levelAnsi}{prefix}{modAnsi}{tag}{reset}{levelAnsi}{suffix}{reset}";
     }
-
-    static string LevelColor(ParsedLogLevel level) => level switch {
-        ParsedLogLevel.Error => "red",
-        ParsedLogLevel.Warn => "yellow",
-        ParsedLogLevel.Debug or ParsedLogLevel.VeryDebug => "grey",
-        ParsedLogLevel.Load => "cyan",
-        _ => "white",
-    };
 }
