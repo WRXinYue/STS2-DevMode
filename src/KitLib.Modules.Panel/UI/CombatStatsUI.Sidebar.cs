@@ -8,8 +8,8 @@ namespace KitLib.UI;
 
 internal static partial class CombatStatsUI {
     private const float SidebarBarHeight = 72f;
-    private const float SidebarBarWidth = 14f;
-    private const float RailCompactBarWidth = 10f;
+    private const float SidebarBarWidth = 8f;
+    private const float RailCompactBarWidth = 6f;
     private const float RailCompactSingleBarMinHeight = 120f;
 
     private static bool SidebarUsesPie(ViewMode mode) => mode switch {
@@ -209,7 +209,7 @@ internal static partial class CombatStatsUI {
             _list.AddThemeConstantOverride("separation", railCompact ? 4 : 10);
             if (railCompact) {
                 _list.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
-                _list.Alignment = BoxContainer.AlignmentMode.Center;
+                _list.Alignment = BoxContainer.AlignmentMode.Begin;
             }
 
             _legend = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
@@ -381,11 +381,11 @@ internal static partial class CombatStatsUI {
 
             var bar = new VerticalScoreStack {
                 BarWidth = RailCompactBarWidth,
-                ShowScaleTicks = true,
             };
             bar.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
             bar.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             bar.CustomMinimumSize = new Vector2(0, RailCompactSingleBarMinHeight);
+            bar.UseCompactScaleTicks = true;
             bar.SetSegments(ScoreBreakdownSegments(bd), Math.Max(total, 1), showLabels: true);
             ApplyBarTooltip(bar, tooltip);
             column.AddChild(bar);
@@ -436,23 +436,53 @@ internal static partial class CombatStatsUI {
 
     /// <summary>Vertical stacked bar: segment heights sum to total score.</summary>
     private sealed partial class VerticalScoreStack : Control {
+        private readonly VBoxContainer _segmentsBox;
+        private readonly Control _tickLayer;
         private readonly List<(string Key, int Amount, Color Color)> _segments = new();
         private int _total = 1;
 
         private const float TickLength = 4f;
         private const float TickGap = 5f;
         private const float LabelOutset = 6f;
+        private const float CompactTickLength = 2f;
+        private const float CompactTickGap = 2f;
+        private const float CompactLeftLabelGap = 0f;
         private const float RightNumberGap = 4f;
+        private const float CompactRightNumberGap = 2f;
         private const float TopTickInset = 4f;
         private const float TopLabelInset = 2f;
         private const int TickFontSize = 12;
+        private const int CompactTickFontSize = 9;
 
         public VerticalScoreStack() {
             MouseFilter = MouseFilterEnum.Stop;
+            ClipContents = false;
+
+            _segmentsBox = new VBoxContainer {
+                MouseFilter = MouseFilterEnum.Ignore,
+                Alignment = BoxContainer.AlignmentMode.End,
+                SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
+                SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            };
+            _segmentsBox.AddThemeConstantOverride("separation", 0);
+            _segmentsBox.SetAnchorsPreset(LayoutPreset.FullRect);
+            AddChild(_segmentsBox);
+
+            _tickLayer = new Control {
+                MouseFilter = MouseFilterEnum.Ignore,
+                ClipContents = false,
+                ZIndex = 2,
+            };
+            _tickLayer.SetAnchorsPreset(LayoutPreset.FullRect);
+            AddChild(_tickLayer);
+
+            Resized += RebuildSegments;
+            TreeEntered += RebuildSegments;
         }
 
         public float BarWidth { get; set; } = SidebarBarWidth;
         public bool ShowScaleTicks { get; set; }
+        public bool UseCompactScaleTicks { get; set; }
 
         public void SetSegments(
             IReadOnlyList<(string Key, int Amount, Color Color)> segments,
@@ -463,101 +493,211 @@ internal static partial class CombatStatsUI {
                 _segments.Add((key, amount, color));
             _total = Math.Max(total, 1);
             ShowScaleTicks = showLabels || ShowScaleTicks;
-            QueueRedraw();
+            RebuildSegments();
         }
 
-        public override void _Draw() {
+        private void RebuildSegments() {
+            while (_segmentsBox.GetChildCount() > 0) {
+                var child = _segmentsBox.GetChild(0);
+                _segmentsBox.RemoveChild(child);
+                child.QueueFree();
+            }
+
+            ClearTickLayer();
+
+            _segmentsBox.CustomMinimumSize = new Vector2(BarWidth, 0);
+
+            if (_segments.Count == 0)
+                return;
+
+            foreach (var (_, amount, color) in _segments) {
+                if (amount <= 0)
+                    continue;
+
+                var segment = new ColorRect {
+                    Color = color,
+                    CustomMinimumSize = new Vector2(BarWidth, 2f),
+                    SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
+                    SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+                    SizeFlagsStretchRatio = amount,
+                    MouseFilter = MouseFilterEnum.Ignore,
+                };
+                _segmentsBox.AddChild(segment);
+            }
+
+            RebuildTickMarks();
+        }
+
+        private void ClearTickLayer() {
+            while (_tickLayer.GetChildCount() > 0) {
+                var child = _tickLayer.GetChild(0);
+                _tickLayer.RemoveChild(child);
+                child.QueueFree();
+            }
+        }
+
+        private void RebuildTickMarks() {
+            if (!ShowScaleTicks || _segments.Count == 0)
+                return;
+
             float w = Size.X;
             float h = Size.Y;
-            float barW = BarWidth;
-            if (h < 4f || _segments.Count == 0) {
-                DrawRect(new Rect2((w - barW) * 0.5f, 0, barW, h),
-                    new Color(0.22f, 0.22f, 0.26f, 0.85f));
+            if (h < 4f)
                 return;
+
+            float barW = BarWidth;
+            float barX = (w - barW) * 0.5f;
+            var tickColor = new Color(KitLibTheme.TextPrimary, 1f);
+            var labelColor = KitLibTheme.TextPrimary;
+
+            if (UseCompactScaleTicks) {
+                AddCompactTick(TopTickInset, barX, barW, w, "TOT", _total.ToString(), tickColor, labelColor, nearTop: true);
+                float y = h;
+                for (int i = 0; i < _segments.Count; i++) {
+                    var (key, amount, _) = _segments[i];
+                    y -= h * amount / (float)_total;
+                    if (amount <= 0 || y <= 1.5f || y >= h - 1.5f)
+                        continue;
+                    AddCompactTick(y, barX, barW, w, ScoreKindAbbrev(key), amount.ToString(), tickColor, labelColor);
+                }
             }
-
-            float x = (w - barW) * 0.5f;
-            float y = h;
-            foreach (var (_, amount, color) in _segments) {
-                float segH = h * amount / _total;
-                y -= segH;
-                DrawRect(new Rect2(x, y, barW, segH), color);
-            }
-
-            if (ShowScaleTicks)
-                DrawScaleTicks(x, barW, w, h);
-        }
-
-        private void DrawScaleTicks(float barX, float barW, float totalW, float h) {
-            var major = new Color(KitLibTheme.Subtle, 0.65f);
-            var labelColor = new Color(KitLibTheme.TextSecondary, 0.92f);
-            string totalLabel = "TOT";
-
-            DrawTickWithLabels(barX, barW, totalW, TopTickInset, major, labelColor, totalLabel, _total.ToString(), nearTop: true);
-
-            float y = h;
-            for (int i = 0; i < _segments.Count; i++) {
-                var (key, amount, _) = _segments[i];
-                y -= h * amount / (float)_total;
-                if (amount <= 0 || y <= 1.5f || y >= h - 1.5f)
-                    continue;
-                DrawTickWithLabels(
-                    barX, barW, totalW, y, major, labelColor,
-                    ScoreKindAbbrev(key), amount.ToString());
+            else {
+                AddFullTick(TopTickInset, barX, barW, w, "TOT", _total.ToString(), tickColor, labelColor, nearTop: true);
+                float y = h;
+                for (int i = 0; i < _segments.Count; i++) {
+                    var (key, amount, _) = _segments[i];
+                    y -= h * amount / (float)_total;
+                    if (amount <= 0 || y <= 1.5f || y >= h - 1.5f)
+                        continue;
+                    AddFullTick(y, barX, barW, w, ScoreKindAbbrev(key), amount.ToString(), tickColor, labelColor);
+                }
             }
         }
 
-        private void DrawTickWithLabels(
+        private void AddCompactTick(
+            float y,
             float barX,
             float barW,
             float totalW,
-            float y,
-            Color tickColor,
-            Color labelColor,
             string leftText,
             string rightText,
+            Color tickColor,
+            Color labelColor,
             bool nearTop = false) {
-            DrawTickLine(barX, barW, y, tickColor);
-            float leftX = Math.Max(1f, barX - TickGap - TickLength - LabelOutset);
-            float rightX = barX + barW + RightNumberGap;
-            DrawVerticalLabel(leftX, y, leftText, labelColor, nearTop: nearTop);
-            DrawVerticalLabel(rightX, y, rightText, labelColor, nearTop: nearTop);
+            AddBarTickLine(y, barX, barW, tickColor, compact: true);
+            AddCompactRightLabel(y, barX, barW, totalW, rightText, labelColor, nearTop);
+            AddCompactVerticalLeftLabel(y, barX, leftText, labelColor, nearTop);
         }
 
-        private void DrawVerticalLabel(
-            float anchorX,
+        private void AddFullTick(
             float y,
+            float barX,
+            float barW,
+            float totalW,
+            string leftText,
+            string rightText,
+            Color tickColor,
+            Color labelColor,
+            bool nearTop = false) {
+            AddBarTickLine(y, barX, barW, tickColor);
+            AddFullSideLabel(y, barX + barW + RightNumberGap, rightText, labelColor, nearTop, vertical: true);
+            float leftX = Math.Max(1f, barX - TickGap - TickLength - LabelOutset);
+            AddFullSideLabel(y, leftX, leftText, labelColor, nearTop, vertical: true);
+        }
+
+        private void AddBarTickLine(float y, float barX, float barW, Color color, bool compact = false) {
+            float tickLen = compact ? CompactTickLength : TickLength;
+            float tickGap = compact ? CompactTickGap : TickGap;
+            y = Mathf.Round(y);
+            barX = Mathf.Round(barX);
+            _tickLayer.AddChild(new ColorRect {
+                Color = color,
+                Position = new Vector2(barX, y),
+                Size = new Vector2(barW, 1f),
+                MouseFilter = MouseFilterEnum.Ignore,
+            });
+            _tickLayer.AddChild(new ColorRect {
+                Color = color,
+                Position = new Vector2(barX - tickGap - tickLen, y),
+                Size = new Vector2(tickLen, 1f),
+                MouseFilter = MouseFilterEnum.Ignore,
+            });
+            _tickLayer.AddChild(new ColorRect {
+                Color = color,
+                Position = new Vector2(barX + barW + 1f, y),
+                Size = new Vector2(tickLen, 1f),
+                MouseFilter = MouseFilterEnum.Ignore,
+            });
+        }
+
+        private void AddCompactRightLabel(
+            float y,
+            float barX,
+            float barW,
+            float totalW,
             string text,
             Color color,
             bool nearTop = false) {
             if (string.IsNullOrEmpty(text))
                 return;
 
+            var label = new Label {
+                Text = text,
+                MouseFilter = MouseFilterEnum.Ignore,
+            };
+            label.AddThemeFontSizeOverride("font_size", CompactTickFontSize);
+            label.AddThemeColorOverride("font_color", color);
             var font = ThemeDB.FallbackFont;
-            var size = font.GetStringSize(text, HorizontalAlignment.Left, -1, TickFontSize);
-            float textLen = size.X;
-            float angle = Mathf.Pi / 2f;
-            Vector2 origin = nearTop
-                ? new Vector2(anchorX, TopLabelInset + textLen * 0.5f)
-                : new Vector2(anchorX, y - textLen * 0.5f);
-
-            DrawSetTransformMatrix(new Transform2D(angle, origin));
-            DrawString(font, Vector2.Zero, text, HorizontalAlignment.Center, -1, TickFontSize, color);
-            DrawSetTransformMatrix(Transform2D.Identity);
+            var size = font.GetStringSize(text, HorizontalAlignment.Left, -1, CompactTickFontSize);
+            float x = Math.Min(barX + barW + CompactRightNumberGap, totalW - size.X - 1f);
+            float labelY = nearTop ? TopLabelInset : y - size.Y * 0.5f;
+            label.Position = new Vector2(Mathf.Round(x), Mathf.Round(labelY));
+            _tickLayer.AddChild(label);
         }
 
-        private void DrawTickLine(float barX, float barW, float y, Color color) {
-            float leftEnd = barX - TickGap;
-            float leftStart = leftEnd - TickLength;
-            float rightStart = barX + barW + 1f;
-            float rightEnd = barX + barW + TickGap;
-            DrawLine(new Vector2(leftStart, y), new Vector2(leftEnd, y), color, 1f);
-            DrawLine(new Vector2(rightStart, y), new Vector2(rightEnd, y), color, 1f);
+        private void AddCompactVerticalLeftLabel(float y, float barX, string text, Color color, bool nearTop = false) {
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            var label = new Label {
+                Text = text,
+                MouseFilter = MouseFilterEnum.Ignore,
+                Rotation = Mathf.Pi / 2f,
+            };
+            label.AddThemeFontSizeOverride("font_size", CompactTickFontSize);
+            label.AddThemeColorOverride("font_color", color);
+            var font = ThemeDB.FallbackFont;
+            var size = font.GetStringSize(text, HorizontalAlignment.Left, -1, CompactTickFontSize);
+            // Same anchor as full sidebar: top-left at outer tick end, rotated text sits beside the bar.
+            float leftX = barX - CompactTickGap - CompactTickLength - CompactLeftLabelGap;
+            float labelY = nearTop ? TopLabelInset : y - size.X * 0.5f;
+            label.Position = new Vector2(Mathf.Round(leftX), Mathf.Round(labelY));
+            _tickLayer.AddChild(label);
         }
 
-        public override void _Notification(int what) {
-            if (what == NotificationResized)
-                QueueRedraw();
+        private void AddFullSideLabel(
+            float y,
+            float x,
+            string text,
+            Color color,
+            bool nearTop,
+            bool vertical,
+            int fontSize = TickFontSize) {
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            var label = new Label {
+                Text = text,
+                MouseFilter = MouseFilterEnum.Ignore,
+                Rotation = vertical ? Mathf.Pi / 2f : 0f,
+            };
+            label.AddThemeFontSizeOverride("font_size", fontSize);
+            label.AddThemeColorOverride("font_color", color);
+            var font = ThemeDB.FallbackFont;
+            var size = font.GetStringSize(text, HorizontalAlignment.Left, -1, fontSize);
+            float labelY = nearTop ? TopLabelInset : y - size.X * 0.5f;
+            label.Position = new Vector2(Mathf.Round(x), Mathf.Round(labelY));
+            _tickLayer.AddChild(label);
         }
     }
 }
