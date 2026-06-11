@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using HarmonyLib;
 using KitLib.Cheat;
 using KitLib.Presets;
@@ -15,8 +16,12 @@ public static class RunStartPatch {
     /// <summary>
     /// Disable save persistence for dev-mode runs.
     /// </summary>
+    [HarmonyTargetMethod]
+    static MethodBase? DisableSaveTarget() =>
+        AccessTools.Method(typeof(RunManager), "SetUpNewSingleplayer")
+        ?? AccessTools.Method(typeof(RunManager), "SetUpNewSinglePlayer");
+
     [HarmonyPrefix]
-    [HarmonyPatch(nameof(RunManager.SetUpNewSinglePlayer))]
     public static void DisableSaveForDevRun(ref bool shouldSave) {
         if (KitLibState.InDevRun) {
             shouldSave = false;

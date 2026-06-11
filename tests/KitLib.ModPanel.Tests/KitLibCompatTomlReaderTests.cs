@@ -48,4 +48,24 @@ public sealed class KitLibCompatTomlReaderTests {
         Assert.True(doc.ModVersionRanges.TryGetValue("KitLib", out var kitLib));
         Assert.Equal(2, kitLib!.Count);
     }
+
+    [Fact]
+    public void TryParse_reads_lust_travel2_compat_sidecar() {
+        const string toml = """
+            [game]
+            version = "=0.103.2"
+
+            [kitlib]
+            version = "^0.13.0"
+
+            [dependencies]
+            "STS2-RitsuLib" = ">=0.4.15"
+            """;
+        Assert.True(KitLibCompatTomlReader.TryParse(toml, out var doc));
+        Assert.NotNull(doc);
+        Assert.Equal("=0.103.2", doc!.GameVersionRanges[0]);
+        Assert.Equal("^0.13.0", doc.KitLibVersionRanges[0]);
+        var runtime = new KitLibCompatRuntime { GameVersion = "0.106.1", KitLibVersion = "0.13.5" };
+        Assert.False(KitLibCompatEvaluator.Evaluate(doc, runtime).IsCompatible);
+    }
 }

@@ -3,4 +3,5 @@
 - [architecture.md](./architecture.md) — Core + 卫星模块编译边界、部署与加载顺序
 - [ai-algorithm.md](./ai-algorithm.md) — Solo AutoPlay 算法：StrongStrategy、DeckPlan、各阶段 Scorer、战斗搜索与调参
 - [lan-host-drive-afk.md](./lan-host-drive-afk.md) — LAN 双开：主机代打 + 客机 AFK；自动 preset、架构、复测与历史 desync 根因
+- [sts2-api-profiles.md](./sts2-api-profiles.md) — 本地 stable/beta 双版本编译与 API 触点检查
 - [devmode-combat-add-monster-mod-compat.md](./devmode-combat-add-monster-mod-compat.md) — 战斗中加怪与其他 mod（如 LustTravel2 狐妖耐力条）兼容性；卡死根因与验证

@@ -48,6 +48,10 @@ DEPLOY_TOOLS_BUILD := $(PYTHON) scripts/deploy_tools.py --tools-rid $(TOOLS_RID)
 
 # Use -p: (not /p:) so Git Bash on Windows does not treat /p:... as a MSYS path.
 DEPLOY_TO_GAME := -p:DeployToGame=true
+
+# Sts2Profile drives STS2_BETA106PLUS (see Directory.Build.props). Auto-detect from release_info.json.
+STS2_COMPILE_PROFILE ?= $(shell $(PYTHON) scripts/resolve_sts2_compile_profile.py)
+STS2_MSBUILD_PROFILE := -p:Sts2Profile=$(STS2_COMPILE_PROFILE)
 # Copy build/KitLib/ into mods/KitLib/ only — never republish into the game tree.
 DEPLOY_COPY   := $(DOTNET) msbuild $(MOD_MAIN) -t:DeployRepoBuildToMods -p:DeployFromRepoBuild=true
 
@@ -74,7 +78,8 @@ MOD_PROJECTS := src/KitLib.Core/KitLib.Core.csproj \
 PACKAGE_MODULES := $(PYTHON) scripts/package_modules.py
 
 .PHONY: help init icons format format-check lint-scripts check test hooks-install hooks-run deps build build-all deploy sync sync-full sync-framework-mods compile pck publish nexus nuget upload-all readme-nexus zip zip-full clean \
-        build-beta deploy-beta sync-beta sync-beta-launch compile-beta pck-beta zip-beta nexus-beta nuget-beta publish-beta upload-all-beta \
+        build-stable build-beta build-profiles extract-touchpoints check-api verify-profiles capture-sts2-ref \
+        deploy-beta sync-beta sync-beta-launch compile-beta pck-beta zip-beta nexus-beta nuget-beta publish-beta upload-all-beta \
         launch launch-beta sync-launch sync-full-launch sync-beta-run dev-session compile-tools build-tools deploy-tools sync-tools zip-mcp upload-nexus-mcp nexus-mcp \
         compile-kitlog build-kitlog zip-kitlog \
         upload-github upload-nexus upload-nuget
@@ -97,6 +102,13 @@ help:
 	@echo "  sync-full    build-all + deploy mods/KitLib/ + deploy tools/ (kitlog + MCP)"
 	@echo "  sync-full-launch  sync-full + launch game"
 	@echo "  build-all    dotnet build solution (Core + satellites)"
+	@echo "  build-stable dotnet build KitLib.sln against stable ref (eng/sts2-refs/)"
+	@echo "  build-beta   dotnet build KitLib.sln against beta ref"
+	@echo "  build-profiles build-stable then build-beta"
+	@echo "  extract-touchpoints  scan src/ → eng/api_touchpoints.yaml"
+	@echo "  check-api    reflect KitLib API touchpoints against both sts2.dll"
+	@echo "  verify-profiles  build-profiles + check-api (pre-release)"
+	@echo "  capture-sts2-ref stable|beta  copy sts2.dll from STS2_DIR into eng/sts2-refs/ (Git LFS)"
 	@echo "  zip-full     build-all + package Core/Full/per-module zips under build/"
 	@echo "  sync-launch  sync + launch game"
 	@echo "  dev-session  sync + launch + wait for MCP bridge (agent bootstrap)"
@@ -118,7 +130,6 @@ help:
 	@echo ""
 	@echo "  sync-beta         alias for sync (unified build; point Sts2Dir at beta or stable install)"
 	@echo "  sync-beta-launch  alias for sync-launch"
-	@echo "  build-beta        alias for build"
 	@echo "  deploy-beta       alias for deploy"
 	@echo "  compile-beta      alias for compile"
 	@echo "  pck-beta          alias for pck"
@@ -133,7 +144,7 @@ help:
 	@echo "  upload-all     upload-github then upload-nexus then upload-nuget (one zip build)"
 	@echo "  readme-nexus   merge READMEs into assets/readme.nexus.txt (Nexus BBCode)"
 	@echo ""
-	@echo "  zip-beta       build-beta + package …-sts2beta-v$(STS2_GAME_BETA_VERSION).zip"
+	@echo "  zip-beta       build + package …-sts2beta-v$(STS2_GAME_BETA_VERSION).zip"
 	@echo "  upload-github-beta  zip-beta + GitHub Release for STS2 beta v$(STS2_GAME_BETA_VERSION) (alias: publish-beta)"
 	@echo "  upload-nexus-beta   zip-beta + Nexus Optional file (NEXUS_FILE_GROUP_ID_BETA; alias: nexus-beta)"
 	@echo "  upload-nuget-beta   zip-beta + NuGet push (STS2.KitLib.Beta) for STS2 beta v$(STS2_GAME_BETA_VERSION) (alias: nuget-beta)"
@@ -174,10 +185,32 @@ deps:
 	$(DOTNET) restore $(MOD_MAIN)
 
 build:
-	$(DOTNET) publish $(MOD_MAIN)
+	$(DOTNET) publish $(MOD_MAIN) $(STS2_MSBUILD_PROFILE)
 
 build-all:
-	$(DOTNET) build KitLib.sln
+	$(DOTNET) build KitLib.sln $(STS2_MSBUILD_PROFILE)
+
+build-stable:
+	$(DOTNET) build KitLib.sln -p:Sts2Dir="$(shell $(PYTHON) scripts/resolve_sts2_profile_dir.py stable)" -p:Sts2Profile=stable -p:KitLibProfileBuild=true
+
+build-beta:
+	$(DOTNET) build KitLib.sln -p:Sts2Dir="$(shell $(PYTHON) scripts/resolve_sts2_profile_dir.py beta)" -p:Sts2Profile=beta -p:KitLibProfileBuild=true
+
+build-profiles: build-stable build-beta
+
+extract-touchpoints:
+	$(PYTHON) scripts/extract_api_touchpoints.py
+
+check-api:
+	$(PYTHON) scripts/check_api_touchpoints.py
+
+verify-profiles: build-profiles check-api
+
+capture-sts2-ref:
+ifndef PROFILE
+	$(error Usage: make capture-sts2-ref PROFILE=stable|beta)
+endif
+	$(PYTHON) scripts/capture_sts2_ref.py $(PROFILE)
 
 deploy:
 	$(DEPLOY_COPY)
@@ -194,9 +227,7 @@ sync-framework-mods:
 	$(DOTNET) msbuild $(MOD_MAIN) -t:SyncFrameworkModsToGame -p:DisableFrameworkModsAfterRestore=false
 
 compile: deps
-	$(DOTNET) build $(DEPLOY_TO_GAME) $(MOD_MAIN)
-
-build-beta: build
+	$(DOTNET) build $(DEPLOY_TO_GAME) $(STS2_MSBUILD_PROFILE) $(MOD_MAIN)
 
 deploy-beta: deploy
 
@@ -290,7 +321,7 @@ zip-kitlog: build-kitlog
 	@echo.
 	@echo Done: $(ZIP_KITLOG_NAME)
 
-zip-beta: build-beta
+zip-beta: build
 	@if not exist build\KitLib\KitLib.pck (echo ERROR: KitLib.pck not found. Set GodotPath in local.props ^(make init^) and rebuild. & exit /b 1)
 	@if exist build\dist rmdir /s /q build\dist
 	@mkdir build\dist\KitLib\editor
@@ -332,7 +363,7 @@ zip-kitlog: build-kitlog
 	@echo ""
 	@echo "Done: $(ZIP_KITLOG_NAME)"
 
-zip-beta: build-beta
+zip-beta: build
 	@test -f build/KitLib/KitLib.pck || (echo "ERROR: KitLib.pck not found. Set GodotPath in local.props (make init) and rebuild." >&2; exit 1)
 	rm -rf build/dist
 	mkdir -p $(DIST_DIR)/editor

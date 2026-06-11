@@ -1,0 +1,270 @@
+"""Resolve STS2 stable/beta ref roots and sts2.dll paths for dual-profile checks."""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import shutil
+import sys
+from pathlib import Path
+
+from lib.steam import _sts2_game_root_valid, read_sts2_dir_from_local_props, resolve_sts2_dir
+
+ProfileName = str  # "stable" | "beta"
+
+_ENV_BY_PROFILE: dict[str, str] = {
+    "stable": "STS2_DIR_STABLE",
+    "beta": "STS2_DIR_BETA",
+}
+
+_PINNED_VERSIONS: dict[str, str] = {
+    "stable": "0.103.3",
+    "beta": "0.106.1",
+}
+
+_REF_FILES = ("sts2.dll", "sts2.dylib", "0Harmony.dll")
+
+
+def read_release_version(sts2_dir: Path) -> str | None:
+    path = sts2_dir / "release_info.json"
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    version = data.get("version")
+    if not isinstance(version, str) or not version.strip():
+        return None
+    return version.strip()
+
+
+def compile_profile_from_game_version(raw: str | None) -> ProfileName | None:
+    if not raw:
+        return None
+    normalized = raw.lstrip("vV").strip()
+    match = re.match(r"(\d+)\.(\d+)", normalized)
+    if not match:
+        return None
+    major = int(match.group(1))
+    minor = int(match.group(2))
+    if major == 0 and minor >= 106:
+        return "beta"
+    if major == 0 and minor <= 105:
+        return "stable"
+    return "beta" if minor >= 106 else "stable"
+
+
+def read_local_props_profile(repo_root: Path) -> ProfileName | None:
+    path = repo_root / "local.props"
+    if not path.is_file():
+        return None
+    text = path.read_text(encoding="utf-8", errors="replace")
+    match = re.search(r"<Sts2Profile>([^<]+)</Sts2Profile>", text)
+    if not match:
+        return None
+    value = match.group(1).strip().lower()
+    return value if value in ("stable", "beta") else None
+
+
+def resolve_compile_profile(*, repo_root: Path | None = None, sts2_dir: Path | None = None) -> ProfileName:
+    env_profile = os.environ.get("STS2_PROFILE", "").strip().lower()
+    if env_profile in ("stable", "beta"):
+        return env_profile
+
+    root = repo_root or Path(__file__).resolve().parents[2]
+    props_profile = read_local_props_profile(root)
+    if props_profile:
+        return props_profile
+
+    game_root = sts2_dir or read_sts2_dir_from_local_props(root) or resolve_sts2_dir()
+    if game_root is not None:
+        inferred = compile_profile_from_game_version(read_release_version(game_root))
+        if inferred:
+            return inferred
+
+    return "stable"
+
+
+def pinned_version(profile: ProfileName) -> str:
+    return _PINNED_VERSIONS[profile]
+
+
+def refs_base(repo_root: Path) -> Path:
+    return repo_root / "eng" / "sts2-refs"
+
+
+def ref_root(repo_root: Path, profile: ProfileName) -> Path:
+    return refs_base(repo_root) / profile / pinned_version(profile)
+
+
+def list_ref_data_dirs(game_root: Path) -> list[Path]:
+    dirs: list[Path] = []
+    try:
+        for child in sorted(game_root.iterdir()):
+            if child.is_dir() and child.name.startswith("data_sts2_"):
+                dirs.append(child)
+    except OSError:
+        return []
+    return dirs
+
+
+def ref_is_valid(game_root: Path) -> bool:
+    if _sts2_game_root_valid(game_root):
+        return True
+    for data_dir in list_ref_data_dirs(game_root):
+        if any((data_dir / name).is_file() for name in _REF_FILES[:2]):
+            return True
+    return False
+
+
+def resolve_profile_dir(profile: ProfileName, *, repo_root: Path | None = None) -> Path:
+    if profile not in _PINNED_VERSIONS:
+        raise ValueError(f"Unknown profile: {profile!r}")
+
+    root = repo_root or Path(__file__).resolve().parents[2]
+    ref = ref_root(root, profile)
+    if ref_is_valid(ref):
+        return ref
+
+    env_key = _ENV_BY_PROFILE[profile]
+    raw = os.environ.get(env_key, "").strip()
+    if raw:
+        path = Path(os.path.expandvars(raw)).expanduser().resolve()
+        if ref_is_valid(path):
+            return path
+        raise RuntimeError(
+            f"{env_key}={path} is not a valid STS2 install or ref tree "
+            "(expected data_sts2_*/sts2.dll)."
+        )
+
+    raise RuntimeError(
+        f"No STS2 {profile} ref at {ref}. "
+        f"Run: make capture-sts2-ref PROFILE={profile} "
+        f"(with Steam on the matching branch), or set {env_key} in .env."
+    )
+
+
+def resolve_sts2_dll(game_root: Path) -> Path:
+    mac_dylib = (
+        game_root
+        / "SlayTheSpire2.app"
+        / "Contents"
+        / "Resources"
+        / "data_sts2_macos_arm64"
+        / "sts2.dylib"
+    )
+    if mac_dylib.is_file():
+        return mac_dylib
+
+    mac_dylib_x64 = (
+        game_root
+        / "SlayTheSpire2.app"
+        / "Contents"
+        / "Resources"
+        / "data_sts2_macos_x86_64"
+        / "sts2.dylib"
+    )
+    if mac_dylib_x64.is_file():
+        return mac_dylib_x64
+
+    candidates: list[Path] = []
+    for data_dir in list_ref_data_dirs(game_root):
+        for name in ("sts2.dll", "sts2.dylib"):
+            dll = data_dir / name
+            if dll.is_file():
+                candidates.append(dll)
+
+    if not candidates:
+        raise RuntimeError(f"No sts2.dll/sts2.dylib under {game_root}")
+
+    candidates.sort(key=lambda p: (0 if "windows_x86_64" in p.as_posix() else 1, p.name))
+    return candidates[0]
+
+
+def capture_profile_ref(
+    profile: ProfileName,
+    *,
+    repo_root: Path | None = None,
+    source_root: Path | None = None,
+) -> Path:
+    root = repo_root or Path(__file__).resolve().parents[2]
+    source = source_root or resolve_sts2_dir()
+    if source is None or not ref_is_valid(source):
+        raise RuntimeError(
+            "STS2 install not found. Set STS2_DIR in .env or pass --source."
+        )
+
+    dest_root = ref_root(root, profile)
+    copied = 0
+    for data_dir in list_ref_data_dirs(source):
+        rel = data_dir.name
+        dest_dir = dest_root / rel
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        for name in _REF_FILES:
+            src_file = data_dir / name
+            if not src_file.is_file():
+                continue
+            shutil.copy2(src_file, dest_dir / name)
+            copied += 1
+
+    if copied == 0:
+        raise RuntimeError(f"No ref DLLs copied from {source}")
+
+    return dest_root
+
+
+def read_game_version(dll_path: Path) -> str | None:
+    _ = dll_path
+    return None
+
+
+def format_profile_paths(repo_root: Path) -> dict[str, Path]:
+    return {
+        profile: resolve_sts2_dll(resolve_profile_dir(profile, repo_root=repo_root))
+        for profile in ("stable", "beta")
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+
+    from lib.dotenv import load_dotenv
+
+    ap = argparse.ArgumentParser(description="Print STS2 profile ref / install paths.")
+    ap.add_argument(
+        "--repo-root",
+        type=Path,
+        default=Path(__file__).resolve().parents[2],
+    )
+    ap.add_argument(
+        "--profile",
+        choices=("stable", "beta", "all"),
+        default="all",
+    )
+    ap.add_argument("--game-root-only", action="store_true")
+    args = ap.parse_args(argv)
+
+    load_dotenv(args.repo_root / ".env")
+    profiles = ("stable", "beta") if args.profile == "all" else (args.profile,)
+
+    try:
+        for profile in profiles:
+            game_root = resolve_profile_dir(profile, repo_root=args.repo_root)
+            if args.game_root_only:
+                print(game_root)
+                continue
+            dll = resolve_sts2_dll(game_root)
+            pinned = pinned_version(profile)
+            print(f"{profile}\tpinned={pinned}")
+            print(f"  root={game_root}")
+            print(f"  dll={dll}")
+    except RuntimeError as ex:
+        print(str(ex), file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

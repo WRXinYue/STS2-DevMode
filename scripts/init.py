@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import html
+import os
 import sys
 from pathlib import Path
 
@@ -58,6 +59,12 @@ def main() -> int:
         print("MegaDot/Godot not found. 'make pck' will not work. " "Set GODOT_PATH in .env.")
 
     props = _prop_line("Sts2Dir", str(sts2_dir))
+    profile = os.environ.get("STS2_PROFILE", "").strip()
+    if not profile:
+        from lib.sts2_profiles import resolve_compile_profile
+
+        profile = resolve_compile_profile(repo_root=root, sts2_dir=sts2_dir)
+    props += _prop_line("Sts2Profile", profile)
     props += _prop_line("GodotPath", str(godot_path) if godot_path else None)
 
     local_props = root / "local.props"
@@ -65,6 +72,7 @@ def main() -> int:
     local_props.write_text(content, encoding="utf-8")
     print(f"Generated {local_props}")
     print(f"  Sts2Dir   = {sts2_dir}")
+    print(f"  Sts2Profile = {profile}")
     if godot_path:
         print(f"  GodotPath = {godot_path}")
 
@@ -72,6 +80,27 @@ def main() -> int:
     write_vscode_files(root, sts2_dir)
 
     ensure_mdi_icons(root)
+
+    dual_hint = True
+    for profile in ("stable", "beta"):
+        try:
+            from lib.sts2_profiles import ref_is_valid, ref_root
+
+            if not ref_is_valid(ref_root(root, profile)):
+                dual_hint = False
+                break
+        except Exception:
+            dual_hint = False
+            break
+    if dual_hint:
+        print("")
+        print("STS2 ref DLLs present under eng/sts2-refs/.")
+        print("  make build-profiles  -- compile against stable + beta refs")
+        print("  make verify-profiles -- build-profiles + check-api (pre-release)")
+    else:
+        print("")
+        print("Dual-profile refs missing under eng/sts2-refs/.")
+        print("  Switch Steam branch, then: make capture-sts2-ref PROFILE=stable|beta")
 
     print("")
     print("Done. You can now run:")

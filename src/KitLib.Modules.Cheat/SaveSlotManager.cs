@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Reflection;
 using HarmonyLib;
 using KitLib.Host;
 using KitLib.Abstractions.Modding;
@@ -312,7 +313,7 @@ internal static class SaveSlotManager {
                 KitLibState.InDevRun = true;
 
                 var state = RunState.FromSerializable(save);
-                RunManager.Instance.SetUpSavedSinglePlayer(state, save);
+                await SetUpSavedSinglePlayerCompat(RunManager.Instance, state, save);
 
                 var prop = AccessTools.Property(typeof(RunManager), "ShouldSave");
                 prop?.SetValue(RunManager.Instance, false);
@@ -337,5 +338,15 @@ internal static class SaveSlotManager {
                 MainFile.Logger.Warn($"SaveSlotManager: FadeIn failed: {ex.Message}");
             }
         }
+    }
+
+    static async Task SetUpSavedSinglePlayerCompat(RunManager runManager, RunState state, SerializableRun save) {
+        var method = AccessTools.Method(typeof(RunManager), "SetUpSavedSingleplayer")
+            ?? AccessTools.Method(typeof(RunManager), "SetUpSavedSinglePlayer");
+        if (method == null)
+            throw new MissingMethodException(typeof(RunManager).FullName, "SetUpSavedSingleplayer");
+
+        if (method.Invoke(runManager, [state, save]) is Task task)
+            await task;
     }
 }

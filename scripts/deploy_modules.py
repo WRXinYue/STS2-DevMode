@@ -161,55 +161,108 @@ def _should_deploy_root_item(item: Path) -> bool:
     return True
 
 
-def _copy_core_bundle(src_dir: Path, dst: Path) -> None:
+def _copy_file_safe(src: Path, dst: Path) -> bool:
+    try:
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
+        return True
+    except PermissionError:
+        print(
+            f"Warning: could not update locked file (close Slay the Spire 2, then re-run sync): {dst}",
+            file=sys.stderr,
+        )
+        return False
+
+
+def _copy_tree_safe(src_dir: Path, dst: Path) -> list[Path]:
+    failed: list[Path] = []
+    for item in src_dir.rglob("*"):
+        if item.is_dir():
+            continue
+        rel = item.relative_to(src_dir)
+        target = dst / rel
+        if not _copy_file_safe(item, target):
+            failed.append(target)
+    return failed
+
+
+def _try_reset_bundle_dir(dst: Path) -> bool:
+    if not dst.exists():
+        dst.mkdir(parents=True)
+        return True
+    try:
+        shutil.rmtree(dst)
+        dst.mkdir(parents=True)
+        return True
+    except PermissionError:
+        print(
+            f"Note: {dst} is in use; updating files in place. "
+            "Close the game if sync reports locked DLLs.",
+            file=sys.stderr,
+        )
+        dst.mkdir(parents=True, exist_ok=True)
+        return False
+
+
+def _copy_core_bundle(src_dir: Path, dst: Path) -> list[Path]:
+    failed: list[Path] = []
     for item in src_dir.iterdir():
         if not _should_deploy_root_item(item):
             continue
         target = dst / item.name
         if item.is_dir():
-            if target.exists():
-                shutil.rmtree(target)
-            shutil.copytree(item, target)
-        else:
-            shutil.copy2(item, target)
+            failed.extend(_copy_tree_safe(item, target))
+        elif not _copy_file_safe(item, target):
+            failed.append(target)
+    return failed
 
 
 def _clean_legacy_root_dlls(bundle_dir: Path) -> None:
     for mod_id in BUNDLE_DLLS:
         legacy = bundle_dir / f"{mod_id}.dll"
-        if legacy.is_file():
+        if not legacy.is_file():
+            continue
+        try:
             legacy.unlink()
             print(f"Removed legacy root DLL: {legacy.name}")
+        except PermissionError:
+            print(
+                f"Warning: could not remove locked legacy DLL: {legacy.name}",
+                file=sys.stderr,
+            )
 
 
-def _deploy_bundle(mods_root: Path) -> None:
+def _deploy_bundle(mods_root: Path) -> list[Path]:
     dst = mods_root / BUNDLE_ID
-    if dst.exists():
-        shutil.rmtree(dst)
-    dst.mkdir(parents=True)
+    _try_reset_bundle_dir(dst)
     modules_dst = dst / MODULES_SUBDIR
-    modules_dst.mkdir(parents=True)
+    modules_dst.mkdir(parents=True, exist_ok=True)
 
+    failed: list[Path] = []
     core_src = _REPO / "build" / BUNDLE_ID
     if core_src.is_dir() and any(core_src.iterdir()):
-        _copy_core_bundle(core_src, dst)
+        failed.extend(_copy_core_bundle(core_src, dst))
         bundled_modules = core_src / MODULES_SUBDIR
         if bundled_modules.is_dir():
             for item in bundled_modules.iterdir():
-                if item.is_file():
-                    shutil.copy2(item, modules_dst / item.name)
+                if item.is_file() and not _copy_file_safe(item, modules_dst / item.name):
+                    failed.append(modules_dst / item.name)
     else:
         core_dll = _resolve_dll(BUNDLE_ID)
         if core_dll is None:
             raise FileNotFoundError(f"Missing Core build output under build/{BUNDLE_ID}/ or build/KitLib.dll")
-        shutil.copy2(core_dll, dst / "KitLib.dll")
+        if not _copy_file_safe(core_dll, dst / "KitLib.dll"):
+            failed.append(dst / "KitLib.dll")
         manifest = _REPO / "KitLib.json"
-        if manifest.is_file():
-            shutil.copy2(manifest, dst / "mod_manifest.json")
+        if manifest.is_file() and not _copy_file_safe(manifest, dst / "mod_manifest.json"):
+            failed.append(dst / "mod_manifest.json")
 
-    shutil.copy2(_resolve_abstractions_dll(), dst / ABSTRACTIONS_DLL)
+    if not _copy_file_safe(_resolve_abstractions_dll(), dst / ABSTRACTIONS_DLL):
+        failed.append(dst / ABSTRACTIONS_DLL)
     for runtime_dll in ABSTRACTIONS_RUNTIME_DLLS:
-        shutil.copy2(_resolve_abstractions_runtime_dll(runtime_dll), dst / runtime_dll)
+        target = dst / runtime_dll
+        if not _copy_file_safe(_resolve_abstractions_runtime_dll(runtime_dll), target):
+            failed.append(target)
     _assert_core_bundle(dst)
 
     copied = 0
@@ -218,24 +271,32 @@ def _deploy_bundle(mods_root: Path) -> None:
         if dll is None:
             print(f"Note: optional module DLL missing, skipped: {mod_id}.dll")
             continue
-        shutil.copy2(dll, modules_dst / f"{mod_id}.dll")
-        copied += 1
+        target = modules_dst / f"{mod_id}.dll"
+        if _copy_file_safe(dll, target):
+            copied += 1
+        else:
+            failed.append(target)
 
     _clean_legacy_root_dlls(dst)
 
     manifest = _REPO / "KitLib.json"
     if manifest.is_file():
-        shutil.copy2(manifest, dst / "mod_manifest.json")
+        _copy_file_safe(manifest, dst / "mod_manifest.json")
 
     print(f"Deployed bundle -> {dst} ({copied} satellite DLL(s) in {MODULES_SUBDIR}/)")
+    return failed
 
 
 def _remove_legacy_folders(mods_root: Path) -> None:
     for mod_id in BUNDLE_DLLS:
         legacy = mods_root / mod_id
-        if legacy.exists() and legacy.is_dir():
+        if not legacy.exists() or not legacy.is_dir():
+            continue
+        try:
             shutil.rmtree(legacy)
             print(f"Removed legacy mod folder: {legacy}")
+        except PermissionError:
+            print(f"Warning: could not remove legacy mod folder: {legacy}", file=sys.stderr)
 
 
 def main() -> int:
@@ -254,7 +315,15 @@ def main() -> int:
     mods_root.mkdir(parents=True, exist_ok=True)
 
     _remove_legacy_folders(mods_root)
-    _deploy_bundle(mods_root)
+    failed = _deploy_bundle(mods_root)
+    if failed:
+        names = ", ".join(path.name for path in failed)
+        print(
+            f"Deploy incomplete: {len(failed)} locked file(s): {names}. "
+            "Close Slay the Spire 2 and run make sync again.",
+            file=sys.stderr,
+        )
+        return 1
     print(f"Done: single mod at {mods_root / BUNDLE_ID} (hot-load from {MODULES_SUBDIR}/)")
     return 0
 

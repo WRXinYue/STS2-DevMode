@@ -5,6 +5,7 @@ using Godot;
 using MegaCrit.Sts2.Core.Assets;
 using MegaCrit.Sts2.Core.Debug;
 using MegaCrit.Sts2.Core.Modding;
+using KitLib.Abstractions.Modding;
 using KitLib.Modding;
 namespace KitLib.UI;
 /// <summary>
@@ -12,6 +13,47 @@ namespace KitLib.UI;
 /// <c>ModSettingsModInfoResolver</c>, scoped to vanilla <see cref="Mod" /> + <c>res://&lt;id&gt;/mod_image.png</c>).
 /// </summary>
 internal static class ModPanelModBanner {
+    internal static string? TryResolveModDirectory(string modId) {
+        if (string.IsNullOrWhiteSpace(modId))
+            return null;
+        foreach (var m in ModManager.Mods) {
+            if (string.IsNullOrWhiteSpace(m.path))
+                continue;
+            var id = m.manifest?.id;
+            if (string.Equals(id, modId, StringComparison.OrdinalIgnoreCase))
+                return m.path;
+        }
+        foreach (var m in ModManager.Mods) {
+            if (string.IsNullOrWhiteSpace(m.path))
+                continue;
+            var trimmed = m.path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var folder = Path.GetFileName(trimmed);
+            if (string.Equals(folder, modId, StringComparison.OrdinalIgnoreCase))
+                return m.path;
+        }
+        return TryResolveModDirectoryFromDisk(modId);
+    }
+
+    static string? TryResolveModDirectoryFromDisk(string modId) {
+        string? modsRoot = null;
+        foreach (var m in ModManager.Mods) {
+            if (string.IsNullOrWhiteSpace(m.path))
+                continue;
+            var trimmed = m.path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var parent = Path.GetDirectoryName(trimmed);
+            if (!string.IsNullOrWhiteSpace(parent))
+                modsRoot = parent;
+            break;
+        }
+        if (string.IsNullOrWhiteSpace(modsRoot))
+            return null;
+        var candidate = Path.Combine(modsRoot, modId);
+        if (!Directory.Exists(candidate))
+            return null;
+        var compatPath = Path.Combine(candidate, KitLibCompatDocument.FileName);
+        return File.Exists(compatPath) ? candidate : null;
+    }
+
     internal static Mod? TryFindMod(string modId) {
         if (string.IsNullOrWhiteSpace(modId))
             return null;

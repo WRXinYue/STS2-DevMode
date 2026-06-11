@@ -11,9 +11,21 @@ public static partial class ModPanelUI {
         label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         return label;
     }
+
+    internal static string FormatCompatWarningBb(string text) =>
+        string.IsNullOrWhiteSpace(text)
+            ? text
+            : $"[color={ModPanelUiPalette.CompatWarningBbColor}]{text}[/color]";
+
+    internal static MegaRichTextLabel CreateModStatusDescription(string statusText, string? compatWarning) {
+        var parts = new List<string> { statusText };
+        if (!string.IsNullOrWhiteSpace(compatWarning))
+            parts.Add(FormatCompatWarningBb(compatWarning));
+        return CreateInlineDescription(string.Join("\n\n", parts));
+    }
     internal static Color ResolveSidebarModTitleColor(ModEntryLoadStatus status) => status switch {
         ModEntryLoadStatus.Loaded => ModPanelUiPalette.LabelPrimary,
-        ModEntryLoadStatus.Failed => new Color(0.92f, 0.38f, 0.34f, 1f),
+        ModEntryLoadStatus.Failed => ModPanelUiPalette.CompatWarning,
         ModEntryLoadStatus.Disabled => new Color(0.55f, 0.52f, 0.48f, 0.95f),
         ModEntryLoadStatus.AddedAtRuntime => new Color(0.55f, 0.52f, 0.48f, 0.95f),
         _ => new Color(0.62f, 0.52f, 0.72f, 0.95f),

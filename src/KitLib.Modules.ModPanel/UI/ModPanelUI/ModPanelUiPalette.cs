@@ -9,6 +9,9 @@ public static class ModPanelUiPalette {
     public static readonly Color RichTextMuted = new(0.70f, 0.665f, 0.60f);
     public static readonly Color LabelPrimary = new(0.99f, 0.975f, 0.94f);
     public static readonly Color LabelSecondary = new(0.86f, 0.825f, 0.755f, 0.98f);
+    /// <summary>Failed-mod title and compat warning accent (matches <see cref="ResolveSidebarModTitleColor"/> Failed).</summary>
+    public static readonly Color CompatWarning = new(0.92f, 0.38f, 0.34f, 1f);
+    public const string CompatWarningBbColor = "#EB6157";
     public static readonly Color SidebarSection = new(0.88f, 0.855f, 0.795f);
     public static Color SidebarModActiveAccent => KitLibTheme.Accent;
 }

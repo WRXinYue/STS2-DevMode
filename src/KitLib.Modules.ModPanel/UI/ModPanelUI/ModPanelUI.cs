@@ -23,6 +23,7 @@ public static partial class ModPanelUI {
     private const int ZOrder = 2000;
     private static ModPanelSubmenu? _root;
     private static NMainMenu? _hostMainMenu;
+    private static string? _pendingInitialModId;
     private static Action? _themeRefresh;
 
     internal static void RegisterThemeRefresh(Action refresh) => _themeRefresh = refresh;
@@ -39,10 +40,11 @@ public static partial class ModPanelUI {
         context = null;
         return false;
     }
-    public static void Show(NMainMenu mainMenu) {
+    public static void Show(NMainMenu mainMenu, string? initialModId = null) {
         var perf = ModPanelPerf.Start();
         MainFile.Logger.Info("KitLib: Opening mod panel…");
         TeardownShell();
+        _pendingInitialModId = initialModId;
         RitsuModSettingsEmbedHost.Ensure();
         _hostMainMenu = mainMenu;
         _root = mainMenu.SubmenuStack.PushSubmenuType<ModPanelSubmenu>();
@@ -72,6 +74,17 @@ public static partial class ModPanelUI {
     public static bool IsVisible =>
         _root != null && GodotObject.IsInstanceValid(_root) && _root.Visible;
     private static bool IsSelectableSidebarMod(KitLibModEntry entry) => entry.IsLoaded;
+
+    private static string ResolveInitialSidebarModId(
+        ModPanelSidebarPlan sidebarPlan,
+        IReadOnlyList<KitLibModEntry> ordered) {
+        var pending = _pendingInitialModId;
+        _pendingInitialModId = null;
+        if (!string.IsNullOrWhiteSpace(pending)
+            && ordered.Any(e => string.Equals(e.Id, pending, StringComparison.OrdinalIgnoreCase)))
+            return pending;
+        return sidebarPlan.InitialSelectedModId;
+    }
 
     private static string ResolveShowcaseModId()
         => ModPanelSidebarPlanner.ResolveShowcaseModId(
@@ -332,7 +345,7 @@ public static partial class ModPanelUI {
             }
         }
         var modRows = new List<SidebarModRowVm>();
-        var initialSelectedId = sidebarPlan.InitialSelectedModId;
+        var initialSelectedId = ResolveInitialSidebarModId(sidebarPlan, ordered);
         var selectedModId = initialSelectedId;
         var contentState = new ModPanelContentState();
         Control? scopeFocusTarget = null;
@@ -641,8 +654,20 @@ public static partial class ModPanelUI {
             versionLabel.Text = ModPanelModBanner.FormatVersionBadgeText(entry.Version);
         }
         metaLabel.SetTextAutoSize($"{entry.Id} · {entry.LoadStatus}");
-        descLabel.Visible = false;
-        descLabel.SetTextAutoSize("");
+        var descParts = new List<string>();
+        if (!entry.IsLoaded) {
+            var compatWarning = ModPanelCompatProbe.TryFormatWarningForModId(entry.Id);
+            if (!string.IsNullOrWhiteSpace(compatWarning))
+                descParts.Add(FormatCompatWarningBb(compatWarning));
+        }
+        if (descParts.Count == 0) {
+            descLabel.Visible = false;
+            descLabel.SetTextAutoSize("");
+        }
+        else {
+            descLabel.Visible = true;
+            descLabel.SetTextAutoSize(string.Join("\n\n", descParts));
+        }
     }
     private static void ApplySidebarTexts(Mod? mod, string modId, MegaRichTextLabel titleLabel,
         PanelContainer versionBadgePanel, Label versionLabel, MegaRichTextLabel metaLabel,
@@ -673,9 +698,6 @@ public static partial class ModPanelUI {
         metaParts.Add(modId);
         metaLabel.SetTextAutoSize(string.Join(" · ", metaParts));
         var descParts = new List<string>();
-        var compatWarning = ModPanelCompatProbe.FormatWarning(ModPanelCompatProbe.Evaluate(mod));
-        if (!string.IsNullOrWhiteSpace(compatWarning))
-            descParts.Add(compatWarning);
         var desc = ModPanelModBanner.ResolveDescription(mod);
         if (!string.IsNullOrWhiteSpace(desc))
             descParts.Add(desc);
@@ -798,9 +820,12 @@ public static partial class ModPanelUI {
         var perf = ModPanelPerf.Start();
         var generation = ModPanelContentMotion.BeginRefresh(list);
         if (ModPanelModBanner.TryFindMod(modId) == null) {
-            ModPanelContentMotion.Present(list, generation, CreateInlineDescription(
-                I18N.T("modpanel.content.modNotLoaded",
-                    "This mod is disabled or failed to load. Enable it in the list and restart the game to edit settings here.")));
+            var compatWarning = ModPanelCompatProbe.TryFormatWarningForModId(modId);
+            ModPanelContentMotion.Present(list, generation,
+                CreateModStatusDescription(
+                    I18N.T("modpanel.content.modNotLoaded",
+                        "This mod is disabled or failed to load. Enable it in the list and restart the game to edit settings here."),
+                    compatWarning));
             ModPanelPerf.Log("refresh.modNotLoaded", perf, $"modId={modId}");
             return;
         }

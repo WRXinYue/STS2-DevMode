@@ -10,7 +10,7 @@ namespace KitLib.AI.Sts2.Helpers;
 /// <see cref="Snapshots.GameSnapshot"/> <c>enemy["index"]</c> (0-based slot in <c>CombatState.Enemies</c>).
 /// </summary>
 internal static class CombatTargetResolver {
-    public static Creature? ResolveEnemy(CombatState combatState, CardModel card, int combatIndex) {
+    public static Creature? ResolveEnemy(ICombatState combatState, CardModel card, int combatIndex) {
         var preferred = FindEnemyByCombatIndex(combatState, combatIndex);
         if (preferred != null && card.IsValidTarget(preferred))
             return preferred;
@@ -18,7 +18,7 @@ internal static class CombatTargetResolver {
         return combatState.HittableEnemies.FirstOrDefault(card.IsValidTarget);
     }
 
-    public static Creature? ResolveHittableEnemy(CombatState combatState, int combatIndex) {
+    public static Creature? ResolveHittableEnemy(ICombatState combatState, int combatIndex) {
         var preferred = FindEnemyByCombatIndex(combatState, combatIndex);
         if (preferred != null && combatState.HittableEnemies.Contains(preferred))
             return preferred;
@@ -26,7 +26,7 @@ internal static class CombatTargetResolver {
         return combatState.HittableEnemies.FirstOrDefault(e => e.IsAlive);
     }
 
-    public static Creature? FindEnemyByCombatIndex(CombatState combatState, int combatIndex) {
+    public static Creature? FindEnemyByCombatIndex(ICombatState combatState, int combatIndex) {
         if (combatIndex < 0)
             return null;
 

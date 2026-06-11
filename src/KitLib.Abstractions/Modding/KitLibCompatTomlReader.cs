@@ -110,7 +110,7 @@ public static class KitLibCompatTomlReader {
             return ParseQuotedStrings(value);
         if (value.StartsWith('"') && value.EndsWith('"') && value.Length >= 2)
             return [Unquote(value)];
-        return [];
+        return [value.Trim()];
     }
 
     static IReadOnlyList<string> ParseQuotedStrings(string arrayText) {

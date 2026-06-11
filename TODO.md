@@ -60,8 +60,10 @@ Megacrit **beta 合入 stable** 或 bump 游戏版本后过一遍：
 
 ### 3. KitLib 统一构建与回归
 
-- **单构建**：`make sync` / `make sync-full`（`Sts2Dir` 指向 beta 或 stable 安装目录用于编译对照 `sts2.dll`）。
-- **运行时**：`Sts2RuntimeProfile` 按游戏版本 + 平台选择 API profile（stable `0.105.x` vs beta `0.106.x`）。
+- **双版本编译**：`make build-profiles`（`STS2_DIR_STABLE` / `STS2_DIR_BETA` in `.env`，见 [docs/sts2-api-profiles.md](docs/sts2-api-profiles.md)）
+- **反射触点**：`make extract-touchpoints` → `make check-api`；发版前 `make verify-profiles`
+- **日常开发**：`make sync` / `make sync-full`（`local.props` 单一 `Sts2Dir`；beta 安装设 `STS2_PROFILE=beta`）
+- **运行时**：`Sts2RuntimeProfile` 按游戏版本 + 平台选择 API profile（stable `0.103.x` vs beta `0.106.x`）
 - 两套游戏安装都要测：**BYRDONIS_ELITE（或任意无槽位战）→ mid-combat 加 Ovicopter → 等下蛋**，确认不抛 `EncounterSlots is null`。
 
 ## 参考

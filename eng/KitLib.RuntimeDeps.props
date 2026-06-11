@@ -15,7 +15,7 @@
     <Copy SourceFiles="$(_PrimitivesDll)" DestinationFolder="$(_KitLibBundleDir)" SkipUnchangedFiles="true" Condition="Exists('$(_PrimitivesDll)')" />
     <Copy SourceFiles="$(_AbstractionsDll)" DestinationFolder="$(_KitLibBundleDir)" SkipUnchangedFiles="true" Condition="Exists('$(_AbstractionsDll)')" />
   </Target>
-  <Target Name="MergeKitLibCoreDependencies" AfterTargets="CopyKitLibAbstractionsRuntimeDeps" Condition="Exists('$(_IlRepackExe)')">
+  <Target Name="MergeKitLibCoreDependencies" AfterTargets="CopyKitLibAbstractionsRuntimeDeps" Condition="Exists('$(_IlRepackExe)') and '$(KitLibProfileBuild)' != 'true'">
     <Error Condition="!Exists('$(_KitLibBundleDir)KitLib.dll')" Text="Missing $(_KitLibBundleDir)KitLib.dll before ILRepack merge." />
     <Error Condition="!Exists('$(_KitLibBundleDir)KitLib.Abstractions.dll')" Text="Missing $(_KitLibBundleDir)KitLib.Abstractions.dll before ILRepack merge." />
     <Move SourceFiles="$(_KitLibBundleDir)KitLib.dll" DestinationFiles="$(_KitLibUnmergedDll)" />
