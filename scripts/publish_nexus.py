@@ -160,7 +160,7 @@ _load_dotenv()
 _USER_AGENT = "STS2-KitLib/publish_nexus.py"
 
 # Multipart upload: retry each part up to this many times on transient errors.
-_PART_MAX_RETRIES = 3
+_PART_MAX_RETRIES = 5
 # Poll: wait this many seconds between state checks, up to _POLL_MAX_ATTEMPTS.
 _POLL_INTERVAL = 2.0
 _POLL_MAX_ATTEMPTS = 60
@@ -238,6 +238,7 @@ def step1_create_multipart(zip_path: Path, api_key: str) -> dict:
 def step2_upload_parts(zip_path: Path, upload_info: dict) -> list[dict]:
     """PUT each file chunk to its presigned S3 URL; return list of {partNumber, etag}."""
     import requests
+    from requests.exceptions import RequestException
 
     part_urls: list[str] = upload_info["part_presigned_urls"]
     part_size: int = upload_info["part_size_bytes"]
@@ -257,24 +258,34 @@ def step2_upload_parts(zip_path: Path, upload_info: dict) -> list[dict]:
                     end="",
                     flush=True,
                 )
-                resp = requests.put(
-                    url,
-                    data=chunk,
-                    headers={
-                        "Content-Type": "application/octet-stream",
-                        "Content-Length": str(len(chunk)),
-                    },
-                    timeout=120,
-                )
+                try:
+                    resp = requests.put(
+                        url,
+                        data=chunk,
+                        headers={
+                            "Content-Type": "application/octet-stream",
+                            "Content-Length": str(len(chunk)),
+                        },
+                        timeout=300,
+                    )
+                except RequestException as ex:
+                    if attempt == _PART_MAX_RETRIES:
+                        raise RuntimeError(
+                            f"Part {part_number} upload failed after {_PART_MAX_RETRIES} attempts: {ex}"
+                        ) from ex
+                    print("  network error, retrying...")
+                    time.sleep(2**attempt)
+                    continue
                 if resp.ok:
                     etag = resp.headers.get("ETag", "").replace('"', "")
                     if not etag:
                         raise RuntimeError(f"No ETag for part {part_number}")
-                    print(f"  ✓ etag={etag[:12]}…")
+                    print(f"  OK etag={etag[:12]}...")
                     results.append({"partNumber": part_number, "etag": etag})
                     break
                 if attempt == _PART_MAX_RETRIES:
                     raise RuntimeError(f"Part {part_number} upload failed after {_PART_MAX_RETRIES} attempts: " f"HTTP {resp.status_code}")
+                print(f"  HTTP {resp.status_code}, retrying...")
                 time.sleep(2**attempt)
 
     return results
@@ -345,6 +356,7 @@ def step6_update_mod_file(
 ) -> str:
     """POST /mod-file-update-groups/{group_id}/versions — attach upload to mod page."""
     import requests
+    from requests.exceptions import RequestException
 
     body: dict = {
         "upload_id": upload_id,
@@ -357,15 +369,24 @@ def step6_update_mod_file(
     if description:
         body["description"] = description
 
-    resp = requests.post(
-        f"{_API_BASE}/mod-file-update-groups/{group_id}/versions",
-        headers=_api_headers(api_key),
-        json=body,
-        timeout=30,
-    )
-    result = _check(resp, "Update mod file")
-    file_uid: str = result["data"]["id"]
-    return file_uid
+    url = f"{_API_BASE}/mod-file-update-groups/{group_id}/versions"
+    for attempt in range(1, _PART_MAX_RETRIES + 1):
+        try:
+            resp = requests.post(
+                url,
+                headers=_api_headers(api_key),
+                json=body,
+                timeout=60,
+            )
+            result = _check(resp, "Update mod file")
+            file_uid: str = result["data"]["id"]
+            return file_uid
+        except RequestException as ex:
+            if attempt == _PART_MAX_RETRIES:
+                raise RuntimeError(f"Update mod file failed after {_PART_MAX_RETRIES} attempts: {ex}") from ex
+            print(f"  Attach retry {attempt}/{_PART_MAX_RETRIES}: {ex}")
+            time.sleep(2**attempt)
+    raise RuntimeError("Update mod file failed.")
 
 
 # ---------------------------------------------------------------------------
@@ -440,7 +461,7 @@ def main() -> int:
     # ── ensure zip exists ────────────────────────────────────────────────────
     if not zip_path.is_file():
         make_target = _make_target_for(tool=tool)
-        print(f"Zip not found at {zip_path} — running 'make {make_target}' first…")
+        print(f"Zip not found at {zip_path} - running 'make {make_target}' first...")
         import subprocess
 
         env = os.environ.copy()
@@ -495,25 +516,25 @@ def main() -> int:
         print("ERROR: 'requests' package not found. Run: pip install requests", file=sys.stderr)
         return 1
 
-    print(f"\nUploading {zip_path.name} to Nexus Mods…")
+    print(f"\nUploading {zip_path.name} to Nexus Mods...")
 
-    print("\n[1/6] Creating multipart upload…")
+    print("\n[1/6] Creating multipart upload...")
     upload_info = step1_create_multipart(zip_path, api_key)
     upload_id = upload_info["id"]
 
-    print("\n[2/6] Uploading parts…")
+    print("\n[2/6] Uploading parts...")
     parts_result = step2_upload_parts(zip_path, upload_info)
 
-    print("\n[3/6] Completing multipart upload…")
+    print("\n[3/6] Completing multipart upload...")
     step3_complete_multipart(upload_info["complete_presigned_url"], parts_result)
 
-    print("\n[4/6] Finalising upload…")
+    print("\n[4/6] Finalising upload...")
     step4_finalise(upload_id, api_key)
 
-    print("\n[5/6] Polling upload state…")
+    print("\n[5/6] Polling upload state...")
     step5_poll(upload_id, api_key)
 
-    print("\n[6/6] Attaching file to mod page…")
+    print("\n[6/6] Attaching file to mod page...")
     print(f"  Group {group_id}  category={attach['file_category']}  " f"primary={attach['primary_mod_manager_download']}")
     file_uid = step6_update_mod_file(
         upload_id,
