@@ -4,8 +4,6 @@
 
 All-in-one in-game toolkit for Slay the Spire 2 — test builds, cheat, script, and debug mods without leaving the game.
 
-![KitLib](https://raw.githubusercontent.com/WRXinYue/STS2-DevMode/main/assets/devmode.png)
-
 ## Getting started
 
 - **During a run** — Hover the left-edge **peek tab** to expand the dev rail, then click a panel icon. Browser panels slide in from the left; combat overlays use the game’s right edge or floating windows.
@@ -14,7 +12,7 @@ All-in-one in-game toolkit for Slay the Spire 2 — test builds, cheat, script, 
 - **Settings → Game** — **In-game right sidebar** (combat shortcuts + stats rail), game speed, skip animations, overlay toggles.
 - **Normal runs** — From title **Dev Mode**, cycle **Normal run: Disabled / Toolkit / Cheat Mode** to keep the rail available outside test runs.
 
-Install from [Releases](https://github.com/WRXinYue/STS2-DevMode/releases) or build from source (`python scripts/init.py`, then `make sync-full`). Steam **beta** builds need the matching beta mod package.
+Install from [Releases](https://github.com/WRXinYue/STS2-DevMode/releases) or build from source (`python scripts/init.py`, then `make sync-full`). One package supports pinned **stable** and **beta** STS2 builds (runtime profile detection).
 
 ### Install layout (0.13+)
 

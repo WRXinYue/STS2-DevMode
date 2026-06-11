@@ -62,7 +62,7 @@
 
   <Target Name="ValidatePackDist" BeforeTargets="GenerateNuspec" Condition="'$(PackKitLib)' == 'true'">
     <Error Condition="!Exists('$(RepoRoot)build\dist\KitLib\KitLib.dll')"
-           Text="Run make zip (or make zip-beta) before dotnet pack -p:PackKitLib=true." />
+           Text="Run make zip before dotnet pack -p:PackKitLib=true." />
   </Target>
 
   <Target Name="RemoveGodotAnalyzers" BeforeTargets="CoreCompile">

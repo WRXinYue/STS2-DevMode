@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -16,30 +15,12 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
-def _sts2_beta_version(raw: str) -> str:
-    return raw.strip().lstrip("v") or "0.105.1"
-
-
-def _resolve_sts2_beta_version(cli_value: str) -> str:
-    if cli_value.strip():
-        return _sts2_beta_version(cli_value)
-    return _sts2_beta_version(os.environ.get("STS2_GAME_BETA_VERSION", "0.105.1"))
-
-
-def _zip_name(version: str, *, beta: bool, sts2_beta_version: str) -> str:
-    if beta:
-        return f"KitLib-v{version}-sts2beta-v{sts2_beta_version}.zip"
+def _zip_name(version: str) -> str:
     return f"KitLib-v{version}.zip"
 
 
-def _release_tag(version: str, *, beta: bool, sts2_beta_version: str) -> str:
-    if beta:
-        return f"v{version}-sts2beta-v{sts2_beta_version}"
+def _release_tag(version: str) -> str:
     return f"v{version}"
-
-
-def _beta_notice_md(sts2_beta_version: str) -> str:
-    return f"> **Requires Slay the Spire 2 Steam beta branch v{sts2_beta_version}.** " "Not for the public/stable build.\n\n"
 
 
 def _changelog_section(path: Path, version: str) -> str:
@@ -74,16 +55,6 @@ def main() -> int:
         default="",
         help="Semver, e.g. 0.2.0 (default: KitLib.json)",
     )
-    ap.add_argument(
-        "--beta",
-        action="store_true",
-        help="Build/package/publish the STS2 Steam beta build (make zip-beta).",
-    )
-    ap.add_argument(
-        "--sts2-beta-version",
-        default="",
-        help="STS2 game beta version label, e.g. 0.105.1 (default: STS2_GAME_BETA_VERSION env or 0.105.1).",
-    )
     args = ap.parse_args()
 
     version = args.version.strip()
@@ -92,10 +63,6 @@ def main() -> int:
         manifest = json.loads(raw)
         version = str(manifest["version"])
         print(f"Version auto-detected from KitLib.json: {version}")
-
-    sts2_beta_version = _resolve_sts2_beta_version(args.sts2_beta_version)
-    if args.beta:
-        print(f"STS2 Steam beta branch game version: v{sts2_beta_version}")
 
     if not shutil.which("gh"):
         print(
@@ -110,11 +77,10 @@ def main() -> int:
         )
         return 1
 
-    make_target = "zip-beta" if args.beta else "zip"
-    print(f"Building and packaging (make {make_target})...")
-    subprocess.run(["make", make_target], cwd=_REPO_ROOT, check=True)
+    print("Building and packaging (make zip)...")
+    subprocess.run(["make", "zip"], cwd=_REPO_ROOT, check=True)
 
-    zip_name = _zip_name(version, beta=args.beta, sts2_beta_version=sts2_beta_version)
+    zip_name = _zip_name(version)
     zip_path = _REPO_ROOT / "build" / zip_name
     if not zip_path.is_file():
         print(f"Zip not found: {zip_path}", file=sys.stderr)
@@ -132,10 +98,7 @@ def main() -> int:
         else:
             notes = parts[0]
 
-    if args.beta:
-        notes = _beta_notice_md(sts2_beta_version) + notes
-
-    tag = _release_tag(version, beta=args.beta, sts2_beta_version=sts2_beta_version)
+    tag = _release_tag(version)
     print(f"Creating GitHub Release {tag}...")
     print(f"  Assets: {zip_path}")
 

@@ -4,8 +4,6 @@
 
 《杀戮尖塔 2》全功能游戏内工具箱：测试、作弊、脚本与 Mod 调试一体化。
 
-![KitLib](https://raw.githubusercontent.com/WRXinYue/STS2-DevMode/main/assets/devmode.png)
-
 ## 快速上手
 
 - **局内** — 鼠标移到左侧 **peek 标签** 展开 dev 侧栏，点击图标打开面板。浏览器面板从左侧滑入；战斗 overlay 在游戏右侧或浮动窗口。
@@ -14,7 +12,7 @@
 - **设置 → 游戏（Game）** — **局内右侧边栏**（战斗快捷 + 统计 rail）、游戏速度、跳过动画、overlay 开关。
 - **普通 run** — 标题 **开发模式** 中切换 **Normal run: 关闭 / 工具箱 / 作弊模式**，在非测试局也保留侧栏。
 
-可从 [Releases](https://github.com/WRXinYue/STS2-DevMode/releases) 安装，或源码构建（`python scripts/init.py`，再 `make sync-full`）。Steam **beta** 分支需使用对应的 beta mod 包。
+可从 [Releases](https://github.com/WRXinYue/STS2-DevMode/releases) 安装，或源码构建（`python scripts/init.py`，再 `make sync-full`）。同一安装包支持已钉死的 **stable** 与 **beta** 游戏版本（运行时 profile 识别）。
 
 ### 安装布局（0.13+）
 

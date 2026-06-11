@@ -21,25 +21,15 @@ def resolve_source(explicit: str | None = None) -> str:
     return source
 
 
-def package_version(version: str, *, beta: bool, sts2_beta_version: str) -> str:
-    if not beta:
-        return version
-    raw = sts2_beta_version.strip().lstrip("v")
-    # SemVer prerelease numeric identifiers must not have leading zeros (01051 is invalid).
-    parts = [str(int(p)) for p in raw.split(".") if p]
-    return f"{version}-sts2beta.{'.'.join(parts)}"
-
-
 def run_pack(
     repo_root: Path,
     *,
     package_version: str,
-    beta: bool,
     configuration: str = "Release",
 ) -> Path:
     dist_dll = repo_root / "build" / "dist" / "KitLib" / "KitLib.dll"
     if not dist_dll.is_file():
-        raise RuntimeError(f"Mod dist not found: {dist_dll}\nRun make zip (or make zip-beta) first.")
+        raise RuntimeError(f"Mod dist not found: {dist_dll}\nRun make zip first.")
 
     out_dir = repo_root / "build" / "nuget"
     out_dir.mkdir(parents=True, exist_ok=True)

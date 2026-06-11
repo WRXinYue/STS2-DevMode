@@ -110,7 +110,6 @@ def main() -> int:
     print("  make sync-framework-mods  -- copy DevMode STS2-RitsuLib NuGet into game (optional)")
     print("  make sync-launch       -- sync + launch game")
     print("  make launch            -- launch via Steam (macOS/Linux) or Sts2Dir exe (Windows)")
-    print("  make sync-beta-launch  -- sync-beta + launch game")
     print("  make deploy    -- deploy from build/KitLib/ (after make build)")
     print("  make build     -- artifacts under build/KitLib/ only (no game copy)")
     print("  make upload-nuget  -- zip + NuGet pack/push (NUGET_API_KEY in .env)")

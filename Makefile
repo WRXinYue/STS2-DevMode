@@ -55,13 +55,6 @@ STS2_MSBUILD_PROFILE := -p:Sts2Profile=$(STS2_COMPILE_PROFILE)
 # Copy build/KitLib/ into mods/KitLib/ only — never republish into the game tree.
 DEPLOY_COPY   := $(DOTNET) msbuild $(MOD_MAIN) -t:DeployRepoBuildToMods -p:DeployFromRepoBuild=true
 
-# Last STS2 game version used for manual smoke (unified build supports stable + beta via runtime profile).
-STS2_GAME_TESTED_VERSION ?= 0.106.1
-# Legacy aliases for upload scripts that still accept --sts2-beta-version.
-STS2_GAME_BETA_VERSION ?= $(STS2_GAME_TESTED_VERSION)
-BETA_STS2_VER_ARG := --sts2-beta-version $(STS2_GAME_BETA_VERSION)
-ZIP_BETA_TAG := -sts2tested-v$(STS2_GAME_TESTED_VERSION)
-ZIP_NAME_BETA := build/KitLib-v$(VERSION)$(ZIP_BETA_TAG).zip
 ZIP_MCP_NAME := build/KitLib.Mcp-v$(VERSION)-$(TOOLS_RID).zip
 ZIP_KITLOG_NAME := build/KitLog.Cli-v$(VERSION)-$(TOOLS_RID).zip
 MCP_PUBLISH_EXE := $(TOOLS_PUBLISH_DIR)/KitLib.Mcp.exe
@@ -79,8 +72,7 @@ PACKAGE_MODULES := $(PYTHON) scripts/package_modules.py
 
 .PHONY: help init icons format format-check lint-scripts check test hooks-install hooks-run deps build build-all deploy sync sync-full sync-framework-mods compile pck publish nexus nuget upload-all readme-nexus zip zip-full clean \
         build-stable build-beta build-profiles extract-touchpoints check-api verify-profiles capture-sts2-ref \
-        deploy-beta sync-beta sync-beta-launch compile-beta pck-beta zip-beta nexus-beta nuget-beta publish-beta upload-all-beta \
-        launch launch-beta sync-launch sync-full-launch sync-beta-run dev-session compile-tools build-tools deploy-tools sync-tools zip-mcp upload-nexus-mcp nexus-mcp \
+        launch sync-launch sync-full-launch dev-session compile-tools build-tools deploy-tools sync-tools zip-mcp upload-nexus-mcp nexus-mcp \
         compile-kitlog build-kitlog zip-kitlog \
         upload-github upload-nexus upload-nuget
 
@@ -128,27 +120,15 @@ help:
 	@echo "  build-kitlog publish kitlog self-contained to build/tools/ (TOOLS_RID=$(TOOLS_RID))"
 	@echo "  zip-kitlog   build-kitlog + package build/KitLog.Cli-vX.X.X-<rid>.zip (exe only)"
 	@echo ""
-	@echo "  sync-beta         alias for sync (unified build; point Sts2Dir at beta or stable install)"
-	@echo "  sync-beta-launch  alias for sync-launch"
-	@echo "  deploy-beta       alias for deploy"
-	@echo "  compile-beta      alias for compile"
-	@echo "  pck-beta          alias for pck"
-	@echo ""
 	@echo "  zip          build + package build/KitLib-vX.X.X.zip"
 	@echo ""
 	@echo "  [upload]"
 	@echo "  upload-github  zip + GitHub Release (requires gh CLI; alias: publish)"
-	@echo "  upload-nexus   zip + upload stable build to Nexus Main file (NEXUS_FILE_GROUP_ID; alias: nexus)"
+	@echo "  upload-nexus   zip + upload to Nexus Main file (NEXUS_FILE_GROUP_ID; alias: nexus)"
 	@echo "  upload-nexus-mcp  zip-mcp + Nexus Optional MCP proxy (NEXUS_FILE_GROUP_ID_MCP; alias: nexus-mcp)"
 	@echo "  upload-nuget   zip + pack + push to NuGet (NUGET_API_KEY; optional NUGET_SOURCE; alias: nuget)"
 	@echo "  upload-all     upload-github then upload-nexus then upload-nuget (one zip build)"
 	@echo "  readme-nexus   merge READMEs into assets/readme.nexus.txt (Nexus BBCode)"
-	@echo ""
-	@echo "  zip-beta       build + package …-sts2beta-v$(STS2_GAME_BETA_VERSION).zip"
-	@echo "  upload-github-beta  zip-beta + GitHub Release for STS2 beta v$(STS2_GAME_BETA_VERSION) (alias: publish-beta)"
-	@echo "  upload-nexus-beta   zip-beta + Nexus Optional file (NEXUS_FILE_GROUP_ID_BETA; alias: nexus-beta)"
-	@echo "  upload-nuget-beta   zip-beta + NuGet push (STS2.KitLib.Beta) for STS2 beta v$(STS2_GAME_BETA_VERSION) (alias: nuget-beta)"
-	@echo "  upload-all-beta     upload-github-beta then upload-nexus-beta then upload-nuget-beta (one zip build)"
 	@echo ""
 	@echo "  clean        remove build/ + dotnet clean"
 
@@ -229,16 +209,7 @@ sync-framework-mods:
 compile: deps
 	$(DOTNET) build $(DEPLOY_TO_GAME) $(STS2_MSBUILD_PROFILE) $(MOD_MAIN)
 
-deploy-beta: deploy
-
-sync-beta: sync
-ifneq ($(LAUNCH),)
-	$(PYTHON) scripts/launch_sts2.py
-endif
-
-sync-beta-launch sync-beta-run: sync-launch
-
-launch launch-beta:
+launch:
 	$(PYTHON) scripts/launch_sts2.py
 
 sync-launch: sync launch
@@ -264,24 +235,14 @@ compile-kitlog:
 build-kitlog:
 	$(DOTNET) publish $(KITLOG_PROJECT) $(KITLOG_PUBLISH_FLAGS)
 
-compile-beta: compile
-
 pck: deps
 	$(DOTNET) publish $(DEPLOY_TO_GAME) $(MOD_MAIN)
-
-pck-beta: pck
 
 publish upload-github:
 	$(PYTHON) scripts/publish_release.py $(if $(VERSION),--version $(VERSION),)
 
-publish-beta upload-github-beta:
-	$(PYTHON) scripts/publish_release.py --beta $(BETA_STS2_VER_ARG) $(if $(VERSION),--version $(VERSION),)
-
 nexus upload-nexus:
 	$(PYTHON) scripts/publish_nexus.py $(if $(VERSION),--version $(VERSION),)
-
-nexus-beta upload-nexus-beta:
-	$(PYTHON) scripts/publish_nexus.py --beta $(BETA_STS2_VER_ARG) $(if $(VERSION),--version $(VERSION),)
 
 nexus-mcp upload-nexus-mcp:
 	$(PYTHON) scripts/publish_nexus.py --mcp $(if $(VERSION),--version $(VERSION),) $(if $(TOOLS_RID),--tools-rid $(TOOLS_RID),)
@@ -289,14 +250,8 @@ nexus-mcp upload-nexus-mcp:
 nuget upload-nuget:
 	$(PYTHON) scripts/publish_nuget.py $(if $(VERSION),--version $(VERSION),)
 
-nuget-beta upload-nuget-beta:
-	$(PYTHON) scripts/publish_nuget.py --beta $(BETA_STS2_VER_ARG) $(if $(VERSION),--version $(VERSION),)
-
 upload-all: publish nexus nuget
 	$(PYTHON) scripts/publish_nuget.py --skip-build $(if $(VERSION),--version $(VERSION),)
-
-upload-all-beta: publish-beta nexus-beta nuget-beta
-	$(PYTHON) scripts/publish_nuget.py --beta $(BETA_STS2_VER_ARG) --skip-build $(if $(VERSION),--version $(VERSION),)
 
 readme-nexus:
 	$(PYTHON) scripts/readme_to_nexus.py
@@ -320,19 +275,6 @@ zip-kitlog: build-kitlog
 	$(PYTHON) -c "import zipfile;z=zipfile.ZipFile('$(ZIP_KITLOG_NAME)','w',zipfile.ZIP_DEFLATED);z.write(r'$(KITLOG_PUBLISH_EXE)','kitlog.exe');z.close()"
 	@echo.
 	@echo Done: $(ZIP_KITLOG_NAME)
-
-zip-beta: build
-	@if not exist build\KitLib\KitLib.pck (echo ERROR: KitLib.pck not found. Set GodotPath in local.props ^(make init^) and rebuild. & exit /b 1)
-	@if exist build\dist rmdir /s /q build\dist
-	@mkdir build\dist\KitLib\editor
-	@copy /y build\KitLib\KitLib.dll build\dist\KitLib\ >nul
-	@copy /y build\KitLib\KitLib.pck build\dist\KitLib\ >nul
-	@copy /y build\KitLib\mod_manifest.json build\dist\KitLib\ >nul
-	@xcopy /s /y /q editor\* build\dist\KitLib\editor\ >nul
-	$(PYTHON) -c "import zipfile,os;z=zipfile.ZipFile('$(ZIP_NAME_BETA)','w',zipfile.ZIP_DEFLATED);[z.write(os.path.join(r,f),os.path.join(os.path.relpath(r,'build/dist'),f)) for r,_,fs in os.walk('build/dist/KitLib') for f in fs];z.close()"
-	@echo.
-	@echo Done: $(ZIP_NAME_BETA)  (last smoke-tested STS2 v$(STS2_GAME_TESTED_VERSION))
-	@echo Install: extract into Slay the Spire 2 mods folder (stable or beta)
 
 zip: build
 	@if not exist build\KitLib\KitLib.pck (echo ERROR: KitLib.pck not found. Set GodotPath in local.props ^(make init^) and rebuild. & exit /b 1)
@@ -362,18 +304,6 @@ zip-kitlog: build-kitlog
 	$(PYTHON) -c "import zipfile;z=zipfile.ZipFile('$(ZIP_KITLOG_NAME)','w',zipfile.ZIP_DEFLATED);z.write('$(KITLOG_PUBLISH_BIN)','kitlog');z.close()"
 	@echo ""
 	@echo "Done: $(ZIP_KITLOG_NAME)"
-
-zip-beta: build
-	@test -f build/KitLib/KitLib.pck || (echo "ERROR: KitLib.pck not found. Set GodotPath in local.props (make init) and rebuild." >&2; exit 1)
-	rm -rf build/dist
-	mkdir -p $(DIST_DIR)/editor
-	cp build/KitLib/KitLib.dll build/KitLib/mod_manifest.json build/KitLib/KitLib.pck $(DIST_DIR)/
-	cp -R editor/. $(DIST_DIR)/editor/
-	rm -f $(ZIP_NAME_BETA)
-	cd build/dist && zip -qr ../KitLib-v$(VERSION)$(ZIP_BETA_TAG).zip KitLib
-	@echo ""
-	@echo "Done: $(ZIP_NAME_BETA)  (last smoke-tested STS2 v$(STS2_GAME_TESTED_VERSION))"
-	@echo 'Install: extract into Slay the Spire 2 mods/ (stable or beta)'
 
 zip: build
 	@test -f build/KitLib/KitLib.pck || (echo "ERROR: KitLib.pck not found. Set GodotPath in local.props (make init) and rebuild." >&2; exit 1)
