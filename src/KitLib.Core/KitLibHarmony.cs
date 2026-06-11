@@ -9,6 +9,9 @@ public static class KitLibHarmony {
     static readonly HashSet<string> Applied = new(StringComparer.OrdinalIgnoreCase);
     static readonly Dictionary<string, Harmony> Instances = new(StringComparer.OrdinalIgnoreCase);
 
+    public static bool IsApplied(string harmonyId) =>
+        !string.IsNullOrWhiteSpace(harmonyId) && Applied.Contains(harmonyId);
+
     public static Harmony GetOrCreate(string harmonyId) {
         if (string.IsNullOrWhiteSpace(harmonyId))
             throw new ArgumentException("Harmony id is required.", nameof(harmonyId));
@@ -23,14 +26,14 @@ public static class KitLibHarmony {
         ArgumentNullException.ThrowIfNull(moduleAssembly);
         if (string.IsNullOrWhiteSpace(harmonyId))
             throw new ArgumentException("Harmony id is required.", nameof(harmonyId));
-        if (!Applied.Add(harmonyId))
+        if (IsApplied(harmonyId))
             return;
 
         var harmony = GetOrCreate(harmonyId);
         List<Type> patchTypes;
         try {
             patchTypes = AccessTools.GetTypesFromAssembly(moduleAssembly)
-                .Where(t => t.GetCustomAttributes(typeof(HarmonyPatch), inherit: false).Length > 0)
+                .Where(HasHarmonyPatch)
                 .ToList();
         }
         catch (Exception ex) {
@@ -40,6 +43,19 @@ public static class KitLibHarmony {
 
         int applied = 0;
         int skipped = 0;
+        if (patchTypes.Count == 0) {
+            try {
+                harmony.PatchAll(moduleAssembly);
+                Applied.Add(harmonyId);
+                MainFile.Logger.Info($"KitLib Harmony patches applied: {harmonyId} (PatchAll).");
+                return;
+            }
+            catch (Exception ex) {
+                MainFile.Logger.Warn($"KitLib Harmony PatchAll failed for {harmonyId}: {ex.Message}");
+                return;
+            }
+        }
+
         foreach (var type in patchTypes) {
             try {
                 harmony.CreateClassProcessor(type).Patch();
@@ -51,8 +67,18 @@ public static class KitLibHarmony {
             }
         }
 
-
+        Applied.Add(harmonyId);
         MainFile.Logger.Info(
             $"KitLib Harmony patches applied: {harmonyId} ({applied} types, {skipped} skipped).");
+    }
+
+    static bool HasHarmonyPatch(Type type) {
+        foreach (var attr in type.GetCustomAttributes(inherit: false)) {
+            var attrType = attr.GetType();
+            if (attrType == typeof(HarmonyPatch) || attrType.Name is "HarmonyPatch" or "HarmonyPatchAttribute")
+                return true;
+        }
+
+        return false;
     }
 }

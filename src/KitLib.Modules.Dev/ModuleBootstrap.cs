@@ -1,5 +1,6 @@
 using Godot;
 using HarmonyLib;
+using KitLib;
 using KitLib.Abstractions.Host;
 using KitLib.AI.Combat.Simulation;
 using KitLib.CombatStats;
@@ -36,6 +37,9 @@ internal static class ModuleBootstrap {
             return;
         DevModDataPaths.SetRoot(path);
     }
+
+    /// <summary>Core satellite loader applies Dev Harmony in its ALC; Dev copy of <see cref="KitLibHarmony"/> cannot see that flag.</summary>
+    internal static void MarkHarmonyAppliedByHost() => _harmonyApplied = true;
 
     /// <summary>Apply Dev Harmony during mod init so <see cref="DevModelDbInitPatch"/> is active before <c>ModelDb.Init</c>.</summary>
     internal static void EnsureHarmonyApplied() {

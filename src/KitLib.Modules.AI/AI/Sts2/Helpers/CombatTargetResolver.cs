@@ -3,6 +3,12 @@ using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Models;
 
+#if STS2_BETA106PLUS
+using LiveCombatState = MegaCrit.Sts2.Core.Combat.ICombatState;
+#else
+using LiveCombatState = MegaCrit.Sts2.Core.Combat.CombatState;
+#endif
+
 namespace KitLib.AI.Sts2.Helpers;
 
 /// <summary>
@@ -10,7 +16,7 @@ namespace KitLib.AI.Sts2.Helpers;
 /// <see cref="Snapshots.GameSnapshot"/> <c>enemy["index"]</c> (0-based slot in <c>CombatState.Enemies</c>).
 /// </summary>
 internal static class CombatTargetResolver {
-    public static Creature? ResolveEnemy(ICombatState combatState, CardModel card, int combatIndex) {
+    public static Creature? ResolveEnemy(LiveCombatState combatState, CardModel card, int combatIndex) {
         var preferred = FindEnemyByCombatIndex(combatState, combatIndex);
         if (preferred != null && card.IsValidTarget(preferred))
             return preferred;
@@ -18,7 +24,7 @@ internal static class CombatTargetResolver {
         return combatState.HittableEnemies.FirstOrDefault(card.IsValidTarget);
     }
 
-    public static Creature? ResolveHittableEnemy(ICombatState combatState, int combatIndex) {
+    public static Creature? ResolveHittableEnemy(LiveCombatState combatState, int combatIndex) {
         var preferred = FindEnemyByCombatIndex(combatState, combatIndex);
         if (preferred != null && combatState.HittableEnemies.Contains(preferred))
             return preferred;
@@ -26,7 +32,7 @@ internal static class CombatTargetResolver {
         return combatState.HittableEnemies.FirstOrDefault(e => e.IsAlive);
     }
 
-    public static Creature? FindEnemyByCombatIndex(ICombatState combatState, int combatIndex) {
+    public static Creature? FindEnemyByCombatIndex(LiveCombatState combatState, int combatIndex) {
         if (combatIndex < 0)
             return null;
 

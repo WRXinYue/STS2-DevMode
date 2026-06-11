@@ -49,8 +49,9 @@ internal static class SatelliteModuleLoader {
         }
 
         if (ModuleCatalog.IsLoaded(ModuleIds.Dev)) {
-            WireDevModuleDelegates(_devAssembly ?? ModAssemblyLoader.GetLoadedAssembly("KitLib.Dev"));
-            KitLibHost.TryEnsureDevHarmonyApplied();
+            var devAssembly = _devAssembly ?? ModAssemblyLoader.GetLoadedAssembly("KitLib.Dev");
+            WireDevModuleDelegates(devAssembly);
+            ApplyDevHarmony(devAssembly);
         }
 
         if (loaded.Count == 0)
@@ -141,9 +142,6 @@ internal static class SatelliteModuleLoader {
                 return false;
             }
 
-            if (spec.ModuleId == ModuleIds.Dev) {
-            }
-
             InvokeModuleInitialize(spec.ModuleId, init);
 
             if (spec.ModuleId == ModuleIds.Dev) {
@@ -180,14 +178,11 @@ internal static class SatelliteModuleLoader {
         var complete = bootstrap.GetMethod(
             "Complete",
             BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-        var ensure = bootstrap.GetMethod(
-            "EnsureHarmonyApplied",
-            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
 
         if (complete != null)
             KitLibHost.RequestDevBootstrap = () => complete.Invoke(null, null);
-        if (ensure != null)
-            KitLibHost.EnsureDevHarmonyApplied = () => ensure.Invoke(null, null);
+
+        KitLibHost.EnsureDevHarmonyApplied = () => ApplyDevHarmony(devAssembly);
 
         var adopt = bootstrap.GetMethod(
             "AdoptPinnedModDataDir",
@@ -199,6 +194,21 @@ internal static class SatelliteModuleLoader {
         }
 
         DataPaths.TryGetPinnedBaseDir(out var wiredDir);
+    }
+
+    static void ApplyDevHarmony(Assembly? devAssembly) {
+        if (devAssembly == null)
+            return;
+        KitLibHarmony.Apply(devAssembly, ModuleIds.Dev);
+        MarkDevHarmonyAppliedOnBootstrap(devAssembly);
+    }
+
+    static void MarkDevHarmonyAppliedOnBootstrap(Assembly devAssembly) {
+        var bootstrap = devAssembly.GetType("KitLib.Dev.ModuleBootstrap", throwOnError: false);
+        var mark = bootstrap?.GetMethod(
+            "MarkHarmonyAppliedByHost",
+            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+        mark?.Invoke(null, null);
     }
 
     static void InvokeModuleInitialize(string moduleId, MethodInfo init) {
