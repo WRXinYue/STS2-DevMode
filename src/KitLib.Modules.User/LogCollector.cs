@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using KitLib.Settings;
 using MegaCrit.Sts2.Core.Logging;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
@@ -57,6 +58,20 @@ internal static class LogCollector {
         Log.LogCallback += OnLogReceived;
         MainFile.Logger.Info(KitLibInstance.SessionBoundaryMarker);
         LogViewerFilterSync.PublishDefaults();
+        ScheduleKitlogStartupIfEnabled();
+    }
+
+    static void ScheduleKitlogStartupIfEnabled() {
+        if (!SettingsStore.Current.LaunchKitlogOnStartup)
+            return;
+        Callable.From(TryLaunchKitlogStartup).CallDeferred();
+    }
+
+    static void TryLaunchKitlogStartup() {
+        if (!SettingsStore.Current.LaunchKitlogOnStartup)
+            return;
+        if (!KitLogTerminalLauncher.TryOpenSessionTail(out var error) && !string.IsNullOrEmpty(error))
+            KitLog.Debug("KitLog", error);
     }
 
     /// <summary>

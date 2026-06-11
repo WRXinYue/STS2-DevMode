@@ -189,6 +189,8 @@ kitlog tail --sync-viewer
 ```
 
 Filter contract file: `log-viewer-filter.json` (`LogViewerFilterContract`).
+
+**Mod settings:** KitLib → General → **Open live log terminal on startup** (`LaunchKitlogOnStartup`, default off). When enabled, KitLib.User opens a terminal streaming the session log after it is ready; silently skips if KitLog.Cli (kitlog) is not installed.
 :::
 
 ::: zh-CN
@@ -205,4 +207,6 @@ kitlog tail --sync-viewer
 ```
 
 过滤器契约文件：`log-viewer-filter.json`（`LogViewerFilterContract`）。
+
+**Mod 设置：** KitLib → 常规 → **启动时打开实时日志终端**（`LaunchKitlogOnStartup`，默认关）。开启后 KitLib.User 在 session 日志就绪后打开终端实时输出；未安装 KitLog.Cli（kitlog）时静默跳过。
 :::

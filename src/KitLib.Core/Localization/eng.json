@@ -38,6 +38,8 @@
   "modpanel.kitlib.accentColor.desc": "Highlight color for DevPanel and Mod settings (tabs, toggles, sidebar selection).",
   "modpanel.kitlib.diagnosticMode": "Mod panel diagnostic mode",
   "modpanel.kitlib.diagnosticMode.desc": "Log [ModPanelPerf] timings and verbose sidebar diagnostics to the main log.",
+  "settings.launchKitlogOnStartup": "Open live log terminal on startup",
+  "settings.launchKitlogOnStartup.desc": "When KitLib loads, open a system terminal that streams this session's game log in real time. Requires the optional KitLog.Cli tool (kitlog) from the tools zip.",
   "modpanel.kitlib.normalRun.title": "In-run DevMode level",
   "modpanel.kitlib.normalRun.desc": "Controls whether the DevPanel rail and cheat tools are available during normal (non test) runs.",
   "modpanel.kitlib.normalRun.disabled": "Normal run: disabled",

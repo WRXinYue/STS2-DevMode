@@ -88,6 +88,11 @@ public static class SettingsStore {
         Save();
     }
 
+    public static void SetLaunchKitlogOnStartup(bool enabled) {
+        Current.LaunchKitlogOnStartup = enabled;
+        Save();
+    }
+
     public static void SetHotkeysEnabled(bool enabled) {
         Current.HotkeysEnabled = enabled;
         Save();
@@ -333,4 +338,3 @@ public static class SettingsStore {
         return reader.ReadToEnd();
     }
 }
-

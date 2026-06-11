@@ -65,6 +65,12 @@ internal static class KitLibNativeModSettingsBootstrap {
                 "Log [ModPanelPerf] timings and verbose sidebar diagnostics to the main log."),
             () => SettingsStore.Current.ModPanelDiagnosticMode,
             SettingsStore.SetModPanelDiagnosticMode));
+        stack.AddChild(KitLibNativeModSettingsUi.CreateBoolToggle(
+            I18N.T("settings.launchKitlogOnStartup", "Open live log terminal on startup"),
+            I18N.T("settings.launchKitlogOnStartup.desc",
+                "When KitLib loads, open a system terminal that streams this session's game log in real time. Requires the optional KitLog.Cli tool (kitlog) from the tools zip."),
+            () => SettingsStore.Current.LaunchKitlogOnStartup,
+            SettingsStore.SetLaunchKitlogOnStartup));
         return stack;
     }
 

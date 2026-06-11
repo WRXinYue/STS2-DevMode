@@ -1,3 +1,4 @@
+using System;
 using Godot;
 namespace KitLib.UI;
 /// <summary>
@@ -181,7 +182,98 @@ internal static class DevModeFormChrome {
         var noFocus = new StyleBoxEmpty();
         cb.AddThemeStyleboxOverride("focus", noFocus);
         cb.AddThemeStyleboxOverride("hover", noFocus);
+        ApplyCheckboxIcons(cb);
     }
+
+    static void ApplyCheckboxIcons(CheckBox cb) {
+        cb.AddThemeIconOverride("unchecked", CreateCheckboxIcon(false));
+        cb.AddThemeIconOverride("unchecked_disabled", CreateCheckboxIcon(false, disabled: true));
+        cb.AddThemeIconOverride("checked", CreateCheckboxIcon(true));
+        cb.AddThemeIconOverride("checked_disabled", CreateCheckboxIcon(true, disabled: true));
+    }
+
+    static ImageTexture CreateCheckboxIcon(bool @checked, bool disabled = false) {
+        const int size = 48;
+        var img = Image.CreateEmpty(size, size, false, Image.Format.Rgba8);
+        img.Fill(Colors.Transparent);
+
+        var panelLum = KitLibTheme.PanelBg.R * 0.299f + KitLibTheme.PanelBg.G * 0.587f + KitLibTheme.PanelBg.B * 0.114f;
+        var onLightPanel = panelLum > 0.52f;
+
+        Color fill;
+        Color border;
+        if (@checked) {
+            var ac = KitLibTheme.Accent;
+            fill = new Color(ac.R, ac.G, ac.B, disabled ? 0.42f : 0.78f);
+            border = new Color(ac.R, ac.G, ac.B, disabled ? 0.55f : 1f);
+        }
+        else {
+            fill = onLightPanel
+                ? new Color(0f, 0f, 0f, disabled ? 0.04f : 0.07f)
+                : new Color(1f, 1f, 1f, disabled ? 0.08f : 0.14f);
+            border = onLightPanel
+                ? new Color(0f, 0f, 0f, disabled ? 0.18f : 0.32f)
+                : new Color(1f, 1f, 1f, disabled ? 0.28f : 0.50f);
+        }
+
+        const int pad = 8;
+        const int borderPx = 3;
+        var inner = pad + borderPx;
+        var outer = size - pad - borderPx;
+        PaintRect(img, inner, inner, outer - inner, outer - inner, fill);
+        PaintBorder(img, pad, pad, size - pad * 2, borderPx, border);
+
+        if (@checked)
+            PaintCheckMark(img, onLightPanel ? Colors.White : new Color(0.06f, 0.06f, 0.08f, 1f));
+
+        return ImageTexture.CreateFromImage(img);
+    }
+
+    static void PaintRect(Image img, int x, int y, int w, int h, Color color) {
+        for (var iy = y; iy < y + h; iy++) {
+            for (var ix = x; ix < x + w; ix++) {
+                if (ix < 0 || iy < 0 || ix >= img.GetWidth() || iy >= img.GetHeight())
+                    continue;
+                img.SetPixel(ix, iy, color);
+            }
+        }
+    }
+
+    static void PaintBorder(Image img, int x, int y, int size, int thickness, Color color) {
+        PaintRect(img, x, y, size, thickness, color);
+        PaintRect(img, x, y + size - thickness, size, thickness, color);
+        PaintRect(img, x, y + thickness, thickness, size - thickness * 2, color);
+        PaintRect(img, x + size - thickness, y + thickness, thickness, size - thickness * 2, color);
+    }
+
+    static void PaintCheckMark(Image img, Color color) {
+        PaintLine(img, 14, 26, 21, 33, color);
+        PaintLine(img, 21, 33, 35, 16, color);
+    }
+
+    static void PaintLine(Image img, int x0, int y0, int x1, int y1, Color color) {
+        var dx = Math.Abs(x1 - x0);
+        var dy = Math.Abs(y1 - y0);
+        var sx = x0 < x1 ? 1 : -1;
+        var sy = y0 < y1 ? 1 : -1;
+        var err = dx - dy;
+        while (true) {
+            if (x0 >= 0 && y0 >= 0 && x0 < img.GetWidth() && y0 < img.GetHeight())
+                img.SetPixel(x0, y0, color);
+            if (x0 == x1 && y0 == y1)
+                break;
+            var e2 = err * 2;
+            if (e2 > -dy) {
+                err -= dy;
+                x0 += sx;
+            }
+            if (e2 < dx) {
+                err += dx;
+                y0 += sy;
+            }
+        }
+    }
+
     public static void ApplyOptionButton(OptionButton ob) {
         var n = RoundedField(false);
         var h = (StyleBoxFlat)n.Duplicate();
