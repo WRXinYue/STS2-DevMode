@@ -15,28 +15,32 @@ internal static class KitLibNativeModSettingsBootstrap {
         KitLibModSettingsRegistry.Register(new KitLibModSettingsPageRegistration {
             ModId = modId,
             PageId = "general",
-            Title = I18N.T("modpanel.kitlib.page.general", "General"),
+            TitleKey = "modpanel.kitlib.page.general",
+            Title = "General",
             SortOrder = 0,
             BuildBody = BuildGeneralPage,
         });
         KitLibModSettingsRegistry.Register(new KitLibModSettingsPageRegistration {
             ModId = modId,
             PageId = "progressGuard",
-            Title = I18N.T("modpanel.kitlib.page.progressGuard", "Progress protection"),
+            TitleKey = "modpanel.kitlib.page.progressGuard",
+            Title = "Progress protection",
             SortOrder = 5,
             BuildBody = BuildProgressGuardPage,
         });
         KitLibModSettingsRegistry.Register(new KitLibModSettingsPageRegistration {
             ModId = modId,
             PageId = "performance",
-            Title = I18N.T("modpanel.kitlib.page.performance", "Performance"),
+            TitleKey = "modpanel.kitlib.page.performance",
+            Title = "Performance",
             SortOrder = 10,
             BuildBody = BuildPerformancePage,
         });
         KitLibModSettingsRegistry.Register(new KitLibModSettingsPageRegistration {
             ModId = modId,
             PageId = "hotkeys",
-            Title = I18N.T("modpanel.kitlib.page.hotkeys", "Hotkeys"),
+            TitleKey = "modpanel.kitlib.page.hotkeys",
+            Title = "Hotkeys",
             SortOrder = 20,
             BuildBody = BuildHotkeysPage,
         });
@@ -110,6 +114,11 @@ internal static class KitLibNativeModSettingsBootstrap {
         label.AddThemeFontSizeOverride("normal_font_size", 14);
         return label;
     }
+
+    internal static string ResolvePageTitle(KitLibModSettingsPageRegistration page) =>
+        string.IsNullOrWhiteSpace(page.TitleKey)
+            ? page.Title
+            : I18N.T(page.TitleKey, page.Title);
 
     static VBoxContainer CreatePageStack() {
         var stack = new VBoxContainer {

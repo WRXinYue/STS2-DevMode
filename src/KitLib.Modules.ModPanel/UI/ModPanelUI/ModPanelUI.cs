@@ -878,7 +878,8 @@ public static partial class ModPanelUI {
         var entries = new List<ModPanelPageTabChrome.PageEntry>(pages.Count);
         foreach (var p in pages) {
             validIds.Add(p.PageId);
-            entries.Add(new ModPanelPageTabChrome.PageEntry(p.PageId, p.Title));
+            entries.Add(new ModPanelPageTabChrome.PageEntry(
+                p.PageId, KitLibNativeModSettingsBootstrap.ResolvePageTitle(p)));
         }
         if (string.IsNullOrWhiteSpace(state.PageId) || !validIds.Contains(state.PageId))
             state.PageId = entries[0].Id;
