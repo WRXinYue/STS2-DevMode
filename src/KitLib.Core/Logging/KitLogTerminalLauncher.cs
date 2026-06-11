@@ -46,27 +46,15 @@ public static class KitLogTerminalLauncher {
     }
 
     static ProcessStartInfo BuildStartInfo(string executable, string args) {
-        if (OperatingSystem.IsWindows()) {
-            var command = QuoteWindowsArg(executable);
-            if (!string.IsNullOrEmpty(args))
-                command += " " + args;
-
-            return new ProcessStartInfo {
-                FileName = "cmd.exe",
-                Arguments = $"/c start \"KitLog\" cmd /k {command}",
-                UseShellExecute = true,
-            };
-        }
-
+        // Launch the console exe directly so kitlog owns the console and can enable VT/ANSI.
+        // Nested "cmd /k" breaks color on some Windows hosts even when kitlog writes escape codes.
         return new ProcessStartInfo {
             FileName = executable,
             Arguments = args,
             UseShellExecute = true,
+            WorkingDirectory = Path.GetDirectoryName(executable) ?? "",
         };
     }
-
-    static string QuoteWindowsArg(string value)
-        => value.Contains(' ') || value.Contains('"') ? $"\"{value.Replace("\"", "\\\"")}\"" : value;
 
     static string? ResolveKitLogExecutable() {
         var modDir = Path.GetDirectoryName(typeof(MainFile).Assembly.Location);
