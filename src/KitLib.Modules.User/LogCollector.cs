@@ -58,7 +58,23 @@ internal static class LogCollector {
         Log.LogCallback += OnLogReceived;
         MainFile.Logger.Info(KitLibInstance.SessionBoundaryMarker);
         LogViewerFilterSync.PublishDefaults();
+        EnsurePeriodicFlush();
         ScheduleKitlogStartupIfEnabled();
+    }
+
+    static void EnsurePeriodicFlush() {
+        if (Engine.GetMainLoop() is not SceneTree tree)
+            return;
+
+        ScheduleFlushTimer(tree);
+    }
+
+    static void ScheduleFlushTimer(SceneTree tree) {
+        var timer = tree.CreateTimer(InstanceLogWriter.FlushIntervalSeconds);
+        timer.Timeout += () => {
+            InstanceLogWriter.TryFlush();
+            ScheduleFlushTimer(tree);
+        };
     }
 
     static void ScheduleKitlogStartupIfEnabled() {
@@ -70,6 +86,9 @@ internal static class LogCollector {
     static void TryLaunchKitlogStartup() {
         if (!SettingsStore.Current.LaunchKitlogOnStartup)
             return;
+
+        InstanceLogWriter.TryFlush();
+
         if (!KitLogTerminalLauncher.TryOpenSessionTail(out var error) && !string.IsNullOrEmpty(error))
             KitLog.Debug("KitLog", error);
     }

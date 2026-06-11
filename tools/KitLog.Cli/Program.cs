@@ -2,6 +2,8 @@ using System.CommandLine;
 using KitLog.Cli.Services;
 using Spectre.Console;
 
+WindowsAnsiBootstrap.EnableIfNeeded();
+
 var pidOption = new Option<int?>("--pid") {
     Description = "STS2 process id (instances/{pid}/session.log). Default: latest session.",
 };
