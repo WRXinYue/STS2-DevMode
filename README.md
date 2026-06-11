@@ -2,19 +2,20 @@
 
 **English** | [中文](./README.zh-CN.md)
 
-All-in-one in-game toolkit for Slay the Spire 2 — test builds, cheat, script, and debug mods without leaving the game.
+Modular in-game toolkit for Slay the Spire 2. KitLib ships as a thin Core host with optional satellite modules for the dev rail, cheats, AI, logging, and main-menu mod settings. Use it for test runs, cheats, scripting, and mod debugging without leaving the game. Content mods can reference NuGet STS2.KitLib.Abstractions and ship kitlib.compat.toml for version checks.
 
 ## Getting started
 
+- **Main menu → Mods → KitLib** — Satellite load profiles (Minimal / Standard / Full / Custom), hotkeys, accent theme, `kitlib.compat.toml` warnings, progress protection, optional live log terminal on startup.
 - **During a run** — Hover the left-edge **peek tab** to expand the dev rail, then click a panel icon. Browser panels slide in from the left; combat overlays use the game’s right edge or floating windows.
 - **Title screen** — Click **Dev Mode** for test runs, snapshots, diagnostics, progress protection, and multiplayer dev tools (no run required).
 - **Settings → Sidebar** — Drag to reorder rail tabs and hide panels you do not need. **Harmony analysis**, **Scripts**, and **Frameworks** start hidden; enable them here when needed.
 - **Settings → Game** — **In-game right sidebar** (combat shortcuts + stats rail), game speed, skip animations, overlay toggles.
 - **Normal runs** — From title **Dev Mode**, cycle **Normal run: Disabled / Toolkit / Cheat Mode** to keep the rail available outside test runs.
 
-Install from [Releases](https://github.com/WRXinYue/STS2-DevMode/releases) or build from source (`python scripts/init.py`, then `make sync-full`). One package supports pinned **stable** and **beta** STS2 builds (runtime profile detection).
+Install from [Releases](https://github.com/WRXinYue/STS2-KitLib/releases) or build from source (`python scripts/init.py`, then `make sync-full`). One package supports pinned stable and beta STS2 builds; a startup banner appears when the mod build mismatches your game.
 
-### Install layout (0.13+)
+### Install layout (0.20+)
 
 KitLib installs as **one game mod**. Satellite modules are DLLs under `mods/KitLib/modules/`; Core hot-loads them at startup (missing or conflicting modules are skipped).
 
@@ -86,7 +87,7 @@ Build and deploy: `make sync-full`. Package zips: `make zip-full`.
 
 - **Save / Load** — Named DevMode snapshot slots (separate from vanilla `progress.save`); carry cards/relics/gold into a new seed; slot detail view
 - **Manual** — In-game documentation browser (one page per tool)
-- **Settings** — Theme (Dark / OLED / Light / Warm), game speed, skip animations, rail layout, combat overlays, **progress protection** and **crash recovery** toggles
+- **Settings** — Theme (Dark / OLED / Light / Warm), game speed, skip animations, rail layout, combat overlays, **progress protection** and **crash recovery** toggles (also under main-menu **Mods → KitLib**)
 
 ## In-combat overlays
 
@@ -106,14 +107,14 @@ Open from the in-run **Logs** rail tab or title screen **Dev Mode → Diagnostic
 
 - **Live + file history** — Streams new log lines and hydrates earlier lines from the session log (`mod_data/KitLib/instances/{pid}/session.log`, with fallback to Godot `user://logs/`).
 - **Filters** — Level chips (All / ≥ Info / ≥ Warn / Error), text search, per-mod source toggles, and toggleable **noise suppression** rules (known benign patterns with hit counts).
-- **Presentation** — Mod vs game source coloring; session boundary markers between DevMode restarts.
+- **Presentation** — Mod vs game source coloring; secondary scope tags dimmer than primary mod tags; session boundary markers between KitLib restarts.
 - **Stats sidebar** — Entry counts by level and mod; **source pie chart**.
 - **Copy all** — Copy the currently filtered log text to the clipboard.
 - **Alerts** — The **Logs** rail icon blinks on unseen Warn/Error until you open the viewer. The peek tab blinks until your first rail hover (then stays dismissed).
 
 ## KitLog CLI
 
-Optional standalone tool for tailing KitLib session logs outside the game (like `KitLib.Mcp`, not bundled in the main mod zip).
+Optional standalone tool for live KitLib logs outside the game (like `KitLib.Mcp`, not bundled in the main mod zip).
 
 ```bash
 make build-kitlog    # build/tools/KitLog.Cli/<rid>/publish/kitlog
@@ -123,10 +124,13 @@ make zip-kitlog      # build/KitLog.Cli-vX.X.X-<rid>.zip
 ```bash
 kitlog list
 kitlog path --pid <game-pid>
-kitlog tail -f --filter ai --pid <game-pid>
+kitlog attach --pid <game-pid> --follow --sync-viewer --tail 0   # structured pipe (recommended)
+kitlog tail -f --filter ai --pid <game-pid>                      # legacy session.log tail
 ```
 
-See **[tools/KitLog.Cli/README.md](tools/KitLog.Cli/README.md)** for install paths and filters. Content mods can log via `KitLog.Info("MyMod", "…")` on `KitLib.dll`.
+`attach` streams structured frames over `KitLib-log-{pid}` with mod/scope colors; falls back to `session.log` if the pipe is unavailable. The in-game log viewer **kitlog** button and **Settings → open live log terminal on startup** use the same attach command.
+
+See **[tools/KitLog.Cli/README.md](tools/KitLog.Cli/README.md)** for filters and install paths. Content mods log via **`KitLibLog` / `ModLog`** on `KitLib.dll` or NuGet **`STS2.KitLib.Abstractions`**.
 
 ## Mod feedback
 
@@ -138,7 +142,7 @@ Typical ZIP contents:
 
 - `report.txt` — Your description and environment summary
 - `mods.txt` — Loaded mod list
-- `logs-filtered.txt` — DevMode-filtered log excerpt
+- `logs-filtered.txt` — KitLib-filtered log excerpt
 - `harmony-patches.txt` — Active Harmony patch dump
 - `framework-bridge.txt` — Framework snapshot
 - `combat-stats.json` — Current combat stats export (if in a fight)
@@ -146,16 +150,16 @@ Typical ZIP contents:
 
 Reports are written under `user://devmode-reports/` (account-scoped user data, same tree as `mod_data/KitLib/`).
 
-When DevMode detects an unhandled error or an abnormal exit, it can open a dialog that links here with a **prefilled crash summary** — see **[Crash recovery](#crash-recovery)** below.
+When KitLib detects an unhandled error or an abnormal exit, it can open a dialog that links here with a **prefilled crash summary** — see **[Crash recovery](#crash-recovery)** below.
 
 ## Crash recovery
 
-DevMode can prompt you to export a feedback ZIP after serious failures (without spamming a popup on every log line).
+KitLib can prompt you to export a feedback ZIP after serious failures (without spamming a popup on every log line).
 
 ### In-game error dialog
 
-- On an **unhandled .NET exception**, DevMode writes a crash report and tries to show a dialog: **View logs**, **Export feedback ZIP**, or **Close**.
-- The export form is prefilled with an automatic summary (exception type, message, stack excerpt, DevMode version).
+- On an **unhandled .NET exception**, KitLib writes a crash report and tries to show a dialog: **View logs**, **Export feedback ZIP**, or **Close**.
+- The export form is prefilled with an automatic summary (exception type, message, stack excerpt, KitLib version).
 
 ### Next-launch prompt
 
@@ -167,7 +171,7 @@ DevMode can prompt you to export a feedback ZIP after serious failures (without 
 - Toggle: **Settings → Crash recovery → Prompt to export feedback on crash** (on by default).
 - Progress-loss restore prompts take priority if both would show on startup.
 
-Look for log lines prefixed **`[DevMode CrashRecovery]`**.
+Look for log lines prefixed **`[KitLib CrashRecovery]`** (legacy logs may still show `[DevMode CrashRecovery]`).
 
 ## Title screen (Dev Mode)
 
@@ -179,8 +183,8 @@ On the main menu, **Dev Mode** replaces separate dev buttons with one submenu:
 - **Normal run: …** — Cycle **Disabled** → **Dev Mode** → **Cheat Mode** for non-test runs
 - **Multiplayer** — Multiplayer dev submenu (see below)
 - **Unlock All Progress** — Unlock timeline epochs, Ascension 10, and compendium entries (confirmation required)
-- **Diagnostics** — **Logs** and **Mod feedback**
-- **Progress protection** — Backup status, restore, per-backup **Details**
+- **Diagnostics** — **Logs** and **Mod feedback** (progress protection also under **Mods → KitLib**)
+- **Progress protection** — Backup status, restore, per-backup **Details** (same flow in **Mods → KitLib**)
 - **Back** — Return to the stock main menu
 
 **Multiplayer** submenu:
@@ -193,40 +197,40 @@ Restore from **Progress protection** is title-screen only. Prefer matching the b
 
 ## Progress protection
 
-Changing the loaded mod set can cause vanilla save filtering to strip or zero mod character stats in `progress.save`. DevMode backs up and helps you recover that progress.
+Changing the loaded mod set can cause vanilla save filtering to strip or zero mod character stats in `progress.save`. KitLib backs up and helps you recover that progress.
 
 ### Automatic backup
 
-- On startup, when the loaded mod fingerprint differs from the last session, DevMode copies the active profile’s `progress.save` (and optional `prefs.save` / `current_run.save`) **before** vanilla filtering runs.
+- On startup, when the loaded mod fingerprint differs from the last session, KitLib copies the active profile’s `progress.save` (and optional `prefs.save` / `current_run.save`) **before** vanilla filtering runs.
 - Keeps up to **10 backups per profile** (oldest removed).
 - Toggle: **Settings → Progress protection → Auto-backup on mod set change** (on by default).
 
 ### Startup restore prompt
 
-- After progress loads on the title screen, DevMode scans recent backups for mod character stats that are missing or degraded in the current save (e.g. Ascension / wins reset to zero while a backup still has progress).
+- After progress loads on the title screen, KitLib scans recent backups for mod character stats that are missing or degraded in the current save (e.g. Ascension / wins reset to zero while a backup still has progress).
 - If recoverable data exists, a **Restore** / **Not now** dialog appears on the main menu.
 - Toggle: **Settings → Progress protection → Prompt on mod character progress loss** (on by default).
-- You can also restore anytime from **Dev Mode → Progress protection**.
+- You can also restore anytime from **Dev Mode → Progress protection** or **Mods → KitLib → Progress protection**.
 
 ### Manual restore
 
 1. Title screen → **Dev Mode → Progress protection**
 2. Choose a backup → **Restore**, or open **Details** first
-3. Confirm; DevMode writes a `progress.save.pre_restore_{timestamp}` next to the active save before overwriting
+3. Confirm; KitLib writes a `progress.save.pre_restore_{timestamp}` next to the active save before overwriting
 4. Reload the main menu or restart the game so progress reloads from disk
 
 ### File locations
 
-**DevMode user data root** (settings, snapshots, backups):
+**KitLib user data root** (settings, snapshots, backups). Legacy `mod_data/DevMode` migrates here on first launch:
 
 ```text
-%AppData%\SlayTheSpire2\steam\{SteamId}\mod_data\DevMode\
+%AppData%\SlayTheSpire2\steam\{SteamId}\mod_data\KitLib\
 ```
 
 **Profile backups** (one folder per backup):
 
 ```text
-...\mod_data\DevMode\profile_backups\{yyyyMMdd_HHmmss}_profile{N}\
+...\mod_data\KitLib\profile_backups\{yyyyMMdd_HHmmss}_profile{N}\
   progress.save
   backup_meta.json    # timestamp, mod fingerprint, copied files
   prefs.save          # optional
@@ -262,13 +266,13 @@ Detailed architecture, verification checklist, and desync history: **[docs/lan-h
 
 ## Mod AI integration
 
-DevMode exposes a **soft-dependency** AI platform for content mods. DevMode owns the loop, snapshot capture, action execution, and vanilla combat scoring; your mod bridge supplies character semantics (snapshot extensions, strategy rules, score tweaks).
+KitLib exposes a **soft-dependency** AI platform for content mods. KitLib owns the loop, snapshot capture, action execution, and vanilla combat scoring; your mod bridge supplies character semantics (snapshot extensions, strategy rules, score tweaks).
 
-**Requires:** DevMode loaded at runtime. Reference `KitLib.dll` at compile time only (do not bundle it in your mod).
+**Requires:** KitLib loaded at runtime (typically **KitLib-Full** or Core + `KitLib.AI`). Reference `KitLib.dll` or **`STS2.KitLib.Abstractions`** at compile time only (do not bundle KitLib in your mod).
 
 ### Registration (mod init)
 
-Call from your mod’s `[ModInitializer]` after DevMode is available:
+Call from your mod’s `[ModInitializer]` after KitLib is available:
 
 ```csharp
 using KitLib.AI.Core;
@@ -314,7 +318,7 @@ public interface IAiSnapshotContributor {
 }
 ```
 
-Strategies **must** read `extensions.*`; DevMode does not hard-code mod power types.
+Strategies **must** read `extensions.*`; KitLib does not hard-code mod power types.
 
 ### Combat scoring
 
@@ -349,13 +353,13 @@ CompanionBridge.TrySummon(new CompanionSpawnRequest(
 | LustTravel2 (FoxHime) | `LustTravel2.DevModeBridge` | stamina snapshot, FoxHime strategy + move modifier |
 | WineFox (CombatMaid) | `STS2_CombatMaid` | craft/stress snapshot, WineFox strategy + move modifier |
 
-Build a bridge DLL against a fresh `KitLib.dll` (`build/KitLib/KitLib.dll` after `dotnet build`). Ship the bridge as a separate mod with `"dependencies": ["YourContentMod"]` (DevMode is runtime-only).
+Build a bridge DLL against a fresh `KitLib.dll` (`build/KitLib/KitLib.dll` after `dotnet build`). Ship the bridge as a separate mod with `"dependencies": ["YourContentMod"]` (KitLib is runtime-only).
 
 ## MCP
 
-Connect any [Model Context Protocol](https://modelcontextprotocol.io) client (Claude Desktop, IDE MCP plugins, etc.) to a running STS2 session with DevMode loaded. DevMode starts an in-game HTTP bridge on port **9877**; the stdio proxy in `tools/KitLib.Mcp` (built with the official [MCP C# SDK](https://csharp.sdk.modelcontextprotocol.io/)) forwards MCP messages to `http://127.0.0.1:9877/messages`.
+Connect any [Model Context Protocol](https://modelcontextprotocol.io) client (Claude Desktop, IDE MCP plugins, etc.) to a running STS2 session with **KitLib** loaded (`KitLib.Dev` satellite). KitLib starts an in-game HTTP bridge on port **9877**; the stdio proxy in `tools/KitLib.Mcp` (built with the official [MCP C# SDK](https://csharp.sdk.modelcontextprotocol.io/)) forwards MCP messages to `http://127.0.0.1:9877/messages`.
 
-**Requires:** Slay the Spire 2 running with **DevMode** loaded for tool execution (start the game before or keep it running while the client connects). Tool listing works without the game.
+**Requires:** Slay the Spire 2 running with **KitLib** (Dev module) loaded for tool execution (start the game before or keep it running while the client connects). Tool listing works without the game.
 
 ### Tools
 
@@ -430,7 +434,7 @@ dotnet publish tools/KitLib.Mcp/KitLib.Mcp.csproj -c Release -r osx-arm64 --self
 
 Add a **`devmode`** entry under `mcpServers` in your MCP client config (stdio transport). This is **one server among many** — keep your existing entries and only add or update the `devmode` block. Exact config file path depends on the client; see its MCP documentation.
 
-Paste one of the blocks below into your existing MCP client config (merge with your other `mcpServers` entries). Default port is **9877** (must match `McpConfig.Port` in the mod). Override with `--port` on the proxy only if you also change the mod source and rebuild DevMode.
+Paste one of the blocks below into your existing MCP client config (merge with your other `mcpServers` entries). Default port is **9877** (must match `McpConfig.Port` in the mod). Override with `--port` on the proxy only if you also change the mod source and rebuild KitLib.
 
 **Cross-platform development** (`dotnet exec`; paths are relative to the repo / workspace root):
 
@@ -487,7 +491,7 @@ macOS / Linux:
 
 ### HTTP bridge (manual test)
 
-With the game running and DevMode loaded:
+With the game running and KitLib loaded:
 
 ```bash
 curl -s http://127.0.0.1:9877/health
@@ -501,11 +505,11 @@ curl -s -X POST http://127.0.0.1:9877/messages \
 
 ## Contributing
 
-See **[CONTRIBUTING.md](CONTRIBUTING.md)** for collaboration norms, K&R brace style, formatting commands, and localization, or open an issue / PR on [GitHub](https://github.com/WRXinYue/STS2-DevMode).
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for collaboration norms, K&R brace style, formatting commands, and localization, or open an issue / PR on [GitHub](https://github.com/WRXinYue/STS2-KitLib).
 
 ## Changelog
 
-See [CHANGELOG.md](https://github.com/WRXinYue/STS2-DevMode/blob/main/CHANGELOG.md) for version history.
+See [CHANGELOG.md](https://github.com/WRXinYue/STS2-KitLib/blob/main/CHANGELOG.md) for version history.
 
 ## Acknowledgments
 
@@ -513,4 +517,4 @@ See [CHANGELOG.md](https://github.com/WRXinYue/STS2-DevMode/blob/main/CHANGELOG.
 
 ## License
 
-[MIT](https://github.com/WRXinYue/STS2-DevMode/blob/main/LICENSE)
+[MIT](https://github.com/WRXinYue/STS2-KitLib/blob/main/LICENSE)
