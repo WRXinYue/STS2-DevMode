@@ -120,7 +120,7 @@ help:
 	@echo "  build-kitlog publish kitlog self-contained to build/tools/ (TOOLS_RID=$(TOOLS_RID))"
 	@echo "  zip-kitlog   build-kitlog + package build/KitLog.Cli-vX.X.X-<rid>.zip (exe only)"
 	@echo ""
-	@echo "  zip          build + package build/KitLib-vX.X.X.zip"
+	@echo "  zip          build-all + package build/KitLib-vX.X.X.zip (alias: zip-full)"
 	@echo ""
 	@echo "  [upload]"
 	@echo "  upload-github  zip + GitHub Release (requires gh CLI; alias: publish)"
@@ -271,12 +271,11 @@ docs:
 docs-build:
 	cd docs && pnpm install && pnpm run build:ssg
 
-# ── zip: build + package into build/KitLib-vX.X.X.zip ──
-ZIP_NAME := build/KitLib-v$(VERSION).zip
-DIST_DIR := build/dist/KitLib
-
+# ── zip: modular release (Core + satellites under modules/) ──
 zip-full: build-all
 	$(PACKAGE_MODULES) --skip-build
+
+zip: zip-full
 
 ifeq ($(OS),Windows_NT)
 zip-mcp: build-tools
@@ -290,19 +289,6 @@ zip-kitlog: build-kitlog
 	$(PYTHON) -c "import zipfile;z=zipfile.ZipFile('$(ZIP_KITLOG_NAME)','w',zipfile.ZIP_DEFLATED);z.write(r'$(KITLOG_PUBLISH_EXE)','kitlog.exe');z.close()"
 	@echo.
 	@echo Done: $(ZIP_KITLOG_NAME)
-
-zip: build
-	@if not exist build\KitLib\KitLib.pck (echo ERROR: KitLib.pck not found. Set GodotPath in local.props ^(make init^) and rebuild. & exit /b 1)
-	@if exist build\dist rmdir /s /q build\dist
-	@mkdir build\dist\KitLib\editor
-	@copy /y build\KitLib\KitLib.dll build\dist\KitLib\ >nul
-	@copy /y build\KitLib\KitLib.pck build\dist\KitLib\ >nul
-	@copy /y build\KitLib\mod_manifest.json build\dist\KitLib\ >nul
-	@xcopy /s /y /q editor\* build\dist\KitLib\editor\ >nul
-	$(PYTHON) -c "import zipfile,os;z=zipfile.ZipFile('$(ZIP_NAME)','w',zipfile.ZIP_DEFLATED);[z.write(os.path.join(r,f),os.path.join(os.path.relpath(r,'build/dist'),f)) for r,_,fs in os.walk('build/dist/KitLib') for f in fs];z.close()"
-	@echo.
-	@echo Done: build\KitLib-v$(VERSION).zip
-	@echo Install: extract into "Slay the Spire 2\mods\"
 
 clean:
 	@if exist build rmdir /s /q build
@@ -319,18 +305,6 @@ zip-kitlog: build-kitlog
 	$(PYTHON) -c "import zipfile;z=zipfile.ZipFile('$(ZIP_KITLOG_NAME)','w',zipfile.ZIP_DEFLATED);z.write('$(KITLOG_PUBLISH_BIN)','kitlog');z.close()"
 	@echo ""
 	@echo "Done: $(ZIP_KITLOG_NAME)"
-
-zip: build
-	@test -f build/KitLib/KitLib.pck || (echo "ERROR: KitLib.pck not found. Set GodotPath in local.props (make init) and rebuild." >&2; exit 1)
-	rm -rf build/dist
-	mkdir -p $(DIST_DIR)/editor
-	cp build/KitLib/KitLib.dll build/KitLib/mod_manifest.json build/KitLib/KitLib.pck $(DIST_DIR)/
-	cp -R editor/. $(DIST_DIR)/editor/
-	rm -f $(ZIP_NAME)
-	cd build/dist && zip -qr ../KitLib-v$(VERSION).zip KitLib
-	@echo ""
-	@echo "Done: $(ZIP_NAME)"
-	@echo 'Install: extract into "Slay the Spire 2/mods/"'
 
 clean:
 	rm -rf build

@@ -83,7 +83,7 @@ def main() -> int:
         [
             "dotnet",
             "pack",
-            str(_REPO_ROOT / "KitLib.Abstractions" / "KitLib.Abstractions.csproj"),
+            str(_REPO_ROOT / "src" / "KitLib.Abstractions" / "KitLib.Abstractions.csproj"),
             "-c",
             "Release",
             "-o",
