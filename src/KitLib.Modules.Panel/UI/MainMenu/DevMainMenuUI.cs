@@ -9,6 +9,7 @@ using KitLib.Multiplayer.LanTest;
 using KitLib.Settings;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Nodes;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.Debug.Multiplayer;
 using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 using MegaCrit.Sts2.Core.Nodes.Screens.MainMenu;
@@ -29,6 +30,14 @@ internal static class DevMainMenuUI {
     private static readonly List<NMainMenuTextButton> _addedButtons = new();
     private static readonly List<(Control control, bool wasVisible)> _hiddenControls = new();
     private static Control? _sessionContainer;
+    private static DevMenuLevel _currentLevel;
+    private static DevMainMenuInputForwarder? _inputForwarder;
+
+    private enum DevMenuLevel {
+        Root,
+        Diagnostics,
+        Multiplayer,
+    }
 
     // Runtime rows miss NMainMenu._Ready wiring; forward focus to the same handlers as stock buttons.
     private static readonly MethodInfo? MainMenuFocusedMethod =
@@ -57,6 +66,7 @@ internal static class DevMainMenuUI {
 
         DismissOverlays(mainMenu.GetTree().Root);
         TakeOverContainer(container);
+        EnsureInputForwarder(mainMenu);
         ShowRootMenu();
     }
 
@@ -96,6 +106,7 @@ internal static class DevMainMenuUI {
         AddButton(container, template, I18N.T("devmenu.diagnostics", "Diagnostics"), ShowDiagnosticsMenu);
 
         AddButton(container, template, I18N.T("devmenu.back", "Back"), Hide);
+        FinishMenuBuild(DevMenuLevel.Root);
     }
 
     static void ShowDiagnosticsMenu() {
@@ -116,6 +127,7 @@ internal static class DevMainMenuUI {
         });
 
         AddButton(container, template, I18N.T("devmenu.back", "Back"), ShowRootMenu);
+        FinishMenuBuild(DevMenuLevel.Diagnostics);
     }
 
     static void ShowMultiplayerMenu() {
@@ -143,6 +155,7 @@ internal static class DevMainMenuUI {
         });
 
         AddButton(container, template, I18N.T("devmenu.back", "Back"), ShowRootMenu);
+        FinishMenuBuild(DevMenuLevel.Multiplayer);
     }
 
     static void OpenLanMultiplayer(NMainMenu mainMenu) {
@@ -187,13 +200,16 @@ internal static class DevMainMenuUI {
     }
 
     public static void Hide() {
+        var mainMenu = _mainMenu;
         Node? root = null;
-        if (_mainMenu != null && GodotObject.IsInstanceValid(_mainMenu))
-            root = _mainMenu.GetTree().Root;
+        if (mainMenu != null && GodotObject.IsInstanceValid(mainMenu))
+            root = mainMenu.GetTree().Root;
 
         DismissOverlays(root);
         ClearAddedButtons();
         RestoreStockButtons();
+        if (mainMenu != null && GodotObject.IsInstanceValid(mainMenu))
+            RestoreStockMainMenuControllerFocus(mainMenu);
         ClearSessionState();
     }
 
@@ -204,6 +220,33 @@ internal static class DevMainMenuUI {
             if (GodotObject.IsInstanceValid(ctrl))
                 ctrl.Visible = false;
         }
+    }
+
+    internal static void NotifyOverlayOpened(Control overlayRoot, PanelContainer panel) {
+        ReleaseDevMenuButtonFocus();
+        DevMainMenuOverlay.FocusOverlayContentDeferred(overlayRoot, panel);
+    }
+
+    internal static void NotifyOverlayClosed() {
+        if (!IsVisible)
+            return;
+        ReleaseDevMenuButtonFocus();
+        RefreshControllerFocus();
+    }
+
+    private static void ReleaseDevMenuButtonFocus() {
+        if (_mainMenu == null || !GodotObject.IsInstanceValid(_mainMenu))
+            return;
+
+        foreach (var btn in _addedButtons) {
+            if (!GodotObject.IsInstanceValid(btn) || !btn.HasFocus())
+                continue;
+            if (MainMenuUnfocusedMethod != null)
+                MainMenuUnfocusedMethod.Invoke(_mainMenu, [btn]);
+            btn.ReleaseFocus();
+        }
+
+        _mainMenu.GetViewport()?.GuiReleaseFocus();
     }
 
     private static void TakeOverContainer(Control container) {
@@ -250,10 +293,180 @@ internal static class DevMainMenuUI {
     }
 
     private static void ClearSessionState() {
+        if (_inputForwarder != null && GodotObject.IsInstanceValid(_inputForwarder))
+            _inputForwarder.QueueFree();
+        _inputForwarder = null;
+        _currentLevel = DevMenuLevel.Root;
         _mainMenu = null;
         _buttonsContainer = null;
         _buttonTemplate = null;
         _actions = null;
+    }
+
+    private static void FinishMenuBuild(DevMenuLevel level) {
+        _currentLevel = level;
+        WireAddedButtonFocusNeighbors();
+        RefreshControllerFocus();
+    }
+
+    private static void WireAddedButtonFocusNeighbors() {
+        var focusable = new List<NMainMenuTextButton>();
+        foreach (var btn in _addedButtons) {
+            if (IsFocusableMenuButton(btn))
+                focusable.Add(btn);
+        }
+
+        for (var i = 0; i < focusable.Count; i++) {
+            var btn = focusable[i];
+            btn.FocusNeighborLeft = new NodePath(".");
+            btn.FocusNeighborRight = new NodePath(".");
+            btn.FocusNeighborTop = i > 0 ? focusable[i - 1].GetPath() : btn.GetPath();
+            btn.FocusNeighborBottom = i < focusable.Count - 1
+                ? focusable[i + 1].GetPath()
+                : btn.GetPath();
+        }
+    }
+
+    private static void RefreshControllerFocus() {
+        if (!ShouldPreferControllerFocus())
+            return;
+
+        Callable.From(() => {
+            foreach (var btn in _addedButtons) {
+                if (!IsFocusableMenuButton(btn))
+                    continue;
+                btn.GrabFocus();
+                return;
+            }
+        }).CallDeferred();
+    }
+
+    private static bool ShouldPreferControllerFocus() =>
+        NControllerManager.Instance?.IsUsingController == true
+        || Input.GetConnectedJoypads().Count > 0;
+
+    private static void RestoreStockMainMenuControllerFocus(NMainMenu mainMenu) {
+        Callable.From(() => {
+            if (!GodotObject.IsInstanceValid(mainMenu))
+                return;
+
+            mainMenu.GetViewport()?.GuiReleaseFocus();
+            WireStockButtonFocusNeighbors(mainMenu);
+
+            if (ShouldPreferControllerFocus())
+                GrabFirstVisibleStockButtonFocus(mainMenu);
+        }).CallDeferred();
+    }
+
+    private static void WireStockButtonFocusNeighbors(NMainMenu mainMenu) {
+        var container = mainMenu.GetNodeOrNull<Control>(ButtonsContainerPath)
+            ?? mainMenu.GetNodeOrNull<Control>("MainMenuTextButtons");
+        if (container == null)
+            return;
+
+        var focusable = new List<NMainMenuTextButton>();
+        foreach (var child in container.GetChildren()) {
+            if (child is not NMainMenuTextButton btn || !btn.Visible || !btn.IsEnabled)
+                continue;
+            if (btn.FocusMode == Control.FocusModeEnum.None)
+                continue;
+            focusable.Add(btn);
+        }
+
+        for (var i = 0; i < focusable.Count; i++) {
+            var btn = focusable[i];
+            btn.FocusNeighborLeft = new NodePath(".");
+            btn.FocusNeighborRight = new NodePath(".");
+            btn.FocusNeighborTop = i > 0 ? focusable[i - 1].GetPath() : btn.GetPath();
+            btn.FocusNeighborBottom = i < focusable.Count - 1
+                ? focusable[i + 1].GetPath()
+                : btn.GetPath();
+        }
+    }
+
+    private static void GrabFirstVisibleStockButtonFocus(NMainMenu mainMenu) {
+        var container = mainMenu.GetNodeOrNull<Control>(ButtonsContainerPath)
+            ?? mainMenu.GetNodeOrNull<Control>("MainMenuTextButtons");
+        if (container == null)
+            return;
+
+        foreach (var child in container.GetChildren()) {
+            if (child is not NMainMenuTextButton btn || !btn.Visible || !btn.IsEnabled)
+                continue;
+            if (btn.FocusMode == Control.FocusModeEnum.None)
+                continue;
+            btn.GrabFocus();
+            return;
+        }
+    }
+
+    private static bool IsFocusableMenuButton(NMainMenuTextButton btn) =>
+        GodotObject.IsInstanceValid(btn)
+        && btn.Visible
+        && btn.FocusMode != Control.FocusModeEnum.None
+        && btn.IsEnabled;
+
+    private static void EnsureInputForwarder(NMainMenu mainMenu) {
+        if (_inputForwarder != null && GodotObject.IsInstanceValid(_inputForwarder))
+            return;
+
+        _inputForwarder = new DevMainMenuInputForwarder { Name = "KitLibDevMenuInput" };
+        mainMenu.AddChild(_inputForwarder);
+    }
+
+    private static void HandleCancelInput() {
+        switch (_currentLevel) {
+            case DevMenuLevel.Diagnostics:
+            case DevMenuLevel.Multiplayer:
+                ShowRootMenu();
+                break;
+            default:
+                Hide();
+                break;
+        }
+    }
+
+    private static bool HasBlockingOverlay() {
+        var root = _mainMenu?.GetTree().Root;
+        if (root == null)
+            return false;
+
+        foreach (var name in CancelBlockingOverlayNames) {
+            if (root.FindChild(name, recursive: true, owned: false) != null)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static readonly string[] CancelBlockingOverlayNames = [
+        SeedOverlayName,
+        UnlockAllOverlayName,
+        SaveSlotDialogRootId.NodeName,
+        "KitLibLogViewer",
+        "KitLibFeedbackReport",
+        "KitLibPseudoCoopLaunch",
+    ];
+
+    private sealed class DevMainMenuInputForwarder : Node {
+        public override void _Ready() => SetProcessUnhandledInput(true);
+
+        public override void _UnhandledInput(InputEvent @event) {
+            if (!IsVisible || HasBlockingOverlay())
+                return;
+
+            if (@event is InputEventKey { Echo: false, Pressed: true } key
+                && (key.Keycode == Key.Escape || key.PhysicalKeycode == Key.Escape)) {
+                HandleCancelInput();
+                GetViewport()?.SetInputAsHandled();
+                return;
+            }
+
+            if (@event.IsActionPressed("ui_cancel")) {
+                HandleCancelInput();
+                GetViewport()?.SetInputAsHandled();
+            }
+        }
     }
 
     private static bool IsDevMenuAddedButton(Control ctrl) =>

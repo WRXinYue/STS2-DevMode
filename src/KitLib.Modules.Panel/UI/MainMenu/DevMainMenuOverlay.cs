@@ -26,9 +26,14 @@ internal static class DevMainMenuOverlay {
             MouseFilter = Control.MouseFilterEnum.Stop,
         };
         backdrop.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        void CloseOverlay() {
+            onClose();
+            DevMainMenuUI.NotifyOverlayClosed();
+        }
+
         backdrop.GuiInput += e => {
             if (e is InputEventMouseButton { Pressed: true })
-                Callable.From(onClose).CallDeferred();
+                Callable.From(CloseOverlay).CallDeferred();
         };
         root.AddChild(backdrop);
 
@@ -40,7 +45,30 @@ internal static class DevMainMenuOverlay {
         content.AddThemeConstantOverride("separation", contentSeparation);
 
         attachRoot.AddChild(root);
+        DevMainMenuUI.NotifyOverlayOpened(root, panel);
         return (root, content);
+    }
+
+    private static Control? FindFirstFocusableDescendant(Control root) {
+        if (root.FocusMode != Control.FocusModeEnum.None && root.Visible)
+            return root;
+        foreach (var child in root.GetChildren()) {
+            if (child is not Control c || !c.Visible)
+                continue;
+            var found = FindFirstFocusableDescendant(c);
+            if (found != null)
+                return found;
+        }
+        return null;
+    }
+
+    internal static void FocusOverlayContentDeferred(Control overlayRoot, PanelContainer panel) {
+        Callable.From(() => {
+            if (!GodotObject.IsInstanceValid(overlayRoot) || !GodotObject.IsInstanceValid(panel))
+                return;
+            overlayRoot.GetViewport()?.GuiReleaseFocus();
+            FindFirstFocusableDescendant(panel)?.GrabFocus();
+        }).CallDeferred();
     }
 
     internal static void Remove(Node attachRoot, string rootName) =>
