@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace KitLib.Logging;
 
 /// <summary>Line format for content-mod logging: <c>[mod]</c> or <c>[mod][scope]</c>.</summary>
@@ -14,6 +16,13 @@ public static class KitLibLogFormat {
             : $"[{modId}][{scope}]";
 
         return string.IsNullOrEmpty(message) ? prefix : $"{prefix} {message}";
+    }
+
+    /// <summary>Prefixes a message with caller location: <c>File.cs:42 MethodName | message</c>.</summary>
+    public static string FormatWithCaller(string message, string member, string file, int line) {
+        var fileName = string.IsNullOrEmpty(file) ? "?" : Path.GetFileName(file);
+        var memberName = string.IsNullOrEmpty(member) ? "?" : member;
+        return $"{fileName}:{line} {memberName} | {message}";
     }
 
     /// <summary>

@@ -125,6 +125,90 @@ if (KitLibLog.IsAvailable)
 `KitLibLog.Bind` 仅供 KitLib Core 使用 — 内容 mod 请勿调用。
 :::
 
+## Recommended: ModLog helper{lang="en"}
+
+## 推荐：ModLog 助手{lang="zh-CN"}
+
+::: en
+
+For most content mods, prefer **`ModLog`** over hand-rolling a `Logging` class. It bundles:
+
+- **Local level gate** (`Func<KitLogLevel>` — e.g. from your mod config)
+- **KitLib pipeline** when Core is loaded (`KitLibLog.Write`)
+- **Formatted fallback** when KitLib is absent (`KitLibLogFormat.FormatLine(modId, scope, body)`)
+- **Caller attribution on Debug only** (`file:line member | message`)
+
+```csharp
+using KitLib.Logging;
+
+static readonly ModLog Log = new(
+    modId: Main.ModID,
+    minimumLevel: () => Config.MinKitLogLevel,
+    fallback: WriteFallback);
+
+static void WriteFallback(KitLogLevel level, string line) {
+    switch (level) {
+        case KitLogLevel.Error: Main.Logger.Error(line); break;
+        case KitLogLevel.Warn: Main.Logger.Warn(line); break;
+        case KitLogLevel.Debug: Main.Logger.Debug(line); break;
+        default: Main.Logger.Info(line); break;
+    }
+}
+
+// Usage
+Log.Info("deck loaded");
+Log.Warn("Save", "checksum mismatch");
+Log.Scope("Combat").Info("turn start");
+```
+
+Notes:
+
+- **`modId`** is used for the **fallback** line only. When KitLib is bound, mod id is still resolved from the **caller assembly** (same as direct `KitLibLog` calls).
+- **`Error`** always emits regardless of minimum level.
+- Optional thin facade: `public static ModLogScope Scope(string s) => Log.Scope(s);`
+- Low-level control: use `KitLibLog` / `KitLibLogScope` directly (previous section).
+:::
+
+::: zh-CN
+
+多数内容 mod 推荐使用 **`ModLog`**，不必手写整份 `Logging` 类。它整合：
+
+- **本地级别过滤**（`Func<KitLogLevel>`，例如来自 mod 配置）
+- **KitLib 已加载时**走统一管道（`KitLibLog.Write`）
+- **KitLib 未加载时**走格式化 fallback（`KitLibLogFormat.FormatLine(modId, scope, body)`）
+- **仅 Debug 带调用点**（`file:line member | message`）
+
+```csharp
+using KitLib.Logging;
+
+static readonly ModLog Log = new(
+    modId: Main.ModID,
+    minimumLevel: () => Config.MinKitLogLevel,
+    fallback: WriteFallback);
+
+static void WriteFallback(KitLogLevel level, string line) {
+    switch (level) {
+        case KitLogLevel.Error: Main.Logger.Error(line); break;
+        case KitLogLevel.Warn: Main.Logger.Warn(line); break;
+        case KitLogLevel.Debug: Main.Logger.Debug(line); break;
+        default: Main.Logger.Info(line); break;
+    }
+}
+
+// 用法
+Log.Info("deck loaded");
+Log.Warn("Save", "checksum mismatch");
+Log.Scope("Combat").Info("turn start");
+```
+
+说明：
+
+- **`modId`** 仅用于 **fallback** 行；KitLib 已绑定时 mod id 仍从 **调用程序集** 解析（与直接调用 `KitLibLog` 相同）。
+- **`Error`** 不受最低级别限制，始终输出。
+- 可选薄封装：`public static ModLogScope Scope(string s) => Log.Scope(s);`
+- 需要更底层控制时，仍可直接使用上一节的 `KitLibLog` / `KitLibLogScope`。
+:::
+
 ## Dependencies{lang="en"}
 
 ## 依赖{lang="zh-CN"}
@@ -136,7 +220,7 @@ if (KitLibLog.IsAvailable)
 | **Soft** | `STS2.KitLib.Abstractions` only | KitLib optional | `KitLibLog.IsAvailable == false`; calls no-op |
 | **Hard** | Abstractions + manifest `"dependencies": ["KitLib"]` | KitLib required | Full pipeline + session.log when User module present |
 
-Abstractions types are safe to reference unconditionally; only **invoke** `KitLibLog` after checking `IsAvailable` unless you hard-depend on KitLib.
+Abstractions types are safe to reference unconditionally; **`ModLog`** handles the KitLib vs fallback split for you. Use direct `KitLibLog` only when you need manual control.
 
 Optional sink for tools: implement `IKitLibLogSink` and register via KitLib internals (not part of the content-mod surface today).
 :::
@@ -148,7 +232,7 @@ Optional sink for tools: implement `IKitLibLogSink` and register via KitLib inte
 | **软依赖** | 仅 `STS2.KitLib.Abstractions` | KitLib 可选 | `KitLibLog.IsAvailable == false`；调用为 no-op |
 | **硬依赖** | Abstractions + 清单 `"dependencies": ["KitLib"]` | 必须装 KitLib | 完整管道；有 User 模块时写入 session.log |
 
-Abstractions 类型可无条件引用；除非硬依赖 KitLib，否则应在 `IsAvailable` 为真后再调用 `KitLibLog`。
+Abstractions 类型可无条件引用；**`ModLog`** 会自动处理 KitLib 与 fallback 分支。仅在需要手动控制时使用底层 `KitLibLog`。
 
 工具向可选 sink：实现 `IKitLibLogSink`（当前未作为内容 mod 公开注册入口）。
 :::

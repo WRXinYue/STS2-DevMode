@@ -2,6 +2,7 @@ using KitLib.Logging;
 
 namespace KitLib.Abstractions.Tests;
 
+[Collection("KitLibLog")]
 public class KitLibLogFormatTests {
     [Fact]
     public void FormatLine_ModOnly() {
@@ -59,6 +60,7 @@ public class KitLibLogFormatTests {
     }
 }
 
+[Collection("KitLibLog")]
 public class KitLibLogTests {
     [Fact]
     public void IsAvailable_FalseUntilBound() {

@@ -59,7 +59,8 @@ internal static class ModKitLibLogBridge {
             if (declaring == null)
                 continue;
 
-            if (declaring == typeof(KitLibLog) || declaring == typeof(KitLibLogScope))
+            if (declaring == typeof(KitLibLog) || declaring == typeof(KitLibLogScope)
+                || declaring == typeof(ModLog) || declaring == typeof(ModLogScope))
                 continue;
 
             var asm = declaring.Assembly;
