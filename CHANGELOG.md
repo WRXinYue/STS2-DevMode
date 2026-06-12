@@ -8,9 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **In-run hotkeys panel** — Open **Settings → Keyboard shortcuts** from a compact slide-out on the dev rail during a run, not only from the main-menu mod settings.
+
+### Changed
+
+- **Content browser layout** — Card, relic, potion, power, enemy, and other pickers use a dual-column overlay (list + details). Panel width follows your viewport instead of a saved pixel width.
+
+### Removed
+
+- **In-run right context sidebar** — Combat stats, enemy intent, and related context no longer appear in a separate column beside the dev rail; use the matching dev-rail tab or browser overlay instead.
+- **Saved dev panel width** — Dual-column browser width is derived from the viewport each session, not from a stored pixel value.
+
 ### Fixed
 
 - **Mod source filter (browsers)** — The **Mod source** dropdown chip lines up with its label in card, relic, potion, and other content browsers.
+- **Crash recovery prompt** — Quitting normally from the main menu no longer leaves a stale session marker, so the «previous session may have crashed» dialog does not appear on every launch.
+- **Power browser** — The extension column no longer grows wider than the panel; the power detail row uses a simpler icon layout.
+- **Potion browser** — Wider usable list column in the dual-column layout.
+- **Combat stats charts** — Pie and per-turn damage charts stay visible while the dev panel slides in.
+- **Enemy browser** — Map and enemy details use separate columns; map connection lines render correctly.
+- **Dev perf overlay** — Shows reliably after startup when enabled in settings.
+- **Keyboard shortcuts** — Rebinding and default keys work correctly with the game's input system again.
 
 ## [0.20.0] - 2026-06-11
 
