@@ -80,6 +80,7 @@ public static class SettingsStore {
     public static void SetPerfHudEnabled(bool enabled) {
         Current.PerfHudEnabled = enabled;
         Save();
+        KitLibHost.NotifyPerfHudEnabledChanged?.Invoke();
     }
 
     public static void SetPerfHudTraceToFile(bool enabled) {

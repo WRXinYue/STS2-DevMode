@@ -101,8 +101,11 @@ public sealed class HotkeyBinding {
             return "hotkeys.conflict.functionKey";
 
         if (OfficialGameInput.UsesPlayerKeyboardShortcut(candidate.Keycode)) {
-            if (actionId != HotkeyActionId.ClosePanel || candidate.Keycode != Key.Escape)
-                return "hotkeys.conflict.gameKey";
+            if (actionId != HotkeyActionId.ClosePanel || candidate.Keycode != Key.Escape) {
+                // Official shortcuts match keycode only; modifier combos are intercepted first.
+                if (!candidate.Ctrl && !candidate.Shift && !candidate.Alt)
+                    return "hotkeys.conflict.gameKey";
+            }
         }
 
         foreach (var otherId in HotkeyActionId.All) {

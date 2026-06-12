@@ -3,8 +3,10 @@ using Godot;
 namespace KitLib.Settings;
 
 internal static class HotkeyDefaults {
+    // Ctrl+Shift + mnemonic letter (official game shortcuts ignore modifiers).
+
     internal static readonly HotkeyBinding ToggleRail =
-        HotkeyBinding.Of(Key.Backslash, ctrl: true, shift: true);
+        HotkeyBinding.Of(Key.D, ctrl: true, shift: true);
 
     internal static readonly HotkeyBinding ClosePanel =
         HotkeyBinding.Of(Key.Escape);
@@ -16,22 +18,22 @@ internal static class HotkeyDefaults {
         HotkeyBinding.Of(Key.Pageup, ctrl: true, shift: true);
 
     internal static readonly HotkeyBinding LockRail =
-        HotkeyBinding.Of(Key.Semicolon, ctrl: true, shift: true);
+        HotkeyBinding.Of(Key.L, ctrl: true, shift: true);
 
     internal static readonly HotkeyBinding QuickSave =
-        HotkeyBinding.Of(Key.Comma, ctrl: true, shift: true);
+        HotkeyBinding.Of(Key.S, ctrl: true, shift: true);
 
     internal static readonly HotkeyBinding QuickLoad =
-        HotkeyBinding.Of(Key.Period, ctrl: true, shift: true);
+        HotkeyBinding.Of(Key.O, ctrl: true, shift: true);
 
     internal static readonly HotkeyBinding QuickReplayCombat =
-        HotkeyBinding.Of(Key.Minus, ctrl: true, shift: true);
+        HotkeyBinding.Of(Key.R, ctrl: true, shift: true);
 
     internal static readonly HotkeyBinding QuickReplayTurn =
-        HotkeyBinding.Of(Key.Equal, ctrl: true, shift: true);
+        HotkeyBinding.Of(Key.T, ctrl: true, shift: true);
 
     internal static readonly HotkeyBinding TogglePerfHud =
-        HotkeyBinding.Of(Key.Slash, ctrl: true, shift: true);
+        HotkeyBinding.Of(Key.P, ctrl: true, shift: true);
 
     internal static HotkeyBinding For(string actionId) => actionId switch {
         HotkeyActionId.ToggleRail => ToggleRail.Clone(),
