@@ -4,62 +4,6 @@ using KitLib.Icons;
 namespace KitLib.UI;
 
 internal static partial class DevPanelUI {
-    // ── Browser-panel factory (spliced to rail, same visual language as Cards/Relics) ─────────
-    /// <summary>
-    /// Creates a panel spliced to the left rail — flat left edge, rounded right corners,
-    /// slide-in from left animation.
-    /// <para>
-    /// <paramref name="fixedWidth"/> &gt; 0 → panel is that many pixels wide (narrow list panels).
-    /// <paramref name="fixedWidth"/> = 0 → panel expands to the right edge of the screen (full-width browsers).
-    /// </para>
-    /// </summary>
-    public static PanelContainer CreateBrowserPanel(float fixedWidth = 0f) {
-        var panel = new PanelContainer {
-            Name = "BrowserPanel",
-            MouseFilter = Control.MouseFilterEnum.Stop,
-            AnchorTop = 0.15f,
-            AnchorBottom = 0.85f,
-            OffsetTop = 0,
-            OffsetBottom = 0
-        };
-        if (fixedWidth > 0f) {
-            panel.AnchorLeft = 0; panel.AnchorRight = 0;
-            panel.OffsetLeft = BrowserPanelLeft;
-            panel.OffsetRight = BrowserPanelLeft + fixedWidth;
-        }
-        else {
-            panel.AnchorLeft = 0; panel.AnchorRight = 1;
-            panel.OffsetLeft = BrowserPanelLeft;
-            panel.OffsetRight = -EffectiveBrowserContentRight;
-        }
-        var style = new StyleBoxFlat {
-            BgColor = ColOverlayBg,
-            CornerRadiusTopLeft = 0,
-            CornerRadiusBottomLeft = 0,
-            CornerRadiusTopRight = BrowserRailRadius,
-            CornerRadiusBottomRight = BrowserRailRadius,
-            ContentMarginLeft = 20,
-            ContentMarginRight = 20,
-            ContentMarginTop = 14,
-            ContentMarginBottom = 16,
-            BorderWidthLeft = 0,
-            BorderWidthTop = 1,
-            BorderWidthBottom = 1,
-            BorderWidthRight = 1,
-            BorderColor = ColOverlayBorder,
-            ShadowColor = new Color(0, 0, 0, 0.40f),
-            ShadowSize = 20,
-            ShadowOffset = new Vector2(20, 0)
-        };
-        panel.AddThemeStyleboxOverride("panel", style);
-        var content = new VBoxContainer { Name = "Content" };
-        content.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        content.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
-        content.AddThemeConstantOverride("separation", 10);
-        panel.AddChild(content);
-        return panel;
-    }
-
     internal static void SpliceBrowserPanelRight(PanelContainer panel, bool joined) {
         if (!GodotObject.IsInstanceValid(panel))
             return;
@@ -81,7 +25,7 @@ internal static partial class DevPanelUI {
     }
 
     /// <summary>
-    /// Same chrome as <see cref="CreateBrowserPanel"/> for a fixed pixel width, but horizontal
+    /// Browser panel chrome for a fixed pixel width; horizontal
     /// offsets are <c>0 … width</c> (parent must already account for <see cref="BrowserPanelLeft"/>).
     /// Used for stacked browser columns inside one clip host (e.g. Save / Load + extension).
     /// </summary>

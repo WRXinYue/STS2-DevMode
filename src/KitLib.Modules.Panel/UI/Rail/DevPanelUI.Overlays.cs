@@ -14,15 +14,14 @@ internal static partial class DevPanelUI {
     private const string SaveLoadExtensionWidthKey = "KitLibSaveLoad_ext";
     private const string RestartSeedRootName = "KitLibRestartSeed";
 
-    private static (Control root, PanelContainer panel, VBoxContainer vbox) CreateOverlayRoot(
-        NGlobalUi globalUi, string rootName, float panelWidth = 0f, int contentSeparation = 10) {
-        var (root, panel, vbox) = CreateBrowserOverlayShell(
+    private static DualColumnOverlayHandle CreateOverlayRoot(
+        NGlobalUi globalUi, string rootName, float panelWidth = 520f, int contentSeparation = 10) {
+        return CreateMainOnlyDualOverlay(
             globalUi,
             rootName,
             panelWidth,
             () => ((Node)globalUi).GetNodeOrNull<Control>(rootName)?.QueueFree(),
-            contentSeparation);
-        return (root, panel, vbox);
+            contentSeparation: contentSeparation);
     }
 
     private static void AddBrowserNavTab(VBoxContainer vbox, string title) {

@@ -38,8 +38,9 @@ internal static class HookConfigUI {
             return;
         Remove(globalUi);
 
-        var (root, _, vbox) = DevPanelUI.CreateBrowserOverlayShell(
+        var dual = DevPanelUI.CreateMainOnlyDualOverlay(
             globalUi, RootName, PanelW, () => Remove(globalUi), contentSeparation: 8);
+        var vbox = dual.MainContent;
 
         var s = new State { GlobalUi = globalUi };
 
@@ -105,7 +106,7 @@ internal static class HookConfigUI {
         RebuildList(s);
         ShowEmptyDetail(s);
 
-        ((Node)globalUi).AddChild(root);
+        dual.AttachToScene();
     }
 
     public static void Remove(NGlobalUi globalUi)

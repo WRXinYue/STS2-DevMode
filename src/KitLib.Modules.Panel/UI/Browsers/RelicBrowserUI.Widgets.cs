@@ -14,8 +14,6 @@ internal static partial class RelicBrowserUI {
 
     // ── Panel / border colours ──
 
-    private static Color ColPanelBg => KitLibTheme.PanelBg;
-    private static Color ColPanelBorder => KitLibTheme.PanelBorder;
     private static Color ColSubtle => KitLibTheme.Subtle;
 
     // (tile frame colours defined in RelicBrowserUI.Grid.cs)
@@ -133,52 +131,6 @@ internal static partial class RelicBrowserUI {
         btn.AddThemeFontSizeOverride("font_size", 11);
 
         return btn;
-    }
-
-    // ── Browser panel factory (spliced to rail, like CardBrowserUI) ──
-
-    private static PanelContainer CreateBrowserPanel() {
-        var panel = new PanelContainer {
-            Name = "BrowserPanel",
-            MouseFilter = Control.MouseFilterEnum.Stop,
-            AnchorLeft = 0,
-            AnchorRight = 1,
-            OffsetLeft = PanelLeft,
-            OffsetRight = -PanelRight,
-            AnchorTop = 0.15f,
-            AnchorBottom = 0.85f,
-            OffsetTop = 0,
-            OffsetBottom = 0
-        };
-
-        var style = new StyleBoxFlat {
-            BgColor = ColPanelBg,
-            CornerRadiusTopLeft = 0,
-            CornerRadiusBottomLeft = 0,
-            CornerRadiusTopRight = RailRadius,
-            CornerRadiusBottomRight = RailRadius,
-            ContentMarginLeft = 16,
-            ContentMarginRight = 16,
-            ContentMarginTop = 12,
-            ContentMarginBottom = 16,
-            BorderWidthLeft = 0,
-            BorderWidthTop = 1,
-            BorderWidthBottom = 1,
-            BorderWidthRight = 1,
-            BorderColor = ColPanelBorder,
-            ShadowColor = new Color(0, 0, 0, 0.40f),
-            ShadowSize = 20,
-            ShadowOffset = new Vector2(20, 0)
-        };
-        panel.AddThemeStyleboxOverride("panel", style);
-
-        var content = new VBoxContainer { Name = "Content" };
-        content.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        content.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
-        content.AddThemeConstantOverride("separation", 10);
-        panel.AddChild(content);
-
-        return panel;
     }
 
     // ── Action button (shared with right panel) ──

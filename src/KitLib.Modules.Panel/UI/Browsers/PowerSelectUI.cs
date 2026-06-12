@@ -85,8 +85,9 @@ internal static class PowerSelectUI {
     public static void Show(NGlobalUi globalUi, Player player) {
         Remove(globalUi);
 
-        var (root, _, vbox) = DevPanelUI.CreateBrowserOverlayShell(
+        var dual = DevPanelUI.CreateMainOnlyDualOverlay(
             globalUi, RootName, PanelW, () => Remove(globalUi), contentSeparation: 8);
+        var vbox = dual.MainContent;
 
         var s = new State { Player = player, MpItemSync = MpCheatSession.InMultiplayerRun };
         s.AllPowers = PowerActions.GetAllPowers()
@@ -131,7 +132,7 @@ internal static class PowerSelectUI {
         s.GridScroll.Resized += () => UpdateGridColumns(s);
         UpdateGridColumns(s);
 
-        ((Node)globalUi).AddChild(root);
+        dual.AttachToScene();
         search.GrabFocus();
     }
 

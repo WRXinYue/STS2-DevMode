@@ -32,8 +32,10 @@ internal static partial class CombatStatsUI {
         Remove(globalUi);
         _panelOpen = true;
 
-        var (root, _, vbox) = DevPanelUI.CreateBrowserOverlayShell(
+        var dual = DevPanelUI.CreateMainOnlyDualOverlay(
             globalUi, RootName, PanelW, () => Remove(globalUi), contentSeparation: 10);
+        var root = dual.Root;
+        var vbox = dual.MainContent;
 
         var titleBox = new VBoxContainer();
         titleBox.AddThemeConstantOverride("separation", 4);
@@ -366,7 +368,7 @@ internal static partial class CombatStatsUI {
             DevPanelUI.ResetContextPaneToDefault();
         };
 
-        ((Node)globalUi).AddChild(root);
+        dual.AttachToScene();
         ScheduleUpdateDisplay(forceRebuild: true, animate: false);
         SyncMultiplayerOverlayState(globalUi);
         MonsterIntentOverlayUI.SyncState(globalUi);

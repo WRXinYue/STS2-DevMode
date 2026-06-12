@@ -16,13 +16,14 @@ internal static class ManualUI {
     public static void Show(NGlobalUi globalUi) {
         Remove(globalUi);
 
-        var (root, _, outer) = DevPanelUI.CreateBrowserOverlayShell(
+        var dual = DevPanelUI.CreateMainOnlyDualOverlay(
             globalUi, RootName, PanelW, () => Remove(globalUi), contentSeparation: 8);
+        var outer = dual.MainContent;
 
         BuildHeader(outer);
         BuildBody(outer);
 
-        ((Node)globalUi).AddChild(root);
+        dual.AttachToScene();
     }
 
     public static void Remove(NGlobalUi globalUi) {

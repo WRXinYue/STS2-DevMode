@@ -21,8 +21,10 @@ internal static class HarmonyAnalysisUI {
     public static void Show(NGlobalUi globalUi) {
         Remove(globalUi);
 
-        var (root, _, vbox) = DevPanelUI.CreateBrowserOverlayShell(
+        var dual = DevPanelUI.CreateMainOnlyDualOverlay(
             globalUi, RootName, PanelW, () => Remove(globalUi), contentSeparation: 8);
+        var root = dual.Root;
+        var vbox = dual.MainContent;
 
         var titleBox = new VBoxContainer();
         titleBox.AddThemeConstantOverride("separation", 4);
@@ -467,7 +469,7 @@ internal static class HarmonyAnalysisUI {
 
         Rebuild();
 
-        ((Node)globalUi).AddChild(root);
+        dual.AttachToScene();
     }
 
     private static TextEdit CreateReportTextEdit() {

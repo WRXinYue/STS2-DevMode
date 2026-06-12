@@ -403,7 +403,6 @@ internal static partial class DevPanelUI {
                 continue;
 
             panel.OffsetRight = -rightInset;
-            root.GetNodeOrNull<BrowserPanelWidthGrip>("PanelWidthGrip")?.Sync();
         }
     }
 }

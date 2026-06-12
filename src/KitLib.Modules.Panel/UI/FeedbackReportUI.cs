@@ -26,10 +26,10 @@ internal static class FeedbackReportUI {
         var parent = (Node)globalUi;
         Remove(parent);
         Action close = () => Remove(parent);
-        var (root, _, vbox) = DevPanelUI.CreateBrowserOverlayShell(
+        var dual = DevPanelUI.CreateMainOnlyDualOverlay(
             globalUi, RootName, PanelW, close, contentSeparation: 12);
-        BuildPanel(vbox, prefill);
-        parent.AddChild(root);
+        BuildPanel(dual.MainContent, prefill);
+        dual.AttachToScene();
     }
 
     public static void ShowOnMainMenu(NMainMenu mainMenu, FeedbackPrefill? prefill = null) {

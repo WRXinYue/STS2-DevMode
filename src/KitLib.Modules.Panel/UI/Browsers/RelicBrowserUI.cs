@@ -22,13 +22,11 @@ namespace KitLib.UI;
 /// </summary>
 internal static partial class RelicBrowserUI {
     private const string RootName = "KitLibRelicBrowser";
-    private const float RightPanelWidth = 260f;
-
-    private const float RailW = 52f;
-    private const float RailLeft = 24f;
-    private const float PanelLeft = RailLeft + RailW;
-    private const float PanelRight = 24f;
-    private const int RailRadius = 14;
+    private const string ExtensionWidthKey = "KitLibRelicBrowser_ext";
+    private const string DualMetaKey = "dm_dual_relic_browser";
+    private const string CarrierNodeName = "RelicBrowserDualCarrier";
+    private const float MainPanelW = 640f;
+    private const float DefaultExtWidth = 260f;
 
     // ──────── Session state ────────
 
@@ -36,6 +34,7 @@ internal static partial class RelicBrowserUI {
         public readonly NGlobalUi GlobalUi;
         public readonly RunState RunState;
         public readonly Player Player;
+        public DevPanelUI.DualColumnOverlayHandle Dual = null!;
 
         // UI nodes
         public LineEdit SearchInput = null!;
@@ -83,8 +82,37 @@ internal static partial class RelicBrowserUI {
 
         var s = new State(globalUi, runState, player);
 
-        var (root, _, content) = DevPanelUI.CreateBrowserOverlayShell(
-            globalUi, RootName, CreateBrowserPanel(), () => Remove(globalUi), contentSeparation: 8);
+        var dual = DevPanelUI.CreateDualColumnOverlay(new DevPanelUI.DualColumnOverlayOptions {
+            GlobalUi = globalUi,
+            RootName = RootName,
+            DualMetaKey = DualMetaKey,
+            CarrierNodeName = CarrierNodeName,
+            MainWidthKey = RootName,
+            ExtWidthKey = ExtensionWidthKey,
+            MainDefaultWidth = MainPanelW,
+            ExtDefaultWidth = DefaultExtWidth,
+            FallbackClose = () => Remove(globalUi),
+        });
+        s.Dual = dual;
+        dual.MainContent.AddThemeConstantOverride("separation", 8);
+        var content = dual.MainContent;
+
+        var backBtn = BuildExtensionBackHeader(dual.ExtContent);
+        backBtn.Pressed += () => {
+            dual.CloseExtension();
+            ClearRightPanel(s);
+        };
+
+        var extScroll = new ScrollContainer {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+        s.RightContent = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        s.RightContent.AddThemeConstantOverride("separation", 10);
+        AddPlaceholder(s.RightContent);
+        extScroll.AddChild(s.RightContent);
+        dual.ExtContent.AddChild(extScroll);
 
         // ── Nav bar (All / Owned) ──
         var sourceLabels = new[]
@@ -213,14 +241,7 @@ internal static partial class RelicBrowserUI {
         // ── Spacer between controls and content body ──
         content.AddChild(new Control { CustomMinimumSize = new Vector2(0, 2) });
 
-        // ── Body: grid (left) + detail panel (right) ──
-        var body = new HSplitContainer {
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            SizeFlagsVertical = Control.SizeFlags.ExpandFill
-        };
-        body.DraggerVisibility = SplitContainer.DraggerVisibilityEnum.Hidden;
-        content.AddChild(body);
-
+        // ── Body: relic grid ──
         s.GridScroll = new ScrollContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
@@ -243,43 +264,10 @@ internal static partial class RelicBrowserUI {
         gridPad.AddThemeConstantOverride("margin_bottom", GridPadV);
         gridPad.AddChild(s.RelicGrid);
         s.GridScroll.AddChild(gridPad);
-        body.AddChild(s.GridScroll);
+        content.AddChild(s.GridScroll);
 
         s.GridScroll.Resized += () => UpdateGridColumns(s);
         s.GridScroll.ItemRectChanged += () => UpdateGridColumns(s);
-
-        // Right detail panel
-        var rightPanel = new PanelContainer {
-            CustomMinimumSize = new Vector2(RightPanelWidth, 0),
-            SizeFlagsVertical = Control.SizeFlags.ExpandFill
-        };
-        var rightStyle = new StyleBoxFlat {
-            BgColor = KitLibTheme.PanelBg,
-            CornerRadiusTopLeft = 10,
-            CornerRadiusTopRight = 10,
-            CornerRadiusBottomLeft = 10,
-            CornerRadiusBottomRight = 10,
-            ContentMarginLeft = 14,
-            ContentMarginRight = 14,
-            ContentMarginTop = 14,
-            ContentMarginBottom = 14,
-            BorderWidthLeft = 1,
-            BorderColor = KitLibTheme.PanelBorder
-        };
-        rightPanel.AddThemeStyleboxOverride("panel", rightStyle);
-
-        var rightScroll = new ScrollContainer {
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
-            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
-        };
-        s.RightContent = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        s.RightContent.AddThemeConstantOverride("separation", 10);
-        AddPlaceholder(s.RightContent);
-
-        rightScroll.AddChild(s.RightContent);
-        rightPanel.AddChild(rightScroll);
-        body.AddChild(rightPanel);
 
         // ── Status bar ──
         s.StatusLabel = new Label { Text = "" };
@@ -290,7 +278,7 @@ internal static partial class RelicBrowserUI {
         // ── Wire up ──
         s.SearchInput.TextChanged += text => RebuildGrid(s, text);
 
-        ((Node)globalUi).AddChild(root);
+        dual.AttachToScene();
 
         RebuildGrid(s, "");
         Callable.From(() => UpdateGridColumns(s)).CallDeferred();
@@ -313,13 +301,47 @@ internal static partial class RelicBrowserUI {
         s.SelectedRelic = relic;
         foreach (var child in s.RightContent.GetChildren()) ((Node)child).QueueFree();
         BuildRelicDetail(s, relic);
+        s.Dual.OpenExtension();
     }
 
     private static void ClearRightPanel(State s) {
+        if (s.Dual.ExtSlot.Visible)
+            s.Dual.CloseExtension();
         foreach (var child in s.RightContent.GetChildren()) ((Node)child).QueueFree();
         AddPlaceholder(s.RightContent);
         s.SelectedRelic = null;
         s.SelectedBg = null;
+    }
+
+    private static Button BuildExtensionBackHeader(VBoxContainer extVbox) {
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 8);
+
+        var backBtn = new Button {
+            Text = I18N.T("room.ancients.back", "Back"),
+            FocusMode = Control.FocusModeEnum.None,
+            CustomMinimumSize = new Vector2(0, 32),
+        };
+        var flat = new StyleBoxFlat {
+            BgColor = Colors.Transparent,
+            ContentMarginLeft = 8,
+            ContentMarginRight = 8,
+            ContentMarginTop = 4,
+            ContentMarginBottom = 6,
+        };
+        foreach (var st in new[] { "normal", "hover", "pressed", "focus" })
+            backBtn.AddThemeStyleboxOverride(st, flat);
+        backBtn.AddThemeColorOverride("font_color", KitLibTheme.Subtle);
+        backBtn.AddThemeFontSizeOverride("font_size", 12);
+        row.AddChild(backBtn);
+        row.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
+        extVbox.AddChild(row);
+        extVbox.AddChild(new ColorRect {
+            CustomMinimumSize = new Vector2(0, 1),
+            Color = KitLibTheme.Separator,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        });
+        return backBtn;
     }
 
     private static void BuildRelicDetail(State s, RelicModel relic) {

@@ -21,12 +21,11 @@ namespace KitLib.UI;
 /// <summary>Potion browser — same two-pane layout as RelicBrowserUI.</summary>
 internal static class PotionSelectUI {
     private const string RootName = "KitLibPotionBrowser";
-    private const float RightPanelW = 240f;
-    private const float RailLeft = 24f;
-    private const float RailW = 52f;
-    private const float PanelLeft = RailLeft + RailW;
-    private const float PanelRight = 24f;
-    private const int RailRadius = 14;
+    private const string ExtensionWidthKey = "KitLibPotionBrowser_ext";
+    private const string DualMetaKey = "dm_dual_potion_browser";
+    private const string CarrierNodeName = "PotionBrowserDualCarrier";
+    private const float MainPanelW = 560f;
+    private const float DefaultExtWidth = 240f;
 
     // ── Grid tile constants (parallel to RelicBrowserUI.Grid.cs) ────────
     private const float TileMinWidth = 90f;
@@ -55,8 +54,6 @@ internal static class PotionSelectUI {
 
     private static Color ColNavActive => KitLibTheme.Accent;
     private static Color ColNavAccent => KitLibTheme.AccentAlpha;
-    private static Color ColPanelBg => KitLibTheme.PanelBg;
-    private static Color ColPanelBorder => KitLibTheme.PanelBorder;
     private static Color ColSubtle => KitLibTheme.Subtle;
     private static Color ColNavInactive => KitLibTheme.Subtle;
     private static Color ColNavHover => KitLibTheme.TextPrimary;
@@ -70,6 +67,7 @@ internal static class PotionSelectUI {
     private sealed class State {
         public readonly NGlobalUi GlobalUi;
         public readonly Player Player;
+        public DevPanelUI.DualColumnOverlayHandle Dual = null!;
 
         public LineEdit SearchInput = null!;
         public ScrollContainer GridScroll = null!;
@@ -104,8 +102,37 @@ internal static class PotionSelectUI {
 
         var s = new State(globalUi, player);
 
-        var (root, _, content) = DevPanelUI.CreateBrowserOverlayShell(
-            globalUi, RootName, CreateBrowserPanel(), () => Remove(globalUi), contentSeparation: 8);
+        var dual = DevPanelUI.CreateDualColumnOverlay(new DevPanelUI.DualColumnOverlayOptions {
+            GlobalUi = globalUi,
+            RootName = RootName,
+            DualMetaKey = DualMetaKey,
+            CarrierNodeName = CarrierNodeName,
+            MainWidthKey = RootName,
+            ExtWidthKey = ExtensionWidthKey,
+            MainDefaultWidth = MainPanelW,
+            ExtDefaultWidth = DefaultExtWidth,
+            FallbackClose = () => Remove(globalUi),
+        });
+        s.Dual = dual;
+        dual.MainContent.AddThemeConstantOverride("separation", 8);
+        var content = dual.MainContent;
+
+        var backBtn = BuildExtensionBackHeader(dual.ExtContent);
+        backBtn.Pressed += () => {
+            dual.CloseExtension();
+            ClearDetail(s);
+        };
+
+        var extScroll = new ScrollContainer {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+        s.RightContent = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        s.RightContent.AddThemeConstantOverride("separation", 10);
+        AddPlaceholder(s.RightContent);
+        extScroll.AddChild(s.RightContent);
+        dual.ExtContent.AddChild(extScroll);
 
         // ── Nav tabs ──
         var sourceLabels = new[]
@@ -214,15 +241,7 @@ internal static class PotionSelectUI {
 
         content.AddChild(new Control { CustomMinimumSize = new Vector2(0, 2) });
 
-        // ── Body: grid (left) + detail (right) ──
-        var body = new HSplitContainer {
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            SizeFlagsVertical = Control.SizeFlags.ExpandFill
-        };
-        body.DraggerVisibility = SplitContainer.DraggerVisibilityEnum.Hidden;
-        content.AddChild(body);
-
-        // Left: scrollable grid
+        // ── Body: potion grid ──
         s.GridScroll = new ScrollContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
@@ -245,43 +264,10 @@ internal static class PotionSelectUI {
         gridPad.AddThemeConstantOverride("margin_bottom", GridPadV);
         gridPad.AddChild(s.PotionGrid);
         s.GridScroll.AddChild(gridPad);
-        body.AddChild(s.GridScroll);
+        content.AddChild(s.GridScroll);
 
         s.GridScroll.Resized += () => UpdateGridColumns(s);
         s.GridScroll.ItemRectChanged += () => UpdateGridColumns(s);
-
-        // Right: detail panel
-        var rightPanel = new PanelContainer {
-            CustomMinimumSize = new Vector2(RightPanelW, 0),
-            SizeFlagsVertical = Control.SizeFlags.ExpandFill
-        };
-        var rightStyle = new StyleBoxFlat {
-            BgColor = ColPanelBg,
-            CornerRadiusTopLeft = 10,
-            CornerRadiusTopRight = 10,
-            CornerRadiusBottomLeft = 10,
-            CornerRadiusBottomRight = 10,
-            ContentMarginLeft = 14,
-            ContentMarginRight = 14,
-            ContentMarginTop = 14,
-            ContentMarginBottom = 14,
-            BorderWidthLeft = 1,
-            BorderColor = ColPanelBorder
-        };
-        rightPanel.AddThemeStyleboxOverride("panel", rightStyle);
-
-        var rightScroll = new ScrollContainer {
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
-            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
-        };
-        s.RightContent = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        s.RightContent.AddThemeConstantOverride("separation", 10);
-        AddPlaceholder(s.RightContent);
-
-        rightScroll.AddChild(s.RightContent);
-        rightPanel.AddChild(rightScroll);
-        body.AddChild(rightPanel);
 
         // ── Status bar ──
         s.StatusLabel = new Label { Text = "" };
@@ -291,7 +277,7 @@ internal static class PotionSelectUI {
 
         // ── Wire up ──
         s.SearchInput.TextChanged += text => RebuildGrid(s, text);
-        ((Node)globalUi).AddChild(root);
+        dual.AttachToScene();
         RebuildGrid(s, "");
         Callable.From(() => UpdateGridColumns(s)).CallDeferred();
         s.SearchInput.GrabFocus();
@@ -538,13 +524,47 @@ internal static class PotionSelectUI {
         s.SelectedPotion = potion;
         foreach (var child in s.RightContent.GetChildren()) ((Node)child).QueueFree();
         BuildDetail(s, potion);
+        s.Dual.OpenExtension();
     }
 
     private static void ClearDetail(State s) {
+        if (s.Dual.ExtSlot.Visible)
+            s.Dual.CloseExtension();
         foreach (var child in s.RightContent.GetChildren()) ((Node)child).QueueFree();
         AddPlaceholder(s.RightContent);
         s.SelectedPotion = null;
         s.SelectedFrame = null;
+    }
+
+    private static Button BuildExtensionBackHeader(VBoxContainer extVbox) {
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 8);
+
+        var backBtn = new Button {
+            Text = I18N.T("room.ancients.back", "Back"),
+            FocusMode = Control.FocusModeEnum.None,
+            CustomMinimumSize = new Vector2(0, 32),
+        };
+        var flat = new StyleBoxFlat {
+            BgColor = Colors.Transparent,
+            ContentMarginLeft = 8,
+            ContentMarginRight = 8,
+            ContentMarginTop = 4,
+            ContentMarginBottom = 6,
+        };
+        foreach (var st in new[] { "normal", "hover", "pressed", "focus" })
+            backBtn.AddThemeStyleboxOverride(st, flat);
+        backBtn.AddThemeColorOverride("font_color", KitLibTheme.Subtle);
+        backBtn.AddThemeFontSizeOverride("font_size", 12);
+        row.AddChild(backBtn);
+        row.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
+        extVbox.AddChild(row);
+        extVbox.AddChild(new ColorRect {
+            CustomMinimumSize = new Vector2(0, 1),
+            Color = KitLibTheme.Separator,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        });
+        return backBtn;
     }
 
     private static void BuildDetail(State s, PotionModel potion) {
@@ -852,47 +872,6 @@ internal static class PotionSelectUI {
         btn.AddThemeStyleboxOverride("focus", MakeStyle(bgColor));
         btn.AddThemeFontSizeOverride("font_size", 13);
         return btn;
-    }
-
-    private static PanelContainer CreateBrowserPanel() {
-        var panel = new PanelContainer {
-            Name = "BrowserPanel",
-            MouseFilter = Control.MouseFilterEnum.Stop,
-            AnchorLeft = 0,
-            AnchorRight = 1,
-            OffsetLeft = PanelLeft,
-            OffsetRight = -PanelRight,
-            AnchorTop = 0.15f,
-            AnchorBottom = 0.85f
-        };
-        var style = new StyleBoxFlat {
-            BgColor = ColPanelBg,
-            CornerRadiusTopLeft = 0,
-            CornerRadiusBottomLeft = 0,
-            CornerRadiusTopRight = RailRadius,
-            CornerRadiusBottomRight = RailRadius,
-            ContentMarginLeft = 16,
-            ContentMarginRight = 16,
-            ContentMarginTop = 12,
-            ContentMarginBottom = 16,
-            BorderWidthTop = 1,
-            BorderWidthBottom = 1,
-            BorderWidthRight = 1,
-            BorderColor = ColPanelBorder,
-            ShadowColor = new Color(0, 0, 0, 0.40f),
-            ShadowSize = 20,
-            ShadowOffset = new Vector2(20, 0)
-        };
-        panel.AddThemeStyleboxOverride("panel", style);
-
-        var content = new VBoxContainer {
-            Name = "Content",
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            SizeFlagsVertical = Control.SizeFlags.ExpandFill
-        };
-        content.AddThemeConstantOverride("separation", 10);
-        panel.AddChild(content);
-        return panel;
     }
 
     private static void AddPlaceholder(VBoxContainer container) {

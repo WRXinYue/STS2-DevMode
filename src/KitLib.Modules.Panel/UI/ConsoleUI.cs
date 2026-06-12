@@ -15,8 +15,9 @@ internal static class ConsoleUI {
     public static void Show(NGlobalUi globalUi) {
         Remove(globalUi);
 
-        var (root, _, vbox) = DevPanelUI.CreateBrowserOverlayShell(
+        var dual = DevPanelUI.CreateMainOnlyDualOverlay(
             globalUi, RootName, PanelW, () => Remove(globalUi));
+        var vbox = dual.MainContent;
 
         // ── Nav tab ──
         BuildNavTab(vbox);
@@ -47,7 +48,7 @@ internal static class ConsoleUI {
         PopulateCommands(listBox, "");
         searchInput.TextChanged += filter => PopulateCommands(listBox, filter);
 
-        ((Node)globalUi).AddChild(root);
+        dual.AttachToScene();
         searchInput.GrabFocus();
     }
 

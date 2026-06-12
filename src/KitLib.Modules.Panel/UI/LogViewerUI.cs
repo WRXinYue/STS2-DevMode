@@ -41,11 +41,12 @@ internal static class LogViewerUI {
         var parent = (Node)globalUi;
         Remove(parent);
         void Close() => DevPanelUI.RequestCloseBrowserOverlay(globalUi, RootName, () => Remove(parent));
-        var (root, _, vbox) = DevPanelUI.CreateBrowserOverlayShell(
+        var dual = DevPanelUI.CreateMainOnlyDualOverlay(
             globalUi, RootName, PanelW, Close, contentSeparation: 8);
+        var vbox = dual.MainContent;
         LogSourcePieChart? pieChart = null;
-        BuildPanel(vbox, root, Close, chart => pieChart = chart);
-        parent.AddChild(root);
+        BuildPanel(vbox, dual.Root, Close, chart => pieChart = chart);
+        dual.AttachToScene();
         LogCollector.RefreshFileSnapshot();
         pieChart?.RefreshAfterOverlayOpen();
     }

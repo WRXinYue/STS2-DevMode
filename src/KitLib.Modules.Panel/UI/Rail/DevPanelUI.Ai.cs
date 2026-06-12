@@ -22,7 +22,9 @@ internal static partial class DevPanelUI {
             existing.QueueFree();
         }
 
-        var (root, _, vbox) = CreateOverlayRoot(globalUi, AiRootName, 520f);
+        var dual = CreateOverlayRoot(globalUi, AiRootName, 520f);
+        var root = dual.Root;
+        var vbox = dual.MainContent;
 
         AddBrowserNavTab(vbox, I18N.T("panel.ai", "AI Host"));
 
@@ -365,6 +367,6 @@ internal static partial class DevPanelUI {
         scroll.AddChild(inner);
         vbox.AddChild(scroll);
 
-        ((Node)globalUi).AddChild(root);
+        dual.AttachToScene();
     }
 }

@@ -21,8 +21,10 @@ internal static partial class EnemyIntentUI {
         _panelOpen = true;
         _globalUi = globalUi;
 
-        var (root, _, vbox) = DevPanelUI.CreateBrowserOverlayShell(
+        var dual = DevPanelUI.CreateMainOnlyDualOverlay(
             globalUi, RootName, PanelW, () => Remove(globalUi), contentSeparation: 10);
+        var root = dual.Root;
+        var vbox = dual.MainContent;
 
         var titleBox = new VBoxContainer();
         titleBox.AddThemeConstantOverride("separation", 4);
@@ -86,7 +88,7 @@ internal static partial class EnemyIntentUI {
             DevPanelUI.ResetContextPaneToDefault();
         };
 
-        ((Node)globalUi).AddChild(root);
+        dual.AttachToScene();
         DevPanelUI.SetContextPaneActive(PanelContextId);
         RefreshBrowserPreview();
         MonsterIntentOverlayUI.SyncState(globalUi);

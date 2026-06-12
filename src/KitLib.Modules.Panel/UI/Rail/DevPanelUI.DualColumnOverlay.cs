@@ -200,4 +200,29 @@ internal static partial class DevPanelUI {
         return new DualColumnOverlayHandle(
             options, root, clipHost, mainSlot, mover, mainPanel, mainContent, extContent, extPanel, extSlot);
     }
+
+    internal static string ExtensionWidthKeyFor(string rootName) => rootName + "_ext";
+
+    internal static DualColumnOverlayHandle CreateMainOnlyDualOverlay(
+        NGlobalUi globalUi,
+        string rootName,
+        float mainDefaultWidth,
+        Action fallbackClose,
+        int zIndex = 1250,
+        int contentSeparation = 10) {
+        var dual = CreateDualColumnOverlay(new DualColumnOverlayOptions {
+            GlobalUi = globalUi,
+            RootName = rootName,
+            DualMetaKey = "dm_dual_" + rootName,
+            CarrierNodeName = rootName + "DualCarrier",
+            MainWidthKey = rootName,
+            ExtWidthKey = ExtensionWidthKeyFor(rootName),
+            MainDefaultWidth = mainDefaultWidth,
+            ExtDefaultWidth = 420f,
+            FallbackClose = fallbackClose,
+            ZIndex = zIndex,
+        });
+        dual.MainContent.AddThemeConstantOverride("separation", contentSeparation);
+        return dual;
+    }
 }

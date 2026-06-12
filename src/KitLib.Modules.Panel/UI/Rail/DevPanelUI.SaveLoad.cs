@@ -118,7 +118,8 @@ internal static partial class DevPanelUI {
         ((Node)globalUi).GetNodeOrNull<Control>(RestartSeedRootName)?.QueueFree();
         ((Node)globalUi).GetNodeOrNull<Control>(SaveLoadRootName)?.QueueFree();
 
-        var (root, _, vbox) = CreateOverlayRoot(globalUi, RestartSeedRootName, 520f);
+        var dual = CreateOverlayRoot(globalUi, RestartSeedRootName, 520f);
+        var vbox = dual.MainContent;
 
         AddBrowserNavTab(vbox, I18N.T("restart.title", "Restart with Seed"));
 
@@ -245,7 +246,7 @@ internal static partial class DevPanelUI {
         inner.AddChild(btnRow);
 
         vbox.AddChild(inner);
-        ((Node)globalUi).AddChild(root);
+        dual.AttachToScene();
         seedInput.GrabFocus();
     }
 }

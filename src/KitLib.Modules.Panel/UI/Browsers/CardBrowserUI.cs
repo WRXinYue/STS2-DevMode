@@ -23,16 +23,13 @@ namespace KitLib.UI;
 /// </summary>
 internal static partial class CardBrowserUI {
     private const string RootName = "KitLibCardBrowser";
-    private const float RightPanelWidth = 300f;
+    private const string ExtensionWidthKey = "KitLibCardBrowser_ext";
+    private const string DualMetaKey = "dm_dual_card_browser";
+    private const string CarrierNodeName = "CardBrowserDualCarrier";
+    private const float MainPanelW = 720f;
+    private const float DefaultExtWidth = 300f;
 
     private static Color ColSubtle => KitLibTheme.Subtle;
-
-    // Rail geometry — must match DevPanelUI constants
-    private const float RailW = 52f;
-    private const float RailLeft = 24f;
-    private const float PanelLeft = RailLeft + RailW;
-    private const float PanelRight = 24f;
-    private const int RailRadius = 14;
 
     // ──────── Shared session state ────────
 
@@ -40,6 +37,7 @@ internal static partial class CardBrowserUI {
         public readonly NGlobalUi GlobalUi;
         public readonly RunState RunState;
         public readonly Player Player;
+        public DevPanelUI.DualColumnOverlayHandle Dual = null!;
 
         // UI nodes
         public LineEdit SearchInput = null!;
@@ -111,8 +109,39 @@ internal static partial class CardBrowserUI {
 
         var s = new State(globalUi, runState, player);
 
-        var (root, _, content) = DevPanelUI.CreateBrowserOverlayShell(
-            globalUi, RootName, CreateBrowserPanel(), () => Remove(globalUi), contentSeparation: 8);
+        var dual = DevPanelUI.CreateDualColumnOverlay(new DevPanelUI.DualColumnOverlayOptions {
+            GlobalUi = globalUi,
+            RootName = RootName,
+            DualMetaKey = DualMetaKey,
+            CarrierNodeName = CarrierNodeName,
+            MainWidthKey = RootName,
+            ExtWidthKey = ExtensionWidthKey,
+            MainDefaultWidth = MainPanelW,
+            ExtDefaultWidth = DefaultExtWidth,
+            FallbackClose = () => Remove(globalUi),
+        });
+        s.Dual = dual;
+        dual.MainContent.AddThemeConstantOverride("separation", 8);
+        var content = dual.MainContent;
+
+        var backBtn = BuildExtensionBackHeader(dual.ExtContent);
+        backBtn.Pressed += () => {
+            dual.CloseExtension();
+            ClearRightPanel(s);
+        };
+
+        var extScroll = new ScrollContainer {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+        s.RightContent = new VBoxContainer {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+        };
+        s.RightContent.AddThemeConstantOverride("separation", 6);
+        AddPlaceholder(s.RightContent);
+        extScroll.AddChild(s.RightContent);
+        dual.ExtContent.AddChild(extScroll);
 
         // ── Nav bar ──
         var sourceLabels = new[]
@@ -497,14 +526,7 @@ internal static partial class CardBrowserUI {
         s.LibraryUpgradeRow.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         content.AddChild(s.LibraryUpgradeRow);
 
-        // ── Body: card grid (left) + right panel ──
-        var body = new HSplitContainer {
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            SizeFlagsVertical = Control.SizeFlags.ExpandFill
-        };
-        body.DraggerVisibility = SplitContainer.DraggerVisibilityEnum.Hidden;
-        content.AddChild(body);
-
+        // ── Body: card grid ──
         s.GridScroll = new ScrollContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
@@ -527,45 +549,11 @@ internal static partial class CardBrowserUI {
         gridOuterPad.AddThemeConstantOverride("margin_bottom", CardBrowserGridPadV);
         gridOuterPad.AddChild(s.CardGrid);
         s.GridScroll.AddChild(gridOuterPad);
-        body.AddChild(s.GridScroll);
+        content.AddChild(s.GridScroll);
 
         s.GridScroll.Resized += () => UpdateCardGridColumns(s);
         s.GridScroll.ItemRectChanged += () => UpdateCardGridColumns(s);
         s.GridScroll.GetVScrollBar().ValueChanged += _ => PopulateVisibleHosts(s);
-
-        var rightPanel = new PanelContainer {
-            CustomMinimumSize = new Vector2(RightPanelWidth, 0),
-            SizeFlagsVertical = Control.SizeFlags.ExpandFill
-        };
-        var rightStyle = new StyleBoxFlat {
-            BgColor = KitLibTheme.PanelBg,
-            CornerRadiusTopLeft = 10,
-            CornerRadiusTopRight = 10,
-            CornerRadiusBottomLeft = 10,
-            CornerRadiusBottomRight = 10,
-            ContentMarginLeft = 12,
-            ContentMarginRight = 12,
-            ContentMarginTop = 12,
-            ContentMarginBottom = 12,
-            BorderWidthLeft = 1,
-            BorderColor = KitLibTheme.PanelBorder
-        };
-        rightPanel.AddThemeStyleboxOverride("panel", rightStyle);
-
-        var rightScroll = new ScrollContainer {
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
-            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled
-        };
-        s.RightContent = new VBoxContainer {
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
-        };
-        s.RightContent.AddThemeConstantOverride("separation", 6);
-        AddPlaceholder(s.RightContent);
-
-        rightScroll.AddChild(s.RightContent);
-        rightPanel.AddChild(rightScroll);
-        body.AddChild(rightPanel);
 
         // ── Status bar ──
         s.StatusLabel = new Label { Text = "" };
@@ -579,7 +567,7 @@ internal static partial class CardBrowserUI {
             RebuildGrid(s, text ?? "");
         };
 
-        ((Node)globalUi).AddChild(root);
+        dual.AttachToScene();
 
         var initialPileTarget = BrowseSourceToTarget(_browseSource);
         if (initialPileTarget.HasValue)
@@ -612,13 +600,47 @@ internal static partial class CardBrowserUI {
             () => RebuildGrid(s, search(), GridRebuildOptions.ForCardListChange),
             IsLibrarySource, BrowseSourceToTarget(_browseSource),
             IsLibrarySource && s.LibraryShowUpgradePreview);
+        s.Dual.OpenExtension();
     }
 
     private static void ClearRightPanel(State s) {
+        if (s.Dual.ExtSlot.Visible)
+            s.Dual.CloseExtension();
         foreach (var child in s.RightContent.GetChildren()) ((Node)child).QueueFree();
         AddPlaceholder(s.RightContent);
         s.SelectedCard = null;
         s.SelectedPickHost = null;
+    }
+
+    private static Button BuildExtensionBackHeader(VBoxContainer extVbox) {
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 8);
+
+        var backBtn = new Button {
+            Text = I18N.T("room.ancients.back", "Back"),
+            FocusMode = Control.FocusModeEnum.None,
+            CustomMinimumSize = new Vector2(0, 32),
+        };
+        var flat = new StyleBoxFlat {
+            BgColor = Colors.Transparent,
+            ContentMarginLeft = 8,
+            ContentMarginRight = 8,
+            ContentMarginTop = 4,
+            ContentMarginBottom = 6,
+        };
+        foreach (var st in new[] { "normal", "hover", "pressed", "focus" })
+            backBtn.AddThemeStyleboxOverride(st, flat);
+        backBtn.AddThemeColorOverride("font_color", KitLibTheme.Subtle);
+        backBtn.AddThemeFontSizeOverride("font_size", 12);
+        row.AddChild(backBtn);
+        row.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
+        extVbox.AddChild(row);
+        extVbox.AddChild(new ColorRect {
+            CustomMinimumSize = new Vector2(0, 1),
+            Color = KitLibTheme.Separator,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        });
+        return backBtn;
     }
 
     private static void MoveIndicator(State s, int tabIdx, bool animate) {

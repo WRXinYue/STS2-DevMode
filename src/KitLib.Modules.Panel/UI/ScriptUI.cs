@@ -28,9 +28,11 @@ internal static class ScriptUI {
             Remove(globalUi);
             _lastSeenVersion = ScriptManager.ReloadVersion;
 
-            var (root, _, vbox) = DevPanelUI.CreateBrowserOverlayShell(
+            var dual = DevPanelUI.CreateMainOnlyDualOverlay(
                 globalUi, RootName, PanelW, () => Remove(globalUi), contentSeparation: 8);
+            var vbox = dual.MainContent;
 
+            var root = dual.Root;
             BuildHeader(vbox, globalUi);
             BuildScriptList(vbox);
             BuildVariableSection(vbox);
@@ -42,7 +44,7 @@ internal static class ScriptUI {
             };
             root.AddChild(timer);
 
-            ((Node)globalUi).AddChild(root);
+            dual.AttachToScene();
         }
         finally { _refreshing = false; }
     }

@@ -60,8 +60,9 @@ internal static class PresetUI {
     public static void Show(NGlobalUi globalUi) {
         Remove(globalUi);
 
-        var (root, _, vbox) = DevPanelUI.CreateBrowserOverlayShell(
+        var dual = DevPanelUI.CreateMainOnlyDualOverlay(
             globalUi, RootName, PanelW, () => Remove(globalUi), contentSeparation: 8);
+        var vbox = dual.MainContent;
 
         var s = new State();
 
@@ -79,7 +80,7 @@ internal static class PresetUI {
 
         RebuildPresetList(s);
 
-        ((Node)globalUi).AddChild(root);
+        dual.AttachToScene();
         s.NameInput.GrabFocus();
     }
 

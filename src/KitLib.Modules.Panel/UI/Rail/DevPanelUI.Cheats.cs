@@ -21,7 +21,8 @@ internal static partial class DevPanelUI {
             existing.QueueFree();
         }
 
-        var (root, _, vbox) = CreateOverlayRoot(globalUi, CheatsRootName, 920f);
+        var dual = CreateOverlayRoot(globalUi, CheatsRootName, 920f);
+        var vbox = dual.MainContent;
 
         AddBrowserNavTab(vbox, I18N.T("panel.cheats", "Cheats"));
         MpCheatUi.AddSessionBanner(vbox);
@@ -289,7 +290,7 @@ internal static partial class DevPanelUI {
             Distribute(w >= 860 ? 3 : w >= 520 ? 2 : 1);
         }).CallDeferred();
 
-        ((Node)globalUi).AddChild(root);
+        dual.AttachToScene();
     }
 
     private static string GetMapRewriteLabel() => KitLibState.MapCheats.MapRewriteMode switch {
