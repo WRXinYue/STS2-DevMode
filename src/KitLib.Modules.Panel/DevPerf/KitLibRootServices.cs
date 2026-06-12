@@ -59,7 +59,7 @@ internal partial class KitLibRootServicesNode : CanvasLayer {
     }
 
     public override void _UnhandledInput(InputEvent @event) {
-        DevPerfHotkeys.TryHandle(@event, GetViewport());
+        KitLibHotkeyInput.TryHandleDevPerf(@event, GetViewport());
     }
 
     public override void _Process(double delta) {

@@ -93,8 +93,6 @@ public partial class ModPanelSubmenu : NSubmenu {
     public override void _Input(InputEvent @event) {
         if (!ActiveScreenContext.Instance.IsCurrent(this))
             return;
-        if (HotkeyCapture.TryCapture(@event, GetViewport()!))
-            return;
         if (TryHandleControllerInput(@event)) {
             GetViewport()?.SetInputAsHandled();
             return;

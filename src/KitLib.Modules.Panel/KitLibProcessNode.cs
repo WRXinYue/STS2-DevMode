@@ -6,7 +6,6 @@ using KitLib.Hotkeys;
 using KitLib.Mcp;
 using KitLib.Patches;
 using KitLib.Scripts;
-using KitLib.Settings;
 
 namespace KitLib;
 
@@ -23,17 +22,13 @@ internal partial class KitLibProcessNode : Node {
     public override void _EnterTree() {
         Instance = this;
         ProcessPriority = 128;
-        SetProcessInput(true);
+        SetProcessUnhandledInput(true);
         if (!ModuleBootstrap.IsBootstrapComplete)
             KitLibHost.TryRunDevBootstrap();
     }
 
-    public override void _Input(InputEvent @event) {
-        if (HotkeyCapture.TryCapture(@event, GetViewport()))
-            return;
-        if (DevPanelHotkeys.TryHandle(@event, GetViewport()))
-            return;
-        QuickSlHotkeys.TryHandle(@event, GetViewport());
+    public override void _UnhandledInput(InputEvent @event) {
+        KitLibHotkeyInput.TryHandlePanelAndRun(@event, GetViewport());
     }
 
     public override void _Process(double delta) {

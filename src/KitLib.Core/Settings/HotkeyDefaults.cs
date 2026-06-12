@@ -18,15 +18,20 @@ internal static class HotkeyDefaults {
     internal static readonly HotkeyBinding LockRail =
         HotkeyBinding.Of(Key.L, ctrl: true, shift: true);
 
-    internal static readonly HotkeyBinding QuickSave = HotkeyBinding.Of(Key.F5);
+    internal static readonly HotkeyBinding QuickSave =
+        HotkeyBinding.Of(Key.U, ctrl: true, shift: true);
 
-    internal static readonly HotkeyBinding QuickLoad = HotkeyBinding.Of(Key.F9);
+    internal static readonly HotkeyBinding QuickLoad =
+        HotkeyBinding.Of(Key.O, ctrl: true, shift: true);
 
-    internal static readonly HotkeyBinding QuickReplayCombat = HotkeyBinding.Of(Key.F8);
+    internal static readonly HotkeyBinding QuickReplayCombat =
+        HotkeyBinding.Of(Key.C, ctrl: true, shift: true);
 
-    internal static readonly HotkeyBinding QuickReplayTurn = HotkeyBinding.Of(Key.F6);
+    internal static readonly HotkeyBinding QuickReplayTurn =
+        HotkeyBinding.Of(Key.Y, ctrl: true, shift: true);
 
-    internal static readonly HotkeyBinding TogglePerfHud = HotkeyBinding.Of(Key.F3);
+    internal static readonly HotkeyBinding TogglePerfHud =
+        HotkeyBinding.Of(Key.P, ctrl: true, shift: true);
 
     internal static HotkeyBinding For(string actionId) => actionId switch {
         HotkeyActionId.ToggleRail => ToggleRail.Clone(),

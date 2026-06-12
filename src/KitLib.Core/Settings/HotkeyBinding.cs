@@ -97,7 +97,10 @@ public sealed class HotkeyBinding {
         if (IsOfficialDevConsoleKey(candidate))
             return "hotkeys.conflict.devConsole";
 
-        if (UsesGameShortcutKey(candidate.Keycode)) {
+        if (OfficialGameInput.UsesOfficialReservedFunctionKey(candidate))
+            return "hotkeys.conflict.functionKey";
+
+        if (OfficialGameInput.UsesPlayerKeyboardShortcut(candidate.Keycode)) {
             if (actionId != HotkeyActionId.ClosePanel || candidate.Keycode != Key.Escape)
                 return "hotkeys.conflict.gameKey";
         }
@@ -111,19 +114,6 @@ public sealed class HotkeyBinding {
 
         return null;
     }
-
-    private static bool HasModifier(HotkeyBinding b) => b.Ctrl || b.Shift || b.Alt;
-
-    /// <summary>
-    /// Keys matched by official <c>NInputManager.ProcessShortcutKeyInput</c> (keycode only, no modifiers).
-    /// </summary>
-    internal static bool UsesGameShortcutKey(Key key) => key switch {
-        Key.E or Key.Enter or Key.Space or Key.Escape
-            or Key.A or Key.S or Key.D or Key.X or Key.M
-            or Key.Up or Key.Down or Key.Left or Key.Right => true,
-        >= Key.Key0 and <= Key.Key9 => true,
-        _ => false
-    };
 
     private static bool IsOfficialDevConsoleKey(HotkeyBinding b) {
         if (b.Ctrl || b.Alt)

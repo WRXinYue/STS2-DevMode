@@ -418,6 +418,7 @@
   "hotkeys.conflict.empty": "请选择一个按键。",
   "hotkeys.conflict.gameKey": "该键与游戏快捷键冲突（游戏只匹配按键本身，修饰键无效）。",
   "hotkeys.conflict.devConsole": "该键用于打开官方开发控制台。",
+  "hotkeys.conflict.functionKey": "裸 F1–F12 键保留给官方工具（控制台、反馈、调试）。请配合 Ctrl/Shift/Alt 使用。",
   "hotkeys.conflict.duplicate": "该快捷键已被占用。",
   "settings.section.progressGuard": "进度保护",
   "settings.autoBackupProgress": "Mod 变更时自动备份 progress",

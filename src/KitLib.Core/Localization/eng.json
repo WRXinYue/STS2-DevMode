@@ -418,6 +418,7 @@
   "hotkeys.conflict.empty": "Choose a key.",
   "hotkeys.conflict.gameKey": "That key conflicts with a game shortcut (the game matches the key only, not Ctrl/Shift/Alt).",
   "hotkeys.conflict.devConsole": "That key opens the official dev console.",
+  "hotkeys.conflict.functionKey": "Bare F1–F12 keys are reserved for official tools (console, feedback, debug). Use Ctrl/Shift/Alt modifiers.",
   "hotkeys.conflict.duplicate": "That shortcut is already assigned.",
   "settings.section.progressGuard": "Progress protection",
   "settings.autoBackupProgress": "Auto-backup progress on mod change",

@@ -312,7 +312,7 @@ public static class SettingsStore {
                 var binding = Current.GetHotkey(actionId);
                 if (actionId == HotkeyActionId.ClosePanel && binding.KeyCode == (int)Godot.Key.Escape)
                     continue;
-                if (!HotkeyBinding.UsesGameShortcutKey(binding.Keycode))
+                if (!OfficialGameInput.UsesPlayerKeyboardShortcut(binding.Keycode))
                     continue;
                 Current.SetHotkey(actionId, HotkeyDefaults.For(actionId));
             }
@@ -348,6 +348,46 @@ public static class SettingsStore {
             Current.HotkeySettingsVersion = 4;
             Save();
         }
+
+        if (Current.HotkeySettingsVersion < 5) {
+            MigrateLegacyFunctionKeyBinding(
+                HotkeyActionId.TogglePerfHud,
+                Current.HotkeyTogglePerfHud,
+                HotkeyDefaults.TogglePerfHud,
+                Godot.Key.F3);
+            MigrateLegacyFunctionKeyBinding(
+                HotkeyActionId.QuickSave,
+                Current.HotkeyQuickSave,
+                HotkeyDefaults.QuickSave,
+                Godot.Key.F5);
+            MigrateLegacyFunctionKeyBinding(
+                HotkeyActionId.QuickReplayTurn,
+                Current.HotkeyQuickReplayTurn,
+                HotkeyDefaults.QuickReplayTurn,
+                Godot.Key.F6);
+            MigrateLegacyFunctionKeyBinding(
+                HotkeyActionId.QuickReplayCombat,
+                Current.HotkeyQuickReplayCombat,
+                HotkeyDefaults.QuickReplayCombat,
+                Godot.Key.F8);
+            MigrateLegacyFunctionKeyBinding(
+                HotkeyActionId.QuickLoad,
+                Current.HotkeyQuickLoad,
+                HotkeyDefaults.QuickLoad,
+                Godot.Key.F9);
+            Current.HotkeySettingsVersion = 5;
+            Save();
+        }
+    }
+
+    static void MigrateLegacyFunctionKeyBinding(
+        string actionId,
+        HotkeyBinding current,
+        HotkeyBinding replacement,
+        Godot.Key legacyKey) {
+        if (current.Keycode != legacyKey || current.Ctrl || current.Shift || current.Alt)
+            return;
+        Current.SetHotkey(actionId, replacement.Clone());
     }
 
     public static void SetShowHiddenCards(bool enabled) {
