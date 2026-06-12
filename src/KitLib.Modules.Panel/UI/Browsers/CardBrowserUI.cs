@@ -23,10 +23,8 @@ namespace KitLib.UI;
 /// </summary>
 internal static partial class CardBrowserUI {
     private const string RootName = "KitLibCardBrowser";
-    private const string ExtensionWidthKey = "KitLibCardBrowser_ext";
     private const string DualMetaKey = "dm_dual_card_browser";
     private const string CarrierNodeName = "CardBrowserDualCarrier";
-    private const float MainPanelW = 720f;
     private const float DefaultExtWidth = 300f;
 
     private static Color ColSubtle => KitLibTheme.Subtle;
@@ -114,9 +112,7 @@ internal static partial class CardBrowserUI {
             RootName = RootName,
             DualMetaKey = DualMetaKey,
             CarrierNodeName = CarrierNodeName,
-            MainWidthKey = RootName,
-            ExtWidthKey = ExtensionWidthKey,
-            MainDefaultWidth = MainPanelW,
+            MainUseMaxWidth = true,
             ExtDefaultWidth = DefaultExtWidth,
             FallbackClose = () => Remove(globalUi),
         });

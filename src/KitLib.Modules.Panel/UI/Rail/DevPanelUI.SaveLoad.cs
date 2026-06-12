@@ -24,8 +24,6 @@ internal static partial class DevPanelUI {
             RootName = SaveLoadRootName,
             DualMetaKey = "dm_dual_save_load",
             CarrierNodeName = "SaveLoadDualCarrier",
-            MainWidthKey = SaveLoadRootName,
-            ExtWidthKey = SaveLoadExtensionWidthKey,
             MainDefaultWidth = 520f,
             ExtDefaultWidth = defaultExtWidth,
             FallbackClose = FallbackClose,

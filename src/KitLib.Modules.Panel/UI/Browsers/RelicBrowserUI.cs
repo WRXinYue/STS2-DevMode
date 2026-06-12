@@ -22,10 +22,8 @@ namespace KitLib.UI;
 /// </summary>
 internal static partial class RelicBrowserUI {
     private const string RootName = "KitLibRelicBrowser";
-    private const string ExtensionWidthKey = "KitLibRelicBrowser_ext";
     private const string DualMetaKey = "dm_dual_relic_browser";
     private const string CarrierNodeName = "RelicBrowserDualCarrier";
-    private const float MainPanelW = 640f;
     private const float DefaultExtWidth = 260f;
 
     // ──────── Session state ────────
@@ -87,9 +85,7 @@ internal static partial class RelicBrowserUI {
             RootName = RootName,
             DualMetaKey = DualMetaKey,
             CarrierNodeName = CarrierNodeName,
-            MainWidthKey = RootName,
-            ExtWidthKey = ExtensionWidthKey,
-            MainDefaultWidth = MainPanelW,
+            MainUseMaxWidth = true,
             ExtDefaultWidth = DefaultExtWidth,
             FallbackClose = () => Remove(globalUi),
         });

@@ -21,8 +21,6 @@ internal static partial class DevPanelUI {
             RootName = SettingsRootName,
             DualMetaKey = "dm_dual_settings",
             CarrierNodeName = "SettingsDualCarrier",
-            MainWidthKey = SettingsRootName,
-            ExtWidthKey = SettingsExtensionWidthKey,
             MainDefaultWidth = 480f,
             ExtDefaultWidth = 360f,
             FallbackClose = FallbackClose,
@@ -170,14 +168,6 @@ internal static partial class DevPanelUI {
             Callable.From(rebuild).CallDeferred();
         };
         col.AddChild(lightThemeBtn);
-
-        var resetWidthBtn = CreatePlainButton(
-            I18N.T("appearance.resetPanelWidths", "Reset saved panel widths"));
-        resetWidthBtn.Pressed += () => {
-            SettingsStore.Current.BrowserPanelWidths.Clear();
-            SettingsStore.Save();
-        };
-        col.AddChild(resetWidthBtn);
 
         return col;
     }

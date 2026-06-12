@@ -35,7 +35,6 @@ public static class SettingsStore {
                 var json = ReadSharedText(FilePath);
                 Current = JsonSerializer.Deserialize<KitLibSettings>(json, JsonOpts) ?? new();
                 ApplyRailLayoutDefaults();
-                ApplyLegacyUiKeyMigration();
                 ApplyProgressGuardDefaults();
                 ApplyHotkeyDefaults();
                 ApplyHotkeySettingsMigration();
@@ -214,30 +213,6 @@ public static class SettingsStore {
         foreach (var id in KitLibSettings.DefaultHiddenRailTabIds)
             Current.RailHiddenTabIds.Add(id);
         Current.RailLayoutDefaultsVersion = 1;
-        Save();
-    }
-
-    /// <summary>Remap browser overlay width keys from legacy DevMode* root names to KitLib*.</summary>
-    private static void ApplyLegacyUiKeyMigration() {
-        if (Current.BrowserPanelWidths.Count == 0)
-            return;
-
-        var remapped = false;
-        var next = new Dictionary<string, int>(Current.BrowserPanelWidths, StringComparer.Ordinal);
-        foreach (var (key, width) in Current.BrowserPanelWidths) {
-            if (!key.StartsWith("DevMode", StringComparison.Ordinal))
-                continue;
-            var newKey = "KitLib" + key["DevMode".Length..];
-            if (!next.ContainsKey(newKey))
-                next[newKey] = width;
-            next.Remove(key);
-            remapped = true;
-        }
-
-        if (!remapped)
-            return;
-
-        Current.BrowserPanelWidths = next;
         Save();
     }
 

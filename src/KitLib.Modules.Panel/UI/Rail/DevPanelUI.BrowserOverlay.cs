@@ -5,7 +5,7 @@ using MegaCrit.Sts2.Core.Nodes.CommonUi;
 namespace KitLib.UI;
 
 internal static partial class DevPanelUI {
-    private const string BrowserPanelAnimatingMetaKey = "_dm_browser_panel_animating";
+    internal const string BrowserPanelAnimatingMetaKey = "_dm_browser_panel_animating";
     internal const string BrowserPanelClosingMetaKey = "_dm_browser_panel_closing";
     internal const string BrowserPanelClipHostName = "BrowserPanelClipHost";
 

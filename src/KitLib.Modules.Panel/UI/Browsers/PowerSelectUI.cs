@@ -18,10 +18,12 @@ using MegaCrit.Sts2.Core.Runs;
 
 namespace KitLib.UI;
 
-/// <summary>Power browser — two-pane layout with icon grid on the left and detail / apply on the right.</summary>
+/// <summary>Power browser — grid in main column; detail / apply slide out in the extension column.</summary>
 internal static class PowerSelectUI {
     private const string RootName = "KitLibPowerSelect";
-    private const float PanelW = 920f;
+    private const string DualMetaKey = "dm_dual_power_select";
+    private const string CarrierNodeName = "PowerSelectDualCarrier";
+    private const float DefaultExtWidth = 320f;
     private const float TileMinWidth = 72f;
     private const float IconSize = 44f;
     private const int FrameRadius = 6;
@@ -31,7 +33,6 @@ internal static class PowerSelectUI {
     private static Color ColFrameBg => KitLibTheme.ButtonBgNormal;
     private static Color ColFrameHover => KitLibTheme.ButtonBgHover;
     private static Color ColFrameSelected => KitLibTheme.AccentAlpha;
-    private static Color ColDetailBg => KitLibTheme.ButtonBgNormal;
     private static readonly Color ColBuff = new(0.30f, 0.75f, 0.45f);
     private static readonly Color ColDebuff = new(0.85f, 0.35f, 0.30f);
     private static readonly Color ColNone = new(0.55f, 0.55f, 0.65f);
@@ -41,6 +42,7 @@ internal static class PowerSelectUI {
 
     private sealed class State {
         public required Player Player;
+        public DevPanelUI.DualColumnOverlayHandle Dual = null!;
         public List<PowerModel> AllPowers = [];
         public List<PowerModel> Filtered = [];
         public PowerModel? Selected;
@@ -85,15 +87,46 @@ internal static class PowerSelectUI {
     public static void Show(NGlobalUi globalUi, Player player) {
         Remove(globalUi);
 
-        var dual = DevPanelUI.CreateMainOnlyDualOverlay(
-            globalUi, RootName, PanelW, () => Remove(globalUi), contentSeparation: 8);
-        var vbox = dual.MainContent;
-
         var s = new State { Player = player, MpItemSync = MpCheatSession.InMultiplayerRun };
         s.AllPowers = PowerActions.GetAllPowers()
             .OrderBy(p => p.Type)
             .ThenBy(p => PowerActions.GetPowerDisplayName(p))
             .ToList();
+
+        var dual = DevPanelUI.CreateDualColumnOverlay(new DevPanelUI.DualColumnOverlayOptions {
+            GlobalUi = globalUi,
+            RootName = RootName,
+            DualMetaKey = DualMetaKey,
+            CarrierNodeName = CarrierNodeName,
+            MainUseMaxWidth = true,
+            ExtDefaultWidth = DefaultExtWidth,
+            FallbackClose = () => Remove(globalUi),
+        });
+        s.Dual = dual;
+        dual.MainContent.AddThemeConstantOverride("separation", 8);
+        var vbox = dual.MainContent;
+
+        var backBtn = BuildExtensionBackHeader(dual.ExtContent);
+        backBtn.Pressed += () => {
+            dual.CloseExtension();
+            ClearDetail(s);
+        };
+
+        var extScroll = new ScrollContainer {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+        var extMargin = new MarginContainer {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+        };
+        extMargin.AddThemeConstantOverride("margin_left", 16);
+        extMargin.AddThemeConstantOverride("margin_right", 16);
+        extMargin.AddThemeConstantOverride("margin_top", 16);
+        extMargin.AddThemeConstantOverride("margin_bottom", 16);
+        extScroll.AddChild(extMargin);
+        dual.ExtContent.AddChild(extScroll);
 
         // ── Nav bar (title + type filter chips + search) ──
         var (search, filterChips) = BuildNavBar(vbox, s);
@@ -108,18 +141,11 @@ internal static class PowerSelectUI {
 
         vbox.AddChild(MakeDivider());
 
-        // ── Main body ──
-        var body = new HBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill };
-        body.AddThemeConstantOverride("separation", 14);
-        vbox.AddChild(body);
+        BuildLeftPane(vbox, s);
+        BuildRightPane(extMargin, s, player, globalUi);
 
-        BuildLeftPane(body, s);
-        BuildRightPane(body, s, player, globalUi);
-
-        // ── Wire filter chips ──
         WireFilterChips(filterChips, s);
 
-        // ── Wire search ──
         search.TextChanged += filter => {
             s.SearchText = filter;
             Rebuild(s);
@@ -128,7 +154,6 @@ internal static class PowerSelectUI {
         Rebuild(s);
         ShowEmptyDetail(s);
 
-        // Dynamic grid column sizing
         s.GridScroll.Resized += () => UpdateGridColumns(s);
         UpdateGridColumns(s);
 
@@ -197,7 +222,7 @@ internal static class PowerSelectUI {
 
     // ─────────────────────────────── Left pane ───────────────────────────────
 
-    private static void BuildLeftPane(HBoxContainer body, State s) {
+    private static void BuildLeftPane(VBoxContainer mainContent, State s) {
         var pane = new VBoxContainer {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
@@ -228,37 +253,16 @@ internal static class PowerSelectUI {
         s.CountLabel.AddThemeColorOverride("font_color", KitLibTheme.Subtle);
         pane.AddChild(s.CountLabel);
 
-        body.AddChild(pane);
+        mainContent.AddChild(pane);
     }
 
-    // ─────────────────────────────── Right detail pane ───────────────────────────────
+    // ─────────────────────────────── Extension detail pane ───────────────────────────────
 
-    private static void BuildRightPane(HBoxContainer body, State s, Player player, NGlobalUi globalUi) {
-        var pane = new PanelContainer {
-            CustomMinimumSize = new Vector2(280f, 0),
+    private static void BuildRightPane(MarginContainer extRoot, State s, Player player, NGlobalUi globalUi) {
+        var inner = new VBoxContainer {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
         };
-        var bgStyle = new StyleBoxFlat {
-            BgColor = ColDetailBg,
-            CornerRadiusTopLeft = 8,
-            CornerRadiusTopRight = 8,
-            CornerRadiusBottomLeft = 8,
-            CornerRadiusBottomRight = 8,
-            BorderWidthTop = 1,
-            BorderWidthBottom = 1,
-            BorderWidthLeft = 1,
-            BorderWidthRight = 1,
-            BorderColor = KitLibTheme.PanelBorder,
-        };
-        pane.AddThemeStyleboxOverride("panel", bgStyle);
-
-        var margin = new MarginContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill };
-        margin.AddThemeConstantOverride("margin_left", 16);
-        margin.AddThemeConstantOverride("margin_right", 16);
-        margin.AddThemeConstantOverride("margin_top", 16);
-        margin.AddThemeConstantOverride("margin_bottom", 16);
-
-        var inner = new VBoxContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill };
         inner.AddThemeConstantOverride("separation", 10);
 
         if (s.MpItemSync)
@@ -538,9 +542,7 @@ internal static class PowerSelectUI {
         autoScroll.AddChild(s.AutoApplyList);
         inner.AddChild(autoScroll);
 
-        margin.AddChild(inner);
-        pane.AddChild(margin);
-        body.AddChild(pane);
+        extRoot.AddChild(inner);
 
         RefreshCurrentPowers(s);
         RefreshAutoApplyList(s);
@@ -684,9 +686,53 @@ internal static class PowerSelectUI {
         newFrame.AddThemeStyleboxOverride("panel", MakeFrameStyle(ColFrameSelected, typeCol, 0.95f));
 
         ShowPowerDetail(s, power);
+        s.Dual.OpenExtension();
     }
 
     // ─────────────────────────────── Detail update ───────────────────────────────
+
+    private static void ClearDetail(State s) {
+        if (s.Dual.ExtSlot.Visible)
+            s.Dual.CloseExtension();
+        if (s.SelectedFrame != null && s.Selected != null) {
+            var oldCol = TypeColor(s.Selected.Type);
+            s.SelectedFrame.AddThemeStyleboxOverride("panel", MakeFrameStyle(ColFrameBg, oldCol, 0.40f));
+        }
+        s.Selected = null;
+        s.SelectedFrame = null;
+        ShowEmptyDetail(s);
+    }
+
+    private static Button BuildExtensionBackHeader(VBoxContainer extVbox) {
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 8);
+
+        var backBtn = new Button {
+            Text = I18N.T("room.ancients.back", "Back"),
+            FocusMode = Control.FocusModeEnum.None,
+            CustomMinimumSize = new Vector2(0, 32),
+        };
+        var flat = new StyleBoxFlat {
+            BgColor = Colors.Transparent,
+            ContentMarginLeft = 8,
+            ContentMarginRight = 8,
+            ContentMarginTop = 4,
+            ContentMarginBottom = 6,
+        };
+        foreach (var st in new[] { "normal", "hover", "pressed", "focus" })
+            backBtn.AddThemeStyleboxOverride(st, flat);
+        backBtn.AddThemeColorOverride("font_color", KitLibTheme.Subtle);
+        backBtn.AddThemeFontSizeOverride("font_size", 12);
+        row.AddChild(backBtn);
+        row.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
+        extVbox.AddChild(row);
+        extVbox.AddChild(new ColorRect {
+            CustomMinimumSize = new Vector2(0, 1),
+            Color = KitLibTheme.Separator,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        });
+        return backBtn;
+    }
 
     private static void ShowEmptyDetail(State s) {
         s.DetailName.Text = I18N.T("power.detail.placeholder", "Select a power");

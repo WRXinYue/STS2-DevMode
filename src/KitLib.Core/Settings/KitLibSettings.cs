@@ -15,9 +15,6 @@ public sealed partial class KitLibSettings {
     /// <summary>User accent color for DevMode and ModPanel UI (#RRGGBB).</summary>
     public string AccentColorHex { get; set; } = "#EA9104";
 
-    /// <summary>Key = browser overlay <c>rootName</c> (e.g. <c>KitLibConsole</c>); value = last panel width in px.</summary>
-    public Dictionary<string, int> BrowserPanelWidths { get; set; } = new(StringComparer.Ordinal);
-
     /// <summary>User-defined hook rules (trigger + conditions + actions).</summary>
     public List<HookEntry> Hooks { get; set; } = [];
 

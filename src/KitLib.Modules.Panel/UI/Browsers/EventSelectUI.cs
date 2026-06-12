@@ -12,7 +12,6 @@ namespace KitLib.UI;
 /// <summary>Event picker — spliced to the DevMode rail, matching card / relic browser layout.</summary>
 internal static class EventSelectUI {
     private const string RootName = "KitLibEventSelect";
-    private const string ExtensionWidthKey = "KitLibEventSelect_ext";
     private const string DualMetaKey = "dm_dual_event_select";
     private const string CarrierNodeName = "EventSelectDualCarrier";
     private const float PanelW = 520f;
@@ -26,8 +25,6 @@ internal static class EventSelectUI {
             RootName = RootName,
             DualMetaKey = DualMetaKey,
             CarrierNodeName = CarrierNodeName,
-            MainWidthKey = RootName,
-            ExtWidthKey = ExtensionWidthKey,
             MainDefaultWidth = PanelW,
             ExtDefaultWidth = DefaultExtWidth,
             FallbackClose = () => Remove(globalUi),

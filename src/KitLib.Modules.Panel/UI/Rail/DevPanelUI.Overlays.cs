@@ -6,12 +6,10 @@ namespace KitLib.UI;
 
 internal static partial class DevPanelUI {
     private const string SettingsRootName = "KitLibSettings";
-    private const string SettingsExtensionWidthKey = "KitLibSettings_ext";
     private const string AiRootName = "KitLibAi";
     private const string CheatsRootName = "KitLibCheats";
     private const string SaveLoadRootName = "KitLibSaveLoad";
     private const string SaveLoadMenuHostName = "SaveLoadMenuHost";
-    private const string SaveLoadExtensionWidthKey = "KitLibSaveLoad_ext";
     private const string RestartSeedRootName = "KitLibRestartSeed";
 
     private static DualColumnOverlayHandle CreateOverlayRoot(

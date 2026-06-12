@@ -21,7 +21,6 @@ namespace KitLib.UI;
 /// <summary>Potion browser — same two-pane layout as RelicBrowserUI.</summary>
 internal static class PotionSelectUI {
     private const string RootName = "KitLibPotionBrowser";
-    private const string ExtensionWidthKey = "KitLibPotionBrowser_ext";
     private const string DualMetaKey = "dm_dual_potion_browser";
     private const string CarrierNodeName = "PotionBrowserDualCarrier";
     private const float MainPanelW = 560f;
@@ -107,8 +106,6 @@ internal static class PotionSelectUI {
             RootName = RootName,
             DualMetaKey = DualMetaKey,
             CarrierNodeName = CarrierNodeName,
-            MainWidthKey = RootName,
-            ExtWidthKey = ExtensionWidthKey,
             MainDefaultWidth = MainPanelW,
             ExtDefaultWidth = DefaultExtWidth,
             FallbackClose = () => Remove(globalUi),

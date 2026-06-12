@@ -12,10 +12,9 @@ internal static partial class DevPanelUI {
         public required string RootName { get; init; }
         public required string DualMetaKey { get; init; }
         public required string CarrierNodeName { get; init; }
-        public required string MainWidthKey { get; init; }
-        public required string ExtWidthKey { get; init; }
         public required Action FallbackClose { get; init; }
         public float MainDefaultWidth { get; init; } = 520f;
+        public bool MainUseMaxWidth { get; init; }
         public float ExtDefaultWidth { get; init; } = 420f;
         public float ExtSlideOutSec { get; init; } = 0.28f;
         public int ZIndex { get; init; } = BrowserOverlayZIndex;
@@ -41,7 +40,6 @@ internal static partial class DevPanelUI {
             DualColumnOverlayOptions options,
             Control root,
             Control clipHost,
-            Control mainSlot,
             Control mover,
             PanelContainer mainPanel,
             VBoxContainer mainContent,
@@ -149,10 +147,9 @@ internal static partial class DevPanelUI {
         float mainW;
         float extW;
         (mainW, extW) = ResolveDualColumnWidths(
-            options.MainWidthKey,
-            options.ExtWidthKey,
             options.MainDefaultWidth,
             options.ExtDefaultWidth,
+            options.MainUseMaxWidth,
             (Node)globalUi);
 
         var clipHost = CreateBrowserPanelClipHost();
@@ -218,11 +215,9 @@ internal static partial class DevPanelUI {
         root.AddChild(clipHost);
 
         return new DualColumnOverlayHandle(
-            options, root, clipHost, mainSlot, mover, mainPanel, mainContent, extContent, extPanel, extSlot,
+            options, root, clipHost, mover, mainPanel, mainContent, extContent, extPanel, extSlot,
             extSlideHost, mainW, extW);
     }
-
-    internal static string ExtensionWidthKeyFor(string rootName) => rootName + "_ext";
 
     internal static DualColumnOverlayHandle CreateMainOnlyDualOverlay(
         NGlobalUi globalUi,
@@ -236,8 +231,6 @@ internal static partial class DevPanelUI {
             RootName = rootName,
             DualMetaKey = "dm_dual_" + rootName,
             CarrierNodeName = rootName + "DualCarrier",
-            MainWidthKey = rootName,
-            ExtWidthKey = ExtensionWidthKeyFor(rootName),
             MainDefaultWidth = mainDefaultWidth,
             ExtDefaultWidth = 420f,
             FallbackClose = fallbackClose,

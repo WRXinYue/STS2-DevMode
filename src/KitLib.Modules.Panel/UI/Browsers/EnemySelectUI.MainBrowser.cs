@@ -21,8 +21,6 @@ internal static partial class EnemySelectUI {
             RootName = RootName,
             DualMetaKey = DualMetaKey,
             CarrierNodeName = CarrierNodeName,
-            MainWidthKey = RootName,
-            ExtWidthKey = ExtensionWidthKey,
             MainDefaultWidth = DefaultMainWidth,
             ExtDefaultWidth = DefaultExtWidth,
             FallbackClose = () => Hide(globalUi),

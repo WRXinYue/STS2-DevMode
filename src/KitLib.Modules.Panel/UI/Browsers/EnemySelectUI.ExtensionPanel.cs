@@ -7,7 +7,6 @@ using MegaCrit.Sts2.Core.Rooms;
 namespace KitLib.UI;
 
 internal static partial class EnemySelectUI {
-    private const string ExtensionWidthKey = "KitLibEnemySelect_ext";
     private const string DualMetaKey = "dm_dual_enemy_select";
     private const string CarrierNodeName = "EnemySelectDualCarrier";
     private const float DefaultMainWidth = 800f;
