@@ -33,6 +33,8 @@ public static class KitLibHost {
         ModuleCatalog.Announce(ModuleIds.Core);
         KitLog.Info("KitLib core module announced; loading bundled satellites.");
         SatelliteModuleLoader.LoadBundledModules();
+        if (!ModuleCatalog.IsLoaded(ModuleIds.Panel))
+            KitLog.Warn("Hotkeys require KitLib.Panel — module not loaded (check Settings → satellite profile).");
         KitLog.Info("KitLib Core host ready.");
     }
 

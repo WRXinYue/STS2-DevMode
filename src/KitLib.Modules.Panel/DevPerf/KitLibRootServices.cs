@@ -1,7 +1,6 @@
 using Godot;
 using KitLib.Feedback;
 using KitLib.Host;
-using KitLib.Hotkeys;
 using KitLib.UI;
 
 namespace KitLib.DevPerf;
@@ -44,7 +43,6 @@ internal partial class KitLibRootServicesNode : CanvasLayer {
     public override void _EnterTree() {
         KitLibRootServices.Instance = this;
         SetProcess(true);
-        SetProcessUnhandledInput(true);
         Callable.From(EnsureOverlayAttached).CallDeferred();
         Callable.From(() => CrashRecoveryHooks.EnsureLifecycleNode(this)).CallDeferred();
     }
@@ -56,10 +54,6 @@ internal partial class KitLibRootServicesNode : CanvasLayer {
 
     internal void EnsureOverlayAttached() {
         DevPerfOverlayUI.Attach(this);
-    }
-
-    public override void _UnhandledInput(InputEvent @event) {
-        KitLibHotkeyInput.TryHandleDevPerf(@event, GetViewport());
     }
 
     public override void _Process(double delta) {

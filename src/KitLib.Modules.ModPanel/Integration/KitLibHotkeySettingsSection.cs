@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using KitLib;
 using KitLib.Host;
 using KitLib.Settings;
 using KitLib.UI;
@@ -34,6 +35,7 @@ internal partial class KitLibHotkeySettingsSection : VBoxContainer {
         MouseFilter = MouseFilterEnum.Ignore;
         AddThemeConstantOverride("separation", 8);
         SetProcessUnhandledInput(true);
+        SetProcessUnhandledKeyInput(true);
     }
 
     public override void _EnterTree() => Active = this;
@@ -73,32 +75,58 @@ internal partial class KitLibHotkeySettingsSection : VBoxContainer {
 
     internal static void CancelCapture() => Active?.CancelListening();
 
+    internal static bool TryCaptureInputEvent(InputEventKey key, Viewport viewport) {
+        var active = Active;
+        if (active == null || active._listeningActionId == null)
+            return false;
+
+        active.ApplyCapturedKey(key);
+        viewport.SetInputAsHandled();
+        return true;
+    }
+
     internal void CancelListening() {
         _listeningActionId = null;
         RefreshAllBindingButtons();
     }
 
-    public override void _UnhandledKeyInput(InputEvent inputEvent) {
+    public override void _UnhandledInput(InputEvent inputEvent) => TryCaptureRebindKey(inputEvent);
+
+    public override void _UnhandledKeyInput(InputEvent inputEvent) => TryCaptureRebindKey(inputEvent);
+
+    void TryCaptureRebindKey(InputEvent inputEvent) {
         if (_listeningActionId == null)
             return;
         if (inputEvent is not InputEventKey { Pressed: true, Echo: false } key)
             return;
 
+        ApplyCapturedKey(key);
+        GetViewport()?.SetInputAsHandled();
+    }
+
+    void ApplyCapturedKey(InputEventKey key) {
+        if (_listeningActionId == null)
+            return;
+
         var actionId = _listeningActionId;
         CancelListening();
 
-        if (key.Keycode == Key.Escape)
-            return;
-
-        var binding = HotkeyBinding.From(key);
-        var reason = SettingsStore.TrySetHotkeyBinding(actionId, binding);
-        if (reason != null) {
-            MainFile.Logger.Info($"Hotkey rebind rejected: {I18N.T(reason, reason)}");
+        if (key.Keycode == Key.Escape) {
+            KitLog.Info("Hotkey", "Rebind cancelled (Esc).");
             return;
         }
 
+        var binding = HotkeyBinding.From(key);
+        KitLog.Info("Hotkey", $"Rebind capture: action={actionId} key={binding.FormatLabel()}");
+        var reason = SettingsStore.TrySetHotkeyBinding(actionId, binding);
+        if (reason != null) {
+            KitLog.Info("Hotkey", $"Rebind rejected: {I18N.T(reason, reason)}");
+            return;
+        }
+
+        KitLog.Info("Hotkey", $"Rebind saved: {actionId}={binding.FormatLabel()}");
+
         NotifyChanged();
-        GetViewport()?.SetInputAsHandled();
     }
 
     private Control CreateBindingRow(string actionId, string labelKey, string labelFallback) {
@@ -110,7 +138,10 @@ internal partial class KitLibHotkeySettingsSection : VBoxContainer {
         bindBtn.SetMeta(KitLibHotkeySettingsUi.BindingButtonMeta, true);
         StyleBindingButton(bindBtn, listening: false);
         UpdateBindingButtonText(bindBtn, actionId);
-        bindBtn.Pressed += () => BeginListening(actionId, bindBtn);
+        bindBtn.Pressed += () => {
+            KitLog.Info("Hotkey", $"Rebind listening: {actionId}");
+            BeginListening(actionId, bindBtn);
+        };
         _bindingButtons[actionId] = bindBtn;
 
         return DevModeFormChrome.CreateLabeledValueRow(

@@ -2,6 +2,7 @@ using KitLib;
 using KitLib.Abstractions.Host;
 using KitLib.DevPerf;
 using KitLib.Host;
+using KitLib.Hotkeys;
 using KitLib.Multiplayer.Cheat;
 using KitLib.Multiplayer.LanTest;
 using KitLib.Multiplayer.PseudoCoop;
@@ -40,6 +41,7 @@ public static class ModuleEntry {
         DevPerfBuiltinProviders.RegisterAll();
 
         KitLibHarmony.Apply(typeof(ModuleEntry).Assembly, KitLibModuleIds.Panel);
+        HotkeyPipelineHealth.ReportAfterHarmony(KitLibModuleIds.Panel);
         MainFile.Logger.Info("KitLib.Panel module initialized.");
     }
 

@@ -81,9 +81,6 @@ touchpoints:
     type: CombatManager
     member: IsPlayPhase
     kind: property
-    profiles:
-      beta:
-        skip: true
     sources:
       - src/KitLib.Core/Sts2CombatCompat.cs
       - src/KitLib.Core/Sts2RuntimeProfile.cs
@@ -92,7 +89,6 @@ touchpoints:
     type: CombatManager
     member: IsPlayerReadyToBeginEnemyTurn
     kind: method
-    optional: true
     sources:
       - src/KitLib.Core/Sts2CombatCompat.cs
 
@@ -183,18 +179,16 @@ touchpoints:
       - src/KitLib.Modules.AI/Multiplayer/PseudoCoop/Patches/PseudoCoopCombatReadyPatch.cs
 
   - id: EventRoom.EventModel
-    type: MegaCrit.Sts2.Core.Rooms.EventRoom
+    type: EventRoom
     member: EventModel
     kind: property
-    optional: true
     sources:
       - src/KitLib.Modules.AI/AI/Sts2/Snapshots/GameSnapshotPhaseCapture.cs
 
   - id: EventRoom.Model
-    type: MegaCrit.Sts2.Core.Rooms.EventRoom
+    type: EventRoom
     member: Model
     kind: property
-    optional: true
     sources:
       - src/KitLib.Modules.AI/AI/Sts2/Snapshots/GameSnapshotPhaseCapture.cs
 
@@ -304,6 +298,13 @@ touchpoints:
     sources:
       - src/KitLib.Modules.Panel/Patches/CombatSummonSlotCompatPatch.cs
 
+  - id: NGame.InitializeGame
+    type: NGame
+    member: InitializeGame
+    kind: method
+    sources:
+      - src/KitLib.Modules.Cheat/Patches/InstantModeUnlockPatch.cs
+
   - id: NGame.StartNewSingleplayerRun
     type: NGame
     member: StartNewSingleplayerRun
@@ -317,6 +318,13 @@ touchpoints:
     kind: method
     sources:
       - src/KitLib.Modules.Panel/Patches/DevPanelPatches.cs
+
+  - id: NInputManager.ProcessShortcutKeyInput
+    type: NInputManager
+    member: ProcessShortcutKeyInput
+    kind: method
+    sources:
+      - src/KitLib.Modules.Panel/Patches/NInputManagerHotkeyPatch.cs
 
   - id: NMainMenu.MainMenuButtonFocused
     type: NMainMenu
@@ -647,6 +655,20 @@ touchpoints:
         member: SetUpNewSingleplayer
     sources:
       - src/KitLib.Modules.Cheat/Patches/RunStartPatch.cs
+
+  - id: RunManager.SetUpSavedSinglePlayer
+    type: RunManager
+    member: SetUpSavedSinglePlayer
+    kind: method
+    sources:
+      - src/KitLib.Modules.Cheat/SaveSlotManager.cs
+
+  - id: RunManager.SetUpSavedSingleplayer
+    type: RunManager
+    member: SetUpSavedSingleplayer
+    kind: method
+    sources:
+      - src/KitLib.Modules.Cheat/SaveSlotManager.cs
 
   - id: RunManager.ShouldSave
     type: RunManager

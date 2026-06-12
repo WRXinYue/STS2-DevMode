@@ -378,6 +378,34 @@ public static class SettingsStore {
             Current.HotkeySettingsVersion = 5;
             Save();
         }
+
+        if (Current.HotkeySettingsVersion < 6) {
+            MigrateLegacyLetterCombo(HotkeyActionId.TogglePerfHud, Godot.Key.P);
+            MigrateLegacyLetterCombo(HotkeyActionId.LockRail, Godot.Key.L);
+            MigrateLegacyLetterCombo(HotkeyActionId.QuickSave, Godot.Key.U);
+            MigrateLegacyLetterCombo(HotkeyActionId.QuickLoad, Godot.Key.O);
+            MigrateLegacyLetterCombo(HotkeyActionId.QuickReplayCombat, Godot.Key.C);
+            MigrateLegacyLetterCombo(HotkeyActionId.QuickReplayTurn, Godot.Key.Y);
+
+            foreach (var actionId in HotkeyActionId.All) {
+                var binding = Current.GetHotkey(actionId);
+                if (!binding.Ctrl && !binding.Shift && !binding.Alt)
+                    continue;
+                if (!OfficialGameInput.UsesPlayerKeyboardShortcut(binding.Keycode))
+                    continue;
+                Current.SetHotkey(actionId, HotkeyDefaults.For(actionId));
+            }
+
+            Current.HotkeySettingsVersion = 6;
+            Save();
+        }
+    }
+
+    static void MigrateLegacyLetterCombo(string actionId, Godot.Key legacyKey) {
+        var current = Current.GetHotkey(actionId);
+        if (current.Keycode != legacyKey || !current.Ctrl || !current.Shift || current.Alt)
+            return;
+        Current.SetHotkey(actionId, HotkeyDefaults.For(actionId));
     }
 
     static void MigrateLegacyFunctionKeyBinding(

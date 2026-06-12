@@ -8,9 +8,24 @@ namespace KitLib;
 public static class KitLibHarmony {
     static readonly HashSet<string> Applied = new(StringComparer.OrdinalIgnoreCase);
     static readonly Dictionary<string, Harmony> Instances = new(StringComparer.OrdinalIgnoreCase);
+    static readonly Dictionary<string, HarmonyApplyResult> LastResults = new(StringComparer.OrdinalIgnoreCase);
 
     public static bool IsApplied(string harmonyId) =>
         !string.IsNullOrWhiteSpace(harmonyId) && Applied.Contains(harmonyId);
+
+    public static HarmonyApplyResult? GetLastApplyResult(string harmonyId) {
+        if (string.IsNullOrWhiteSpace(harmonyId))
+            return null;
+        return LastResults.TryGetValue(harmonyId, out var result) ? result : null;
+    }
+
+    /// <summary>True when Harmony has at least one prefix or postfix on <paramref name="original"/>.</summary>
+    public static bool IsMethodPatched(MethodInfo original) {
+        var info = Harmony.GetPatchInfo(original);
+        if (info == null)
+            return false;
+        return info.Prefixes.Count > 0 || info.Postfixes.Count > 0 || info.Transpilers.Count > 0;
+    }
 
     public static Harmony GetOrCreate(string harmonyId) {
         if (string.IsNullOrWhiteSpace(harmonyId))
@@ -41,12 +56,19 @@ public static class KitLibHarmony {
             return;
         }
 
-        int applied = 0;
-        int skipped = 0;
+        var appliedTypes = new List<string>();
+        var skipped = new List<HarmonySkippedPatch>();
         if (patchTypes.Count == 0) {
             try {
                 harmony.PatchAll(moduleAssembly);
                 Applied.Add(harmonyId);
+                LastResults[harmonyId] = new HarmonyApplyResult {
+                    HarmonyId = harmonyId,
+                    AppliedCount = 0,
+                    SkippedCount = 0,
+                    AppliedPatchTypes = appliedTypes,
+                    Skipped = skipped,
+                };
                 MainFile.Logger.Info($"KitLib Harmony patches applied: {harmonyId} (PatchAll).");
                 return;
             }
@@ -59,17 +81,30 @@ public static class KitLibHarmony {
         foreach (var type in patchTypes) {
             try {
                 harmony.CreateClassProcessor(type).Patch();
-                applied++;
+                appliedTypes.Add(type.FullName ?? type.Name);
             }
             catch (Exception ex) {
-                skipped++;
+                skipped.Add(new HarmonySkippedPatch(type.FullName ?? type.Name, ex.Message));
                 MainFile.Logger.Warn($"KitLib Harmony skipped patch type {type.FullName}: {ex.Message}");
             }
         }
 
         Applied.Add(harmonyId);
+        LastResults[harmonyId] = new HarmonyApplyResult {
+            HarmonyId = harmonyId,
+            AppliedCount = appliedTypes.Count,
+            SkippedCount = skipped.Count,
+            AppliedPatchTypes = appliedTypes,
+            Skipped = skipped,
+        };
+
         MainFile.Logger.Info(
-            $"KitLib Harmony patches applied: {harmonyId} ({applied} types, {skipped} skipped).");
+            $"KitLib Harmony patches applied: {harmonyId} ({appliedTypes.Count} types, {skipped.Count} skipped).");
+        if (skipped.Count > 0) {
+            MainFile.Logger.Warn(
+                $"KitLib Harmony {harmonyId}: {skipped.Count} patch type(s) skipped — search session.log for " +
+                "'Harmony skipped patch type' or module health errors.");
+        }
     }
 
     static bool HasHarmonyPatch(Type type) {

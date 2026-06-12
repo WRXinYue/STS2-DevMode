@@ -6,21 +6,25 @@ using KitLib.UI;
 namespace KitLib.Hotkeys;
 
 internal static class DevPerfHotkeys {
-    internal static bool TryHandle(InputEvent @event, Viewport viewport) {
-        if (@event is not InputEventKey { Pressed: true, Echo: false } key)
+    internal static bool TryHandle(InputEventKey key, Viewport viewport) {
+        if (!key.Pressed || key.Echo)
             return false;
 
-        if (!SettingsStore.Current.HotkeyTogglePerfHud.Matches(key))
+        var binding = SettingsStore.Current.HotkeyTogglePerfHud;
+        if (!binding.Matches(key)) {
+            HotkeyDiagnostics.LogNearMatch(nameof(DevPerfHotkeys), binding, key);
             return false;
+        }
 
         if (!SettingsStore.Current.HotkeysEnabled) {
-            KitLog.Info("Perf", "Perf overlay hotkey ignored: keyboard shortcuts disabled in settings.");
+            HotkeyDiagnostics.LogBlocked(nameof(DevPerfHotkeys), "keyboard shortcuts disabled in settings");
             viewport.SetInputAsHandled();
             return true;
         }
 
         if (!KitLibState.IsActive) {
-            KitLog.Info("Perf", "Perf overlay hotkey ignored: DevMode inactive.");
+            HotkeyDiagnostics.LogBlocked(nameof(DevPerfHotkeys),
+                "DevMode inactive (enable DevPanel/Cheat or start a dev test run)");
             viewport.SetInputAsHandled();
             return true;
         }
@@ -29,7 +33,7 @@ internal static class DevPerfHotkeys {
         SettingsStore.SetPerfHudEnabled(next);
         KitLibRootServices.EnsureRootServicesNode();
         DevPerfOverlayUI.SyncVisibility();
-        KitLog.Info("Perf", $"Overlay toggled {(next ? "ON" : "OFF")} via hotkey.");
+        HotkeyDiagnostics.LogHandled(nameof(DevPerfHotkeys), $"perf overlay {(next ? "ON" : "OFF")}");
         viewport.SetInputAsHandled();
         return true;
     }

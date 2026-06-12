@@ -1,15 +1,47 @@
 using Godot;
+using KitLib.Integration;
+using KitLib.Settings;
 
 namespace KitLib.Hotkeys;
 
-/// <summary>Runtime KitLib hotkeys via <c>_UnhandledInput</c>, same phase as official <c>NHotkeyManager</c>.</summary>
+/// <summary>
+/// KitLib hotkey dispatch. Primary hook is <see cref="Patches.NInputManagerHotkeyPatch"/> on
+/// official <c>NInputManager</c> (before keycode-only game shortcuts run).
+/// </summary>
 internal static class KitLibHotkeyInput {
-    internal static void TryHandlePanelAndRun(InputEvent @event, Viewport viewport) {
-        if (DevPanelHotkeys.TryHandle(@event, viewport))
-            return;
-        QuickSlHotkeys.TryHandle(@event, viewport);
+    internal static bool TryHandleAll(InputEvent @event, Viewport viewport, string pipeline) {
+        if (@event is not InputEventKey key || !key.Pressed || key.Echo)
+            return false;
+
+        HotkeyDiagnostics.LogKeyReceived(pipeline, key);
+
+        if (KitLibHotkeySettingsSection.TryCaptureInputEvent(key, viewport))
+            return true;
+
+        if (DevPanelHotkeys.TryHandle(key, viewport))
+            return true;
+        if (QuickSlHotkeys.TryHandle(key, viewport))
+            return true;
+        if (DevPerfHotkeys.TryHandle(key, viewport))
+            return true;
+
+        if (ShouldSuppressOfficialModifiedShortcut(key)) {
+            HotkeyDiagnostics.LogBlocked(pipeline,
+                $"suppressed official keycode-only shortcut for {HotkeyBinding.From(key).FormatLabel()}");
+            viewport.SetInputAsHandled();
+            return true;
+        }
+
+        return false;
     }
 
-    internal static void TryHandleDevPerf(InputEvent @event, Viewport viewport) =>
-        DevPerfHotkeys.TryHandle(@event, viewport);
+    /// <summary>
+    /// Official shortcuts match keycode only; block them when Ctrl/Shift/Alt are held so
+    /// modifier combos are available to KitLib (and do not trigger map etc.).
+    /// </summary>
+    internal static bool ShouldSuppressOfficialModifiedShortcut(InputEventKey key) {
+        if (!key.CtrlPressed && !key.ShiftPressed && !key.AltPressed)
+            return false;
+        return OfficialGameInput.UsesPlayerKeyboardShortcut(key.Keycode);
+    }
 }

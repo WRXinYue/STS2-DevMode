@@ -16,22 +16,22 @@ internal static class HotkeyDefaults {
         HotkeyBinding.Of(Key.Pageup, ctrl: true, shift: true);
 
     internal static readonly HotkeyBinding LockRail =
-        HotkeyBinding.Of(Key.L, ctrl: true, shift: true);
+        HotkeyBinding.Of(Key.Semicolon, ctrl: true, shift: true);
 
     internal static readonly HotkeyBinding QuickSave =
-        HotkeyBinding.Of(Key.U, ctrl: true, shift: true);
+        HotkeyBinding.Of(Key.Comma, ctrl: true, shift: true);
 
     internal static readonly HotkeyBinding QuickLoad =
-        HotkeyBinding.Of(Key.O, ctrl: true, shift: true);
+        HotkeyBinding.Of(Key.Period, ctrl: true, shift: true);
 
     internal static readonly HotkeyBinding QuickReplayCombat =
-        HotkeyBinding.Of(Key.C, ctrl: true, shift: true);
+        HotkeyBinding.Of(Key.Minus, ctrl: true, shift: true);
 
     internal static readonly HotkeyBinding QuickReplayTurn =
-        HotkeyBinding.Of(Key.Y, ctrl: true, shift: true);
+        HotkeyBinding.Of(Key.Equal, ctrl: true, shift: true);
 
     internal static readonly HotkeyBinding TogglePerfHud =
-        HotkeyBinding.Of(Key.P, ctrl: true, shift: true);
+        HotkeyBinding.Of(Key.Slash, ctrl: true, shift: true);
 
     internal static HotkeyBinding For(string actionId) => actionId switch {
         HotkeyActionId.ToggleRail => ToggleRail.Clone(),

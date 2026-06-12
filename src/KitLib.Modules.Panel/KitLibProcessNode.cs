@@ -2,7 +2,6 @@ using Godot;
 using KitLib.Dev;
 using KitLib.Feedback;
 using KitLib.Host;
-using KitLib.Hotkeys;
 using KitLib.Mcp;
 using KitLib.Patches;
 using KitLib.Scripts;
@@ -22,13 +21,8 @@ internal partial class KitLibProcessNode : Node {
     public override void _EnterTree() {
         Instance = this;
         ProcessPriority = 128;
-        SetProcessUnhandledInput(true);
         if (!ModuleBootstrap.IsBootstrapComplete)
             KitLibHost.TryRunDevBootstrap();
-    }
-
-    public override void _UnhandledInput(InputEvent @event) {
-        KitLibHotkeyInput.TryHandlePanelAndRun(@event, GetViewport());
     }
 
     public override void _Process(double delta) {

@@ -9,10 +9,10 @@ namespace KitLib.Hotkeys;
 
 /// <summary>Quick save/load and combat checkpoint hotkeys during an active run.</summary>
 internal static class QuickSlHotkeys {
-    internal static bool TryHandle(InputEvent @event, Viewport viewport) {
-        if (!SettingsStore.Current.HotkeysEnabled)
+    internal static bool TryHandle(InputEventKey key, Viewport viewport) {
+        if (!key.Pressed || key.Echo)
             return false;
-        if (@event is not InputEventKey { Pressed: true, Echo: false } key)
+        if (!SettingsStore.Current.HotkeysEnabled)
             return false;
 
         var settings = SettingsStore.Current;
@@ -23,8 +23,11 @@ internal static class QuickSlHotkeys {
         if (!save && !load && !replayCombat && !replayTurn)
             return false;
 
-        if (!RunContext.TryGetRunAndPlayer(out _, out _))
-            return false;
+        if (!RunContext.TryGetRunAndPlayer(out _, out _)) {
+            HotkeyDiagnostics.LogBlocked(nameof(QuickSlHotkeys), "not in an active run");
+            viewport.SetInputAsHandled();
+            return true;
+        }
 
         if (MpCheatSession.InMultiplayerRun) {
             QuickSlToastUI.Show(I18N.T("quickSl.multiplayerBlocked", "Quick save/load unavailable in multiplayer"));
@@ -33,6 +36,7 @@ internal static class QuickSlHotkeys {
         }
 
         if (save) {
+            HotkeyDiagnostics.LogHandled(nameof(QuickSlHotkeys), HotkeyActionId.QuickSave);
             if (SaveSlotManager.QuickSave())
                 QuickSlToastUI.Show(I18N.T("quickSl.saved", "Quick save complete"));
             else
