@@ -269,16 +269,6 @@ internal static class PowerSelectUI {
         iconRow.AddThemeConstantOverride("separation", 12);
 
         var iconHost = new Control { CustomMinimumSize = new Vector2(60, 60) };
-        var iconBg = new Panel();
-        iconBg.AddThemeStyleboxOverride("panel", new StyleBoxFlat {
-            BgColor = ColFrameBg,
-            CornerRadiusTopLeft = 8,
-            CornerRadiusTopRight = 8,
-            CornerRadiusBottomLeft = 8,
-            CornerRadiusBottomRight = 8,
-        });
-        iconBg.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        iconHost.AddChild(iconBg);
 
         s.DetailIcon = new TextureRect {
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,

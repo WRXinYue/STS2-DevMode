@@ -23,7 +23,6 @@ internal static class PotionSelectUI {
     private const string RootName = "KitLibPotionBrowser";
     private const string DualMetaKey = "dm_dual_potion_browser";
     private const string CarrierNodeName = "PotionBrowserDualCarrier";
-    private const float MainPanelW = 560f;
     private const float DefaultExtWidth = 240f;
 
     // ── Grid tile constants (parallel to RelicBrowserUI.Grid.cs) ────────
@@ -106,7 +105,7 @@ internal static class PotionSelectUI {
             RootName = RootName,
             DualMetaKey = DualMetaKey,
             CarrierNodeName = CarrierNodeName,
-            MainDefaultWidth = MainPanelW,
+            MainUseMaxWidth = true,
             ExtDefaultWidth = DefaultExtWidth,
             FallbackClose = () => Remove(globalUi),
         });
