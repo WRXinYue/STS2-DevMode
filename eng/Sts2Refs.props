@@ -1,0 +1,13 @@
+<Project>
+  <!--
+    Fallback Sts2Dir when local.props is absent (CI format-check, fresh clones).
+    Version must stay in sync with scripts/lib/sts2_profiles.py (_PINNED_VERSIONS.stable).
+  -->
+  <PropertyGroup>
+    <KitLibSts2RefsStableVersion>0.103.3</KitLibSts2RefsStableVersion>
+    <KitLibSts2RefsStableRoot>$(RepoRoot)eng/sts2-refs/stable/$(KitLibSts2RefsStableVersion)</KitLibSts2RefsStableRoot>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Sts2Dir)' == '' and Exists('$(KitLibSts2RefsStableRoot)/data_sts2_windows_x86_64/sts2.dll')">
+    <Sts2Dir>$(KitLibSts2RefsStableRoot)</Sts2Dir>
+  </PropertyGroup>
+</Project>

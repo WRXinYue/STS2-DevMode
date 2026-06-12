@@ -23,6 +23,11 @@ jobs:
       - name: Restore solution
         run: dotnet restore KitLib.sln
 
+      - name: Verify STS2 ref DLLs (required for dotnet format)
+        run: |
+          test -f eng/sts2-refs/stable/0.103.3/data_sts2_windows_x86_64/sts2.dll
+          test -f eng/sts2-refs/stable/0.103.3/data_sts2_windows_x86_64/0Harmony.dll
+
       - name: Format check
         run: dotnet format KitLib.sln --verify-no-changes
 

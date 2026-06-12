@@ -82,7 +82,7 @@ help:
 	@echo "  init         detect STS2 + Godot, generate local.props + .vscode + pre-commit hooks"
 	@echo "  icons        tree-shake MDI (mdi-used.json + MdiIcon.Generated.cs)"
 	@echo "  format       dotnet format KitLib.sln + black scripts/ (EditorConfig / pre-commit)"
-	@echo "  format-check dotnet format --verify-no-changes (CI)"
+	@echo "  format-check dotnet format --verify-no-changes (uses eng/sts2-refs when Sts2Dir unset)"
 	@echo "  lint-scripts flake8 scripts/ (setup.cfg)"
 	@echo "  check        format-check + lint-scripts"
 	@echo "  test         dotnet test KitLib.ModPanel.Tests (sidebar planner + embed probe)"

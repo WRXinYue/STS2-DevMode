@@ -19,4 +19,5 @@
   <PropertyGroup Condition="'$(Sts2Profile)' == 'beta'">
     <DefineConstants>$(DefineConstants);STS2_BETA106PLUS</DefineConstants>
   </PropertyGroup>
+  <Import Project="$(RepoRoot)eng/Sts2Refs.props" Condition="Exists('$(RepoRoot)eng/Sts2Refs.props')" />
 </Project>
