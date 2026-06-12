@@ -124,6 +124,8 @@ internal static partial class CombatStatsUI {
             RefreshPlayer(_selectedPlayer);
         }
 
+        internal void RefreshAfterOverlayOpen() => _chart.RefreshAfterOverlayOpen();
+
         private PlayerCombatStats? _lastPlayer;
         private string? _lastPieFingerprint;
 
@@ -322,25 +324,46 @@ internal static partial class CombatStatsUI {
         };
     }
 
-    /// <summary>Donut pie chart (same draw approach as HarmonyOwnerPieChart).</summary>
+    /// <summary>Donut pie chart rasterized to a texture (avoids missed <c>_Draw</c> during panel slide-in).</summary>
     private sealed partial class CombatStatsPieChart : Control {
         private readonly List<(string Name, int Amount, Color Color)> _slices = new();
+        private readonly TextureRect _texture;
         private int _total = 1;
 
         public CombatStatsPieChart(string name) {
             Name = name;
             CustomMinimumSize = new Vector2(PieChartSize, PieChartSize);
-            SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter;
+            SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
+            SizeFlagsVertical = SizeFlags.ShrinkCenter;
             MouseFilter = MouseFilterEnum.Ignore;
+            ClipContents = false;
+
+            _texture = new TextureRect {
+                Name = "PieTexture",
+                StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                MouseFilter = MouseFilterEnum.Ignore,
+            };
+            _texture.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+            AddChild(_texture);
         }
 
-        public override void _Ready() => Resized += () => QueueRedraw();
+        public override void _Ready() {
+            ThemeManager.OnThemeChanged += OnThemeChanged;
+            TreeExiting += OnTreeExiting;
+            RefreshTexture();
+        }
+
+        private void OnTreeExiting() => ThemeManager.OnThemeChanged -= OnThemeChanged;
+
+        private void OnThemeChanged() => RefreshTexture();
 
         public void SetSlices(IReadOnlyList<(string Name, int Amount, Color Color)> slices, int total) {
             _slices.Clear();
             _slices.AddRange(slices);
             _total = Math.Max(total, 1);
-            QueueRedraw();
+            RefreshTexture();
+            Callable.From(RefreshTexture).CallDeferred();
         }
 
         public override void _ExitTree() {
@@ -348,42 +371,112 @@ internal static partial class CombatStatsUI {
             base._ExitTree();
         }
 
-        public override void _Draw() {
-            var size = Size;
-            var center = size / 2f;
-            float outerR = Mathf.Min(size.X, size.Y) * 0.42f;
-            if (outerR < 4f)
-                return;
+        internal void RefreshAfterOverlayOpen() {
+            Callable.From(RefreshTexture).CallDeferred();
+            var timer = GetTree()?.CreateTimer(0.9);
+            if (timer != null)
+                timer.Timeout += RefreshTexture;
+        }
+
+        private void RefreshTexture() {
+            _texture.Texture = RasterizePie();
+        }
+
+        private ImageTexture? RasterizePie() {
+            var image = Image.CreateEmpty(PieChartSize, PieChartSize, false, Image.Format.Rgba8);
+            if (image == null)
+                return null;
+
+            var center = new Vector2(PieChartSize / 2f, PieChartSize / 2f);
+            float radius = PieChartSize * 0.42f;
+            float innerEmpty = radius * 0.38f;
 
             if (_slices.Count == 0 || _total <= 0) {
-                DrawCircle(center, outerR * 0.38f, new Color(0.22f, 0.22f, 0.26f, 0.85f));
-                DrawArc(center, outerR, 0f, Mathf.Tau, 48, KitLibTheme.Separator, 1f, true);
-                return;
+                FillDisk(image, center, innerEmpty, new Color(0.22f, 0.22f, 0.26f, 0.85f));
+                StrokeRing(image, center, radius, KitLibTheme.Separator);
+                return ImageTexture.CreateFromImage(image);
             }
 
             float start = -Mathf.Pi / 2f;
             foreach (var (_, amount, color) in _slices) {
                 float sweep = amount / (float)_total * Mathf.Tau;
-                DrawWedge(center, outerR, start, start + sweep, color);
+                FillWedge(image, center, radius, start, start + sweep, color);
                 start += sweep;
             }
 
-            float innerR = outerR * 0.52f;
-            DrawCircle(center, innerR, KitLibTheme.PanelBg);
-            DrawArc(center, outerR + 0.5f, 0f, Mathf.Tau, 64, KitLibTheme.PanelBorder, 1f, true);
+            FillDisk(image, center, radius * 0.52f, KitLibTheme.PanelBg);
+            StrokeRing(image, center, radius, KitLibTheme.PanelBorder);
+            return ImageTexture.CreateFromImage(image);
         }
 
-        private void DrawWedge(Vector2 center, float radius, float fromRad, float toRad, Color color) {
-            const int segments = 40;
-            var pts = new Vector2[segments + 2];
-            pts[0] = center;
-            for (int i = 0; i <= segments; i++) {
-                float t = i / (float)segments;
-                float ang = Mathf.Lerp(fromRad, toRad, t);
-                pts[i + 1] = center + new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * radius;
+        private static void FillDisk(Image image, Vector2 center, float radius, Color color) {
+            int r = Mathf.CeilToInt(radius);
+            int cx = Mathf.RoundToInt(center.X);
+            int cy = Mathf.RoundToInt(center.Y);
+            float r2 = radius * radius;
+            for (int y = cy - r; y <= cy + r; y++) {
+                if (y < 0 || y >= PieChartSize) continue;
+                for (int x = cx - r; x <= cx + r; x++) {
+                    if (x < 0 || x >= PieChartSize) continue;
+                    float dx = x - center.X;
+                    float dy = y - center.Y;
+                    if (dx * dx + dy * dy <= r2)
+                        image.SetPixel(x, y, color);
+                }
             }
+        }
 
-            DrawColoredPolygon(pts, color);
+        private static void FillWedge(Image image, Vector2 center, float radius, float fromRad, float toRad, Color color) {
+            int r = Mathf.CeilToInt(radius);
+            int cx = Mathf.RoundToInt(center.X);
+            int cy = Mathf.RoundToInt(center.Y);
+            float r2 = radius * radius;
+            for (int y = cy - r; y <= cy + r; y++) {
+                if (y < 0 || y >= PieChartSize) continue;
+                for (int x = cx - r; x <= cx + r; x++) {
+                    if (x < 0 || x >= PieChartSize) continue;
+                    float dx = x - center.X;
+                    float dy = y - center.Y;
+                    if (dx * dx + dy * dy > r2)
+                        continue;
+                    if (AngleInSweep(Mathf.Atan2(dy, dx), fromRad, toRad))
+                        image.SetPixel(x, y, color);
+                }
+            }
+        }
+
+        private static bool AngleInSweep(float angle, float fromRad, float toRad) {
+            angle = NormalizeAngle(angle);
+            fromRad = NormalizeAngle(fromRad);
+            toRad = NormalizeAngle(toRad);
+            if (fromRad <= toRad)
+                return angle >= fromRad && angle <= toRad;
+            return angle >= fromRad || angle <= toRad;
+        }
+
+        private static float NormalizeAngle(float angle) {
+            while (angle < 0f) angle += Mathf.Tau;
+            while (angle >= Mathf.Tau) angle -= Mathf.Tau;
+            return angle;
+        }
+
+        private static void StrokeRing(Image image, Vector2 center, float radius, Color color) {
+            int cx = Mathf.RoundToInt(center.X);
+            int cy = Mathf.RoundToInt(center.Y);
+            int ri = Mathf.RoundToInt(radius);
+            float outer2 = (radius + 0.5f) * (radius + 0.5f);
+            float inner2 = (radius - 0.5f) * (radius - 0.5f);
+            for (int y = cy - ri - 1; y <= cy + ri + 1; y++) {
+                if (y < 0 || y >= PieChartSize) continue;
+                for (int x = cx - ri - 1; x <= cx + ri + 1; x++) {
+                    if (x < 0 || x >= PieChartSize) continue;
+                    float dx = x - center.X;
+                    float dy = y - center.Y;
+                    float d2 = dx * dx + dy * dy;
+                    if (d2 <= outer2 && d2 >= inner2)
+                        image.SetPixel(x, y, color);
+                }
+            }
         }
     }
 }

@@ -56,7 +56,7 @@ internal static partial class CombatStatsUI {
         chart.SetData(series, SeriesPeak(series), animate);
     }
 
-    /// <summary>Time-series chart: X = turn, Y = damage (line + area, no plot background).</summary>
+    /// <summary>Time-series chart: X = turn, Y = damage (line + area).</summary>
     private sealed partial class TurnTimeSeriesChart : VBoxContainer {
         private const float YAxisWidth = 28f;
         private const float PlotHeight = 128f;
@@ -118,6 +118,8 @@ internal static partial class CombatStatsUI {
             _canvas.SetSeries(series, max, animate);
         }
 
+        internal void RefreshAfterOverlayOpen() => _canvas.RefreshAfterOverlayOpen();
+
         private void RebuildXLabels(IReadOnlyList<(int Turn, int Amount)> series) {
             while (_xLabels.GetChildCount() > series.Count) {
                 var extra = _xLabels.GetChild(_xLabels.GetChildCount() - 1);
@@ -134,7 +136,7 @@ internal static partial class CombatStatsUI {
                 else {
                     label = new Label {
                         HorizontalAlignment = HorizontalAlignment.Center,
-                        SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                        SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
                     };
                     label.AddThemeFontSizeOverride("font_size", 9);
                     label.AddThemeColorOverride("font_color", KitLibTheme.Subtle);
@@ -155,7 +157,12 @@ internal static partial class CombatStatsUI {
         }
     }
 
+    /// <summary>Rasterized plot (avoids missed <c>_Draw</c> during panel slide-in).</summary>
     private sealed partial class TurnSeriesCanvas : Control {
+        private const int RasterMinWidth = 480;
+        private const int RasterHeight = 128;
+
+        private readonly TextureRect _texture;
         private IReadOnlyList<(int Turn, int Amount)> _series = Array.Empty<(int, int)>();
         private int _scaleMax = 1;
         private float _anim = 1f;
@@ -163,9 +170,30 @@ internal static partial class CombatStatsUI {
 
         public TurnSeriesCanvas() {
             SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            ClipContents = false;
+
+            _texture = new TextureRect {
+                Name = "TurnPlotTexture",
+                StretchMode = TextureRect.StretchModeEnum.Scale,
+                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                MouseFilter = MouseFilterEnum.Ignore,
+            };
+            _texture.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+            AddChild(_texture);
         }
 
-        public override void _Ready() => Resized += () => QueueRedraw();
+        public override void _Ready() {
+            ThemeManager.OnThemeChanged += OnThemeChanged;
+            TreeExiting += OnTreeExiting;
+            Resized += OnResized;
+            RefreshTexture();
+        }
+
+        private void OnTreeExiting() => ThemeManager.OnThemeChanged -= OnThemeChanged;
+
+        private void OnThemeChanged() => RefreshTexture();
+
+        private void OnResized() => RefreshTexture();
 
         public override void _ExitTree() {
             _tween?.Kill();
@@ -179,7 +207,8 @@ internal static partial class CombatStatsUI {
             if (!animate || _anim >= 0.999f) {
                 _tween?.Kill();
                 _anim = 1f;
-                QueueRedraw();
+                RefreshTexture();
+                Callable.From(RefreshTexture).CallDeferred();
                 return;
             }
 
@@ -190,55 +219,137 @@ internal static partial class CombatStatsUI {
             _tween.TweenMethod(Callable.From((float t) => {
                 _anim = t;
                 if (IsInsideTree())
-                    QueueRedraw();
+                    RefreshTexture();
             }), 0f, 1f, BarAnimDuration);
             _tween.Finished += () => {
                 _anim = 1f;
-                QueueRedraw();
+                RefreshTexture();
             };
         }
 
-        public override void _Draw() {
-            var plot = GetPlotRect();
-            if (plot.Size.X <= 1f || plot.Size.Y <= 1f || _series.Count == 0)
-                return;
+        internal void RefreshAfterOverlayOpen() {
+            Callable.From(RefreshTexture).CallDeferred();
+            var timer = GetTree()?.CreateTimer(0.9);
+            if (timer != null)
+                timer.Timeout += RefreshTexture;
+        }
 
+        private void RefreshTexture() {
+            _texture.Texture = RasterizePlot();
+        }
+
+        private ImageTexture? RasterizePlot() {
+            int w = Mathf.Max(RasterMinWidth, Mathf.RoundToInt(Mathf.Max(Size.X, CustomMinimumSize.X)));
+            int h = RasterHeight;
+            var image = Image.CreateEmpty(w, h, false, Image.Format.Rgba8);
+            if (image == null)
+                return null;
+
+            if (_series.Count == 0)
+                return ImageTexture.CreateFromImage(image);
+
+            var plot = new Rect2(0f, 0f, w, h);
             var gridColor = new Color(KitLibTheme.PanelBorder.R, KitLibTheme.PanelBorder.G,
                 KitLibTheme.PanelBorder.B, 0.28f);
             for (int i = 1; i <= 2; i++) {
                 float y = plot.Position.Y + plot.Size.Y * i / 3f;
-                DrawLine(new Vector2(plot.Position.X, y), new Vector2(plot.End.X, y), gridColor, 1f);
+                StrokeLine(image, new Vector2(plot.Position.X, y), new Vector2(plot.End.X, y), gridColor, 1f);
             }
 
-            DrawLine(new Vector2(plot.Position.X, plot.End.Y), plot.End, gridColor, 1f);
+            StrokeLine(image, new Vector2(plot.Position.X, plot.End.Y), plot.End, gridColor, 1f);
 
             var points = new Vector2[_series.Count];
             for (int i = 0; i < _series.Count; i++)
                 points[i] = new Vector2(XForIndex(i, plot), YForAmount(_series[i].Amount, plot));
 
-            if (points.Length >= 2) {
-                var area = new Vector2[points.Length + 2];
-                area[0] = new Vector2(points[0].X, plot.End.Y);
-                Array.Copy(points, 0, area, 1, points.Length);
-                area[^1] = new Vector2(points[^1].X, plot.End.Y);
-                DrawColoredPolygon(area, new Color(KitLibTheme.Accent.R, KitLibTheme.Accent.G,
-                    KitLibTheme.Accent.B, 0.14f));
-            }
+            var areaColor = new Color(KitLibTheme.Accent.R, KitLibTheme.Accent.G, KitLibTheme.Accent.B, 0.14f);
+            FillAreaUnderLine(image, points, plot.End.Y, areaColor);
 
             var lineColor = KitLibTheme.Accent;
             for (int i = 1; i < points.Length; i++)
-                DrawLine(points[i - 1], points[i], lineColor, 2f);
+                StrokeLine(image, points[i - 1], points[i], lineColor, 2f);
 
             foreach (var p in points) {
-                DrawCircle(p, 3f, lineColor);
-                DrawCircle(p, 1.5f, KitLibTheme.TextPrimary);
+                FillDisk(image, p, 3f, lineColor);
+                FillDisk(image, p, 1.5f, KitLibTheme.TextPrimary);
+            }
+
+            return ImageTexture.CreateFromImage(image);
+        }
+
+        private static void FillAreaUnderLine(Image image, Vector2[] points, float baselineY, Color color) {
+            if (points.Length == 0)
+                return;
+
+            int w = image.GetWidth();
+            int baseY = Mathf.Clamp(Mathf.RoundToInt(baselineY), 0, image.GetHeight() - 1);
+
+            if (points.Length == 1) {
+                int x = Mathf.Clamp(Mathf.RoundToInt(points[0].X), 0, w - 1);
+                int topY = Mathf.Clamp(Mathf.RoundToInt(points[0].Y), 0, baseY);
+                for (int y = topY; y <= baseY; y++)
+                    image.SetPixel(x, y, color);
+                return;
+            }
+
+            for (int x = 0; x < w; x++) {
+                float topY = InterpolateLineY(x, points);
+                int yStart = Mathf.Clamp(Mathf.RoundToInt(topY), 0, baseY);
+                for (int y = yStart; y <= baseY; y++)
+                    image.SetPixel(x, y, color);
             }
         }
 
-        private Rect2 GetPlotRect() {
-            float w = Math.Max(Size.X, 1f);
-            float h = Math.Max(Size.Y, 1f);
-            return new Rect2(0f, 0f, w, h);
+        private static float InterpolateLineY(float x, Vector2[] points) {
+            for (int i = 1; i < points.Length; i++) {
+                float x0 = points[i - 1].X;
+                float x1 = points[i].X;
+                if (x < x0 && i > 1)
+                    continue;
+                if (x > x1 && i < points.Length - 1)
+                    continue;
+                if (Mathf.IsEqualApprox(x0, x1))
+                    return points[i].Y;
+                if (x >= x0 && x <= x1) {
+                    float t = (x - x0) / (x1 - x0);
+                    return Mathf.Lerp(points[i - 1].Y, points[i].Y, t);
+                }
+            }
+
+            if (x <= points[0].X)
+                return points[0].Y;
+            return points[^1].Y;
+        }
+
+        private static void StrokeLine(Image image, Vector2 from, Vector2 to, Color color, float thickness) {
+            float dx = to.X - from.X;
+            float dy = to.Y - from.Y;
+            float len = Mathf.Max(Mathf.Sqrt(dx * dx + dy * dy), 1f);
+            int steps = Mathf.CeilToInt(len * 2f);
+            float radius = Mathf.Max(thickness * 0.5f, 0.5f);
+            for (int i = 0; i <= steps; i++) {
+                float t = i / (float)steps;
+                FillDisk(image, from.Lerp(to, t), radius, color);
+            }
+        }
+
+        private static void FillDisk(Image image, Vector2 center, float radius, Color color) {
+            int w = image.GetWidth();
+            int h = image.GetHeight();
+            int r = Mathf.CeilToInt(radius);
+            int cx = Mathf.RoundToInt(center.X);
+            int cy = Mathf.RoundToInt(center.Y);
+            float r2 = radius * radius;
+            for (int y = cy - r; y <= cy + r; y++) {
+                if (y < 0 || y >= h) continue;
+                for (int x = cx - r; x <= cx + r; x++) {
+                    if (x < 0 || x >= w) continue;
+                    float dx = x - center.X;
+                    float dy = y - center.Y;
+                    if (dx * dx + dy * dy <= r2)
+                        image.SetPixel(x, y, color);
+                }
+            }
         }
 
         private float XForIndex(int index, Rect2 plot) {

@@ -163,6 +163,8 @@ internal static partial class CombatStatsUI {
                 UpdateDisplay(rebuild, shouldAnimate);
                 SyncMultiplayerOverlayState(globalUi);
                 MonsterIntentOverlayUI.SyncState(globalUi);
+                panelPie.RefreshAfterOverlayOpen();
+                RefreshTurnChartsAfterOverlayOpen(root);
             }).CallDeferred();
         }
 
@@ -365,6 +367,7 @@ internal static partial class CombatStatsUI {
 
         dual.AttachToScene();
         ScheduleUpdateDisplay(forceRebuild: true, animate: false);
+        panelPie.RefreshAfterOverlayOpen();
         SyncMultiplayerOverlayState(globalUi);
         MonsterIntentOverlayUI.SyncState(globalUi);
     }
@@ -374,6 +377,15 @@ internal static partial class CombatStatsUI {
             var child = inner.GetChild(0);
             inner.RemoveChild(child);
             child.Free();
+        }
+    }
+
+    private static void RefreshTurnChartsAfterOverlayOpen(Node root) {
+        if (!GodotObject.IsInstanceValid(root))
+            return;
+        foreach (var node in root.FindChildren("*", recursive: true, owned: false)) {
+            if (node is TurnTimeSeriesChart chart)
+                chart.RefreshAfterOverlayOpen();
         }
     }
 
